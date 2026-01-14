@@ -67,11 +67,19 @@ impl std::error::Error for CompositionError {}
 /// - cell_size [1, 1] (pixel-perfect placement)
 /// - Size inference from layers
 ///
+/// # Cell Size Scaling (Task 2.3)
+///
+/// The `cell_size` field determines how many pixels each grid character represents:
+/// - `cell_size: [4, 4]` means each character in the layer map represents a 4x4 pixel area
+/// - Sprites are placed at positions calculated as `(col * cell_size[0], row * cell_size[1])`
+/// - Sprite top-left aligns to cell top-left
+///
 /// # Size Inference
 ///
 /// Canvas size is determined by (in order of priority):
 /// 1. `composition.size` if explicitly set
-/// 2. Inferred from layer maps and cell_size
+/// 2. `composition.base` sprite dimensions (if base is set and found)
+/// 3. Inferred from layer maps and cell_size
 ///
 /// # Size Mismatch Handling (Task 2.5)
 ///
@@ -104,9 +112,31 @@ pub fn render_composition(
     // Determine cell size (default to [1, 1])
     let cell_size = comp.cell_size.unwrap_or([1, 1]);
 
-    // Determine canvas size
+    // Look up base sprite if specified
+    let base_sprite = if let Some(ref base_name) = comp.base {
+        match sprites.get(base_name) {
+            Some(img) => Some(img),
+            None => {
+                warnings.push(Warning::new(format!(
+                    "Base sprite '{}' not found for composition '{}'",
+                    base_name, comp.name
+                )));
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Determine canvas size with priority:
+    // 1. Explicit size
+    // 2. Base sprite dimensions
+    // 3. Inferred from layers + cell_size
     let (width, height) = if let Some([w, h]) = comp.size {
         (w, h)
+    } else if let Some(base_img) = base_sprite {
+        // Infer from base sprite dimensions
+        (base_img.width(), base_img.height())
     } else {
         // Infer from layers
         let (inferred_w, inferred_h) = infer_size_from_layers(&comp.layers, cell_size);
@@ -123,6 +153,11 @@ pub fn render_composition(
 
     // Create canvas (transparent by default)
     let mut canvas = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
+
+    // Render base sprite first if present
+    if let Some(base_img) = base_sprite {
+        blit_sprite(&mut canvas, base_img, 0, 0);
+    }
 
     // Render each layer (bottom to top)
     for layer in &comp.layers {
@@ -997,5 +1032,502 @@ mod tests {
         assert!(msg.contains("10x20"));
         assert!(msg.contains("5x5"));
         assert!(msg.contains("test_comp"));
+    }
+
+    // ========== Task 2.3: Cell Size Scaling Tests ==========
+
+    #[test]
+    fn test_cell_size_1x1_pixel_perfect_overlay() {
+        // cell_size [1, 1] should place sprites at exact pixel positions
+        // This is the pixel-perfect overlay mode
+        let comp = Composition {
+            name: "pixel_perfect".to_string(),
+            base: None,
+            size: Some([4, 4]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("R".to_string(), Some("red".to_string())),
+                ("G".to_string(), Some("green".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: Some("overlay".to_string()),
+                fill: None,
+                map: Some(vec![
+                    "R.G.".to_string(),
+                    ".RG.".to_string(),
+                    "..RG".to_string(),
+                    "...R".to_string(),
+                ]),
+            }],
+        };
+
+        // 1x1 pixel sprites
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let mut green = RgbaImage::new(1, 1);
+        green.put_pixel(0, 0, Rgba([0, 255, 0, 255]));
+
+        let sprites = HashMap::from([
+            ("red".to_string(), red),
+            ("green".to_string(), green),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 4);
+        assert_eq!(image.height(), 4);
+
+        // Check diagonal pattern
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255])); // R at (0,0)
+        assert_eq!(*image.get_pixel(2, 0), Rgba([0, 255, 0, 255]));  // G at (2,0)
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255])); // R at (1,1)
+        assert_eq!(*image.get_pixel(2, 1), Rgba([0, 255, 0, 255]));  // G at (2,1)
+        assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255])); // R at (3,3)
+        // Transparent pixels
+        assert_eq!(*image.get_pixel(1, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(0, 3), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_cell_size_4x4_grid_cells() {
+        // cell_size [4, 4] means each grid character = 4x4 pixel area
+        let comp = Composition {
+            name: "4x4_grid".to_string(),
+            base: None,
+            size: Some([16, 16]), // 4 cells x 4 cells = 16x16 pixels
+            cell_size: Some([4, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("A".to_string(), Some("tile_a".to_string())),
+                ("B".to_string(), Some("tile_b".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: Some("tiles".to_string()),
+                fill: None,
+                map: Some(vec![
+                    "AB..".to_string(),
+                    "BA..".to_string(),
+                    "....".to_string(),
+                    "..AB".to_string(),
+                ]),
+            }],
+        };
+
+        // 4x4 pixel tiles
+        let mut tile_a = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                tile_a.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let mut tile_b = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                tile_b.put_pixel(x, y, Rgba([0, 0, 255, 255]));
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("tile_a".to_string(), tile_a),
+            ("tile_b".to_string(), tile_b),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 16);
+        assert_eq!(image.height(), 16);
+
+        // Row 0: A at (0,0), B at (4,0)
+        // Tile A occupies pixels (0-3, 0-3)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255]));
+        // Tile B occupies pixels (4-7, 0-3)
+        assert_eq!(*image.get_pixel(4, 0), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(7, 3), Rgba([0, 0, 255, 255]));
+
+        // Row 1: B at (0,4), A at (4,4)
+        assert_eq!(*image.get_pixel(0, 4), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(4, 4), Rgba([255, 0, 0, 255]));
+
+        // Row 3: A at (8,12), B at (12,12)
+        assert_eq!(*image.get_pixel(8, 12), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(12, 12), Rgba([0, 0, 255, 255]));
+
+        // Empty cells should be transparent
+        assert_eq!(*image.get_pixel(8, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(0, 8), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_cell_size_16x16_tile_based_scene() {
+        // cell_size [16, 16] for tile-based game scenes
+        let comp = Composition {
+            name: "tile_scene".to_string(),
+            base: None,
+            size: Some([48, 32]), // 3x2 tiles = 48x32 pixels
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("G".to_string(), Some("grass".to_string())),
+                ("W".to_string(), Some("water".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: Some("terrain".to_string()),
+                fill: None,
+                map: Some(vec![
+                    "GGW".to_string(),
+                    "GWW".to_string(),
+                ]),
+            }],
+        };
+
+        // 16x16 pixel tiles
+        let mut grass = RgbaImage::new(16, 16);
+        for y in 0..16 {
+            for x in 0..16 {
+                grass.put_pixel(x, y, Rgba([0, 128, 0, 255])); // Green
+            }
+        }
+
+        let mut water = RgbaImage::new(16, 16);
+        for y in 0..16 {
+            for x in 0..16 {
+                water.put_pixel(x, y, Rgba([0, 0, 200, 255])); // Blue
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("grass".to_string(), grass),
+            ("water".to_string(), water),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 48);
+        assert_eq!(image.height(), 32);
+
+        // Row 0: G at (0,0), G at (16,0), W at (32,0)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 128, 0, 255]));   // Grass
+        assert_eq!(*image.get_pixel(16, 0), Rgba([0, 128, 0, 255]));  // Grass
+        assert_eq!(*image.get_pixel(32, 0), Rgba([0, 0, 200, 255]));  // Water
+
+        // Row 1: G at (0,16), W at (16,16), W at (32,16)
+        assert_eq!(*image.get_pixel(0, 16), Rgba([0, 128, 0, 255]));  // Grass
+        assert_eq!(*image.get_pixel(16, 16), Rgba([0, 0, 200, 255])); // Water
+        assert_eq!(*image.get_pixel(32, 16), Rgba([0, 0, 200, 255])); // Water
+
+        // Check tile boundaries
+        assert_eq!(*image.get_pixel(15, 15), Rgba([0, 128, 0, 255])); // Last pixel of (0,0) grass
+        assert_eq!(*image.get_pixel(47, 31), Rgba([0, 0, 200, 255])); // Last pixel of (2,1) water
+    }
+
+    #[test]
+    fn test_cell_size_asymmetric() {
+        // Non-square cell size: [8, 4]
+        let comp = Composition {
+            name: "asymmetric".to_string(),
+            base: None,
+            size: Some([24, 12]), // 3 cols x 3 rows with asymmetric cells
+            cell_size: Some([8, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("wide_tile".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec![
+                    "X.X".to_string(),
+                    "...".to_string(),
+                    "X.X".to_string(),
+                ]),
+            }],
+        };
+
+        // 8x4 wide tile
+        let mut wide_tile = RgbaImage::new(8, 4);
+        for y in 0..4 {
+            for x in 0..8 {
+                wide_tile.put_pixel(x, y, Rgba([255, 128, 0, 255])); // Orange
+            }
+        }
+
+        let sprites = HashMap::from([("wide_tile".to_string(), wide_tile)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 24);
+        assert_eq!(image.height(), 12);
+
+        // Tile at (0,0) - covers pixels (0-7, 0-3)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 128, 0, 255]));
+        assert_eq!(*image.get_pixel(7, 3), Rgba([255, 128, 0, 255]));
+
+        // Tile at (2,0) - covers pixels (16-23, 0-3)
+        assert_eq!(*image.get_pixel(16, 0), Rgba([255, 128, 0, 255]));
+        assert_eq!(*image.get_pixel(23, 3), Rgba([255, 128, 0, 255]));
+
+        // Empty middle column at x=8-15
+        assert_eq!(*image.get_pixel(8, 0), Rgba([0, 0, 0, 0]));
+
+        // Tile at (0,2) - covers pixels (0-7, 8-11)
+        assert_eq!(*image.get_pixel(0, 8), Rgba([255, 128, 0, 255]));
+        assert_eq!(*image.get_pixel(7, 11), Rgba([255, 128, 0, 255]));
+    }
+
+    // ========== Size Inference Tests ==========
+
+    #[test]
+    fn test_size_inference_from_base_sprite() {
+        // When size is not specified but base is, use base sprite dimensions
+        let comp = Composition {
+            name: "base_inference".to_string(),
+            base: Some("hero".to_string()),
+            size: None, // No explicit size
+            cell_size: Some([4, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("H".to_string(), Some("hat".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["H.".to_string(), "..".to_string()]),
+            }],
+        };
+
+        // Base sprite is 20x24
+        let mut hero = RgbaImage::new(20, 24);
+        for y in 0..24 {
+            for x in 0..20 {
+                hero.put_pixel(x, y, Rgba([100, 100, 100, 255])); // Gray
+            }
+        }
+
+        // Hat is 4x4
+        let mut hat = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                hat.put_pixel(x, y, Rgba([255, 0, 0, 255])); // Red
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("hero".to_string(), hero),
+            ("hat".to_string(), hat),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Canvas size should be inferred from base sprite (20x24)
+        assert_eq!(image.width(), 20);
+        assert_eq!(image.height(), 24);
+
+        // Base sprite should be rendered first
+        assert_eq!(*image.get_pixel(10, 12), Rgba([100, 100, 100, 255]));
+
+        // Hat should be overlaid at (0,0)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_size_inference_priority_explicit_over_base() {
+        // Explicit size should take priority over base sprite
+        let comp = Composition {
+            name: "explicit_priority".to_string(),
+            base: Some("base".to_string()),
+            size: Some([10, 10]), // Explicit size different from base
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+
+        // Base sprite is 32x32, but explicit size is 10x10
+        let mut base = RgbaImage::new(32, 32);
+        base.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("base".to_string(), base)]);
+
+        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
+
+        // Should use explicit size, not base size
+        assert_eq!(image.width(), 10);
+        assert_eq!(image.height(), 10);
+    }
+
+    #[test]
+    fn test_size_inference_priority_base_over_layers() {
+        // Base sprite size should take priority over layer inference
+        let comp = Composition {
+            name: "base_over_layers".to_string(),
+            base: Some("background".to_string()),
+            size: None, // No explicit size
+            cell_size: Some([4, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("tile".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                // Layer map would infer 8x8 (2x2 cells * 4x4 cell_size)
+                map: Some(vec!["X.".to_string(), ".X".to_string()]),
+            }],
+        };
+
+        // Background sprite is 16x20 (different from layer inference of 8x8)
+        let mut background = RgbaImage::new(16, 20);
+        for y in 0..20 {
+            for x in 0..16 {
+                background.put_pixel(x, y, Rgba([50, 50, 50, 255]));
+            }
+        }
+
+        let mut tile = RgbaImage::new(4, 4);
+        tile.put_pixel(0, 0, Rgba([255, 255, 0, 255]));
+
+        let sprites = HashMap::from([
+            ("background".to_string(), background),
+            ("tile".to_string(), tile),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Should use base sprite size (16x20), not layer-inferred (8x8)
+        assert_eq!(image.width(), 16);
+        assert_eq!(image.height(), 20);
+    }
+
+    #[test]
+    fn test_size_inference_from_layers_with_cell_size() {
+        // When no explicit size and no base, infer from layers + cell_size
+        let comp = Composition {
+            name: "layer_inference".to_string(),
+            base: None,
+            size: None, // No explicit size
+            cell_size: Some([8, 8]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("tile".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                // 3 cols x 2 rows = 24x16 with cell_size 8x8
+                map: Some(vec!["X.X".to_string(), ".X.".to_string()]),
+            }],
+        };
+
+        let mut tile = RgbaImage::new(8, 8);
+        tile.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("tile".to_string(), tile)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Inferred: 3 cols * 8 = 24, 2 rows * 8 = 16
+        assert_eq!(image.width(), 24);
+        assert_eq!(image.height(), 16);
+    }
+
+    #[test]
+    fn test_missing_base_sprite_warning() {
+        // When base is specified but not found, should warn and continue
+        let comp = Composition {
+            name: "missing_base".to_string(),
+            base: Some("nonexistent".to_string()),
+            size: None,
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("tile".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["XX".to_string()]),
+            }],
+        };
+
+        let mut tile = RgbaImage::new(2, 2);
+        tile.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("tile".to_string(), tile)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        // Should have warning about missing base
+        assert!(!warnings.is_empty());
+        assert!(warnings[0].message.contains("Base sprite 'nonexistent' not found"));
+
+        // Should still render with size inferred from layers
+        assert_eq!(image.width(), 4); // 2 cells * 2 cell_size
+        assert_eq!(image.height(), 2); // 1 row * 2 cell_size
+    }
+
+    #[test]
+    fn test_base_sprite_rendered_as_background() {
+        // Base sprite should be rendered first, then layers on top
+        let comp = Composition {
+            name: "base_background".to_string(),
+            base: Some("bg".to_string()),
+            size: Some([4, 4]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("overlay".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                // Overlay at (0,0) only
+                map: Some(vec!["X.".to_string(), "..".to_string()]),
+            }],
+        };
+
+        // Blue 4x4 background
+        let mut bg = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                bg.put_pixel(x, y, Rgba([0, 0, 255, 255]));
+            }
+        }
+
+        // Red 2x2 overlay
+        let mut overlay = RgbaImage::new(2, 2);
+        for y in 0..2 {
+            for x in 0..2 {
+                overlay.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("bg".to_string(), bg),
+            ("overlay".to_string(), overlay),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+
+        // Top-left 2x2 should be red (overlay)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+
+        // Rest should be blue (background showing through)
+        assert_eq!(*image.get_pixel(2, 0), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(0, 2), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(3, 3), Rgba([0, 0, 255, 255]));
     }
 }
