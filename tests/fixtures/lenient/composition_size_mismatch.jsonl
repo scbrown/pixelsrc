@@ -1,0 +1,3 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000"}}
+{"type": "sprite", "name": "big_red", "size": [4, 4], "palette": "colors", "grid": ["{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}"]}
+{"type": "composition", "name": "mismatch_comp", "size": [8, 8], "cell_size": [2, 2], "sprites": {".": null, "X": "big_red"}, "layers": [{"name": "main", "map": ["X...", "....", "....", "...."]}]}

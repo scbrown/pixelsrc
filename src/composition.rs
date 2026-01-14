@@ -3,6 +3,7 @@
 use crate::models::Composition;
 use image::{Rgba, RgbaImage};
 use std::collections::HashMap;
+use std::fmt;
 
 /// A warning generated during composition rendering
 #[derive(Debug, Clone, PartialEq)]
@@ -17,6 +18,42 @@ impl Warning {
         }
     }
 }
+
+/// Error when rendering a composition in strict mode.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompositionError {
+    /// Sprite dimensions exceed cell size
+    SizeMismatch {
+        sprite_name: String,
+        sprite_size: (u32, u32),
+        cell_size: (u32, u32),
+        composition_name: String,
+    },
+}
+
+impl fmt::Display for CompositionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompositionError::SizeMismatch {
+                sprite_name,
+                sprite_size,
+                cell_size,
+                composition_name,
+            } => write!(
+                f,
+                "Sprite '{}' ({}x{}) exceeds cell size ({}x{}) in composition '{}'",
+                sprite_name,
+                sprite_size.0,
+                sprite_size.1,
+                cell_size.0,
+                cell_size.1,
+                composition_name
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CompositionError {}
 
 /// Render a composition to an RGBA image buffer.
 ///
@@ -36,6 +73,12 @@ impl Warning {
 /// 1. `composition.size` if explicitly set
 /// 2. Inferred from layer maps and cell_size
 ///
+/// # Size Mismatch Handling (Task 2.5)
+///
+/// When a sprite's dimensions exceed the cell size:
+/// - In lenient mode (strict=false): Emits a warning, sprite anchors top-left and overwrites adjacent cells
+/// - In strict mode (strict=true): Returns an error
+///
 /// # Examples
 ///
 /// ```ignore
@@ -46,12 +89,16 @@ impl Warning {
 ///
 /// let comp = Composition { /* ... */ };
 /// let sprites: HashMap<String, RgbaImage> = HashMap::new();
-/// let (image, warnings) = render_composition(&comp, &sprites);
+/// // Lenient mode
+/// let result = render_composition(&comp, &sprites, false);
+/// assert!(result.is_ok());
+/// let (image, warnings) = result.unwrap();
 /// ```
 pub fn render_composition(
     comp: &Composition,
     sprites: &HashMap<String, RgbaImage>,
-) -> (RgbaImage, Vec<Warning>) {
+    strict: bool,
+) -> Result<(RgbaImage, Vec<Warning>), CompositionError> {
     let mut warnings = Vec::new();
 
     // Determine cell size (default to [1, 1])
@@ -109,18 +156,37 @@ pub fn render_composition(
                         }
                     };
 
+                    // Check for size mismatch (Task 2.5)
+                    let sprite_width = sprite_image.width();
+                    let sprite_height = sprite_image.height();
+                    if sprite_width > cell_size[0] || sprite_height > cell_size[1] {
+                        if strict {
+                            return Err(CompositionError::SizeMismatch {
+                                sprite_name: sprite_name.clone(),
+                                sprite_size: (sprite_width, sprite_height),
+                                cell_size: (cell_size[0], cell_size[1]),
+                                composition_name: comp.name.clone(),
+                            });
+                        } else {
+                            warnings.push(Warning::new(format!(
+                                "Sprite '{}' ({}x{}) exceeds cell size ({}x{}) in composition '{}', anchoring from top-left",
+                                sprite_name, sprite_width, sprite_height, cell_size[0], cell_size[1], comp.name
+                            )));
+                        }
+                    }
+
                     // Calculate position
                     let x = (col_idx as u32) * cell_size[0];
                     let y = (row_idx as u32) * cell_size[1];
 
-                    // Blit sprite onto canvas
+                    // Blit sprite onto canvas (anchors top-left, overwrites adjacent cells)
                     blit_sprite(&mut canvas, sprite_image, x, y);
                 }
             }
         }
     }
 
-    (canvas, warnings)
+    Ok((canvas, warnings))
 }
 
 /// Infer canvas size from layer maps and cell size
@@ -221,7 +287,7 @@ mod tests {
         };
         let sprites = HashMap::new();
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert_eq!(image.width(), 8);
         assert_eq!(image.height(), 8);
@@ -254,7 +320,7 @@ mod tests {
 
         let sprites = HashMap::from([("red_pixel".to_string(), red_sprite)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 2);
@@ -300,7 +366,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new());
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
 
         assert!(!warnings.is_empty());
         assert!(warnings[0].message.contains("Unknown sprite key"));
@@ -322,7 +388,7 @@ mod tests {
         };
 
         // Empty sprites map - sprite not provided
-        let (_, warnings) = render_composition(&comp, &HashMap::new());
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
 
         assert!(!warnings.is_empty());
         assert!(warnings[0].message.contains("not found"));
@@ -365,7 +431,7 @@ mod tests {
         pixel.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
         let sprites = HashMap::from([("pixel".to_string(), pixel)]);
 
-        let (image, _) = render_composition(&comp, &sprites);
+        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
 
         // Should infer 2x2 from map
         assert_eq!(image.width(), 2);
@@ -412,7 +478,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0) should be blue (layer 2 overwrites layer 1)
@@ -463,7 +529,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0) should be red (from layer 1)
@@ -526,7 +592,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0): red -> green -> blue = blue
@@ -570,7 +636,7 @@ mod tests {
 
         let sprites = HashMap::from([("red_pixel".to_string(), red_sprite)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites);
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
         // All pixels should still be red (empty layer didn't erase anything)
@@ -578,5 +644,358 @@ mod tests {
         assert_eq!(*image.get_pixel(1, 0), Rgba([255, 0, 0, 255]));
         assert_eq!(*image.get_pixel(0, 1), Rgba([255, 0, 0, 255]));
         assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+    }
+
+    // Task 2.5: Size Mismatch Handling tests
+
+    #[test]
+    fn test_sprite_fits_cell_no_warning() {
+        // Sprite exactly fits cell - no warning
+        let comp = Composition {
+            name: "exact_fit".to_string(),
+            base: None,
+            size: Some([4, 4]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("pixel".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X.".to_string(), ".X".to_string()]),
+            }],
+        };
+
+        // 2x2 sprite exactly fits 2x2 cell
+        let mut pixel = RgbaImage::new(2, 2);
+        pixel.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        pixel.put_pixel(1, 0, Rgba([255, 0, 0, 255]));
+        pixel.put_pixel(0, 1, Rgba([255, 0, 0, 255]));
+        pixel.put_pixel(1, 1, Rgba([255, 0, 0, 255]));
+        let sprites = HashMap::from([("pixel".to_string(), pixel)]);
+
+        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        // No size mismatch warnings
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_sprite_smaller_than_cell_no_warning() {
+        // Sprite smaller than cell - no warning
+        let comp = Composition {
+            name: "small_fit".to_string(),
+            base: None,
+            size: Some([4, 4]),
+            cell_size: Some([4, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("pixel".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X".to_string()]),
+            }],
+        };
+
+        // 2x2 sprite fits in 4x4 cell
+        let mut pixel = RgbaImage::new(2, 2);
+        pixel.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        let sprites = HashMap::from([("pixel".to_string(), pixel)]);
+
+        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_sprite_larger_than_cell_lenient_warning() {
+        // Sprite larger than cell - warning in lenient mode
+        let comp = Composition {
+            name: "oversized".to_string(),
+            base: None,
+            size: Some([8, 8]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("big_sprite".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X...".to_string(), "....".to_string(), "....".to_string(), "....".to_string()]),
+            }],
+        };
+
+        // 4x4 sprite exceeds 2x2 cell
+        let mut big_sprite = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                big_sprite.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        let sprites = HashMap::from([("big_sprite".to_string(), big_sprite)]);
+
+        let result = render_composition(&comp, &sprites, false);
+
+        // Should succeed in lenient mode
+        assert!(result.is_ok());
+        let (image, warnings) = result.unwrap();
+
+        // Should have a warning
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("exceeds cell size"));
+        assert!(warnings[0].message.contains("big_sprite"));
+        assert!(warnings[0].message.contains("4x4"));
+        assert!(warnings[0].message.contains("2x2"));
+
+        // Sprite should still render (anchored top-left, overwriting adjacent cells)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255])); // Overflows into adjacent cells
+    }
+
+    #[test]
+    fn test_sprite_larger_than_cell_strict_error() {
+        // Sprite larger than cell - error in strict mode
+        let comp = Composition {
+            name: "oversized_strict".to_string(),
+            base: None,
+            size: Some([8, 8]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("big_sprite".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X...".to_string(), "....".to_string(), "....".to_string(), "....".to_string()]),
+            }],
+        };
+
+        // 4x4 sprite exceeds 2x2 cell
+        let mut big_sprite = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                big_sprite.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        let sprites = HashMap::from([("big_sprite".to_string(), big_sprite)]);
+
+        let result = render_composition(&comp, &sprites, true);
+
+        // Should fail in strict mode
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        match err {
+            CompositionError::SizeMismatch {
+                sprite_name,
+                sprite_size,
+                cell_size,
+                composition_name,
+            } => {
+                assert_eq!(sprite_name, "big_sprite");
+                assert_eq!(sprite_size, (4, 4));
+                assert_eq!(cell_size, (2, 2));
+                assert_eq!(composition_name, "oversized_strict");
+            }
+        }
+    }
+
+    #[test]
+    fn test_large_sprite_overwrites_from_topleft() {
+        // Large sprite anchors from top-left and overwrites adjacent cells
+        let comp = Composition {
+            name: "topleft_anchor".to_string(),
+            base: None,
+            size: Some([6, 6]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("big_sprite".to_string())),
+                ("B".to_string(), Some("blue".to_string())),
+            ]),
+            layers: vec![
+                // First layer: blue everywhere
+                CompositionLayer {
+                    name: Some("background".to_string()),
+                    fill: None,
+                    map: Some(vec!["BBB".to_string(), "BBB".to_string(), "BBB".to_string()]),
+                },
+                // Second layer: big red sprite at (0,0)
+                CompositionLayer {
+                    name: Some("foreground".to_string()),
+                    fill: None,
+                    map: Some(vec!["X..".to_string(), "...".to_string(), "...".to_string()]),
+                },
+            ],
+        };
+
+        // 4x4 red sprite
+        let mut big_sprite = RgbaImage::new(4, 4);
+        for y in 0..4 {
+            for x in 0..4 {
+                big_sprite.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        // 2x2 blue sprite
+        let mut blue = RgbaImage::new(2, 2);
+        for y in 0..2 {
+            for x in 0..2 {
+                blue.put_pixel(x, y, Rgba([0, 0, 255, 255]));
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("big_sprite".to_string(), big_sprite),
+            ("blue".to_string(), blue),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        // Should have 1 size mismatch warning
+        assert_eq!(warnings.len(), 1);
+
+        // Top-left 4x4 area should be red (big sprite)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255]));
+
+        // Area beyond the big sprite should still be blue
+        assert_eq!(*image.get_pixel(4, 0), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(0, 4), Rgba([0, 0, 255, 255]));
+        assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 255, 255]));
+    }
+
+    #[test]
+    fn test_width_only_exceeds_cell() {
+        // Only width exceeds cell - should warn
+        let comp = Composition {
+            name: "wide".to_string(),
+            base: None,
+            size: Some([8, 4]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("wide_sprite".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X...".to_string(), "....".to_string()]),
+            }],
+        };
+
+        // 4x2 sprite (width exceeds, height fits)
+        let mut wide_sprite = RgbaImage::new(4, 2);
+        for y in 0..2 {
+            for x in 0..4 {
+                wide_sprite.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        let sprites = HashMap::from([("wide_sprite".to_string(), wide_sprite)]);
+
+        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("4x2"));
+    }
+
+    #[test]
+    fn test_height_only_exceeds_cell() {
+        // Only height exceeds cell - should warn
+        let comp = Composition {
+            name: "tall".to_string(),
+            base: None,
+            size: Some([4, 8]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("X".to_string(), Some("tall_sprite".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["X.".to_string(), "..".to_string(), "..".to_string(), "..".to_string()]),
+            }],
+        };
+
+        // 2x4 sprite (width fits, height exceeds)
+        let mut tall_sprite = RgbaImage::new(2, 4);
+        for y in 0..4 {
+            for x in 0..2 {
+                tall_sprite.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        let sprites = HashMap::from([("tall_sprite".to_string(), tall_sprite)]);
+
+        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("2x4"));
+    }
+
+    #[test]
+    fn test_multiple_size_mismatches_lenient() {
+        // Multiple sprites with size mismatches - all should warn in lenient mode
+        let comp = Composition {
+            name: "multi_mismatch".to_string(),
+            base: None,
+            size: Some([8, 8]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("A".to_string(), Some("big_a".to_string())),
+                ("B".to_string(), Some("big_b".to_string())),
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["A...".to_string(), "....".to_string(), "..B.".to_string(), "....".to_string()]),
+            }],
+        };
+
+        let mut big_a = RgbaImage::new(3, 3);
+        let mut big_b = RgbaImage::new(4, 4);
+
+        for y in 0..3 {
+            for x in 0..3 {
+                big_a.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        for y in 0..4 {
+            for x in 0..4 {
+                big_b.put_pixel(x, y, Rgba([0, 255, 0, 255]));
+            }
+        }
+
+        let sprites = HashMap::from([
+            ("big_a".to_string(), big_a),
+            ("big_b".to_string(), big_b),
+        ]);
+
+        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        // Should have 2 warnings
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn test_size_mismatch_error_display() {
+        let err = CompositionError::SizeMismatch {
+            sprite_name: "test_sprite".to_string(),
+            sprite_size: (10, 20),
+            cell_size: (5, 5),
+            composition_name: "test_comp".to_string(),
+        };
+
+        let msg = format!("{}", err);
+        assert!(msg.contains("test_sprite"));
+        assert!(msg.contains("10x20"));
+        assert!(msg.contains("5x5"));
+        assert!(msg.contains("test_comp"));
     }
 }
