@@ -1,0 +1,5 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "pixel_r", "palette": "colors", "grid": ["{r}"]}
+{"type": "sprite", "name": "pixel_g", "palette": "colors", "grid": ["{g}"]}
+{"type": "sprite", "name": "pixel_b", "palette": "colors", "grid": ["{b}"]}
+{"type": "composition", "name": "cellsize_1", "cell_size": [1, 1], "sprites": {".": null, "R": "pixel_r", "G": "pixel_g", "B": "pixel_b"}, "layers": [{"name": "pixels", "map": ["RGB", "GBR", "BRG"]}]}
