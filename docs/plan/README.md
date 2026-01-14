@@ -8,9 +8,17 @@ This directory contains the phased implementation plan for TTP (Text To Pixel).
 |-------|------|--------|
 | [Phase 0](./phase-0-mvp.md) | MVP - Parse and render sprites to PNG | Planning |
 | [Phase 1](./phase-1-palettes.md) | Built-in palette library | Planning |
-| [Phase 2](./phase-2-animation.md) | Animation and spritesheet export | Planning |
-| [Phase 3](./phase-3-game-integration.md) | Game engine format export | Planning |
-| [Phase 4](./phase-4-ecosystem.md) | Developer tooling and ecosystem | Planning |
+| [Phase 2](./phase-2-composition.md) | Unified composition system (sprites & scenes) | Planning |
+| [Phase 3](./phase-3-animation.md) | Animation and spritesheet export | Planning |
+| [Phase 4](./phase-4-game-integration.md) | Game engine format export | Planning |
+| [Phase 5](./phase-5-ecosystem.md) | Developer tooling and ecosystem | Planning |
+
+### Future Ideas
+
+| Idea | Description |
+|------|-------------|
+| Phase 6: Token Efficiency | Run-length encoding, row repetition, compression |
+| Phase 7: Inheritance | Scene variants, extends, day/night themes |
 
 ## Technical Decisions
 
@@ -40,9 +48,10 @@ ttp/
 │       ├── README.md          # This file
 │       ├── phase-0-mvp.md
 │       ├── phase-1-palettes.md
-│       ├── phase-2-animation.md
-│       ├── phase-3-game-integration.md
-│       └── phase-4-ecosystem.md
+│       ├── phase-2-composition.md
+│       ├── phase-3-animation.md
+│       ├── phase-4-game-integration.md
+│       └── phase-5-ecosystem.md
 ├── CONTRIBUTING.md            # Dev setup, conventions
 ├── Cargo.toml                 # Rust package config
 ├── src/

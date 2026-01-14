@@ -68,8 +68,8 @@ Phase 3 adds:
     PARALLELIZATION SUMMARY:
     ┌─────────────────────────────────────────────────────────────────┐
     │  Wave 1: 3.1                   (1 task)                         │
-    │  Wave 2: 3.2 + 2.3 + 2.4       (3 tasks in parallel)            │
-    │  Wave 3: 3.5                   (1 task, needs 3.2-2.4)          │
+    │  Wave 2: 3.2 + 3.3 + 3.4       (3 tasks in parallel)            │
+    │  Wave 3: 3.5                   (1 task, needs 3.2-3.4)          │
     └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -116,7 +116,7 @@ cargo test models
 
 ### Task 3.2: Animation Validation
 
-**Wave:** 2 (parallel with 3.3, 2.4)
+**Wave:** 2 (parallel with 3.3, 3.4)
 
 Validate animation references.
 
@@ -142,7 +142,7 @@ cargo test animation
 
 ### Task 3.3: Spritesheet Renderer
 
-**Wave:** 2 (parallel with 3.2, 2.4)
+**Wave:** 2 (parallel with 3.2, 3.4)
 
 Render multiple sprites into a grid.
 
@@ -168,7 +168,7 @@ cargo test spritesheet
 
 ### Task 3.4: GIF Renderer
 
-**Wave:** 2 (parallel with 3.2, 2.3)
+**Wave:** 2 (parallel with 3.2, 3.3)
 
 Render animation as GIF.
 
@@ -193,7 +193,7 @@ cargo test gif
 
 ### Task 3.5: Animation CLI
 
-**Wave:** 3 (after 2.2, 2.3, 2.4)
+**Wave:** 3 (after 3.2, 3.3, 3.4)
 
 Add animation CLI options.
 
@@ -225,7 +225,7 @@ file /tmp/walk.gif   # Should be GIF
 
 **Updates demo.sh:** Add animation examples
 
-**Dependencies:** Tasks 3.2, 2.3, 2.4
+**Dependencies:** Tasks 3.2, 3.3, 3.4
 
 ---
 

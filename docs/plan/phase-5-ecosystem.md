@@ -121,7 +121,7 @@ Phase 0 complete ──┬── 5.3 (PNG import)
                    ├── 5.4 (prompts)
                    └── 5.5 (emoji)
 
-Phase 3 complete ──┬── 5.1 (VS Code)
+Phase 2 complete ──┬── 5.1 (VS Code)
                    └── 5.2 (web)
 ```
 
