@@ -2,6 +2,7 @@ import init, { render_to_png, validate } from '@pixelsrc/wasm';
 import LZString from 'lz-string';
 import { createEditor, Editor } from './editor';
 import { Export } from './export';
+import { Gallery } from './gallery';
 
 // DOM Elements
 let editorContainer: HTMLDivElement;
@@ -9,26 +10,11 @@ let editor: Editor;
 let renderBtn: HTMLButtonElement;
 let previewCanvas: HTMLDivElement;
 let previewError: HTMLDivElement;
-let gallery: HTMLDivElement;
+let galleryContainer: HTMLDivElement;
+let gallery: Gallery;
 
 // State
 let wasmReady = false;
-
-// Example sprites for the gallery
-const EXAMPLE_SPRITES = [
-  {
-    name: 'heart',
-    jsonl: `{"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}`,
-  },
-  {
-    name: 'star',
-    jsonl: `{"type":"sprite","name":"star","palette":{"{_}":"#00000000","{y}":"#FFD700"},"grid":["{_}{_}{y}{_}{_}","{_}{y}{y}{y}{_}","{y}{y}{y}{y}{y}","{_}{y}{y}{y}{_}","{y}{_}{y}{_}{y}"]}`,
-  },
-  {
-    name: 'smiley',
-    jsonl: `{"type":"sprite","name":"smiley","palette":{"{_}":"#00000000","{y}":"#FFFF00","{b}":"#000000"},"grid":["{_}{y}{y}{y}{y}{y}{_}","{y}{y}{b}{y}{b}{y}{y}","{y}{y}{y}{y}{y}{y}{y}","{y}{b}{y}{y}{y}{b}{y}","{y}{y}{b}{b}{b}{y}{y}","{_}{y}{y}{y}{y}{y}{_}"]}`,
-  },
-];
 
 async function initApp(): Promise<void> {
   // Get DOM elements
@@ -36,7 +22,7 @@ async function initApp(): Promise<void> {
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
   previewCanvas = document.getElementById('preview-canvas') as HTMLDivElement;
   previewError = document.getElementById('preview-error') as HTMLDivElement;
-  gallery = document.getElementById('gallery') as HTMLDivElement;
+  galleryContainer = document.getElementById('gallery') as HTMLDivElement;
 
   // Initialize WASM
   try {
@@ -48,6 +34,16 @@ async function initApp(): Promise<void> {
     renderBtn.disabled = true;
     return;
   }
+
+  // Initialize Gallery component (handles loading external example files)
+  gallery = new Gallery({
+    container: galleryContainer,
+    onSelect: (jsonl: string) => {
+      editor.setValue(jsonl);
+      handleRender();
+    },
+  });
+  await gallery.loadExamples();
 
   // Determine initial content
   let initialContent = '';
@@ -63,7 +59,11 @@ async function initApp(): Promise<void> {
     }
   }
   if (!initialContent) {
-    initialContent = EXAMPLE_SPRITES[0].jsonl;
+    // Use first example from gallery if available
+    const examples = gallery.getExamples();
+    if (examples.length > 0) {
+      initialContent = examples[0].jsonl;
+    }
   }
 
   // Initialize CodeMirror editor
@@ -79,9 +79,6 @@ async function initApp(): Promise<void> {
 
   // Set up event listeners
   renderBtn.addEventListener('click', handleRender);
-
-  // Initialize gallery
-  initGallery();
 }
 
 function handleRender(): void {
@@ -146,39 +143,6 @@ function hideError(): void {
 function updateHash(jsonl: string): void {
   const compressed = LZString.compressToEncodedURIComponent(jsonl);
   window.history.replaceState(null, '', `#${compressed}`);
-}
-
-function initGallery(): void {
-  gallery.innerHTML = '';
-
-  for (const example of EXAMPLE_SPRITES) {
-    const item = document.createElement('div');
-    item.className = 'gallery-item';
-    item.title = example.name;
-
-    // Render thumbnail
-    try {
-      const pngBytes = render_to_png(example.jsonl);
-      const blob = new Blob([pngBytes.slice()], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = example.name;
-
-      item.appendChild(img);
-    } catch (err) {
-      item.textContent = example.name;
-    }
-
-    // Click to load
-    item.addEventListener('click', () => {
-      editor.setValue(example.jsonl);
-      handleRender();
-    });
-
-    gallery.appendChild(item);
-  }
 }
 
 // Initialize when DOM is ready

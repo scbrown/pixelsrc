@@ -204,11 +204,13 @@ html, body {
   background-color: var(--bg-secondary);
   border-radius: 4px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s;
   border: 2px solid transparent;
+  padding: 0.5rem;
 }
 
 .gallery-item:hover {
@@ -221,6 +223,27 @@ html, body {
   max-height: 90%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.gallery-thumb {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 60px;
+}
+
+.gallery-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.gallery-fallback {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  font-weight: 700;
 }
 
 /* Export Controls */
