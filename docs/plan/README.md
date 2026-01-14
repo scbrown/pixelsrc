@@ -17,14 +17,15 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 7](./phase-7-website.md) | **Interactive Website** | Planning |
 | [Phase 8](./phase-8-obsidian.md) | **Obsidian Plugin** | Planning |
 | [Phase 9](./phase-9-packages.md) | **Package Distribution** | Planning |
+| [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Planning |
 
 ### Future Ideas
 
 | Idea | Description |
 |------|-------------|
-| Phase 10: VS Code Extension | Syntax highlighting + live preview |
-| Phase 11: Token Efficiency | Run-length encoding, row repetition, compression |
-| Phase 12: Inheritance | Scene variants, extends, day/night themes |
+| Phase 11: VS Code Extension | Syntax highlighting + live preview |
+| Phase 12: Token Efficiency | Run-length encoding, row repetition, compression |
+| Phase 13: Inheritance | Scene variants, extends, day/night themes |
 
 ## Technical Decisions
 
