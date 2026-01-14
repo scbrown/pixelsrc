@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::emoji::render_emoji_art;
 use crate::gif::render_gif;
 use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
@@ -67,6 +68,10 @@ pub enum Commands {
         #[arg(long)]
         spritesheet: bool,
 
+        /// Output as emoji art to terminal (for quick preview)
+        #[arg(long)]
+        emoji: bool,
+
         /// Select a specific animation by name
         #[arg(long)]
         animation: Option<String>,
@@ -103,6 +108,7 @@ pub fn run() -> ExitCode {
             scale,
             gif,
             spritesheet,
+            emoji,
             animation,
         } => run_render(
             &input,
@@ -112,6 +118,7 @@ pub fn run() -> ExitCode {
             scale,
             gif,
             spritesheet,
+            emoji,
             animation.as_deref(),
         ),
         Commands::Import {
@@ -133,6 +140,7 @@ fn run_render(
     scale: u8,
     gif_output: bool,
     spritesheet_output: bool,
+    emoji_output: bool,
     animation_filter: Option<&str>,
 ) -> ExitCode {
     // Open input file
@@ -325,16 +333,25 @@ fn run_render(
             return ExitCode::from(EXIT_ERROR);
         }
 
-        // Generate output path
-        let output_path = generate_output_path(input, &sprite.name, output, is_single_sprite);
+        // Output as emoji art or save as PNG
+        if emoji_output {
+            // Print sprite name for context when rendering multiple sprites
+            if !is_single_sprite {
+                println!("{}:", sprite.name);
+            }
+            print!("{}", render_emoji_art(&image));
+        } else {
+            // Generate output path
+            let output_path = generate_output_path(input, &sprite.name, output, is_single_sprite);
 
-        // Save PNG
-        if let Err(e) = save_png(&image, &output_path) {
-            eprintln!("Error: Failed to save '{}': {}", output_path.display(), e);
-            return ExitCode::from(EXIT_ERROR);
+            // Save PNG
+            if let Err(e) = save_png(&image, &output_path) {
+                eprintln!("Error: Failed to save '{}': {}", output_path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+
+            println!("Saved: {}", output_path.display());
         }
-
-        println!("Saved: {}", output_path.display());
     }
 
     // Print warnings to stderr (in lenient mode)
