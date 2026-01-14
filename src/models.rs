@@ -28,12 +28,24 @@ pub struct Sprite {
     pub grid: Vec<String>,
 }
 
-/// A TTP object - either a Palette or Sprite.
+/// An animation definition (Phase 2).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Animation {
+    pub name: String,
+    pub frames: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub duration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub r#loop: Option<bool>,
+}
+
+/// A TTP object - Palette, Sprite, or Animation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TtpObject {
     Palette(Palette),
     Sprite(Sprite),
+    Animation(Animation),
 }
 
 /// A warning message from parsing/rendering.
