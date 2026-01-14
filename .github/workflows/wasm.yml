@@ -33,7 +33,10 @@ jobs:
         run: cargo install wasm-pack
 
       - name: Build WASM
-        run: wasm-pack build --target web --features wasm --out-dir wasm/pkg
+        run: |
+          wasm-pack build --target web --features wasm
+          rm -rf wasm/pkg
+          mv pkg wasm/
 
       - name: Run WASM tests (Node)
         run: wasm-pack test --node --features wasm
