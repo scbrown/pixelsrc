@@ -1,0 +1,65 @@
+name: Release Obsidian Plugin
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  PLUGIN_NAME: pixelsrc
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM package
+        run: |
+          cd wasm
+          npm run build
+
+      - name: Install plugin dependencies
+        run: |
+          cd obsidian-pixelsrc
+          npm ci
+
+      - name: Build plugin
+        run: |
+          cd obsidian-pixelsrc
+          npm run build
+
+      - name: Get version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.tag.outputs.version }}
+          body: |
+            ## Installation
+
+            1. Download the files below
+            2. Create a folder called `pixelsrc` in your vault's `.obsidian/plugins/` directory
+            3. Copy `main.js`, `manifest.json`, and `styles.css` into that folder
+            4. Reload Obsidian and enable the plugin in Settings > Community Plugins
+          files: |
+            obsidian-pixelsrc/main.js
+            obsidian-pixelsrc/manifest.json
+            obsidian-pixelsrc/styles.css
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
