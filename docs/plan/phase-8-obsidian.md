@@ -2,7 +2,7 @@
 
 **Goal:** Render pixelsrc code blocks in Obsidian markdown notes
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 6 complete (WASM)
 

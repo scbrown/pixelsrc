@@ -1,0 +1,91 @@
+name: Release Obsidian Plugin
+
+on:
+  push:
+    tags:
+      - 'obsidian-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+
+env:
+  PLUGIN_NAME: pixelsrc
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM package
+        run: npm run build
+        working-directory: wasm
+
+      - name: Install plugin dependencies
+        run: npm ci
+        working-directory: obsidian-pixelsrc
+
+      - name: Build plugin
+        run: npm run build
+        working-directory: obsidian-pixelsrc
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/obsidian-v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=obsidian-v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Obsidian Plugin ${{ steps.version.outputs.version }}
+          body: |
+            ## Obsidian Plugin v${{ steps.version.outputs.version }}
+
+            ### Installation
+
+            **Manual Installation:**
+            1. Download the files below (`main.js`, `manifest.json`, `styles.css`)
+            2. Create a folder called `pixelsrc` in your vault's `.obsidian/plugins/` directory
+            3. Copy the downloaded files into that folder
+            4. Reload Obsidian and enable the plugin in Settings > Community Plugins
+
+            ### Usage
+
+            Create a code block with `pixelsrc` or `pxl` language:
+
+            ~~~markdown
+            ```pixelsrc
+            {"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}
+            ```
+            ~~~
+          files: |
+            obsidian-pixelsrc/main.js
+            obsidian-pixelsrc/manifest.json
+            obsidian-pixelsrc/styles.css

@@ -2,7 +2,7 @@
 
 **Goal:** Compile pixelsrc renderer to WebAssembly with JavaScript bindings
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 2 complete
 

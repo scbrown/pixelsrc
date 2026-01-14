@@ -2,7 +2,7 @@
 
 **Goal:** Browser-based pixelsrc editor and previewer
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 6 complete (WASM)
 

@@ -2,7 +2,7 @@
 
 **Goal:** Unified composition system for layered sprites and scenes
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 1 complete
 

@@ -2,7 +2,7 @@
 
 **Goal:** Easy installation via package managers (Homebrew, Debian, AUR, etc.)
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 2 complete (CLI binary)
 

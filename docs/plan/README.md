@@ -8,24 +8,25 @@ This directory contains the phased implementation plan for Pixelsrc.
 |-------|------|--------|
 | [Phase 0](./phase-0-mvp.md) | MVP - Parse and render sprites to PNG | Complete |
 | [Phase 1](./phase-1-palettes.md) | Built-in palette library | Complete |
-| [Phase 2](./phase-2-composition.md) | Unified composition system (sprites & scenes) | In Progress |
-| [Phase 2.5](./phase-2.5-upscaling.md) | Output upscaling (integer scale factor) | Planning |
-| [Phase 3](./phase-3-animation.md) | Animation and spritesheet export | Planning |
+| [Phase 2](./phase-2-composition.md) | Unified composition system (sprites & scenes) | Complete |
+| [Phase 2.5](./phase-2.5-upscaling.md) | Output upscaling (integer scale factor) | Complete |
+| [Phase 3](./phase-3-animation.md) | Animation and spritesheet export | Complete |
 | [Phase 4](./phase-4-rename.md) | Project rename (TTP → Pixelsrc) | Complete |
-| [Phase 5](./phase-5-cli-extras.md) | CLI extras (PNG import, prompts, emoji) | Planning |
-| [Phase 6](./phase-6-wasm.md) | **WASM Foundation** | Planning |
-| [Phase 7](./phase-7-website.md) | **Interactive Website** | Planning |
-| [Phase 8](./phase-8-obsidian.md) | **Obsidian Plugin** | Planning |
-| [Phase 9](./phase-9-packages.md) | **Package Distribution** | Planning |
+| [Phase 5](./phase-5-cli-extras.md) | CLI extras (PNG import, prompts, emoji) | Complete |
+| [Phase 6](./phase-6-wasm.md) | **WASM Foundation** | Complete |
+| [Phase 7](./phase-7-website.md) | **Interactive Website** | Complete |
+| [Phase 8](./phase-8-obsidian.md) | **Obsidian Plugin** | Complete |
+| [Phase 9](./phase-9-packages.md) | **Package Distribution** | Complete |
 | [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Complete |
+| [Phase 11](./phase-11-website-improvements.md) | **Website Improvements** (Dracula theme, loading states, polish) | Planning |
 
 ### Future Ideas
 
 | Idea | Description |
 |------|-------------|
-| Phase 11: VS Code Extension | Syntax highlighting + live preview |
-| Phase 12: Token Efficiency | Run-length encoding, row repetition, compression |
-| Phase 13: Inheritance | Scene variants, extends, day/night themes |
+| Phase 12: VS Code Extension | Syntax highlighting + live preview |
+| Phase 13: Token Efficiency | Run-length encoding, row repetition, compression |
+| Phase 14: Inheritance | Scene variants, extends, day/night themes |
 
 ## Technical Decisions
 
@@ -64,7 +65,9 @@ pixelsrc/
 │       ├── phase-6-wasm.md
 │       ├── phase-7-website.md
 │       ├── phase-8-obsidian.md
-│       └── phase-9-packages.md
+│       ├── phase-9-packages.md
+│       ├── phase-10-github-migration.md
+│       └── phase-11-website-improvements.md
 ├── CONTRIBUTING.md            # Dev setup, conventions
 ├── Cargo.toml                 # Rust package config
 ├── src/

@@ -2,7 +2,7 @@
 
 **Goal:** Additional CLI features for import, prompts, and alternative output
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 0 complete
 

@@ -2,7 +2,7 @@
 
 **Goal:** Multi-frame sprites, spritesheet and GIF export
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 2 complete
 
