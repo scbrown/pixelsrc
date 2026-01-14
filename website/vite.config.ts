@@ -13,6 +13,6 @@ export default defineConfig({
     assetsDir: 'assets',
   },
   optimizeDeps: {
-    exclude: ['@pixelsrc/wasm'],
+    exclude: ['@stiwi/pixelsrc-wasm'],
   },
 });

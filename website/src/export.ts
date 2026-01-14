@@ -7,7 +7,7 @@
  * - Visual feedback on copy success
  */
 
-import { render_to_png, render_to_rgba } from '@pixelsrc/wasm';
+import { render_to_png, render_to_rgba } from '@stiwi/pixelsrc-wasm';
 
 export type ScaleFactor = 1 | 2 | 4 | 8;
 

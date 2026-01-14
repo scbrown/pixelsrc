@@ -1,6 +1,6 @@
-// Type declarations for @pixelsrc/wasm
+// Type declarations for @stiwi/pixelsrc-wasm
 
-declare module '@pixelsrc/wasm' {
+declare module '@stiwi/pixelsrc-wasm' {
   /** Result from render_to_rgba */
   export class RenderResult {
     readonly width: number;
@@ -29,7 +29,7 @@ declare module '@pixelsrc/wasm' {
   export function validate(jsonl: string): string[];
 }
 
-declare module '@pixelsrc/wasm/pkg/pixelsrc_bg.wasm' {
+declare module '@stiwi/pixelsrc-wasm/pkg/pixelsrc_bg.wasm' {
   const wasmBinary: BufferSource;
   export default wasmBinary;
 }

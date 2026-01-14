@@ -1,4 +1,4 @@
-import { render_to_png } from '@pixelsrc/wasm';
+import { render_to_png } from '@stiwi/pixelsrc-wasm';
 
 export interface GalleryExample {
   name: string;

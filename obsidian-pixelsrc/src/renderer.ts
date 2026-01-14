@@ -1,11 +1,11 @@
 // WASM Integration for Obsidian PixelSrc Plugin
-// Wraps @pixelsrc/wasm for rendering pixel art from JSONL
+// Wraps @stiwi/pixelsrc-wasm for rendering pixel art from JSONL
 
 // Static import of WASM binary - esbuild bundles this as Uint8Array with binary loader
-import wasmBinary from '@pixelsrc/wasm/pkg/pixelsrc_bg.wasm';
+import wasmBinary from '@stiwi/pixelsrc-wasm/pkg/pixelsrc_bg.wasm';
 
 // WASM module will be imported dynamically after init
-import * as wasm from '@pixelsrc/wasm';
+import * as wasm from '@stiwi/pixelsrc-wasm';
 
 let initialized = false;
 let initError: Error | null = null;

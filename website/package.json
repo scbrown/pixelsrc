@@ -14,7 +14,7 @@
     "@codemirror/state": "^6.4.0",
     "@codemirror/theme-one-dark": "^6.1.0",
     "@codemirror/view": "^6.23.0",
-    "@pixelsrc/wasm": "file:../wasm",
+    "@stiwi/pixelsrc-wasm": "file:../wasm",
     "lz-string": "^1.5.0"
   },
   "devDependencies": {

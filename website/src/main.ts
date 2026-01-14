@@ -1,4 +1,4 @@
-import init from '@pixelsrc/wasm';
+import init from '@stiwi/pixelsrc-wasm';
 import LZString from 'lz-string';
 import { Preview } from './preview';
 import { Gallery } from './gallery';

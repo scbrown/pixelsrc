@@ -26,6 +26,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@pixelsrc/wasm": "file:../wasm"
+    "@stiwi/pixelsrc-wasm": "file:../wasm"
   }
 }

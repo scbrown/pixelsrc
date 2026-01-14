@@ -8,7 +8,7 @@
  * - Debounced rendering (100ms)
  */
 
-import { render_to_rgba, validate, RenderResult } from '@pixelsrc/wasm';
+import { render_to_rgba, validate, RenderResult } from '@stiwi/pixelsrc-wasm';
 
 export interface PreviewOptions {
   /** Container element to render into */
