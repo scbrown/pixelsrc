@@ -1,0 +1,43 @@
+{
+  "name": "@pixelsrc/wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly build of pixelsrc pixel art renderer",
+  "type": "module",
+  "main": "./pkg/pixelsrc.js",
+  "types": "./pkg/pixelsrc.d.ts",
+  "exports": {
+    ".": {
+      "import": "./pkg/pixelsrc.js",
+      "types": "./pkg/pixelsrc.d.ts"
+    }
+  },
+  "files": [
+    "pkg/pixelsrc_bg.wasm",
+    "pkg/pixelsrc.js",
+    "pkg/pixelsrc.d.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "cd .. && wasm-pack build --target web --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
+    "test": "node --experimental-vm-modules test.mjs"
+  },
+  "keywords": [
+    "pixel-art",
+    "wasm",
+    "webassembly",
+    "renderer",
+    "sprite",
+    "pixelsrc",
+    "genai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixelsrc/pixelsrc"
+  },
+  "bugs": {
+    "url": "https://github.com/pixelsrc/pixelsrc/issues"
+  },
+  "homepage": "https://github.com/pixelsrc/pixelsrc#readme"
+}
