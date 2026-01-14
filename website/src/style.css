@@ -5,15 +5,42 @@
 }
 
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-panel: #0f3460;
-  --text-primary: #eaeaea;
-  --text-secondary: #a0a0a0;
-  --accent: #e94560;
-  --border: #2a2a4a;
-  --success: #4ade80;
-  --error: #ef4444;
+  /* Dracula Background Colors */
+  --bg-primary: #282a36;
+  --bg-secondary: #21222c;
+  --bg-panel: #44475a;
+  --bg-elevated: #6272a4;
+
+  /* Dracula Accent Colors */
+  --accent: #bd93f9;
+  --accent-primary: #ff79c6;
+  --accent-secondary: #8be9fd;
+  --accent-tertiary: #ffb86c;
+  --accent-green: #50fa7b;
+  --accent-purple: #bd93f9;
+  --accent-pink: #ff79c6;
+  --accent-cyan: #8be9fd;
+  --accent-red: #ff5555;
+  --accent-yellow: #f1fa8c;
+
+  /* Text - Dracula Foreground */
+  --text-primary: #f8f8f2;
+  --text-secondary: #6272a4;
+  --text-muted: #44475a;
+
+  /* Semantic (using Dracula colors) */
+  --success: #50fa7b;
+  --warning: #ffb86c;
+  --error: #ff5555;
+
+  /* Borders */
+  --border: #44475a;
+  --border-active: var(--accent-purple);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(189, 147, 249, 0.3);
 }
 
 html, body {
@@ -131,7 +158,9 @@ html, body {
 }
 
 #render-btn:hover {
-  background-color: #d13652;
+  background-color: var(--accent-pink);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
 }
 
 #render-btn:disabled {
@@ -144,17 +173,22 @@ html, body {
   justify-content: center;
   align-items: center;
   min-height: 200px;
+  height: 100%;
   background-color: var(--bg-secondary);
   border-radius: 4px;
   padding: 1rem;
-  /* Checkered background pattern for transparency */
+  /* Checkered background pattern for transparency - Dracula themed */
   background-image:
-    linear-gradient(45deg, #404060 25%, transparent 25%),
-    linear-gradient(-45deg, #404060 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #404060 75%),
-    linear-gradient(-45deg, transparent 75%, #404060 75%);
+    linear-gradient(45deg, var(--bg-panel) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg-panel) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--bg-panel) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--bg-panel) 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+#preview-canvas:empty {
+  display: none;
 }
 
 #preview-canvas img,
@@ -317,6 +351,100 @@ html, body {
 
 .export-copy-feedback.visible {
   opacity: 1;
+}
+
+/* Preview Panel Enhancements */
+#preview-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+}
+
+/* Empty State */
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+}
+
+.preview-empty.hidden {
+  display: none;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.empty-cta {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-purple);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-cta:hover {
+  background: var(--accent-pink);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.empty-cta:active {
+  transform: translateY(0);
+}
+
+/* Zoom Indicator */
+.zoom-indicator {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.zoom-indicator.hidden {
+  display: none;
+}
+
+.zoom-value {
+  color: var(--accent-cyan);
+}
+
+/* Preview Canvas when shown (hide empty state) */
+#preview-canvas:not(:empty) + .preview-empty {
+  display: none;
 }
 
 /* Responsive - Tablet */

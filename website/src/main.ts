@@ -9,6 +9,10 @@ let editor: HTMLTextAreaElement;
 let renderBtn: HTMLButtonElement;
 let previewContainer: HTMLDivElement;
 let previewError: HTMLDivElement;
+let previewEmpty: HTMLDivElement;
+let zoomIndicator: HTMLDivElement;
+let zoomValue: HTMLSpanElement;
+let loadFirstExampleBtn: HTMLButtonElement;
 let galleryContainer: HTMLDivElement;
 
 // State
@@ -22,6 +26,10 @@ async function initApp(): Promise<void> {
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
   previewContainer = document.getElementById('preview-canvas') as HTMLDivElement;
   previewError = document.getElementById('preview-error') as HTMLDivElement;
+  previewEmpty = document.getElementById('preview-empty') as HTMLDivElement;
+  zoomIndicator = document.getElementById('zoom-indicator') as HTMLDivElement;
+  zoomValue = zoomIndicator.querySelector('.zoom-value') as HTMLSpanElement;
+  loadFirstExampleBtn = document.getElementById('load-first-example') as HTMLButtonElement;
   galleryContainer = document.getElementById('gallery') as HTMLDivElement;
 
   // Initialize WASM
@@ -53,6 +61,7 @@ async function initApp(): Promise<void> {
   renderBtn.addEventListener('click', handleRender);
   editor.addEventListener('keydown', handleEditorKeydown);
   editor.addEventListener('input', handleEditorInput);
+  loadFirstExampleBtn.addEventListener('click', loadFirstExample);
 
   // Load from URL hash if present
   loadFromHash();
@@ -67,16 +76,13 @@ async function initApp(): Promise<void> {
   });
   await gallery.loadExamples();
 
-  // Set default content if editor is empty
-  if (!editor.value.trim() && gallery) {
-    const examples = gallery.getExamples();
-    if (examples.length > 0) {
-      editor.value = examples[0].jsonl;
-    }
+  // If editor has content (from URL hash), render it
+  // Otherwise, show the empty state for onboarding
+  if (editor.value.trim()) {
+    handleRender();
+  } else {
+    showEmptyState();
   }
-
-  // Initial render
-  handleRender();
 }
 
 function handleEditorKeydown(e: KeyboardEvent): void {
@@ -93,7 +99,18 @@ function handleEditorInput(): void {
 
   const jsonl = editor.value.trim();
   if (jsonl) {
+    hideEmptyState();
     preview.render(jsonl);
+    // Update zoom indicator after debounced render completes
+    setTimeout(() => {
+      const result = preview?.getRenderResult();
+      if (result && result.width > 0) {
+        const scale = preview?.getScale() || 1;
+        updateZoomIndicator(result.width, result.height, scale);
+      }
+    }, 150); // Slightly longer than debounce time
+  } else {
+    showEmptyState();
   }
 }
 
@@ -106,6 +123,7 @@ function handleRender(): void {
   const jsonl = editor.value.trim();
   if (!jsonl) {
     showError('Please enter some JSONL content');
+    showEmptyState();
     return;
   }
 
@@ -114,6 +132,8 @@ function handleRender(): void {
 
   if (result.success) {
     hideError();
+    hideEmptyState();
+    updateZoomIndicator(result.width, result.height, result.scale);
     updateHash(jsonl);
 
     // Show warnings if any
@@ -122,7 +142,40 @@ function handleRender(): void {
     }
   } else if (result.error) {
     showError(result.error);
+    showEmptyState();
   }
+}
+
+function loadFirstExample(): void {
+  if (!gallery) return;
+
+  const examples = gallery.getExamples();
+  if (examples.length > 0) {
+    editor.value = examples[0].jsonl;
+    handleRender();
+  }
+}
+
+function showEmptyState(): void {
+  if (previewEmpty) {
+    previewEmpty.classList.remove('hidden');
+  }
+  if (zoomIndicator) {
+    zoomIndicator.classList.add('hidden');
+  }
+}
+
+function hideEmptyState(): void {
+  if (previewEmpty) {
+    previewEmpty.classList.add('hidden');
+  }
+}
+
+function updateZoomIndicator(width: number, height: number, scale: number): void {
+  if (!zoomIndicator || !zoomValue) return;
+
+  zoomValue.textContent = `${width}×${height} @ ${scale}x`;
+  zoomIndicator.classList.remove('hidden');
 }
 
 function showError(message: string): void {
