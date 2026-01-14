@@ -1,0 +1,4 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "red_pixel", "palette": "colors", "grid": ["{r}"]}
+{"type": "sprite", "name": "blue_pixel", "palette": "colors", "grid": ["{b}"]}
+{"type": "composition", "name": "basic_comp", "size": [3, 3], "sprites": {".": null, "R": "red_pixel", "B": "blue_pixel"}, "layers": [{"name": "main", "map": ["R.B", ".R.", "B.R"]}]}

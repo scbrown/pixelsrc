@@ -129,7 +129,10 @@ fn run_render(
                 sprites_by_name.insert(sprite.name.clone(), sprite);
             }
             TtpObject::Animation(_) => {
-                // Animations are Phase 2, skip for now
+                // Animations are Phase 3, skip for now
+            }
+            TtpObject::Composition(_) => {
+                // Composition rendering in CLI is Task 2.7, skip for now
             }
         }
     }

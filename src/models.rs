@@ -28,7 +28,7 @@ pub struct Sprite {
     pub grid: Vec<String>,
 }
 
-/// An animation definition (Phase 2).
+/// An animation definition (Phase 3).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
     pub name: String,
@@ -39,12 +39,38 @@ pub struct Animation {
     pub r#loop: Option<bool>,
 }
 
-/// A TTP object - Palette, Sprite, or Animation.
+/// A layer within a composition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompositionLayer {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub fill: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub map: Option<Vec<String>>,
+}
+
+/// A composition that layers sprites onto a canvas.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Composition {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub base: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub size: Option<[u32; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub cell_size: Option<[u32; 2]>,
+    pub sprites: HashMap<String, Option<String>>,
+    pub layers: Vec<CompositionLayer>,
+}
+
+/// A TTP object - Palette, Sprite, Composition, or Animation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TtpObject {
     Palette(Palette),
     Sprite(Sprite),
+    Composition(Composition),
     Animation(Animation),
 }
 
@@ -189,6 +215,87 @@ mod tests {
                 }
             }
             _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_composition_basic_parse() {
+        let json = r#"{"type": "composition", "name": "test_comp", "sprites": {".": null, "X": "sprite_x"}, "layers": [{"name": "layer1", "map": ["X."]}]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Composition(comp) => {
+                assert_eq!(comp.name, "test_comp");
+                assert!(comp.base.is_none());
+                assert!(comp.size.is_none());
+                assert!(comp.cell_size.is_none());
+                assert_eq!(comp.sprites.len(), 2);
+                assert_eq!(comp.sprites.get("."), Some(&None));
+                assert_eq!(comp.sprites.get("X"), Some(&Some("sprite_x".to_string())));
+                assert_eq!(comp.layers.len(), 1);
+                assert_eq!(comp.layers[0].name, Some("layer1".to_string()));
+                assert_eq!(comp.layers[0].map, Some(vec!["X.".to_string()]));
+            }
+            _ => panic!("Expected composition"),
+        }
+    }
+
+    #[test]
+    fn test_composition_with_all_fields() {
+        let json = r#"{"type": "composition", "name": "full_comp", "base": "hero_base", "size": [64, 64], "cell_size": [8, 8], "sprites": {".": null, "H": "hat"}, "layers": [{"name": "gear", "fill": "H", "map": ["H.", ".H"]}]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Composition(comp) => {
+                assert_eq!(comp.name, "full_comp");
+                assert_eq!(comp.base, Some("hero_base".to_string()));
+                assert_eq!(comp.size, Some([64, 64]));
+                assert_eq!(comp.cell_size, Some([8, 8]));
+                assert_eq!(comp.layers[0].fill, Some("H".to_string()));
+            }
+            _ => panic!("Expected composition"),
+        }
+    }
+
+    #[test]
+    fn test_composition_roundtrip() {
+        let comp = Composition {
+            name: "roundtrip_test".to_string(),
+            base: Some("base_sprite".to_string()),
+            size: Some([32, 32]),
+            cell_size: Some([4, 4]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("A".to_string(), Some("sprite_a".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("layer1".to_string()),
+                    fill: None,
+                    map: Some(vec!["A.".to_string(), ".A".to_string()]),
+                },
+            ],
+        };
+        let obj = TtpObject::Composition(comp.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""type":"composition""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Composition(parsed_comp) => {
+                assert_eq!(comp, parsed_comp);
+            }
+            _ => panic!("Expected composition"),
+        }
+    }
+
+    #[test]
+    fn test_composition_default_cell_size() {
+        // cell_size should default to None when not specified
+        let json = r#"{"type": "composition", "name": "no_cell_size", "sprites": {}, "layers": []}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Composition(comp) => {
+                assert!(comp.cell_size.is_none());
+            }
+            _ => panic!("Expected composition"),
         }
     }
 }
