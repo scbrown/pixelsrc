@@ -1,16 +1,16 @@
-# Phase 4: Ecosystem
+# Phase 5: Ecosystem
 
 **Goal:** Developer tooling and ecosystem support
 
 **Status:** Planning
 
-**Depends on:** Phase 0 complete (some tasks), Phase 2 complete (others)
+**Depends on:** Phase 0 complete (some tasks), Phase 3 complete (others)
 
 ---
 
 ## Scope
 
-Phase 4 adds developer experience improvements:
+Phase 5 adds developer experience improvements:
 - VS Code extension
 - Web-based previewer
 - PNG import (reverse engineering)
@@ -23,7 +23,7 @@ Phase 4 adds developer experience improvements:
 
 ## Tasks
 
-### Task 4.1: VS Code Extension
+### Task 5.1: VS Code Extension
 **Parallelizable:** Yes
 
 Syntax highlighting and preview for TTP files.
@@ -41,7 +41,7 @@ Syntax highlighting and preview for TTP files.
 
 ---
 
-### Task 4.2: Web Previewer
+### Task 5.2: Web Previewer
 **Parallelizable:** Yes
 
 Browser-based TTP editor and previewer.
@@ -61,7 +61,7 @@ Browser-based TTP editor and previewer.
 
 ---
 
-### Task 4.3: PNG Import
+### Task 5.3: PNG Import
 **Parallelizable:** Yes
 
 Convert PNG images to TTP format.
@@ -79,7 +79,7 @@ Convert PNG images to TTP format.
 
 ---
 
-### Task 4.4: GenAI Prompt Templates
+### Task 5.4: GenAI Prompt Templates
 **Parallelizable:** Yes
 
 Templates and guides for GenAI sprite generation.
@@ -97,7 +97,7 @@ Templates and guides for GenAI sprite generation.
 
 ---
 
-### Task 4.5: Emoji Art Output
+### Task 5.5: Emoji Art Output
 **Parallelizable:** Yes (after Phase 0)
 
 Text-based output using emoji for quick preview.
@@ -117,12 +117,12 @@ Text-based output using emoji for quick preview.
 ## Dependency Graph
 
 ```
-Phase 0 complete ──┬── 4.3 (PNG import)
-                   ├── 4.4 (prompts)
-                   └── 4.5 (emoji)
+Phase 0 complete ──┬── 5.3 (PNG import)
+                   ├── 5.4 (prompts)
+                   └── 5.5 (emoji)
 
-Phase 2 complete ──┬── 4.1 (VS Code)
-                   └── 4.2 (web)
+Phase 3 complete ──┬── 5.1 (VS Code)
+                   └── 5.2 (web)
 ```
 
 ---

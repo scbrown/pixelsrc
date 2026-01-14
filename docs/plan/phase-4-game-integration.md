@@ -1,16 +1,16 @@
-# Phase 3: Game Engine Integration
+# Phase 4: Game Engine Integration
 
 **Goal:** Export to Unity, Godot, Tiled, and CSS formats
 
 **Status:** Planning
 
-**Depends on:** Phase 2 complete
+**Depends on:** Phase 3 complete
 
 ---
 
 ## Scope
 
-Phase 3 adds export formats for popular game engines:
+Phase 4 adds export formats for popular game engines:
 - Unity spritesheet + .meta file
 - Godot .tres resource
 - Tiled .tsx tileset
@@ -22,7 +22,7 @@ Phase 3 adds export formats for popular game engines:
 
 ## Tasks
 
-### Task 3.1: Unity Export
+### Task 4.1: Unity Export
 **Parallelizable:** Yes
 
 Export Unity-compatible spritesheet with metadata.
@@ -38,7 +38,7 @@ Export Unity-compatible spritesheet with metadata.
 
 ---
 
-### Task 3.2: Godot Export
+### Task 4.2: Godot Export
 **Parallelizable:** Yes
 
 Export Godot resource files.
@@ -54,7 +54,7 @@ Export Godot resource files.
 
 ---
 
-### Task 3.3: Tiled Export
+### Task 4.3: Tiled Export
 **Parallelizable:** Yes
 
 Export Tiled tileset format.
@@ -70,7 +70,7 @@ Export Tiled tileset format.
 
 ---
 
-### Task 3.4: CSS Export
+### Task 4.4: CSS Export
 **Parallelizable:** Yes
 
 Export CSS sprite format.
@@ -86,8 +86,8 @@ Export CSS sprite format.
 
 ---
 
-### Task 3.5: Export CLI
-**Parallelizable:** Yes (after 3.1-3.4)
+### Task 4.5: Export CLI
+**Parallelizable:** Yes (after 4.1-4.4)
 
 Add export CLI options.
 
@@ -106,12 +106,12 @@ Add export CLI options.
 ## Dependency Graph
 
 ```
-Phase 2 complete
+Phase 3 complete
      │
-     ├── 3.1 (Unity) ────┐
-     ├── 3.2 (Godot) ────┼── 3.5 (CLI)
-     ├── 3.3 (Tiled) ────┤
-     └── 3.4 (CSS) ──────┘
+     ├── 4.1 (Unity) ────┐
+     ├── 4.2 (Godot) ────┼── 4.5 (CLI)
+     ├── 4.3 (Tiled) ────┤
+     └── 4.4 (CSS) ──────┘
 ```
 
 ---

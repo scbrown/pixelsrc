@@ -1,16 +1,16 @@
-# Phase 2: Animation
+# Phase 3: Animation
 
 **Goal:** Multi-frame sprites, spritesheet and GIF export
 
 **Status:** Planning
 
-**Depends on:** Phase 0 complete
+**Depends on:** Phase 2 complete
 
 ---
 
 ## Scope
 
-Phase 2 adds:
+Phase 3 adds:
 - Animation type parsing
 - Spritesheet generation (grid of frames)
 - Animated GIF export
@@ -23,19 +23,19 @@ Phase 2 adds:
 ## Task Dependency Diagram
 
 ```
-                              PHASE 2 TASK FLOW
+                              PHASE 3 TASK FLOW
     ═══════════════════════════════════════════════════════════════════
 
     PREREQUISITE
     ┌─────────────────────────────────────────────────────────────────┐
-    │                      Phase 0 Complete                           │
+    │                      Phase 2 Complete                           │
     └─────────────────────────────────────────────────────────────────┘
               │
               ▼
     WAVE 1 (Foundation)
     ┌─────────────────────────────────────────────────────────────────┐
     │  ┌──────────────┐                                               │
-    │  │   2.1        │                                               │
+    │  │   3.1        │                                               │
     │  │  Animation   │  Add Animation struct to models               │
     │  │  Model       │                                               │
     │  └──────┬───────┘                                               │
@@ -45,7 +45,7 @@ Phase 2 adds:
     WAVE 2 (Parallel - After Model)
     ┌─────────────────────────────────────────────────────────────────┐
     │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-    │  │   2.2        │  │   2.3        │  │   2.4        │          │
+    │  │   3.2        │  │   3.3        │  │   3.4        │          │
     │  │  Animation   │  │  Spritesheet │  │  GIF         │          │
     │  │  Validation  │  │  Renderer    │  │  Renderer    │          │
     │  └──────────────┘  └──────────────┘  └──────────────┘          │
@@ -57,7 +57,7 @@ Phase 2 adds:
     WAVE 3 (CLI Integration)
     ┌─────────────────────────────────────────────────────────────────┐
     │  ┌──────────────┐                                               │
-    │  │   2.5        │  --gif, --spritesheet, --animation flags      │
+    │  │   3.5        │  --gif, --spritesheet, --animation flags      │
     │  │  Animation   │                                               │
     │  │  CLI         │                                               │
     │  └──────────────┘                                               │
@@ -67,9 +67,9 @@ Phase 2 adds:
 
     PARALLELIZATION SUMMARY:
     ┌─────────────────────────────────────────────────────────────────┐
-    │  Wave 1: 2.1                   (1 task)                         │
-    │  Wave 2: 2.2 + 2.3 + 2.4       (3 tasks in parallel)            │
-    │  Wave 3: 2.5                   (1 task, needs 2.2-2.4)          │
+    │  Wave 1: 3.1                   (1 task)                         │
+    │  Wave 2: 3.2 + 2.3 + 2.4       (3 tasks in parallel)            │
+    │  Wave 3: 3.5                   (1 task, needs 3.2-2.4)          │
     └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,7 +77,7 @@ Phase 2 adds:
 
 ## Tasks
 
-### Task 2.1: Animation Model
+### Task 3.1: Animation Model
 
 **Wave:** 1
 
@@ -114,9 +114,9 @@ cargo test models
 
 ---
 
-### Task 2.2: Animation Validation
+### Task 3.2: Animation Validation
 
-**Wave:** 2 (parallel with 2.3, 2.4)
+**Wave:** 2 (parallel with 3.3, 2.4)
 
 Validate animation references.
 
@@ -136,13 +136,13 @@ cargo test animation
 # Test: Empty frames → warning
 ```
 
-**Dependencies:** Task 2.1
+**Dependencies:** Task 3.1
 
 ---
 
-### Task 2.3: Spritesheet Renderer
+### Task 3.3: Spritesheet Renderer
 
-**Wave:** 2 (parallel with 2.2, 2.4)
+**Wave:** 2 (parallel with 3.2, 2.4)
 
 Render multiple sprites into a grid.
 
@@ -162,13 +162,13 @@ cargo test spritesheet
 # Test: Custom columns (cols=2) → 2x2 grid
 ```
 
-**Dependencies:** Task 2.1
+**Dependencies:** Task 3.1
 
 ---
 
-### Task 2.4: GIF Renderer
+### Task 3.4: GIF Renderer
 
-**Wave:** 2 (parallel with 2.2, 2.3)
+**Wave:** 2 (parallel with 3.2, 2.3)
 
 Render animation as GIF.
 
@@ -187,11 +187,11 @@ cargo test gif
 # Test: Loop setting is respected
 ```
 
-**Dependencies:** Task 2.1
+**Dependencies:** Task 3.1
 
 ---
 
-### Task 2.5: Animation CLI
+### Task 3.5: Animation CLI
 
 **Wave:** 3 (after 2.2, 2.3, 2.4)
 
@@ -225,16 +225,16 @@ file /tmp/walk.gif   # Should be GIF
 
 **Updates demo.sh:** Add animation examples
 
-**Dependencies:** Tasks 2.2, 2.3, 2.4
+**Dependencies:** Tasks 3.2, 2.3, 2.4
 
 ---
 
 ## demo.sh Updates
 
-After Phase 2, demo.sh shows:
+After Phase 3, demo.sh shows:
 
 ```bash
-echo "── Phase 2: Animation ─────────────────────────────────────────"
+echo "── Phase 3: Animation ─────────────────────────────────────────"
 echo "Input: examples/walk_cycle.jsonl"
 cat examples/walk_cycle.jsonl | head -5
 echo "..."
