@@ -9,7 +9,7 @@ use std::process::ExitCode;
 
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::models::{PaletteRef, TtpObject};
-use crate::output::{generate_output_path, save_png};
+use crate::output::{generate_output_path, save_png, scale_image};
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
 use crate::renderer::render_sprite;
@@ -51,6 +51,10 @@ pub enum Commands {
         /// Strict mode: treat warnings as errors
         #[arg(long)]
         strict: bool,
+
+        /// Scale output by integer factor (1-16, default: 1)
+        #[arg(long, default_value = "1", value_parser = clap::value_parser!(u8).range(1..=16))]
+        scale: u8,
     },
 }
 
@@ -64,7 +68,8 @@ pub fn run() -> ExitCode {
             output,
             sprite,
             strict,
-        } => run_render(&input, output.as_deref(), sprite.as_deref(), strict),
+            scale,
+        } => run_render(&input, output.as_deref(), sprite.as_deref(), strict, scale),
     }
 }
 
@@ -74,6 +79,7 @@ fn run_render(
     output: Option<&std::path::Path>,
     sprite_filter: Option<&str>,
     strict: bool,
+    scale: u8,
 ) -> ExitCode {
     // Open input file
     let file = match File::open(input) {
@@ -219,6 +225,9 @@ fn run_render(
 
         // Render sprite
         let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+
+        // Apply scaling if requested
+        let image = scale_image(image, scale);
 
         // Collect render warnings
         for warning in render_warnings {

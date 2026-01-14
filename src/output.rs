@@ -1,5 +1,6 @@
 //! PNG output and file path generation
 
+use image::imageops::FilterType;
 use image::RgbaImage;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -64,6 +65,28 @@ pub fn save_png(image: &RgbaImage, path: &Path) -> Result<(), OutputError> {
 
     image.save(path)?;
     Ok(())
+}
+
+/// Scale image by integer factor using nearest-neighbor interpolation.
+///
+/// This preserves crisp pixel edges for pixel art.
+///
+/// # Arguments
+///
+/// * `image` - The image to scale
+/// * `factor` - Scale factor (1-16, where 1 means no scaling)
+///
+/// # Returns
+///
+/// The scaled image (or original if factor is 1)
+pub fn scale_image(image: RgbaImage, factor: u8) -> RgbaImage {
+    if factor <= 1 {
+        return image;
+    }
+    let (w, h) = image.dimensions();
+    let new_w = w * factor as u32;
+    let new_h = h * factor as u32;
+    image::imageops::resize(&image, new_w, new_h, FilterType::Nearest)
 }
 
 /// Generate the output path for a sprite.
