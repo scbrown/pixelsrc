@@ -1,0 +1,27 @@
+Create a [SIZE]x[SIZE] pixel art item/object sprite in pixelsrc JSONL format.
+
+Item description:
+- [DESCRIBE ITEM: sword, potion, key, chest, etc.]
+- [DESCRIBE MATERIALS: wood, metal, glass, magical, etc.]
+- [DESCRIBE STYLE: fantasy RPG, sci-fi, cute, realistic]
+
+Requirements:
+- Use semantic token names based on materials: {blade}, {hilt}, {gem}, {wood}, {metal}
+- Include {_} mapped to #00000000 for transparent background
+- Add {highlight} and {shadow} variants for depth
+- Keep palette under 8 colors for clean retro look
+- Center the item in the sprite frame
+
+Output format:
+1. Single line with inline palette in sprite definition
+2. Ensure each grid row has exactly [SIZE] tokens
+3. Use valid hex colors: #RRGGBB
+
+Example structure:
+{"type":"sprite","name":"[ITEM_NAME]","palette":{"{_}":"#00000000","{blade}":"#C0C0C0","{hilt}":"#8B4513"},"grid":["...",...]}
+
+Visual guidelines:
+- Use lighter colors on top-left for highlight (light source)
+- Use darker colors on bottom-right for shadow
+- Include an outline or edge color for definition
+- Leave 1-2 pixel margin for breathing room

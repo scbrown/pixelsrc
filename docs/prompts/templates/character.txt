@@ -1,0 +1,23 @@
+Create a [SIZE]x[SIZE] pixel art character sprite in pixelsrc JSONL format.
+
+Character description:
+- [DESCRIBE CHARACTER: hero, villain, NPC, monster, etc.]
+- [DESCRIBE APPEARANCE: hair color, clothing, accessories]
+- [DESCRIBE STYLE: cute, realistic, retro, etc.]
+
+Requirements:
+- Use semantic token names: {skin}, {hair}, {eye}, {shirt}, {pants}, {shoes}, {outline}
+- Include {_} mapped to #00000000 for transparent background
+- Use an {outline} color for definition (darker than base colors)
+- Add highlights and shadows for depth
+- Limit palette to 8-12 colors
+
+Output format:
+1. First line: palette definition with "type": "palette"
+2. Second line: sprite definition with "type": "sprite"
+3. Ensure each grid row has exactly [SIZE] tokens
+4. Use valid hex colors: #RRGGBB or #RRGGBBAA
+
+Example structure:
+{"type":"palette","name":"[NAME]","colors":{"{_}":"#00000000","{skin}":"#FFCC99",...}}
+{"type":"sprite","name":"[NAME]_idle","palette":"[NAME]","grid":["...",...]}

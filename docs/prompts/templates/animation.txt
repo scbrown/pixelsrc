@@ -1,0 +1,41 @@
+Create a [SIZE]x[SIZE] pixel art animation in pixelsrc JSONL format.
+
+Animation description:
+- [DESCRIBE SUBJECT: character, object, effect, etc.]
+- [DESCRIBE ACTION: walking, attacking, idle, spinning, etc.]
+- [DESCRIBE FRAME COUNT: 2, 4, 6, 8 frames]
+- [DESCRIBE TIMING: fast, slow, duration in ms]
+
+Requirements:
+- All frames must use the SAME shared palette
+- Keep subject centered and consistent across frames
+- Only animate the parts that move
+- Use meaningful frame names: [name]_frame1, [name]_frame2, etc.
+- Include animation object at the end
+
+Output format:
+1. First line: shared palette definition
+2. Following lines: sprite frames in order
+3. Last line: animation definition linking frames
+4. Ensure each grid row has exactly [SIZE] tokens
+
+Example structure:
+{"type":"palette","name":"[NAME]","colors":{"{_}":"#00000000",...}}
+{"type":"sprite","name":"[NAME]_1","palette":"[NAME]","grid":["...",...]}
+{"type":"sprite","name":"[NAME]_2","palette":"[NAME]","grid":["...",...]}
+{"type":"sprite","name":"[NAME]_3","palette":"[NAME]","grid":["...",...]}
+{"type":"sprite","name":"[NAME]_4","palette":"[NAME]","grid":["...",...]}
+{"type":"animation","name":"[NAME]_anim","frames":["[NAME]_1","[NAME]_2","[NAME]_3","[NAME]_4"],"duration":[MS],"loop":true}
+
+Animation principles:
+- Walk cycle: 4 frames minimum (left, center, right, center)
+- Idle animation: 2-4 frames with subtle movement
+- Attack: 3-5 frames (wind-up, strike, recovery)
+- Spin: 4-8 frames depending on smoothness needed
+- Effects (explosion, sparkle): 4-6 frames, may not loop
+
+Frame timing (duration in ms):
+- Fast action: 50-100ms
+- Normal movement: 100-150ms
+- Slow/relaxed: 200-300ms
+- Idle breathing: 400-600ms

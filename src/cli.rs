@@ -93,6 +93,14 @@ pub enum Commands {
         #[arg(short, long)]
         name: Option<String>,
     },
+
+    /// Show GenAI prompt templates for sprite generation
+    Prompts {
+        /// Template name to show (character, item, tileset, animation)
+        /// If omitted, lists all available templates
+        #[arg()]
+        template: Option<String>,
+    },
 }
 
 /// Run the CLI application
@@ -127,6 +135,58 @@ pub fn run() -> ExitCode {
             max_colors,
             name,
         } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
+        Commands::Prompts { template } => run_prompts(template.as_deref()),
+    }
+}
+
+// Embedded prompt templates
+const TEMPLATE_CHARACTER: &str = include_str!("../docs/prompts/templates/character.txt");
+const TEMPLATE_ITEM: &str = include_str!("../docs/prompts/templates/item.txt");
+const TEMPLATE_TILESET: &str = include_str!("../docs/prompts/templates/tileset.txt");
+const TEMPLATE_ANIMATION: &str = include_str!("../docs/prompts/templates/animation.txt");
+
+/// Available template names
+const TEMPLATES: &[(&str, &str)] = &[
+    ("character", TEMPLATE_CHARACTER),
+    ("item", TEMPLATE_ITEM),
+    ("tileset", TEMPLATE_TILESET),
+    ("animation", TEMPLATE_ANIMATION),
+];
+
+/// Execute the prompts command
+fn run_prompts(template: Option<&str>) -> ExitCode {
+    match template {
+        None => {
+            // List available templates
+            println!("Available prompt templates:");
+            println!();
+            for (name, _) in TEMPLATES {
+                println!("  {}", name);
+            }
+            println!();
+            println!("Usage: pxl prompts <template>");
+            println!();
+            println!("Templates are designed for use with Claude, GPT, or other LLMs.");
+            println!("See docs/prompts/ for full documentation and examples.");
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Some(name) => {
+            // Show specific template
+            for (tpl_name, content) in TEMPLATES {
+                if *tpl_name == name {
+                    println!("{}", content);
+                    return ExitCode::from(EXIT_SUCCESS);
+                }
+            }
+            // Template not found
+            eprintln!("Error: Unknown template '{}'", name);
+            eprintln!();
+            eprintln!("Available templates:");
+            for (tpl_name, _) in TEMPLATES {
+                eprintln!("  {}", tpl_name);
+            }
+            ExitCode::from(EXIT_ERROR)
+        }
     }
 }
 
