@@ -398,9 +398,65 @@ echo -e "  ${YELLOW}1bit${NC}       ${DIM}Black and white only${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 15: What's Complete
+# SLIDE 15: Phase 3 - Animation Demo
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0 + Phase 1: Complete"
+slide "Phase 3: Animation"
+
+echo -e "  ${CYAN}Multi-frame animations with timing:${NC}"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}walk_cycle.jsonl:${NC}                                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}type${NC}:   ${GREEN}animation${NC}                                   ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}name${NC}:   ${GREEN}walk${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}frames${NC}: ${CYAN}[\"walk_1\", \"walk_2\", \"walk_3\", \"walk_4\"]${NC}      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}duration${NC}: ${YELLOW}150${NC}  ${DIM}(ms per frame)${NC}                     ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}loop${NC}:   ${YELLOW}true${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+echo ""
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 16: Phase 3 - Spritesheet Output
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 3: Spritesheet Output"
+
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.png${NC}"
+echo ""
+
+./target/release/pxl render examples/walk_cycle.jsonl --spritesheet -o "$DEMO_OUT/walk_sheet.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Result:${NC} Horizontal strip of all animation frames"
+echo ""
+show_image "$DEMO_OUT/walk_sheet.png" 32
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 17: Phase 3 - GIF Output
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 3: GIF Output"
+
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif -o walk.gif${NC}"
+echo ""
+
+./target/release/pxl render examples/walk_cycle.jsonl --gif -o "$DEMO_OUT/walk.gif" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Features:${NC}"
+echo -e "  ${DIM}•${NC} Frame duration from animation (150ms)"
+echo -e "  ${DIM}•${NC} Loop setting respected"
+echo -e "  ${DIM}•${NC} Select specific animation with --animation <name>"
+echo ""
+echo -e "  ${BOLD}Result:${NC} $DEMO_OUT/walk.gif"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 18: What's Complete
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 0 + Phase 1 + Phase 3: Complete"
 
 echo -e "  ${GREEN}Phase 0 - Core:${NC}"
 echo -e "  ${GREEN}[x]${NC} JSONL parser with palettes and sprites"
@@ -415,35 +471,40 @@ echo -e "  ${GREEN}[x]${NC} Built-in palette data (gameboy, nes, pico8, grayscal
 echo -e "  ${GREEN}[x]${NC} External palette include (@include:path)"
 echo -e "  ${GREEN}[x]${NC} Circular include detection"
 echo ""
+echo -e "  ${GREEN}Phase 3 - Animation:${NC}"
+echo -e "  ${GREEN}[x]${NC} Animation model with frame timing"
+echo -e "  ${GREEN}[x]${NC} Spritesheet output (--spritesheet)"
+echo -e "  ${GREEN}[x]${NC} GIF output (--gif)"
+echo -e "  ${GREEN}[x]${NC} Animation selection (--animation <name>)"
+echo ""
 echo -e "  ${BOLD}Tests:${NC} ${GREEN}All passing${NC}"
 echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 16: What's Next
+# SLIDE 19: What's Next
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Coming Next: Phase 2"
+slide "Coming Next: Phase 4"
 
-echo -e "  ${CYAN}Animation & Spritesheet Export:${NC}"
+echo -e "  ${CYAN}Game Engine Integration:${NC}"
 echo ""
-echo -e "  ${WHITE}Animation objects:${NC}"
-echo -e "  ${DIM}Define frame sequences with timing${NC}"
-echo -e "  ${DIM}Reference multiple sprites as frames${NC}"
+echo -e "  ${WHITE}Unity:${NC}"
+echo -e "  ${DIM}Spritesheet + .meta file with slice data${NC}"
 echo ""
-echo -e "  ${WHITE}Spritesheet output:${NC}"
-echo -e "  ${DIM}Export all frames to a single image${NC}"
-echo -e "  ${DIM}Generate metadata for game engines${NC}"
+echo -e "  ${WHITE}Godot:${NC}"
+echo -e "  ${DIM}.tres resource files with animation data${NC}"
+echo ""
+echo -e "  ${WHITE}Tiled:${NC}"
+echo -e "  ${DIM}.tsx tileset export${NC}"
 echo ""
 echo -e "  ${CYAN}Future Phases:${NC}"
-echo -e "  ${DIM}Phase 3:${NC} Animation timing & GIF export"
-echo -e "  ${DIM}Phase 4:${NC} Game engine integration (Unity, Godot, Tiled)"
 echo -e "  ${DIM}Phase 5:${NC} VS Code extension, web previewer"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 17: Try It
+# SLIDE 20: Try It
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Try It Yourself"
 
@@ -452,8 +513,9 @@ echo -e "  ${DIM}\$ pxl render examples/coin.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/hero.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/heart.jsonl${NC}"
 echo ""
-echo -e "  ${BOLD}Try external include:${NC}"
-echo -e "  ${DIM}\$ pxl render tests/fixtures/valid/include_palette.jsonl${NC}"
+echo -e "  ${BOLD}Try animations:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif -o walk.gif${NC}"
 echo ""
 echo -e "  ${BOLD}Run the tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
@@ -464,7 +526,7 @@ echo -e "  ${DIM}\$ brew install chafa    # For inline image display${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 18: End
+# SLIDE 21: End
 # ═══════════════════════════════════════════════════════════════════════════════
 clear
 echo ""
@@ -481,10 +543,11 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Phase 0 + Phase 1 Complete${NC}"
+echo -e "                ${BOLD}Phase 0 + Phase 1 + Phase 3 Complete${NC}"
 echo ""
 echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
 echo -e "                ${GREEN}External Palette Includes${NC}"
+echo -e "                ${GREEN}Animation → GIF/Spritesheet${NC}"
 echo ""
 echo ""
 

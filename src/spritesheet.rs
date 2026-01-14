@@ -49,7 +49,7 @@ pub fn render_spritesheet(frames: &[RgbaImage], cols: Option<u32>) -> RgbaImage 
     // Calculate grid dimensions
     let num_frames = frames.len() as u32;
     let columns = cols.unwrap_or(num_frames); // Default: horizontal layout (all in one row)
-    let rows = (num_frames + columns - 1) / columns; // Ceiling division
+    let rows = num_frames.div_ceil(columns);
 
     // Create output image
     let sheet_width = columns * max_width;
