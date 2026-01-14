@@ -1,0 +1,119 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update formula for (e.g., v0.1.0)'
+        required: true
+        type: string
+
+env:
+  FORMULA_FILE: homebrew-pixelsrc/Formula/pxl.rb
+
+jobs:
+  update-formula:
+    name: Update Homebrew formula
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${{ github.event.release.tag_name }}"
+          fi
+          VERSION_NUM="${VERSION#v}"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          echo "number=$VERSION_NUM" >> $GITHUB_OUTPUT
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p release-assets
+          gh release download "${{ steps.version.outputs.tag }}" --dir release-assets --pattern "*.tar.gz"
+          ls -la release-assets/
+
+      - name: Calculate SHA256 hashes
+        id: hashes
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+          cd release-assets
+          echo "macos_arm64=$(sha256sum pxl-${VERSION}-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "macos_x64=$(sha256sum pxl-${VERSION}-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "linux_arm64=$(sha256sum pxl-${VERSION}-aarch64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "linux_x64=$(sha256sum pxl-${VERSION}-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
+      - name: Generate formula
+        env:
+          VERSION: ${{ steps.version.outputs.number }}
+          MACOS_ARM64: ${{ steps.hashes.outputs.macos_arm64 }}
+          MACOS_X64: ${{ steps.hashes.outputs.macos_x64 }}
+          LINUX_ARM64: ${{ steps.hashes.outputs.linux_arm64 }}
+          LINUX_X64: ${{ steps.hashes.outputs.linux_x64 }}
+        run: |
+          cat > $FORMULA_FILE << RUBY_EOF
+          # typed: false
+          # frozen_string_literal: true
+
+          # Homebrew formula for pxl - Pixelsrc CLI
+          # Install: brew tap stiwi/pixelsrc && brew install pxl
+          class Pxl < Formula
+            desc "GenAI-native pixel art format and compiler"
+            homepage "https://github.com/stiwi/pixelsrc"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/stiwi/pixelsrc/releases/download/v${VERSION}/pxl-v${VERSION}-aarch64-apple-darwin.tar.gz"
+                sha256 "${MACOS_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/stiwi/pixelsrc/releases/download/v${VERSION}/pxl-v${VERSION}-x86_64-apple-darwin.tar.gz"
+                sha256 "${MACOS_X64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/stiwi/pixelsrc/releases/download/v${VERSION}/pxl-v${VERSION}-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/stiwi/pixelsrc/releases/download/v${VERSION}/pxl-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_X64}"
+              end
+            end
+
+            def install
+              bin.install "pxl"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/pxl --version")
+            end
+          end
+          RUBY_EOF
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' $FORMULA_FILE
+          cat $FORMULA_FILE
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $FORMULA_FILE
+          git diff --staged --quiet || git commit -m "Update Homebrew formula for ${{ steps.version.outputs.tag }}"
+          git push
