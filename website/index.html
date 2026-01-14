@@ -61,7 +61,23 @@
             </div>
           </div>
           <div class="panel-content preview-content">
-            <div id="preview-canvas"></div>
+            <div id="preview-wrapper">
+              <div id="preview-canvas"></div>
+              <div id="preview-empty" class="preview-empty">
+                <div class="empty-icon" aria-hidden="true">🎨</div>
+                <p class="empty-text">Your pixel art will appear here</p>
+                <p class="empty-hint">
+                  Click an example below to get started,<br>
+                  or paste Pixelsrc JSONL in the editor
+                </p>
+                <button class="empty-cta" id="load-first-example">
+                  Try the Heart example
+                </button>
+              </div>
+              <div id="zoom-indicator" class="zoom-indicator hidden">
+                <span class="zoom-value"></span>
+              </div>
+            </div>
             <div id="preview-error" class="error hidden"></div>
             <div id="preview-status" class="preview-status hidden" role="status" aria-live="polite">
               <span class="status-icon" aria-hidden="true"></span>

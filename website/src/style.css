@@ -653,6 +653,92 @@ html, body {
   color: var(--text-secondary);
 }
 
+/* Preview Empty State */
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+}
+
+.preview-empty.hidden {
+  display: none;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.empty-cta {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-purple);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-cta:hover {
+  background: var(--accent-pink);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.empty-cta:active {
+  transform: translateY(0);
+}
+
+/* Zoom Indicator */
+.zoom-indicator {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.zoom-indicator.hidden {
+  display: none;
+}
+
+.zoom-value {
+  color: var(--accent-cyan);
+}
+
+/* Preview Canvas when shown (hide empty state) */
+#preview-canvas:not(:empty) + .preview-empty {
+  display: none;
+}
+
 /* Responsive - Tablet */
 @media (max-width: 768px) {
   #main {
