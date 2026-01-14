@@ -1,0 +1,17 @@
+Source: pxl
+Section: graphics
+Priority: optional
+Maintainer: Pixelsrc Developers <pixelsrc@example.com>
+Build-Depends: debhelper-compat (= 13), cargo, rustc
+Standards-Version: 4.6.2
+Homepage: https://github.com/pixelsrc/pxl
+Rules-Requires-Root: no
+
+Package: pxl
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: GenAI-native pixel art format and compiler
+ Pixelsrc (pxl) is a GenAI-native pixel art format that enables
+ creating and manipulating pixel art through a declarative syntax.
+ It supports palettes, layers, animations, and compositions with
+ a focus on AI-assisted workflows.

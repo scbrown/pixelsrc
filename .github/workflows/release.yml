@@ -83,9 +83,63 @@ jobs:
           name: pxl-${{ matrix.target }}
           path: pxl-${{ github.ref_name }}-${{ matrix.target }}.${{ matrix.archive }}
 
+  build-deb:
+    name: Build Debian package
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux x86_64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: pxl-x86_64-unknown-linux-gnu
+          path: artifacts
+
+      - name: Extract binary
+        run: |
+          cd artifacts
+          tar xzf pxl-*.tar.gz
+          chmod +x pxl
+
+      - name: Build .deb package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG_NAME="pxl"
+          PKG_DIR="${PKG_NAME}_${VERSION}_amd64"
+
+          mkdir -p "${PKG_DIR}/DEBIAN"
+          mkdir -p "${PKG_DIR}/usr/bin"
+
+          cp artifacts/pxl "${PKG_DIR}/usr/bin/"
+
+          cat > "${PKG_DIR}/DEBIAN/control" << EOF
+          Package: ${PKG_NAME}
+          Version: ${VERSION}
+          Section: graphics
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Pixelsrc Developers <pixelsrc@example.com>
+          Description: GenAI-native pixel art format and compiler
+           Pixelsrc (pxl) is a GenAI-native pixel art format that enables
+           creating and manipulating pixel art through a declarative syntax.
+           It supports palettes, layers, animations, and compositions with
+           a focus on AI-assisted workflows.
+          EOF
+
+          dpkg-deb --build "${PKG_DIR}"
+          mv "${PKG_DIR}.deb" "pxl_${VERSION}_amd64.deb"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pxl-deb
+          path: pxl_*.deb
+
   checksums:
     name: Generate checksums
-    needs: build
+    needs: [build, build-deb]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -96,8 +150,8 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd artifacts
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec mv {} . \;
-          rm -rf pxl-*/
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" \) -exec mv {} . \;
+          rm -rf pxl-*/ pxl-deb/
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -109,7 +163,7 @@ jobs:
 
   release:
     name: Create release
-    needs: [build, checksums]
+    needs: [build, build-deb, checksums]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -122,8 +176,8 @@ jobs:
       - name: Prepare release assets
         run: |
           cd artifacts
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "SHA256SUMS.txt" \) -exec mv {} . \;
-          rm -rf pxl-*/ checksums/
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "SHA256SUMS.txt" \) -exec mv {} . \;
+          rm -rf pxl-*/ pxl-deb/ checksums/
           ls -la
 
       - name: Create GitHub Release
