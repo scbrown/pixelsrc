@@ -488,9 +488,113 @@ echo -e "  ${BOLD}Result:${NC} $DEMO_OUT/walk.gif"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 18: What's Complete
+# SLIDE 18: Phase 2 - Composition
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0 + Phase 1 + Phase 3: Complete"
+slide "Phase 2: Composition"
+
+echo -e "  ${CYAN}Layer sprites onto a canvas:${NC}"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}Composition features:${NC}                                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}base${NC}:      Base sprite (rendered first)              ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}cell_size${NC}: Grid cell dimensions [w, h]              ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}sprites${NC}:   Map characters to sprite names           ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}layers${NC}:    Stack of grids (bottom to top)           ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${GREEN}Use cases:${NC}                                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   • Equip items on characters                           ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   • Build tile-based scenes                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   • Create color variants                               ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 19: Forest Scene Composition
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Example: Forest Scene (Tile-Based Composition)"
+
+echo -e "  ${BOLD}Input:${NC} examples/forest_scene.jsonl"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}cell_size${NC}: ${CYAN}[8, 8]${NC} - each character = 8x8 pixels       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}sprites${NC}:   ${GREEN}G${NC}=grass ${BLUE}W${NC}=water ${YELLOW}P${NC}=path ${GREEN}T${NC}=tree ${MAGENTA}F${NC}=flower ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}layers${NC}:                                                ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   terrain: ${GREEN}G${NC}${GREEN}G${NC}${GREEN}G${NC}${BLUE}W${NC}${BLUE}W${NC}  ─┐                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${GREEN}G${NC}${GREEN}G${NC}${YELLOW}P${NC}${BLUE}W${NC}${BLUE}W${NC}   │ 5×4 tile grid              ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${GREEN}G${NC}${GREEN}G${NC}${YELLOW}P${NC}${GREEN}G${NC}${BLUE}W${NC}   │                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${GREEN}G${NC}${MAGENTA}F${NC}${YELLOW}P${NC}${GREEN}G${NC}${GREEN}G${NC}  ─┘                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   objects: ${GREEN}T${NC}..${GREEN}T${NC}.   (trees overlaid on terrain)       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ..${GREEN}T${NC}..                                       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            .....                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${GREEN}T${NC}...${GREEN}T${NC}                                       ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 20: Render Forest Scene
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Rendering: Forest Scene"
+
+echo -e "  ${DIM}\$ pxl render examples/forest_scene.jsonl -c forest_scene -o forest.png${NC}"
+echo ""
+
+./target/release/pxl render examples/forest_scene.jsonl -c forest_scene -o "$DEMO_OUT/forest.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Output:${NC} 40×32 pixels (5×4 grid × 8×8 cell_size)"
+echo ""
+show_image "$DEMO_OUT/forest.png" 24
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 21: Color Variants
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Example: Color Variants"
+
+echo -e "  ${BOLD}Input:${NC} examples/color_variants.jsonl"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} Same sprite design with different palettes:             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${RED}hat_red${NC}    palette: main=#CC0000, trim=#FFD700       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${BLUE}hat_blue${NC}   palette: main=#0044CC, trim=#C0C0C0      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${GREEN}hat_green${NC}  palette: main=#228B22, trim=#FFD700      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} Composition arranges them side by side:                 ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}cell_size${NC}: [12, 8]                                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}map${NC}:       \"${RED}R${NC}${BLUE}B${NC}${GREEN}G${NC}\" (3 variants in a row)            ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 22: Render Color Variants
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Rendering: Color Variants"
+
+echo -e "  ${DIM}\$ pxl render examples/color_variants.jsonl -c hat_variants -o variants.png${NC}"
+echo ""
+
+./target/release/pxl render examples/color_variants.jsonl -c hat_variants -o "$DEMO_OUT/variants.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Output:${NC} Three hat variants in a row"
+echo ""
+show_image "$DEMO_OUT/variants.png" 24
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 23: What's Complete
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 0 + Phase 1 + Phase 2 + Phase 3: Complete"
 
 echo -e "  ${GREEN}Phase 0 - Core:${NC}"
 echo -e "  ${GREEN}[x]${NC} JSONL parser with palettes and sprites"
@@ -505,6 +609,12 @@ echo -e "  ${GREEN}Phase 1 - Palettes:${NC}"
 echo -e "  ${GREEN}[x]${NC} Built-in palette data (gameboy, nes, pico8, grayscale, 1bit)"
 echo -e "  ${GREEN}[x]${NC} External palette include (@include:path)"
 echo -e "  ${GREEN}[x]${NC} Circular include detection"
+echo ""
+echo -e "  ${GREEN}Phase 2 - Composition:${NC}"
+echo -e "  ${GREEN}[x]${NC} Multi-layer sprite composition"
+echo -e "  ${GREEN}[x]${NC} Cell-size based grid positioning"
+echo -e "  ${GREEN}[x]${NC} Base sprite support"
+echo -e "  ${GREEN}[x]${NC} CLI: pxl render --composition"
 echo ""
 echo -e "  ${GREEN}Phase 3 - Animation:${NC}"
 echo -e "  ${GREEN}[x]${NC} Animation model with frame timing"
@@ -554,6 +664,11 @@ echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.
 echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif -o walk.gif${NC}"
 echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif --scale 4 -o walk_4x.gif${NC}"
 echo ""
+echo -e "  ${BOLD}Try compositions:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/forest_scene.jsonl -c forest_scene -o forest.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/color_variants.jsonl -c hat_variants -o variants.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/hero_equipped.jsonl -c hero_equipped -o hero.png${NC}"
+echo ""
 echo -e "  ${BOLD}Run the tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
 echo ""
@@ -580,10 +695,11 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Phase 0 + Phase 1 + Phase 3 Complete${NC}"
+echo -e "                ${BOLD}Phase 0 + Phase 1 + Phase 2 + Phase 3 Complete${NC}"
 echo ""
 echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
 echo -e "                ${GREEN}External Palette Includes${NC}"
+echo -e "                ${GREEN}Sprite Composition${NC}"
 echo -e "                ${GREEN}Output Scaling (1-16x)${NC}"
 echo -e "                ${GREEN}Animation → GIF/Spritesheet${NC}"
 echo ""

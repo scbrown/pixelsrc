@@ -7,11 +7,12 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::composition::render_composition;
 use crate::emoji::render_emoji_art;
 use crate::gif::render_gif;
 use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
-use crate::models::{Animation, PaletteRef, Sprite, TtpObject};
+use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
@@ -51,6 +52,10 @@ pub enum Commands {
         /// Only render the sprite with this name
         #[arg(short, long)]
         sprite: Option<String>,
+
+        /// Only render the composition with this name
+        #[arg(short = 'c', long)]
+        composition: Option<String>,
 
         /// Strict mode: treat warnings as errors
         #[arg(long)]
@@ -112,6 +117,7 @@ pub fn run() -> ExitCode {
             input,
             output,
             sprite,
+            composition,
             strict,
             scale,
             gif,
@@ -122,6 +128,7 @@ pub fn run() -> ExitCode {
             &input,
             output.as_deref(),
             sprite.as_deref(),
+            composition.as_deref(),
             strict,
             scale,
             gif,
@@ -196,6 +203,7 @@ fn run_render(
     input: &PathBuf,
     output: Option<&std::path::Path>,
     sprite_filter: Option<&str>,
+    composition_filter: Option<&str>,
     strict: bool,
     scale: u8,
     gif_output: bool,
@@ -232,11 +240,13 @@ fn run_render(
         return ExitCode::from(EXIT_ERROR);
     }
 
-    // Build palette registry and collect sprites and animations
+    // Build palette registry and collect sprites, animations, and compositions
     let mut registry = PaletteRegistry::new();
     let mut sprites_by_name: std::collections::HashMap<String, Sprite> =
         std::collections::HashMap::new();
     let mut animations_by_name: std::collections::HashMap<String, Animation> =
+        std::collections::HashMap::new();
+    let mut compositions_by_name: std::collections::HashMap<String, Composition> =
         std::collections::HashMap::new();
 
     for obj in parse_result.objects {
@@ -272,8 +282,19 @@ fn run_render(
                 }
                 animations_by_name.insert(anim.name.clone(), anim);
             }
-            TtpObject::Composition(_) => {
-                // Composition rendering in CLI is Task 2.7, skip for now
+            TtpObject::Composition(comp) => {
+                if compositions_by_name.contains_key(&comp.name) {
+                    let warning_msg =
+                        format!("Duplicate composition name '{}', using latest", comp.name);
+                    all_warnings.push(warning_msg);
+                    if strict {
+                        for warning in &all_warnings {
+                            eprintln!("Error: {}", warning);
+                        }
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+                compositions_by_name.insert(comp.name.clone(), comp);
             }
             TtpObject::Variant(_) => {
                 // Variant rendering in CLI is handled by resolving to sprites
@@ -306,8 +327,29 @@ fn run_render(
         );
     }
 
+    // Handle composition rendering if --composition is provided
+    if let Some(comp_name) = composition_filter {
+        return run_composition_render(
+            input,
+            output,
+            comp_name,
+            &compositions_by_name,
+            &sprites_by_name,
+            &registry,
+            input_dir,
+            &mut include_visited,
+            &mut all_warnings,
+            strict,
+            scale,
+        );
+    }
+
+    // Determine what to render: sprites and/or compositions
+    let render_sprites = sprite_filter.is_some() || !sprites_by_name.is_empty();
+    let render_compositions = !compositions_by_name.is_empty() && sprite_filter.is_none();
+
     // Convert to Vec for sprite rendering
-    let mut sprites: Vec<_> = sprites_by_name.into_values().collect();
+    let mut sprites: Vec<_> = sprites_by_name.values().cloned().collect();
 
     // Filter sprites if --sprite is provided
     if let Some(name) = sprite_filter {
@@ -318,95 +360,132 @@ fn run_render(
         }
     }
 
-    // Check if we have any sprites to render
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
+    // Check if we have anything to render
+    if sprites.is_empty() && compositions_by_name.is_empty() {
+        eprintln!("Error: No sprites or compositions found in input file");
         return ExitCode::from(EXIT_ERROR);
     }
 
-    let is_single_sprite = sprites.len() == 1;
+    let is_single_output = sprites.len() == 1 && compositions_by_name.is_empty();
 
     // Render each sprite
-    for sprite in &sprites {
-        // Resolve palette - handle @include: syntax specially
-        let resolved = match &sprite.palette {
-            PaletteRef::Named(name) if is_include_ref(name) => {
-                // Handle @include:path syntax
-                let include_path = extract_include_path(name).unwrap();
-                match resolve_include_with_detection(include_path, input_dir, &mut include_visited) {
-                    Ok(palette) => ResolvedPalette {
-                        colors: palette.colors,
-                        source: PaletteSource::Named(format!("@include:{}", include_path)),
-                    },
-                    Err(e) => {
-                        if strict {
+    if render_sprites {
+        for sprite in &sprites {
+            // Resolve palette - handle @include: syntax specially
+            let resolved = match &sprite.palette {
+                PaletteRef::Named(name) if is_include_ref(name) => {
+                    // Handle @include:path syntax
+                    let include_path = extract_include_path(name).unwrap();
+                    match resolve_include_with_detection(include_path, input_dir, &mut include_visited) {
+                        Ok(palette) => ResolvedPalette {
+                            colors: palette.colors,
+                            source: PaletteSource::Named(format!("@include:{}", include_path)),
+                        },
+                        Err(e) => {
+                            if strict {
+                                eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                            all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                            // Fallback to empty palette in lenient mode
+                            ResolvedPalette {
+                                colors: std::collections::HashMap::new(),
+                                source: PaletteSource::Fallback,
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    // Normal palette resolution via registry
+                    match registry.resolve(sprite, strict) {
+                        Ok(result) => {
+                            if let Some(warning) = result.warning {
+                                all_warnings.push(format!(
+                                    "sprite '{}': {}",
+                                    sprite.name, warning.message
+                                ));
+                                if strict {
+                                    for warning in &all_warnings {
+                                        eprintln!("Error: {}", warning);
+                                    }
+                                    return ExitCode::from(EXIT_ERROR);
+                                }
+                            }
+                            result.palette
+                        }
+                        Err(e) => {
                             eprintln!("Error: sprite '{}': {}", sprite.name, e);
                             return ExitCode::from(EXIT_ERROR);
                         }
-                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                        // Fallback to empty palette in lenient mode
-                        ResolvedPalette {
-                            colors: std::collections::HashMap::new(),
-                            source: PaletteSource::Fallback,
-                        }
                     }
                 }
+            };
+
+            // Render sprite
+            let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+
+            // Apply scaling if requested
+            let image = scale_image(image, scale);
+
+            // Collect render warnings
+            for warning in render_warnings {
+                all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
             }
-            _ => {
-                // Normal palette resolution via registry
-                match registry.resolve(sprite, strict) {
-                    Ok(result) => {
-                        if let Some(warning) = result.warning {
-                            all_warnings.push(format!(
-                                "sprite '{}': {}",
-                                sprite.name, warning.message
-                            ));
-                            if strict {
-                                for warning in &all_warnings {
-                                    eprintln!("Error: {}", warning);
-                                }
-                                return ExitCode::from(EXIT_ERROR);
-                            }
-                        }
-                        result.palette
-                    }
-                    Err(e) => {
-                        eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                        return ExitCode::from(EXIT_ERROR);
-                    }
+
+            // In strict mode, render warnings are fatal
+            if strict && !all_warnings.is_empty() {
+                for warning in &all_warnings {
+                    eprintln!("Error: {}", warning);
                 }
+                return ExitCode::from(EXIT_ERROR);
             }
-        };
 
-        // Render sprite
-        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
-
-        // Apply scaling if requested
-        let image = scale_image(image, scale);
-
-        // Collect render warnings
-        for warning in render_warnings {
-            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
-        }
-
-        // In strict mode, render warnings are fatal
-        if strict && !all_warnings.is_empty() {
-            for warning in &all_warnings {
-                eprintln!("Error: {}", warning);
-            }
-            return ExitCode::from(EXIT_ERROR);
-        }
-
-        // Output as emoji art or save as PNG
-        if emoji_output {
-            // Print sprite name for context when rendering multiple sprites
-            if !is_single_sprite {
-                println!("{}:", sprite.name);
-            }
-            print!("{}", render_emoji_art(&image));
-        } else {
             // Generate output path
-            let output_path = generate_output_path(input, &sprite.name, output, is_single_sprite);
+            let output_path = generate_output_path(input, &sprite.name, output, is_single_output);
+
+            // Save PNG
+            if let Err(e) = save_png(&image, &output_path) {
+                eprintln!("Error: Failed to save '{}': {}", output_path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+
+            println!("Saved: {}", output_path.display());
+        }
+    }
+
+    // Render compositions (when no --sprite filter is active)
+    if render_compositions {
+        for (comp_name, comp) in &compositions_by_name {
+            // Render the composition
+            let result = render_composition_to_image(
+                comp,
+                &sprites_by_name,
+                &registry,
+                input_dir,
+                &mut include_visited,
+                &mut all_warnings,
+                strict,
+            );
+
+            let image = match result {
+                Ok(img) => img,
+                Err(code) => return code,
+            };
+
+            // Apply scaling if requested
+            let image = scale_image(image, scale);
+
+            // In strict mode, check for accumulated warnings
+            if strict && !all_warnings.is_empty() {
+                for warning in &all_warnings {
+                    eprintln!("Error: {}", warning);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+
+            // Generate output path
+            let is_single = compositions_by_name.len() == 1 && sprites.is_empty();
+            let output_path = generate_output_path(input, comp_name, output, is_single);
 
             // Save PNG
             if let Err(e) = save_png(&image, &output_path) {
@@ -424,6 +503,201 @@ fn run_render(
     }
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Render a specific composition
+#[allow(clippy::too_many_arguments)]
+fn run_composition_render(
+    input: &std::path::Path,
+    output: Option<&std::path::Path>,
+    comp_name: &str,
+    compositions: &std::collections::HashMap<String, Composition>,
+    sprites: &std::collections::HashMap<String, Sprite>,
+    registry: &PaletteRegistry,
+    input_dir: &std::path::Path,
+    include_visited: &mut HashSet<PathBuf>,
+    all_warnings: &mut Vec<String>,
+    strict: bool,
+    scale: u8,
+) -> ExitCode {
+    // Find the composition
+    let comp = match compositions.get(comp_name) {
+        Some(c) => c,
+        None => {
+            eprintln!("Error: No composition named '{}' found in input", comp_name);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    // Render the composition
+    let result = render_composition_to_image(
+        comp,
+        sprites,
+        registry,
+        input_dir,
+        include_visited,
+        all_warnings,
+        strict,
+    );
+
+    let image = match result {
+        Ok(img) => img,
+        Err(code) => return code,
+    };
+
+    // Apply scaling if requested
+    let image = scale_image(image, scale);
+
+    // In strict mode, check for accumulated warnings
+    if strict && !all_warnings.is_empty() {
+        for warning in all_warnings.iter() {
+            eprintln!("Error: {}", warning);
+        }
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Generate output path
+    let output_path = generate_output_path(input, comp_name, output, true);
+
+    // Save PNG
+    if let Err(e) = save_png(&image, &output_path) {
+        eprintln!("Error: Failed to save '{}': {}", output_path.display(), e);
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    println!("Saved: {}", output_path.display());
+
+    // Print warnings to stderr (in lenient mode)
+    for warning in all_warnings.iter() {
+        eprintln!("Warning: {}", warning);
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Render a composition to an image buffer
+#[allow(clippy::too_many_arguments)]
+fn render_composition_to_image(
+    comp: &Composition,
+    sprites: &std::collections::HashMap<String, Sprite>,
+    registry: &PaletteRegistry,
+    input_dir: &std::path::Path,
+    include_visited: &mut HashSet<PathBuf>,
+    all_warnings: &mut Vec<String>,
+    strict: bool,
+) -> Result<image::RgbaImage, ExitCode> {
+    use image::RgbaImage;
+
+    // Collect all sprite names referenced by the composition
+    let mut required_sprites: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // Add base sprite if specified
+    if let Some(ref base_name) = comp.base {
+        required_sprites.insert(base_name.clone());
+    }
+
+    // Add sprites from the sprites map
+    for sprite_name in comp.sprites.values().flatten() {
+        required_sprites.insert(sprite_name.clone());
+    }
+
+    // Render all required sprites
+    let mut rendered_sprites: std::collections::HashMap<String, RgbaImage> =
+        std::collections::HashMap::new();
+
+    for sprite_name in &required_sprites {
+        let sprite = match sprites.get(sprite_name) {
+            Some(s) => s,
+            None => {
+                let warning_msg = format!(
+                    "composition '{}': sprite '{}' not found",
+                    comp.name, sprite_name
+                );
+                if strict {
+                    eprintln!("Error: {}", warning_msg);
+                    return Err(ExitCode::from(EXIT_ERROR));
+                }
+                all_warnings.push(warning_msg);
+                continue;
+            }
+        };
+
+        // Resolve palette for the sprite
+        let resolved = match &sprite.palette {
+            PaletteRef::Named(name) if is_include_ref(name) => {
+                let include_path = extract_include_path(name).unwrap();
+                match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                    Ok(palette) => ResolvedPalette {
+                        colors: palette.colors,
+                        source: PaletteSource::Named(format!("@include:{}", include_path)),
+                    },
+                    Err(e) => {
+                        if strict {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return Err(ExitCode::from(EXIT_ERROR));
+                        }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        ResolvedPalette {
+                            colors: std::collections::HashMap::new(),
+                            source: PaletteSource::Fallback,
+                        }
+                    }
+                }
+            }
+            _ => match registry.resolve(sprite, strict) {
+                Ok(result) => {
+                    if let Some(warning) = result.warning {
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                        if strict {
+                            for w in all_warnings.iter() {
+                                eprintln!("Error: {}", w);
+                            }
+                            return Err(ExitCode::from(EXIT_ERROR));
+                        }
+                    }
+                    result.palette
+                }
+                Err(e) => {
+                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                    return Err(ExitCode::from(EXIT_ERROR));
+                }
+            },
+        };
+
+        // Render the sprite
+        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+
+        // Collect render warnings
+        for warning in render_warnings {
+            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+        }
+
+        if strict && !all_warnings.is_empty() {
+            for w in all_warnings.iter() {
+                eprintln!("Error: {}", w);
+            }
+            return Err(ExitCode::from(EXIT_ERROR));
+        }
+
+        rendered_sprites.insert(sprite_name.clone(), image);
+    }
+
+    // Render the composition
+    let result = render_composition(comp, &rendered_sprites, strict);
+
+    match result {
+        Ok((image, comp_warnings)) => {
+            // Collect composition warnings
+            for warning in comp_warnings {
+                all_warnings.push(format!("composition '{}': {}", comp.name, warning.message));
+            }
+            Ok(image)
+        }
+        Err(e) => {
+            eprintln!("Error: composition '{}': {}", comp.name, e);
+            Err(ExitCode::from(EXIT_ERROR))
+        }
+    }
 }
 
 /// Render an animation as GIF or spritesheet
