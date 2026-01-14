@@ -109,9 +109,15 @@ slide "Building Project"
 echo -e "  ${DIM}\$ cargo build --release${NC}"
 echo ""
 
-cargo build --release 2>&1 | grep -E "(Compiling pxl|Finished)" | tail -2 | sed 's/^/  /' || echo -e "  ${GREEN}Already up to date${NC}"
-echo ""
-echo -e "  ${GREEN}Build successful${NC}"
+# Run cargo build directly without piping to preserve real-time progress output
+if cargo build --release; then
+    echo ""
+    echo -e "  ${GREEN}Build successful${NC}"
+else
+    echo ""
+    echo -e "  ${RED}Build failed${NC}"
+    exit 1
+fi
 
 pause
 
@@ -123,17 +129,15 @@ slide "Running Tests"
 echo -e "  ${DIM}\$ cargo test${NC}"
 echo ""
 
-# Capture test output
-test_output=$(cargo test 2>&1)
-passed=$(echo "$test_output" | grep -oE '[0-9]+ passed' | head -1)
-doc_tests=$(echo "$test_output" | grep "doc" | grep -oE '[0-9]+ passed' || echo "")
-
-echo -e "  ${GREEN}Unit tests:    $passed${NC}"
-if [ -n "$doc_tests" ]; then
-    echo -e "  ${GREEN}Doc tests:     $doc_tests${NC}"
+# Run tests directly without piping to preserve real-time output
+if cargo test; then
+    echo ""
+    echo -e "  ${GREEN}All tests passing${NC}"
+else
+    echo ""
+    echo -e "  ${RED}Tests failed${NC}"
+    exit 1
 fi
-echo ""
-echo -e "  ${GREEN}All tests passing${NC}"
 
 pause
 
