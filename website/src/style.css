@@ -294,13 +294,14 @@ html, body {
 }
 
 .gallery-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 1rem;
   padding: 0.5rem 0;
 }
 
 .gallery-item {
+  aspect-ratio: 1;
   background-color: var(--bg-panel);
   border-radius: 8px;
   display: flex;
@@ -308,10 +309,9 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   border: 2px solid transparent;
   padding: 0.75rem;
-  min-width: 80px;
   font-family: inherit;
   color: var(--text-primary);
 }
@@ -325,6 +325,11 @@ html, body {
 .gallery-item:focus {
   outline: none;
   border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.3);
+}
+
+.gallery-item:active {
+  transform: translateY(-2px);
 }
 
 .gallery-thumb {
@@ -334,6 +339,7 @@ html, body {
   justify-content: center;
   align-items: center;
   margin-bottom: 0.5rem;
+  position: relative;
 }
 
 .gallery-thumb img {
@@ -341,18 +347,69 @@ html, body {
   max-height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  transition: opacity 0.2s ease;
 }
 
 .gallery-fallback {
   font-size: 1.5rem;
   font-weight: bold;
   color: var(--text-secondary);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
 }
 
 .gallery-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: capitalize;
+  transition: color 0.2s ease;
+}
+
+.gallery-item:hover .gallery-label {
+  color: var(--text-primary);
+}
+
+/* Gallery loading state */
+.gallery-item.loading .gallery-thumb::after {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.gallery-item.loading .gallery-thumb img {
+  opacity: 0;
+}
+
+/* Gallery loading and empty states */
+.gallery-loading,
+.gallery-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.gallery-loading::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.5rem;
 }
 
 /* Export Controls */
@@ -600,18 +657,24 @@ html, body {
   }
 
   .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
     gap: 0.5rem;
   }
 
   .gallery-item {
     padding: 0.5rem;
-    min-width: 60px;
   }
 
   .gallery-thumb {
     width: 36px;
     height: 36px;
     margin-bottom: 0.25rem;
+  }
+
+  .gallery-fallback {
+    width: 36px;
+    height: 36px;
+    font-size: 1.25rem;
   }
 
   .gallery-label {

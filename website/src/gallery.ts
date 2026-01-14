@@ -31,29 +31,57 @@ export class Gallery {
   async loadExamples(): Promise<void> {
     this.examples = [];
 
-    for (const filename of EXAMPLE_FILES) {
-      try {
+    // Show loading state
+    this.showLoading();
+
+    // Load all examples in parallel for better performance
+    const results = await Promise.allSettled(
+      EXAMPLE_FILES.map(async (filename) => {
         const response = await fetch(`/examples/${filename}`);
-        if (response.ok) {
-          const jsonl = await response.text();
-          const name = filename.replace('.jsonl', '');
-          this.examples.push({ name, jsonl: jsonl.trim() });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-      } catch (err) {
-        console.warn(`Failed to load example: ${filename}`, err);
+        const jsonl = await response.text();
+        const name = filename.replace('.jsonl', '');
+        return { name, jsonl: jsonl.trim() };
+      })
+    );
+
+    // Collect successful results
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        this.examples.push(result.value);
+      } else {
+        console.warn('Failed to load example:', result.reason);
       }
     }
 
     this.render();
   }
 
+  private showLoading(): void {
+    this.container.innerHTML = '';
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'gallery-loading';
+    loadingEl.textContent = 'Loading examples...';
+    this.container.appendChild(loadingEl);
+  }
+
   private render(): void {
     this.container.innerHTML = '';
+
+    if (this.examples.length === 0) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'gallery-empty';
+      emptyEl.textContent = 'No examples available';
+      this.container.appendChild(emptyEl);
+      return;
+    }
 
     for (const example of this.examples) {
       const item = document.createElement('button');
       item.className = 'gallery-item';
-      item.title = example.name;
+      item.title = `Load ${example.name} example`;
       item.type = 'button';
 
       // Create thumbnail container
@@ -68,13 +96,14 @@ export class Gallery {
 
         const img = document.createElement('img');
         img.src = url;
-        img.alt = example.name;
+        img.alt = `${example.name} sprite preview`;
         thumbContainer.appendChild(img);
       } catch (err) {
-        // Fallback to text if render fails
+        // Fallback to first letter if render fails
         const fallback = document.createElement('span');
         fallback.textContent = example.name.charAt(0).toUpperCase();
         fallback.className = 'gallery-fallback';
+        fallback.setAttribute('aria-label', example.name);
         thumbContainer.appendChild(fallback);
       }
 
