@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Sourcemaps
+*.js.map
+
+# Lock files
+package-lock.json
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

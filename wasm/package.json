@@ -9,7 +9,8 @@
     ".": {
       "import": "./pkg/pixelsrc.js",
       "types": "./pkg/pixelsrc.d.ts"
-    }
+    },
+    "./pkg/pixelsrc_bg.wasm": "./pkg/pixelsrc_bg.wasm"
   },
   "files": [
     "pkg/pixelsrc_bg.wasm",

@@ -1,0 +1,11 @@
+{
+  "id": "pixelsrc",
+  "name": "PixelSrc",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Render pixelsrc pixel art code blocks in your notes",
+  "author": "PixelSrc",
+  "authorUrl": "https://github.com/pixelsrc",
+  "fundingUrl": "",
+  "isDesktopOnly": false
+}
