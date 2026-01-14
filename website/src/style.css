@@ -223,6 +223,73 @@ html, body {
   image-rendering: crisp-edges;
 }
 
+/* Export Controls */
+.export-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-scale-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.export-scale-select {
+  padding: 0.25rem 0.5rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.export-scale-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.export-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.export-btn:hover {
+  background-color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.export-download-btn:hover {
+  color: var(--success);
+}
+
+.export-copy-btn:hover {
+  color: var(--accent);
+}
+
+.export-copy-feedback {
+  font-size: 0.875rem;
+  color: var(--success);
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.export-copy-feedback.visible {
+  opacity: 1;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   #main {
@@ -231,5 +298,14 @@ html, body {
 
   #gallery-panel {
     max-height: 150px;
+  }
+
+  .preview-controls {
+    flex-wrap: wrap;
+  }
+
+  .export-controls {
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
 }

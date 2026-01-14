@@ -1,6 +1,7 @@
 import init, { render_to_png, validate } from '@pixelsrc/wasm';
 import LZString from 'lz-string';
 import { createEditor, Editor } from './editor';
+import { Export } from './export';
 
 // DOM Elements
 let editorContainer: HTMLDivElement;
@@ -67,6 +68,14 @@ async function initApp(): Promise<void> {
 
   // Initialize CodeMirror editor
   editor = createEditor(editorContainer, initialContent);
+
+  // Initialize export component
+  const exportContainer = document.getElementById('export-controls') as HTMLDivElement;
+  new Export({
+    container: exportContainer,
+    getJsonl: () => editor.value.trim(),
+    onError: showError,
+  });
 
   // Set up event listeners
   renderBtn.addEventListener('click', handleRender);
