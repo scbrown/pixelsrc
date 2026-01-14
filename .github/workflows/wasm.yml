@@ -14,6 +14,10 @@ on:
       - 'Cargo.toml'
       - 'wasm/**'
 
+permissions:
+  contents: read
+  id-token: write  # Required for npm trusted publishing (OIDC)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -65,6 +69,4 @@ jobs:
       - name: Publish to npm
         run: |
           cd wasm
-          npm publish --access public || echo "Version already published"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish --access public --provenance || echo "Version already published"

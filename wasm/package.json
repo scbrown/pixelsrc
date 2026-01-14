@@ -37,10 +37,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pixelsrc/pixelsrc"
+    "url": "https://github.com/scbrown/pixelsrc"
   },
   "bugs": {
-    "url": "https://github.com/pixelsrc/pixelsrc/issues"
+    "url": "https://github.com/scbrown/pixelsrc/issues"
   },
-  "homepage": "https://github.com/pixelsrc/pixelsrc#readme"
+  "homepage": "https://github.com/scbrown/pixelsrc#readme"
 }
