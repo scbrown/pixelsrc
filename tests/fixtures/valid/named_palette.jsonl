@@ -1,0 +1,2 @@
+{"type": "palette", "name": "mono", "colors": {"{_}": "#00000000", "{on}": "#FFFFFF", "{off}": "#000000"}}
+{"type": "sprite", "name": "checker", "palette": "mono", "grid": ["{on}{off}{on}{off}", "{off}{on}{off}{on}", "{on}{off}{on}{off}", "{off}{on}{off}{on}"]}

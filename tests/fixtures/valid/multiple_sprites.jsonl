@@ -1,0 +1,4 @@
+{"type": "palette", "name": "icons", "colors": {"{_}": "#00000000", "{g}": "#00FF00", "{y}": "#FFFF00", "{r}": "#FF0000"}}
+{"type": "sprite", "name": "green_dot", "palette": "icons", "grid": ["{_}{g}{_}", "{g}{g}{g}", "{_}{g}{_}"]}
+{"type": "sprite", "name": "yellow_dot", "palette": "icons", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}
+{"type": "sprite", "name": "red_dot", "palette": "icons", "grid": ["{_}{r}{_}", "{r}{r}{r}", "{_}{r}{_}"]}

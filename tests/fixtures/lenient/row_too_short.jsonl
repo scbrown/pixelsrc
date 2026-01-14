@@ -1,0 +1,1 @@
+{"type": "sprite", "name": "short_row", "size": [4, 2], "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}", "{x}{x}{x}{x}"]}

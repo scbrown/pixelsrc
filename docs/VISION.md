@@ -10,13 +10,15 @@ Create a GenAI-native pixel art format that prioritizes readability, expressabil
 
 2. **Implicit over explicit** - Grid position defines location; no coordinate systems. This sidesteps GenAI's weakness with spatial reasoning.
 
-3. **Don't reinvent the wheel** - Leverage existing tools (ImageMagick, etc.) for image processing. TTP is a thin semantic layer, not a rendering engine.
+3. **Don't reinvent the wheel** - Use proven libraries (`image` crate for rendering, `serde` for parsing). TTP is a thin semantic layer, not a rendering engine.
 
 4. **Two-way doors** - Keep decisions reversible where possible. Start with JSON syntax, but design for future flexibility.
 
 5. **GenAI-first** - Every design choice should make LLM generation more reliable. If a human finds it readable, an LLM can generate it.
 
 6. **Streaming-native** - JSONL format enables real-time parsing as GenAI generates. Each line is self-contained and immediately usable.
+
+7. **Lenient by default** - Fill gaps, warn, continue. When GenAI makes small mistakes, keep going. Strict mode available for CI/validation.
 
 ## What TTP Is
 
@@ -38,6 +40,21 @@ Create a GenAI-native pixel art format that prioritizes readability, expressabil
 - **Indie game developers** wanting quick prototyping
 - **Pixel artists** wanting text-based version control
 - **Roguelike/retro game developers**
+
+## Competitive Context
+
+See [DIFFERENTIATOR.md](./DIFFERENTIATOR.md) for full competitive analysis.
+
+**Key insight**: No existing text-based *source* format is designed for AI-generatable, human-readable pixel art. Existing tools are either:
+- Visual editors with text *exports* (REXPaint, Aseprite)
+- Hex-based fantasy console formats (PICO-8, TIC-80)
+- AI image generators that skip text entirely (PixelLab, diffusion models)
+
+TTP fills the gap: a **source format** (not export), **semantic** (not hex), **GenAI-native** (not visual-first).
+
+## Quality Target
+
+**REXPaint-level output**. REXPaint is the gold standard for roguelike/ASCII art tooling. A compiled `.ttp` file should produce output indistinguishable from what a skilled REXPaint artist would create.
 
 ## Success Criteria
 

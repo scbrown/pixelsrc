@@ -1,0 +1,1 @@
+{"type": "sprite", "name": "color_test", "palette": {"{a}": "#F00", "{b}": "#FF0000", "{c}": "#FF0000FF", "{d}": "#F00F"}, "grid": ["{a}{b}", "{c}{d}"]}
