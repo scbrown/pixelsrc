@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::gif::render_gif;
+use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
@@ -70,6 +71,23 @@ pub enum Commands {
         #[arg(long)]
         animation: Option<String>,
     },
+    /// Import a PNG image and convert to Pixelsrc JSONL format
+    Import {
+        /// Input PNG file to convert
+        input: PathBuf,
+
+        /// Output JSONL file (default: {input}.jsonl)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Maximum number of colors in the palette (2-256, default: 16)
+        #[arg(long, default_value = "16")]
+        max_colors: usize,
+
+        /// Name for the generated sprite (default: derived from filename)
+        #[arg(short, long)]
+        name: Option<String>,
+    },
 }
 
 /// Run the CLI application
@@ -96,6 +114,12 @@ pub fn run() -> ExitCode {
             spritesheet,
             animation.as_deref(),
         ),
+        Commands::Import {
+            input,
+            output,
+            max_colors,
+            name,
+        } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
     }
 }
 
@@ -503,5 +527,60 @@ fn run_animation_render(
         eprintln!("Warning: {}", warning);
     }
 
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the import command
+fn run_import(
+    input: &PathBuf,
+    output: Option<&std::path::Path>,
+    max_colors: usize,
+    sprite_name: Option<&str>,
+) -> ExitCode {
+    // Validate max_colors
+    if !(2..=256).contains(&max_colors) {
+        eprintln!("Error: --max-colors must be between 2 and 256");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Derive sprite name from filename if not provided
+    let name = sprite_name
+        .map(String::from)
+        .unwrap_or_else(|| {
+            input
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
+
+    // Import the PNG
+    let result = match import_png(input, &name, max_colors) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    // Generate output path
+    let output_path = output
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| {
+            let stem = input.file_stem().unwrap_or_default().to_string_lossy();
+            input
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join(format!("{}.jsonl", stem))
+        });
+
+    // Write JSONL output
+    let jsonl = result.to_jsonl();
+    if let Err(e) = std::fs::write(&output_path, jsonl) {
+        eprintln!("Error: Failed to write '{}': {}", output_path.display(), e);
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    println!("Imported: {} ({}x{}, {} colors)", output_path.display(), result.width, result.height, result.palette.len());
     ExitCode::from(EXIT_SUCCESS)
 }
