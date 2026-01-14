@@ -2,7 +2,7 @@
 
 **Goal:** Move repo to GitHub with working CI/CD for releases, package builds, and website hosting
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Existing workflows already in repo
 

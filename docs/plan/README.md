@@ -17,7 +17,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 7](./phase-7-website.md) | **Interactive Website** | Planning |
 | [Phase 8](./phase-8-obsidian.md) | **Obsidian Plugin** | Planning |
 | [Phase 9](./phase-9-packages.md) | **Package Distribution** | Planning |
-| [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Planning |
+| [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Complete |
 
 ### Future Ideas
 
