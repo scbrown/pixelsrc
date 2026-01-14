@@ -1,0 +1,28 @@
+{
+    "version": "0.1.0",
+    "description": "Pixelsrc - GenAI-native pixel art format and compiler",
+    "homepage": "https://github.com/pixelsrc/pixelsrc",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/pixelsrc/pixelsrc/releases/download/v0.1.0/pxl-x86_64-pc-windows-msvc.zip",
+            "hash": "TODO_HASH_64BIT"
+        },
+        "arm64": {
+            "url": "https://github.com/pixelsrc/pixelsrc/releases/download/v0.1.0/pxl-aarch64-pc-windows-msvc.zip",
+            "hash": "TODO_HASH_ARM64"
+        }
+    },
+    "bin": "pxl.exe",
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/pixelsrc/pixelsrc/releases/download/v$version/pxl-x86_64-pc-windows-msvc.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/pixelsrc/pixelsrc/releases/download/v$version/pxl-aarch64-pc-windows-msvc.zip"
+            }
+        }
+    }
+}

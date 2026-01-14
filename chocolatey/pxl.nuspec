@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>pxl</id>
+    <version>0.1.0</version>
+    <title>Pixelsrc (pxl)</title>
+    <authors>Pixelsrc Contributors</authors>
+    <projectUrl>https://github.com/pixelsrc/pixelsrc</projectUrl>
+    <licenseUrl>https://github.com/pixelsrc/pixelsrc/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/pixelsrc/pixelsrc</projectSourceUrl>
+    <docsUrl>https://github.com/pixelsrc/pixelsrc#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/pixelsrc/pixelsrc/issues</bugTrackerUrl>
+    <tags>pixel-art genai compiler cli developer-tools rust</tags>
+    <summary>GenAI-native pixel art format and compiler</summary>
+    <description>Pixelsrc (pxl) is a GenAI-native pixel art format and compiler. It provides a text-based format optimized for AI code generation and a compiler that produces pixel-perfect PNG output.
+
+Features:
+- Text-based .pxl format designed for AI generation
+- Compile to PNG with precise pixel control
+- Animation support with frame sequences
+- Color palettes and cell-based rendering
+- Cross-platform CLI tool
+    </description>
+    <releaseNotes>https://github.com/pixelsrc/pixelsrc/releases/tag/v0.1.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
