@@ -5,6 +5,7 @@
 //! - Render sprites to PNG images
 //! - Support both lenient and strict error modes
 
+pub mod animation;
 pub mod cli;
 pub mod color;
 pub mod composition;
