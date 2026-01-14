@@ -140,7 +140,7 @@ fn run_render(
     // Render each sprite
     for sprite in &sprites {
         // Resolve palette
-        let resolved = match registry.resolve(&sprite, strict) {
+        let resolved = match registry.resolve(sprite, strict) {
             Ok(result) => {
                 if let Some(warning) = result.warning {
                     all_warnings.push(format!(
@@ -163,7 +163,7 @@ fn run_render(
         };
 
         // Render sprite
-        let (image, render_warnings) = render_sprite(&sprite, &resolved.colors);
+        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
 
         // Collect render warnings
         for warning in render_warnings {

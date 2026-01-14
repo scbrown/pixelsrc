@@ -167,27 +167,26 @@ pub fn render_sprite(sprite: &Sprite, palette: &HashMap<String, String>) -> (Rgb
             )));
         }
 
-        for x in 0..width {
-            let color = if x < row_len {
-                let token = &row_tokens[x];
-                if let Some(&rgba) = color_cache.get(token) {
-                    rgba
-                } else {
-                    // Unknown token
-                    warnings.push(Warning::new(format!(
-                        "Unknown token {} in sprite '{}'",
-                        token, sprite.name
-                    )));
-                    // Cache it to avoid duplicate warnings
-                    color_cache.insert(token.clone(), MAGENTA);
-                    MAGENTA
-                }
+        // Process tokens that exist (up to width)
+        for (x, token) in row_tokens.iter().take(width).enumerate() {
+            let color = if let Some(&rgba) = color_cache.get(token) {
+                rgba
             } else {
-                // Pad with transparent (treating as {_})
-                TRANSPARENT
+                // Unknown token
+                warnings.push(Warning::new(format!(
+                    "Unknown token {} in sprite '{}'",
+                    token, sprite.name
+                )));
+                // Cache it to avoid duplicate warnings
+                color_cache.insert(token.clone(), MAGENTA);
+                MAGENTA
             };
-
             image.put_pixel(x as u32, y as u32, color);
+        }
+
+        // Pad remaining columns with transparent (if row is short)
+        for x in row_len..width {
+            image.put_pixel(x as u32, y as u32, TRANSPARENT);
         }
     }
 
