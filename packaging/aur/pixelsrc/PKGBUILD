@@ -1,0 +1,45 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=pixelsrc
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='GenAI-native pixel art format and compiler'
+arch=('x86_64' 'aarch64')
+url='https://github.com/OWNER/pixelsrc'
+license=('MIT')
+depends=('gcc-libs')
+makedepends=('cargo')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release --all-features
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo test --frozen --all-features
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/pxl"
+
+    # Install documentation
+    install -Dm644 docs/ANNOUNCEMENT.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+
+    # Install license (if exists)
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    fi
+}

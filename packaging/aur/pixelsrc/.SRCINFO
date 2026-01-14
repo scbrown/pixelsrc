@@ -1,0 +1,14 @@
+pkgbase = pixelsrc
+	pkgdesc = GenAI-native pixel art format and compiler
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/OWNER/pixelsrc
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = cargo
+	depends = gcc-libs
+	source = pixelsrc-0.1.0.tar.gz::https://github.com/OWNER/pixelsrc/archive/refs/tags/v0.1.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = pixelsrc
