@@ -1,0 +1,7 @@
+{"type": "palette", "name": "rgb", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "red_pixel", "palette": "rgb", "grid": ["{r}"]}
+{"type": "sprite", "name": "green_pixel", "palette": "rgb", "grid": ["{g}"]}
+{"type": "sprite", "name": "blue_pixel", "palette": "rgb", "grid": ["{b}"]}
+{"type": "composition", "name": "two_layers", "size": [3, 3], "sprites": {".": null, "R": "red_pixel", "B": "blue_pixel"}, "layers": [{"name": "bottom", "map": ["R.R", ".R.", "R.R"]}, {"name": "top", "map": [".B.", "B.B", ".B."]}]}
+{"type": "composition", "name": "three_layers", "size": [2, 2], "sprites": {".": null, "R": "red_pixel", "G": "green_pixel", "B": "blue_pixel"}, "layers": [{"name": "layer1", "map": ["RR", "RR"]}, {"name": "layer2", "map": ["GG", ".."]}, {"name": "layer3", "map": ["B.", ".."]}]}
+{"type": "composition", "name": "dots_layer", "size": [2, 2], "sprites": {".": null, "R": "red_pixel"}, "layers": [{"name": "background", "map": ["RR", "RR"]}, {"name": "empty", "map": ["..", ".."]}]}

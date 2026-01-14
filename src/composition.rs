@@ -371,4 +371,212 @@ mod tests {
         assert_eq!(image.width(), 2);
         assert_eq!(image.height(), 2);
     }
+
+    #[test]
+    fn test_render_two_layers_stack() {
+        // Layer 1: red at (0,0), transparent elsewhere
+        // Layer 2: blue at (0,0), transparent elsewhere
+        // Result: blue at (0,0) because layer 2 is on top
+        let comp = Composition {
+            name: "two_layers".to_string(),
+            base: None,
+            size: Some([2, 2]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("R".to_string(), Some("red_pixel".to_string())),
+                ("B".to_string(), Some("blue_pixel".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("bottom".to_string()),
+                    fill: None,
+                    map: Some(vec!["R.".to_string(), "..".to_string()]),
+                },
+                CompositionLayer {
+                    name: Some("top".to_string()),
+                    fill: None,
+                    map: Some(vec!["B.".to_string(), "..".to_string()]),
+                },
+            ],
+        };
+
+        let mut red_sprite = RgbaImage::new(1, 1);
+        red_sprite.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let mut blue_sprite = RgbaImage::new(1, 1);
+        blue_sprite.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+
+        let sprites = HashMap::from([
+            ("red_pixel".to_string(), red_sprite),
+            ("blue_pixel".to_string(), blue_sprite),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites);
+
+        assert!(warnings.is_empty());
+        // (0,0) should be blue (layer 2 overwrites layer 1)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 0, 255, 255]));
+        // Other pixels should be transparent
+        assert_eq!(*image.get_pixel(1, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(0, 1), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(1, 1), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_render_two_layers_different_positions() {
+        // Layer 1: red at (0,0)
+        // Layer 2: blue at (1,1)
+        // Result: both visible at their respective positions
+        let comp = Composition {
+            name: "two_layers_positions".to_string(),
+            base: None,
+            size: Some([2, 2]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("R".to_string(), Some("red_pixel".to_string())),
+                ("B".to_string(), Some("blue_pixel".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("bottom".to_string()),
+                    fill: None,
+                    map: Some(vec!["R.".to_string(), "..".to_string()]),
+                },
+                CompositionLayer {
+                    name: Some("top".to_string()),
+                    fill: None,
+                    map: Some(vec!["..".to_string(), ".B".to_string()]),
+                },
+            ],
+        };
+
+        let mut red_sprite = RgbaImage::new(1, 1);
+        red_sprite.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let mut blue_sprite = RgbaImage::new(1, 1);
+        blue_sprite.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+
+        let sprites = HashMap::from([
+            ("red_pixel".to_string(), red_sprite),
+            ("blue_pixel".to_string(), blue_sprite),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites);
+
+        assert!(warnings.is_empty());
+        // (0,0) should be red (from layer 1)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        // (1,1) should be blue (from layer 2)
+        assert_eq!(*image.get_pixel(1, 1), Rgba([0, 0, 255, 255]));
+        // Other pixels should be transparent
+        assert_eq!(*image.get_pixel(1, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(0, 1), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_render_three_layers_stack() {
+        // Layer 1: red across all
+        // Layer 2: green at (0,0) and (1,0)
+        // Layer 3: blue at (0,0) only
+        // Result: blue at (0,0), green at (1,0), red at (0,1) and (1,1)
+        let comp = Composition {
+            name: "three_layers".to_string(),
+            base: None,
+            size: Some([2, 2]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("R".to_string(), Some("red_pixel".to_string())),
+                ("G".to_string(), Some("green_pixel".to_string())),
+                ("B".to_string(), Some("blue_pixel".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("layer1".to_string()),
+                    fill: None,
+                    map: Some(vec!["RR".to_string(), "RR".to_string()]),
+                },
+                CompositionLayer {
+                    name: Some("layer2".to_string()),
+                    fill: None,
+                    map: Some(vec!["GG".to_string(), "..".to_string()]),
+                },
+                CompositionLayer {
+                    name: Some("layer3".to_string()),
+                    fill: None,
+                    map: Some(vec!["B.".to_string(), "..".to_string()]),
+                },
+            ],
+        };
+
+        let mut red_sprite = RgbaImage::new(1, 1);
+        red_sprite.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let mut green_sprite = RgbaImage::new(1, 1);
+        green_sprite.put_pixel(0, 0, Rgba([0, 255, 0, 255]));
+
+        let mut blue_sprite = RgbaImage::new(1, 1);
+        blue_sprite.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+
+        let sprites = HashMap::from([
+            ("red_pixel".to_string(), red_sprite),
+            ("green_pixel".to_string(), green_sprite),
+            ("blue_pixel".to_string(), blue_sprite),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites);
+
+        assert!(warnings.is_empty());
+        // (0,0): red -> green -> blue = blue
+        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 0, 255, 255]));
+        // (1,0): red -> green = green
+        assert_eq!(*image.get_pixel(1, 0), Rgba([0, 255, 0, 255]));
+        // (0,1): red only
+        assert_eq!(*image.get_pixel(0, 1), Rgba([255, 0, 0, 255]));
+        // (1,1): red only
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_all_dots_layer_renders_nothing() {
+        // Layer with all "." should not affect the canvas
+        let comp = Composition {
+            name: "dots_layer".to_string(),
+            base: None,
+            size: Some([2, 2]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("R".to_string(), Some("red_pixel".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("background".to_string()),
+                    fill: None,
+                    map: Some(vec!["RR".to_string(), "RR".to_string()]),
+                },
+                CompositionLayer {
+                    name: Some("empty".to_string()),
+                    fill: None,
+                    map: Some(vec!["..".to_string(), "..".to_string()]),
+                },
+            ],
+        };
+
+        let mut red_sprite = RgbaImage::new(1, 1);
+        red_sprite.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("red_pixel".to_string(), red_sprite)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites);
+
+        assert!(warnings.is_empty());
+        // All pixels should still be red (empty layer didn't erase anything)
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(0, 1), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+    }
 }
