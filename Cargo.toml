@@ -29,3 +29,9 @@ wasm-bindgen-test = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # WASM-specific dependencies can be added here
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,21 @@
+# Cross-compilation configuration for pixelsrc/pxl
+
+# Linux x86_64 (GNU)
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+
+# Linux ARM64 (GNU)
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+# macOS x86_64
+[target.x86_64-apple-darwin]
+linker = "clang"
+
+# macOS ARM64 (Apple Silicon)
+[target.aarch64-apple-darwin]
+linker = "clang"
+
+# Windows x86_64 (MSVC)
+[target.x86_64-pc-windows-msvc]
+# Uses default MSVC linker when available
