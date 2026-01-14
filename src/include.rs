@@ -1,0 +1,262 @@
+//! External palette file inclusion support
+//!
+//! Supports the `@include:path` syntax for including palettes from external files.
+//! Paths are resolved relative to the including file's directory.
+
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+
+use crate::models::{Palette, TtpObject};
+use crate::parser::parse_stream;
+
+/// Error type for include resolution failures.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IncludeError {
+    /// Circular include detected
+    CircularInclude(PathBuf),
+    /// File not found
+    FileNotFound(PathBuf, String),
+    /// No palette found in included file
+    NoPaletteFound(PathBuf),
+    /// IO error reading file
+    IoError(PathBuf, String),
+}
+
+impl std::fmt::Display for IncludeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IncludeError::CircularInclude(path) => {
+                write!(f, "Circular include detected: {}", path.display())
+            }
+            IncludeError::FileNotFound(path, msg) => {
+                write!(f, "Include file not found '{}': {}", path.display(), msg)
+            }
+            IncludeError::NoPaletteFound(path) => {
+                write!(f, "No palette found in included file: {}", path.display())
+            }
+            IncludeError::IoError(path, msg) => {
+                write!(f, "Error reading include file '{}': {}", path.display(), msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for IncludeError {}
+
+/// The prefix for include syntax
+pub const INCLUDE_PREFIX: &str = "@include:";
+
+/// Check if a palette reference is an include reference.
+pub fn is_include_ref(palette_ref: &str) -> bool {
+    palette_ref.starts_with(INCLUDE_PREFIX)
+}
+
+/// Extract the path from an include reference.
+///
+/// Returns `None` if the reference is not an include reference.
+pub fn extract_include_path(palette_ref: &str) -> Option<&str> {
+    palette_ref.strip_prefix(INCLUDE_PREFIX)
+}
+
+/// Resolve an include reference to a Palette.
+///
+/// # Arguments
+///
+/// * `include_path` - The path string after `@include:` (e.g., "./shared/colors.jsonl")
+/// * `base_path` - The directory containing the file with the @include reference
+///
+/// # Returns
+///
+/// The first palette found in the included file, or an error.
+///
+/// # Example
+///
+/// ```ignore
+/// // Given: file at /project/sprites.jsonl with "@include:shared/palette.jsonl"
+/// // base_path would be /project/
+/// // include_path would be "shared/palette.jsonl"
+/// // Resolves to: /project/shared/palette.jsonl
+/// ```
+pub fn resolve_include(include_path: &str, base_path: &Path) -> Result<Palette, IncludeError> {
+    let mut visited = HashSet::new();
+    resolve_include_with_detection(include_path, base_path, &mut visited)
+}
+
+/// Resolve an include reference with circular include detection.
+///
+/// This is the internal implementation that tracks visited files to detect cycles.
+pub fn resolve_include_with_detection(
+    include_path: &str,
+    base_path: &Path,
+    visited: &mut HashSet<PathBuf>,
+) -> Result<Palette, IncludeError> {
+    // Resolve the include path relative to the base path
+    let resolved_path = base_path.join(include_path);
+
+    // Canonicalize for consistent comparison (handles .., symlinks, etc.)
+    let canonical_path = resolved_path
+        .canonicalize()
+        .map_err(|e| IncludeError::FileNotFound(resolved_path.clone(), e.to_string()))?;
+
+    // Check for circular includes
+    if visited.contains(&canonical_path) {
+        return Err(IncludeError::CircularInclude(canonical_path));
+    }
+
+    // Mark this file as being processed
+    visited.insert(canonical_path.clone());
+
+    // Open and parse the included file
+    let file = File::open(&canonical_path)
+        .map_err(|e| IncludeError::IoError(canonical_path.clone(), e.to_string()))?;
+
+    let reader = BufReader::new(file);
+    let parse_result = parse_stream(reader);
+
+    // Get the directory of the included file for nested includes
+    // (reserved for future nested include support)
+    let _include_dir = canonical_path
+        .parent()
+        .unwrap_or(Path::new("."));
+
+    // Find the first palette in the included file
+    for obj in parse_result.objects {
+        if let TtpObject::Palette(palette) = obj {
+            return Ok(palette);
+        }
+        // Handle sprites that might have @include palette refs
+        // (but we're looking for palette objects, not sprite palette refs)
+    }
+
+    Err(IncludeError::NoPaletteFound(canonical_path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_is_include_ref() {
+        assert!(is_include_ref("@include:path/to/file.jsonl"));
+        assert!(is_include_ref("@include:./relative.jsonl"));
+        assert!(!is_include_ref("@gameboy"));
+        assert!(!is_include_ref("regular_palette"));
+        assert!(!is_include_ref(""));
+    }
+
+    #[test]
+    fn test_extract_include_path() {
+        assert_eq!(
+            extract_include_path("@include:path/to/file.jsonl"),
+            Some("path/to/file.jsonl")
+        );
+        assert_eq!(
+            extract_include_path("@include:./relative.jsonl"),
+            Some("./relative.jsonl")
+        );
+        assert_eq!(extract_include_path("@gameboy"), None);
+        assert_eq!(extract_include_path("regular"), None);
+    }
+
+    #[test]
+    fn test_resolve_include_simple() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("palette.jsonl");
+
+        // Create a palette file
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        let result = resolve_include("palette.jsonl", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "test");
+        assert!(palette.colors.contains_key("{x}"));
+    }
+
+    #[test]
+    fn test_resolve_include_file_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let result = resolve_include("nonexistent.jsonl", temp_dir.path());
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            IncludeError::FileNotFound(_, _) => {}
+            other => panic!("Expected FileNotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_resolve_include_no_palette() {
+        let temp_dir = TempDir::new().unwrap();
+        let sprite_path = temp_dir.path().join("sprite.jsonl");
+
+        // Create a file with only a sprite (no palette)
+        let mut file = fs::File::create(&sprite_path).unwrap();
+        let content = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        let result = resolve_include("sprite.jsonl", temp_dir.path());
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            IncludeError::NoPaletteFound(_) => {}
+            other => panic!("Expected NoPaletteFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_resolve_include_circular_detection() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // For this test, we simulate circular detection by checking the same file twice
+        let palette_path = temp_dir.path().join("palette.jsonl");
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{x}": "#FF0000"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        let mut visited = HashSet::new();
+
+        // First resolution should succeed
+        let result1 = resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+        assert!(result1.is_ok());
+
+        // Second resolution of same file should detect circular include
+        let result2 = resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+        assert!(result2.is_err());
+
+        match result2.unwrap_err() {
+            IncludeError::CircularInclude(_) => {}
+            other => panic!("Expected CircularInclude, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_resolve_include_relative_path() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a subdirectory
+        let sub_dir = temp_dir.path().join("shared");
+        fs::create_dir(&sub_dir).unwrap();
+
+        let palette_path = sub_dir.join("colors.jsonl");
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content = r##"{"type": "palette", "name": "shared_colors", "colors": {"{a}": "#AA0000"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        // Resolve from parent directory
+        let result = resolve_include("shared/colors.jsonl", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "shared_colors");
+    }
+}

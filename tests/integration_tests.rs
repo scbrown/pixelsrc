@@ -292,6 +292,45 @@ fn test_output_file_naming() {
     );
 }
 
+/// Test @include:path syntax for external palette files
+#[test]
+fn test_include_palette() {
+    let output_dir = std::env::temp_dir().join("pxl_include_test");
+    fs::create_dir_all(&output_dir).ok();
+
+    let output_path = output_dir.join("include_test.png");
+
+    // Test with @include:shared/palette.jsonl
+    let output = Command::new(pxl_binary())
+        .arg("render")
+        .arg("tests/fixtures/valid/include_palette.jsonl")
+        .arg("-o")
+        .arg(&output_path)
+        .output()
+        .expect("Failed to execute pxl");
+
+    assert!(
+        output.status.success(),
+        "Failed to render with @include: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Verify the output file exists and is a valid PNG
+    assert!(
+        output_path.exists(),
+        "Output file not created at {:?}",
+        output_path
+    );
+
+    // No warnings should be produced
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("Warning:"),
+        "Unexpected warnings: {}",
+        stderr
+    );
+}
+
 /// Test sprite filtering with --sprite flag
 #[test]
 fn test_sprite_filter() {
