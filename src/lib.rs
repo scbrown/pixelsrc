@@ -15,4 +15,5 @@ pub mod palettes;
 pub mod parser;
 pub mod registry;
 pub mod renderer;
+pub mod spritesheet;
 pub mod tokenizer;
