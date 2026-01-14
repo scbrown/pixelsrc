@@ -1530,4 +1530,95 @@ mod tests {
         assert_eq!(*image.get_pixel(0, 2), Rgba([0, 0, 255, 255]));
         assert_eq!(*image.get_pixel(3, 3), Rgba([0, 0, 255, 255]));
     }
+
+    // ========== Task 2.6: Variant in Composition Test ==========
+
+    #[test]
+    fn test_variant_usable_in_composition() {
+        // Verify that a variant can be used in a composition's sprites map
+        // just like a regular sprite
+        use crate::models::{Sprite, Variant, PaletteRef};
+        use crate::registry::{PaletteRegistry, SpriteRegistry};
+        use crate::renderer::render_resolved;
+
+        // Create base sprite and variant
+        let base_sprite = Sprite {
+            name: "hero".to_string(),
+            size: None,
+            palette: PaletteRef::Inline(HashMap::from([
+                ("{_}".to_string(), "#00000000".to_string()),
+                ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
+            ])),
+            grid: vec![
+                "{_}{skin}".to_string(),
+                "{skin}{_}".to_string(),
+            ],
+        };
+
+        let variant = Variant {
+            name: "hero_red".to_string(),
+            base: "hero".to_string(),
+            palette: HashMap::from([
+                ("{skin}".to_string(), "#FF0000".to_string()), // Red skin
+            ]),
+        };
+
+        // Build registries and resolve
+        let palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(base_sprite);
+        sprite_registry.register_variant(variant);
+
+        // Render both base and variant
+        let hero_resolved = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let variant_resolved = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+
+        let (hero_img, _) = render_resolved(&hero_resolved);
+        let (variant_img, _) = render_resolved(&variant_resolved);
+
+        // Build the composition that uses both
+        let comp = Composition {
+            name: "scene".to_string(),
+            base: None,
+            size: Some([4, 4]),
+            cell_size: Some([2, 2]),
+            sprites: HashMap::from([
+                (".".to_string(), None),
+                ("H".to_string(), Some("hero".to_string())),
+                ("R".to_string(), Some("hero_red".to_string())), // Variant reference
+            ]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["HR".to_string(), "RH".to_string()]),
+            }],
+        };
+
+        // Provide both the base sprite and variant as rendered images
+        let sprites = HashMap::from([
+            ("hero".to_string(), hero_img),
+            ("hero_red".to_string(), variant_img),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 4);
+        assert_eq!(image.height(), 4);
+
+        // hero (original skin #FFCC99 = 255, 204, 153) at (0,0) and (2,2)
+        // hero_red (red skin #FF0000) at (2,0) and (0,2)
+
+        // (1, 0) is hero's skin pixel (from {_}{skin} grid, skin is at x=1)
+        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 204, 153, 255])); // Original skin
+
+        // (3, 0) is hero_red's skin pixel
+        assert_eq!(*image.get_pixel(3, 0), Rgba([255, 0, 0, 255])); // Red skin
+
+        // (1, 2) is hero_red's skin pixel (at grid position (0, 1) * cell_size (2,2))
+        assert_eq!(*image.get_pixel(1, 2), Rgba([255, 0, 0, 255])); // Red skin
+
+        // (3, 2) is hero's skin pixel (at grid position (1, 1) * cell_size (2,2))
+        assert_eq!(*image.get_pixel(3, 2), Rgba([255, 204, 153, 255])); // Original skin
+    }
 }

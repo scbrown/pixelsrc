@@ -2,6 +2,7 @@
 
 use crate::color::parse_color;
 use crate::models::Sprite;
+use crate::registry::ResolvedSprite;
 use crate::tokenizer;
 use image::{Rgba, RgbaImage};
 use std::collections::HashMap;
@@ -198,6 +199,146 @@ pub fn render_sprite(sprite: &Sprite, palette: &HashMap<String, String>) -> (Rgb
             height
         )));
         // Remaining rows are already transparent (default for RgbaImage::new)
+    }
+
+    (image, warnings)
+}
+
+/// Render a ResolvedSprite (sprite or expanded variant) to an RGBA image buffer.
+///
+/// This function is similar to `render_sprite` but takes a `ResolvedSprite`
+/// which already has the merged palette and grid data ready for rendering.
+///
+/// # Examples
+///
+/// ```ignore
+/// use pixelsrc::renderer::render_resolved;
+/// use pixelsrc::registry::ResolvedSprite;
+/// use std::collections::HashMap;
+///
+/// let resolved = ResolvedSprite {
+///     name: "dot".to_string(),
+///     size: None,
+///     grid: vec!["{x}".to_string()],
+///     palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
+///     warnings: vec![],
+/// };
+///
+/// let (image, warnings) = render_resolved(&resolved);
+/// ```
+pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
+    let mut warnings = Vec::new();
+
+    // Parse all grid rows into tokens
+    let mut parsed_rows: Vec<Vec<String>> = Vec::new();
+    for row in &resolved.grid {
+        let (tokens, row_warnings) = tokenizer::tokenize(row);
+        for w in row_warnings {
+            warnings.push(Warning::new(w.message));
+        }
+        parsed_rows.push(tokens);
+    }
+
+    // Determine dimensions
+    let (width, height) = if let Some([w, h]) = resolved.size {
+        (w as usize, h as usize)
+    } else {
+        let max_width = parsed_rows.iter().map(|r| r.len()).max().unwrap_or(0);
+        let grid_height = parsed_rows.len();
+
+        if max_width == 0 || grid_height == 0 {
+            warnings.push(Warning::new(format!(
+                "Empty grid in sprite/variant '{}'",
+                resolved.name
+            )));
+            return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
+        }
+
+        (max_width, grid_height)
+    };
+
+    if width == 0 || height == 0 {
+        warnings.push(Warning::new(format!(
+            "Empty grid in sprite/variant '{}'",
+            resolved.name
+        )));
+        return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
+    }
+
+    // Build color lookup with parsed RGBA values
+    let mut color_cache: HashMap<String, Rgba<u8>> = HashMap::new();
+    for (token, hex_color) in &resolved.palette {
+        match parse_color(hex_color) {
+            Ok(rgba) => {
+                color_cache.insert(token.clone(), rgba);
+            }
+            Err(e) => {
+                warnings.push(Warning::new(format!(
+                    "Invalid color '{}' for token {}: {}, using magenta",
+                    hex_color, token, e
+                )));
+                color_cache.insert(token.clone(), MAGENTA);
+            }
+        }
+    }
+
+    // Create image
+    let mut image = RgbaImage::new(width as u32, height as u32);
+
+    // Render each pixel
+    for (y, row_tokens) in parsed_rows.iter().enumerate() {
+        if y >= height {
+            warnings.push(Warning::new(format!(
+                "Grid has {} rows, expected {}, truncating",
+                parsed_rows.len(),
+                height
+            )));
+            break;
+        }
+
+        let row_len = row_tokens.len();
+
+        if row_len < width {
+            warnings.push(Warning::new(format!(
+                "Row {} has {} tokens, expected {}",
+                y + 1,
+                row_len,
+                width
+            )));
+        } else if row_len > width {
+            warnings.push(Warning::new(format!(
+                "Row {} has {} tokens, expected {}, truncating",
+                y + 1,
+                row_len,
+                width
+            )));
+        }
+
+        for (x, token) in row_tokens.iter().take(width).enumerate() {
+            let color = if let Some(&rgba) = color_cache.get(token) {
+                rgba
+            } else {
+                warnings.push(Warning::new(format!(
+                    "Unknown token {} in sprite/variant '{}'",
+                    token, resolved.name
+                )));
+                color_cache.insert(token.clone(), MAGENTA);
+                MAGENTA
+            };
+            image.put_pixel(x as u32, y as u32, color);
+        }
+
+        for x in row_len..width {
+            image.put_pixel(x as u32, y as u32, TRANSPARENT);
+        }
+    }
+
+    if parsed_rows.len() < height {
+        warnings.push(Warning::new(format!(
+            "Grid has {} rows, expected {}, padding with transparent",
+            parsed_rows.len(),
+            height
+        )));
     }
 
     (image, warnings)
@@ -544,5 +685,249 @@ mod tests {
         } else {
             panic!("Expected sprite");
         }
+    }
+
+    // ========== render_resolved tests ==========
+
+    #[test]
+    fn test_render_resolved_basic() {
+        use crate::registry::ResolvedSprite;
+
+        let resolved = ResolvedSprite {
+            name: "test".to_string(),
+            size: None,
+            grid: vec!["{r}{g}".to_string(), "{b}{r}".to_string()],
+            palette: HashMap::from([
+                ("{r}".to_string(), "#FF0000".to_string()),
+                ("{g}".to_string(), "#00FF00".to_string()),
+                ("{b}".to_string(), "#0000FF".to_string()),
+            ]),
+            warnings: vec![],
+        };
+
+        let (image, warnings) = render_resolved(&resolved);
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 2);
+        assert_eq!(image.height(), 2);
+
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255])); // red
+        assert_eq!(*image.get_pixel(1, 0), Rgba([0, 255, 0, 255])); // green
+        assert_eq!(*image.get_pixel(0, 1), Rgba([0, 0, 255, 255])); // blue
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255])); // red
+    }
+
+    #[test]
+    fn test_render_resolved_with_explicit_size() {
+        use crate::registry::ResolvedSprite;
+
+        let resolved = ResolvedSprite {
+            name: "sized".to_string(),
+            size: Some([3, 3]),
+            grid: vec![
+                "{x}{x}".to_string(), // Only 2 tokens, will be padded
+                "{x}{x}{x}".to_string(),
+            ],
+            palette: HashMap::from([
+                ("{x}".to_string(), "#FF0000".to_string()),
+            ]),
+            warnings: vec![],
+        };
+
+        let (image, warnings) = render_resolved(&resolved);
+
+        // Should have warnings about row length and grid height
+        assert!(warnings.len() >= 1);
+        assert_eq!(image.width(), 3);
+        assert_eq!(image.height(), 3);
+    }
+
+    #[test]
+    fn test_render_resolved_unknown_token() {
+        use crate::registry::ResolvedSprite;
+
+        let resolved = ResolvedSprite {
+            name: "unknown".to_string(),
+            size: None,
+            grid: vec!["{x}{unknown}".to_string()],
+            palette: HashMap::from([
+                ("{x}".to_string(), "#FF0000".to_string()),
+                // {unknown} not in palette
+            ]),
+            warnings: vec![],
+        };
+
+        let (image, warnings) = render_resolved(&resolved);
+
+        // Should have warning about unknown token
+        assert!(!warnings.is_empty());
+        assert!(warnings.iter().any(|w| w.message.contains("Unknown token")));
+
+        // {unknown} should render as magenta
+        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 0, 255, 255]));
+    }
+
+    #[test]
+    fn test_render_resolved_empty_grid() {
+        use crate::registry::ResolvedSprite;
+
+        let resolved = ResolvedSprite {
+            name: "empty".to_string(),
+            size: None,
+            grid: vec![],
+            palette: HashMap::new(),
+            warnings: vec![],
+        };
+
+        let (image, warnings) = render_resolved(&resolved);
+
+        // Should have warning and return 1x1 transparent
+        assert!(!warnings.is_empty());
+        assert_eq!(image.width(), 1);
+        assert_eq!(image.height(), 1);
+    }
+
+    #[test]
+    fn test_render_resolved_variant_scenario() {
+        use crate::registry::ResolvedSprite;
+
+        // Simulate a variant that overrides one color from base
+        // Base had {skin}: #FFCC99, variant overrides to #FF6666
+        let resolved = ResolvedSprite {
+            name: "hero_red".to_string(),
+            size: Some([2, 2]),
+            grid: vec![
+                "{_}{skin}".to_string(),
+                "{skin}{_}".to_string(),
+            ],
+            palette: HashMap::from([
+                ("{_}".to_string(), "#00000000".to_string()),
+                ("{skin}".to_string(), "#FF6666".to_string()), // Overridden color
+            ]),
+            warnings: vec![],
+        };
+
+        let (image, warnings) = render_resolved(&resolved);
+
+        assert!(warnings.is_empty());
+        assert_eq!(image.width(), 2);
+        assert_eq!(image.height(), 2);
+
+        // Check skin color is the overridden value
+        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 102, 102, 255])); // #FF6666
+        assert_eq!(*image.get_pixel(0, 1), Rgba([255, 102, 102, 255]));
+
+        // Check transparent pixels
+        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*image.get_pixel(1, 1), Rgba([0, 0, 0, 0]));
+    }
+
+    // ========== Full variant integration test ==========
+
+    #[test]
+    fn test_variant_full_integration() {
+        use std::fs;
+        use std::io::BufReader;
+        use crate::parser::parse_stream;
+        use crate::models::TtpObject;
+        use crate::registry::{PaletteRegistry, SpriteRegistry};
+
+        // Parse the variant_basic.jsonl fixture
+        let file = fs::File::open("tests/fixtures/valid/variant_basic.jsonl").unwrap();
+        let result = parse_stream(BufReader::new(file));
+
+        assert!(result.warnings.is_empty(), "Parse warnings: {:?}", result.warnings);
+
+        // Should have 3 objects: 1 sprite + 2 variants
+        assert_eq!(result.objects.len(), 3);
+
+        // Build registries
+        let mut palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
+
+        for obj in &result.objects {
+            match obj {
+                TtpObject::Palette(p) => palette_registry.register(p.clone()),
+                TtpObject::Sprite(s) => sprite_registry.register_sprite(s.clone()),
+                TtpObject::Variant(v) => sprite_registry.register_variant(v.clone()),
+                _ => {}
+            }
+        }
+
+        // Resolve and render the base sprite
+        let hero = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        assert_eq!(hero.name, "hero");
+        // Size is inferred from grid (4x4), not explicitly set
+        assert_eq!(hero.size, None);
+        let (hero_img, hero_warns) = render_resolved(&hero);
+        assert!(hero_warns.is_empty());
+        // Image size is 4x4 (inferred from grid)
+        assert_eq!(hero_img.width(), 4);
+        assert_eq!(hero_img.height(), 4);
+
+        // Resolve and render hero_red variant
+        let hero_red = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        assert_eq!(hero_red.name, "hero_red");
+        assert_eq!(hero_red.size, None); // Inherited from base (also None)
+        assert_eq!(hero_red.grid, hero.grid); // Same grid
+        let (hero_red_img, hero_red_warns) = render_resolved(&hero_red);
+        assert!(hero_red_warns.is_empty());
+
+        // hero_red should have #FF6666 for skin
+        // The skin pixels are at: (1,1), (2,1), (1,2), (2,2), (1,3), (2,3)
+        assert_eq!(*hero_red_img.get_pixel(1, 1), Rgba([255, 102, 102, 255]));
+
+        // Resolve and render hero_alt variant (multiple overrides)
+        let hero_alt = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
+        assert_eq!(hero_alt.name, "hero_alt");
+        let (hero_alt_img, hero_alt_warns) = render_resolved(&hero_alt);
+        assert!(hero_alt_warns.is_empty());
+
+        // hero_alt should have #66FF66 for skin and #FFFF00 for hair
+        // Hair pixels are at: (1,0), (2,0), (0,1), (3,1)
+        assert_eq!(*hero_alt_img.get_pixel(1, 0), Rgba([255, 255, 0, 255])); // #FFFF00 hair
+        // Skin pixels
+        assert_eq!(*hero_alt_img.get_pixel(1, 1), Rgba([102, 255, 102, 255])); // #66FF66 skin
+
+        // Verify the images are different from each other
+        // hero original should have #FFCC99 = (255, 204, 153) for skin
+        assert_eq!(*hero_img.get_pixel(1, 1), Rgba([255, 204, 153, 255]));
+
+        // All three should have different skin colors
+        assert_ne!(hero_img.get_pixel(1, 1), hero_red_img.get_pixel(1, 1));
+        assert_ne!(hero_img.get_pixel(1, 1), hero_alt_img.get_pixel(1, 1));
+        assert_ne!(hero_red_img.get_pixel(1, 1), hero_alt_img.get_pixel(1, 1));
+    }
+
+    #[test]
+    fn test_variant_unknown_base_integration() {
+        use crate::registry::{PaletteRegistry, SpriteRegistry};
+        use crate::models::Variant;
+
+        let palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
+
+        // Register only the variant (no base sprite)
+        let ghost = Variant {
+            name: "ghost".to_string(),
+            base: "nonexistent".to_string(),
+            palette: HashMap::new(),
+        };
+        sprite_registry.register_variant(ghost);
+
+        // Strict mode should fail
+        let result = sprite_registry.resolve("ghost", &palette_registry, true);
+        assert!(result.is_err());
+
+        // Lenient mode should succeed with warnings
+        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
+        assert_eq!(result.warnings.len(), 1);
+        assert!(result.warnings[0].message.contains("nonexistent"));
+
+        // Rendering the empty result should produce a 1x1 transparent image
+        let (img, warns) = render_resolved(&result);
+        assert!(!warns.is_empty()); // Warning about empty grid
+        assert_eq!(img.width(), 1);
+        assert_eq!(img.height(), 1);
     }
 }

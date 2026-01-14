@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::models::{Palette, PaletteRef, Sprite};
+use crate::models::{Palette, PaletteRef, Sprite, Variant};
 use crate::palettes;
 
 /// Magenta fallback color for missing palettes/tokens
@@ -219,6 +219,253 @@ impl PaletteRegistry {
         } else {
             Ok(self.resolve_lenient(sprite))
         }
+    }
+}
+
+// ============================================================================
+// Sprite and Variant Registry
+// ============================================================================
+
+/// Error when resolving a sprite or variant.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpriteError {
+    /// Referenced sprite/variant was not found
+    NotFound(String),
+    /// Variant references a base sprite that doesn't exist
+    BaseNotFound { variant: String, base: String },
+}
+
+impl fmt::Display for SpriteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SpriteError::NotFound(name) => write!(f, "Sprite or variant '{}' not found", name),
+            SpriteError::BaseNotFound { variant, base } => {
+                write!(f, "Variant '{}' references unknown base sprite '{}'", variant, base)
+            }
+        }
+    }
+}
+
+impl std::error::Error for SpriteError {}
+
+/// Warning when resolving a sprite or variant in lenient mode.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpriteWarning {
+    pub message: String,
+}
+
+impl SpriteWarning {
+    pub fn not_found(name: &str) -> Self {
+        Self {
+            message: format!("Sprite or variant '{}' not found", name),
+        }
+    }
+
+    pub fn base_not_found(variant: &str, base: &str) -> Self {
+        Self {
+            message: format!("Variant '{}' references unknown base sprite '{}'", variant, base),
+        }
+    }
+}
+
+/// A resolved sprite ready for rendering.
+///
+/// This can be either a direct sprite or a variant expanded to sprite form.
+#[derive(Debug, Clone)]
+pub struct ResolvedSprite {
+    /// The effective name (sprite name or variant name)
+    pub name: String,
+    /// The size from the base sprite (if any)
+    pub size: Option<[u32; 2]>,
+    /// The grid data (from base sprite for variants)
+    pub grid: Vec<String>,
+    /// The merged palette for rendering (base palette + variant overrides)
+    pub palette: HashMap<String, String>,
+    /// Any warnings generated during resolution
+    pub warnings: Vec<SpriteWarning>,
+}
+
+/// Registry for sprites and variants.
+///
+/// Handles resolution of sprite names to renderable sprites, including
+/// expanding variants to their effective sprite representation.
+#[derive(Debug, Clone, Default)]
+pub struct SpriteRegistry {
+    sprites: HashMap<String, Sprite>,
+    variants: HashMap<String, Variant>,
+}
+
+impl SpriteRegistry {
+    /// Create a new empty sprite registry.
+    pub fn new() -> Self {
+        Self {
+            sprites: HashMap::new(),
+            variants: HashMap::new(),
+        }
+    }
+
+    /// Register a sprite.
+    pub fn register_sprite(&mut self, sprite: Sprite) {
+        self.sprites.insert(sprite.name.clone(), sprite);
+    }
+
+    /// Register a variant.
+    pub fn register_variant(&mut self, variant: Variant) {
+        self.variants.insert(variant.name.clone(), variant);
+    }
+
+    /// Get a sprite by name (does not resolve variants).
+    pub fn get_sprite(&self, name: &str) -> Option<&Sprite> {
+        self.sprites.get(name)
+    }
+
+    /// Get a variant by name.
+    pub fn get_variant(&self, name: &str) -> Option<&Variant> {
+        self.variants.get(name)
+    }
+
+    /// Check if a name refers to a sprite or variant.
+    pub fn contains(&self, name: &str) -> bool {
+        self.sprites.contains_key(name) || self.variants.contains_key(name)
+    }
+
+    /// Resolve a name to a sprite-like structure, expanding variants.
+    ///
+    /// In strict mode, returns an error if the name or base is not found.
+    /// In lenient mode, returns a fallback result with warnings.
+    ///
+    /// The returned ResolvedSprite contains the effective grid and merged palette.
+    pub fn resolve(
+        &self,
+        name: &str,
+        palette_registry: &PaletteRegistry,
+        strict: bool,
+    ) -> Result<ResolvedSprite, SpriteError> {
+        // First, check if it's a direct sprite
+        if let Some(sprite) = self.sprites.get(name) {
+            return self.resolve_sprite(sprite, palette_registry, strict);
+        }
+
+        // Check if it's a variant
+        if let Some(variant) = self.variants.get(name) {
+            return self.resolve_variant(variant, palette_registry, strict);
+        }
+
+        // Not found
+        if strict {
+            Err(SpriteError::NotFound(name.to_string()))
+        } else {
+            Ok(ResolvedSprite {
+                name: name.to_string(),
+                size: None,
+                grid: vec![],
+                palette: HashMap::new(),
+                warnings: vec![SpriteWarning::not_found(name)],
+            })
+        }
+    }
+
+    /// Resolve a direct sprite to a ResolvedSprite.
+    fn resolve_sprite(
+        &self,
+        sprite: &Sprite,
+        palette_registry: &PaletteRegistry,
+        strict: bool,
+    ) -> Result<ResolvedSprite, SpriteError> {
+        let mut warnings = Vec::new();
+
+        // Resolve the sprite's palette
+        let palette = match palette_registry.resolve(sprite, strict) {
+            Ok(result) => {
+                if let Some(warning) = result.warning {
+                    warnings.push(SpriteWarning { message: warning.message });
+                }
+                result.palette.colors
+            }
+            Err(e) => {
+                // In strict mode, this would have returned an error from resolve()
+                // In lenient mode, we got a fallback. Map the error for strict.
+                if strict {
+                    // The resolve() function already handles strict vs lenient
+                    return Err(SpriteError::NotFound(format!("palette error: {}", e)));
+                }
+                HashMap::new()
+            }
+        };
+
+        Ok(ResolvedSprite {
+            name: sprite.name.clone(),
+            size: sprite.size,
+            grid: sprite.grid.clone(),
+            palette,
+            warnings,
+        })
+    }
+
+    /// Resolve a variant to a ResolvedSprite by expanding from its base.
+    fn resolve_variant(
+        &self,
+        variant: &Variant,
+        palette_registry: &PaletteRegistry,
+        strict: bool,
+    ) -> Result<ResolvedSprite, SpriteError> {
+        // Look up the base sprite
+        let base_sprite = match self.sprites.get(&variant.base) {
+            Some(sprite) => sprite,
+            None => {
+                if strict {
+                    return Err(SpriteError::BaseNotFound {
+                        variant: variant.name.clone(),
+                        base: variant.base.clone(),
+                    });
+                } else {
+                    return Ok(ResolvedSprite {
+                        name: variant.name.clone(),
+                        size: None,
+                        grid: vec![],
+                        palette: HashMap::new(),
+                        warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
+                    });
+                }
+            }
+        };
+
+        let mut warnings = Vec::new();
+
+        // Resolve the base sprite's palette
+        let base_palette = match palette_registry.resolve(base_sprite, strict) {
+            Ok(result) => {
+                if let Some(warning) = result.warning {
+                    warnings.push(SpriteWarning { message: warning.message });
+                }
+                result.palette.colors
+            }
+            Err(e) => {
+                if strict {
+                    return Err(SpriteError::NotFound(format!("base palette error: {}", e)));
+                }
+                HashMap::new()
+            }
+        };
+
+        // Merge palettes: start with base, override with variant's palette
+        let mut merged_palette = base_palette;
+        for (token, color) in &variant.palette {
+            merged_palette.insert(token.clone(), color.clone());
+        }
+
+        Ok(ResolvedSprite {
+            name: variant.name.clone(),
+            size: base_sprite.size,
+            grid: base_sprite.grid.clone(),
+            palette: merged_palette,
+            warnings,
+        })
+    }
+
+    /// Get all sprite and variant names.
+    pub fn names(&self) -> impl Iterator<Item = &String> {
+        self.sprites.keys().chain(self.variants.keys())
     }
 }
 
@@ -460,6 +707,55 @@ mod tests {
         }
     }
 
+    // ========== SpriteRegistry Tests ==========
+
+    fn hero_sprite() -> Sprite {
+        Sprite {
+            name: "hero".to_string(),
+            size: Some([4, 4]),
+            palette: PaletteRef::Inline(HashMap::from([
+                ("{_}".to_string(), "#00000000".to_string()),
+                ("{skin}".to_string(), "#FFCC99".to_string()),
+                ("{hair}".to_string(), "#333333".to_string()),
+            ])),
+            grid: vec![
+                "{_}{hair}{hair}{_}".to_string(),
+                "{hair}{skin}{skin}{hair}".to_string(),
+                "{_}{skin}{skin}{_}".to_string(),
+                "{_}{skin}{skin}{_}".to_string(),
+            ],
+        }
+    }
+
+    fn hero_red_variant() -> Variant {
+        Variant {
+            name: "hero_red".to_string(),
+            base: "hero".to_string(),
+            palette: HashMap::from([
+                ("{skin}".to_string(), "#FF6666".to_string()),
+            ]),
+        }
+    }
+
+    fn hero_alt_variant() -> Variant {
+        Variant {
+            name: "hero_alt".to_string(),
+            base: "hero".to_string(),
+            palette: HashMap::from([
+                ("{skin}".to_string(), "#66FF66".to_string()),
+                ("{hair}".to_string(), "#FFFF00".to_string()),
+            ]),
+        }
+    }
+
+    fn bad_base_variant() -> Variant {
+        Variant {
+            name: "ghost".to_string(),
+            base: "nonexistent".to_string(),
+            palette: HashMap::new(),
+        }
+    }
+
     #[test]
     fn test_resolve_strict_builtin_found() {
         let registry = PaletteRegistry::new();
@@ -574,5 +870,203 @@ mod tests {
                 PaletteSource::Builtin(name.to_string())
             );
         }
+    }
+
+    #[test]
+    fn test_sprite_registry_new() {
+        let registry = SpriteRegistry::new();
+        assert!(!registry.contains("anything"));
+    }
+
+    #[test]
+    fn test_sprite_registry_register_sprite() {
+        let mut registry = SpriteRegistry::new();
+        registry.register_sprite(hero_sprite());
+
+        assert!(registry.contains("hero"));
+        assert!(registry.get_sprite("hero").is_some());
+        assert!(registry.get_variant("hero").is_none());
+    }
+
+    #[test]
+    fn test_sprite_registry_register_variant() {
+        let mut registry = SpriteRegistry::new();
+        registry.register_variant(hero_red_variant());
+
+        assert!(registry.contains("hero_red"));
+        assert!(registry.get_sprite("hero_red").is_none());
+        assert!(registry.get_variant("hero_red").is_some());
+    }
+
+    #[test]
+    fn test_sprite_registry_resolve_sprite() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(hero_sprite());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "hero");
+        assert_eq!(result.size, Some([4, 4]));
+        assert_eq!(result.grid.len(), 4);
+        assert_eq!(result.palette.get("{skin}"), Some(&"#FFCC99".to_string()));
+        assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_sprite_registry_resolve_variant_single_override() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(hero_sprite());
+        sprite_registry.register_variant(hero_red_variant());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "hero_red");
+        assert_eq!(result.size, Some([4, 4])); // Inherited from base
+        assert_eq!(result.grid.len(), 4); // Copied from base
+
+        // skin should be overridden
+        assert_eq!(result.palette.get("{skin}"), Some(&"#FF6666".to_string()));
+        // hair and _ should be inherited from base
+        assert_eq!(result.palette.get("{hair}"), Some(&"#333333".to_string()));
+        assert_eq!(result.palette.get("{_}"), Some(&"#00000000".to_string()));
+
+        assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_sprite_registry_resolve_variant_multiple_overrides() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(hero_sprite());
+        sprite_registry.register_variant(hero_alt_variant());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "hero_alt");
+
+        // Both skin and hair should be overridden
+        assert_eq!(result.palette.get("{skin}"), Some(&"#66FF66".to_string()));
+        assert_eq!(result.palette.get("{hair}"), Some(&"#FFFF00".to_string()));
+        // _ should be inherited from base
+        assert_eq!(result.palette.get("{_}"), Some(&"#00000000".to_string()));
+    }
+
+    #[test]
+    fn test_sprite_registry_variant_unknown_base_strict() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_variant(bad_base_variant());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("ghost", &palette_registry, true);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            SpriteError::BaseNotFound { variant, base } => {
+                assert_eq!(variant, "ghost");
+                assert_eq!(base, "nonexistent");
+            }
+            _ => panic!("Expected BaseNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_registry_variant_unknown_base_lenient() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_variant(bad_base_variant());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "ghost");
+        assert!(result.grid.is_empty());
+        assert!(result.palette.is_empty());
+        assert_eq!(result.warnings.len(), 1);
+        assert!(result.warnings[0].message.contains("nonexistent"));
+    }
+
+    #[test]
+    fn test_sprite_registry_not_found_strict() {
+        let sprite_registry = SpriteRegistry::new();
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("missing", &palette_registry, true);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            SpriteError::NotFound(name) => assert_eq!(name, "missing"),
+            _ => panic!("Expected NotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_registry_not_found_lenient() {
+        let sprite_registry = SpriteRegistry::new();
+        let palette_registry = PaletteRegistry::new();
+
+        let result = sprite_registry.resolve("missing", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "missing");
+        assert!(result.grid.is_empty());
+        assert_eq!(result.warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_sprite_registry_variant_preserves_grid() {
+        // Ensure variant copies base grid exactly
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(hero_sprite());
+        sprite_registry.register_variant(hero_red_variant());
+
+        let palette_registry = PaletteRegistry::new();
+
+        let sprite_result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let variant_result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+
+        // Grid should be identical
+        assert_eq!(sprite_result.grid, variant_result.grid);
+        // Size should be identical
+        assert_eq!(sprite_result.size, variant_result.size);
+    }
+
+    #[test]
+    fn test_sprite_registry_variant_with_named_palette() {
+        // Test variant of a sprite that uses a named palette
+        let mut sprite_registry = SpriteRegistry::new();
+        let mut palette_registry = PaletteRegistry::new();
+
+        palette_registry.register(mono_palette());
+
+        let sprite = checker_sprite_named();
+        sprite_registry.register_sprite(sprite);
+
+        // Create a variant that overrides {on}
+        let variant = Variant {
+            name: "checker_red".to_string(),
+            base: "checker".to_string(),
+            palette: HashMap::from([
+                ("{on}".to_string(), "#FF0000".to_string()),
+            ]),
+        };
+        sprite_registry.register_variant(variant);
+
+        let result = sprite_registry.resolve("checker_red", &palette_registry, false).unwrap();
+        assert_eq!(result.name, "checker_red");
+        // {on} should be overridden
+        assert_eq!(result.palette.get("{on}"), Some(&"#FF0000".to_string()));
+        // {off} and {_} should be inherited from the mono palette
+        assert_eq!(result.palette.get("{off}"), Some(&"#000000".to_string()));
+        assert_eq!(result.palette.get("{_}"), Some(&"#00000000".to_string()));
+    }
+
+    #[test]
+    fn test_sprite_registry_names() {
+        let mut registry = SpriteRegistry::new();
+        registry.register_sprite(hero_sprite());
+        registry.register_variant(hero_red_variant());
+
+        let names: Vec<_> = registry.names().collect();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&&"hero".to_string()));
+        assert!(names.contains(&&"hero_red".to_string()));
     }
 }

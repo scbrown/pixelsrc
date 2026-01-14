@@ -39,6 +39,18 @@ pub struct Animation {
     pub r#loop: Option<bool>,
 }
 
+/// A variant is a palette-only modification of a base sprite.
+///
+/// Variants allow creating color variations of sprites without duplicating
+/// the grid data. The variant copies the base sprite's grid and applies
+/// palette overrides.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Variant {
+    pub name: String,
+    pub base: String,
+    pub palette: HashMap<String, String>,
+}
+
 impl Animation {
     /// Default duration per frame in milliseconds.
     pub const DEFAULT_DURATION_MS: u32 = 100;
@@ -79,12 +91,13 @@ pub struct Composition {
     pub layers: Vec<CompositionLayer>,
 }
 
-/// A Pixelsrc object - Palette, Sprite, Composition, or Animation.
+/// A Pixelsrc object - Palette, Sprite, Variant, Composition, or Animation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TtpObject {
     Palette(Palette),
     Sprite(Sprite),
+    Variant(Variant),
     Composition(Composition),
     Animation(Animation),
 }
@@ -393,6 +406,77 @@ mod tests {
                 assert_eq!(anim, parsed_anim);
             }
             _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_variant_parse_basic() {
+        // Variant with single color override
+        let json = r##"{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"{skin}": "#FF0000"}}"##;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Variant(variant) => {
+                assert_eq!(variant.name, "hero_red");
+                assert_eq!(variant.base, "hero");
+                assert_eq!(variant.palette.len(), 1);
+                assert_eq!(variant.palette.get("{skin}"), Some(&"#FF0000".to_string()));
+            }
+            _ => panic!("Expected variant"),
+        }
+    }
+
+    #[test]
+    fn test_variant_parse_multiple_overrides() {
+        // Variant with multiple color overrides
+        let json = r##"{"type": "variant", "name": "hero_alt", "base": "hero", "palette": {"{skin}": "#00FF00", "{hair}": "#0000FF", "{eyes}": "#FFFF00"}}"##;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Variant(variant) => {
+                assert_eq!(variant.name, "hero_alt");
+                assert_eq!(variant.base, "hero");
+                assert_eq!(variant.palette.len(), 3);
+                assert_eq!(variant.palette.get("{skin}"), Some(&"#00FF00".to_string()));
+                assert_eq!(variant.palette.get("{hair}"), Some(&"#0000FF".to_string()));
+                assert_eq!(variant.palette.get("{eyes}"), Some(&"#FFFF00".to_string()));
+            }
+            _ => panic!("Expected variant"),
+        }
+    }
+
+    #[test]
+    fn test_variant_roundtrip() {
+        let variant = Variant {
+            name: "test_variant".to_string(),
+            base: "base_sprite".to_string(),
+            palette: HashMap::from([
+                ("{a}".to_string(), "#FF0000".to_string()),
+                ("{b}".to_string(), "#00FF00".to_string()),
+            ]),
+        };
+        let obj = TtpObject::Variant(variant.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r##""type":"variant""##));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Variant(parsed_variant) => {
+                assert_eq!(variant, parsed_variant);
+            }
+            _ => panic!("Expected variant"),
+        }
+    }
+
+    #[test]
+    fn test_variant_empty_palette() {
+        // Variant with empty palette (inherits all colors from base)
+        let json = r#"{"type": "variant", "name": "hero_copy", "base": "hero", "palette": {}}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Variant(variant) => {
+                assert_eq!(variant.name, "hero_copy");
+                assert_eq!(variant.base, "hero");
+                assert!(variant.palette.is_empty());
+            }
+            _ => panic!("Expected variant"),
         }
     }
 }

@@ -1,0 +1,3 @@
+{"type": "sprite", "name": "hero", "palette": {"{_}": "#00000000", "{skin}": "#FFCC99", "{hair}": "#333333"}, "grid": ["{_}{hair}{hair}{_}", "{hair}{skin}{skin}{hair}", "{_}{skin}{skin}{_}", "{_}{skin}{skin}{_}"]}
+{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"{skin}": "#FF6666"}}
+{"type": "variant", "name": "hero_alt", "base": "hero", "palette": {"{skin}": "#66FF66", "{hair}": "#FFFF00"}}

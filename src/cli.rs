@@ -215,6 +215,10 @@ fn run_render(
             TtpObject::Composition(_) => {
                 // Composition rendering in CLI is Task 2.7, skip for now
             }
+            TtpObject::Variant(_) => {
+                // Variant rendering in CLI is handled by resolving to sprites
+                // The variant will be processed when rendering sprites
+            }
         }
     }
 
