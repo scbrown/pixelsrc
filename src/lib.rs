@@ -7,6 +7,7 @@
 
 pub mod cli;
 pub mod color;
+pub mod include;
 pub mod models;
 pub mod output;
 pub mod parser;

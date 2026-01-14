@@ -1,15 +1,17 @@
 //! Command-line interface implementation
 
 use clap::{Parser, Subcommand};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use crate::models::TtpObject;
+use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
+use crate::models::{PaletteRef, TtpObject};
 use crate::output::{generate_output_path, save_png};
 use crate::parser::parse_stream;
-use crate::registry::PaletteRegistry;
+use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
 use crate::renderer::render_sprite;
 
 /// Exit codes per TTP spec
@@ -152,28 +154,63 @@ fn run_render(
 
     let is_single_sprite = sprites.len() == 1;
 
+    // Get the input file's parent directory for resolving includes
+    let input_dir = input
+        .parent()
+        .unwrap_or(std::path::Path::new("."));
+
+    // Track visited files for circular include detection
+    let mut include_visited: HashSet<PathBuf> = HashSet::new();
+
     // Render each sprite
     for sprite in &sprites {
-        // Resolve palette
-        let resolved = match registry.resolve(sprite, strict) {
-            Ok(result) => {
-                if let Some(warning) = result.warning {
-                    all_warnings.push(format!(
-                        "sprite '{}': {}",
-                        sprite.name, warning.message
-                    ));
-                    if strict {
-                        for warning in &all_warnings {
-                            eprintln!("Error: {}", warning);
+        // Resolve palette - handle @include: syntax specially
+        let resolved = match &sprite.palette {
+            PaletteRef::Named(name) if is_include_ref(name) => {
+                // Handle @include:path syntax
+                let include_path = extract_include_path(name).unwrap();
+                match resolve_include_with_detection(include_path, input_dir, &mut include_visited) {
+                    Ok(palette) => ResolvedPalette {
+                        colors: palette.colors,
+                        source: PaletteSource::Named(format!("@include:{}", include_path)),
+                    },
+                    Err(e) => {
+                        if strict {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
                         }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        // Fallback to empty palette in lenient mode
+                        ResolvedPalette {
+                            colors: std::collections::HashMap::new(),
+                            source: PaletteSource::Fallback,
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Normal palette resolution via registry
+                match registry.resolve(sprite, strict) {
+                    Ok(result) => {
+                        if let Some(warning) = result.warning {
+                            all_warnings.push(format!(
+                                "sprite '{}': {}",
+                                sprite.name, warning.message
+                            ));
+                            if strict {
+                                for warning in &all_warnings {
+                                    eprintln!("Error: {}", warning);
+                                }
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                        }
+                        result.palette
+                    }
+                    Err(e) => {
+                        eprintln!("Error: sprite '{}': {}", sprite.name, e);
                         return ExitCode::from(EXIT_ERROR);
                     }
                 }
-                result.palette
-            }
-            Err(e) => {
-                eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                return ExitCode::from(EXIT_ERROR);
             }
         };
 
