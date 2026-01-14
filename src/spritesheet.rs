@@ -21,7 +21,7 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 ///
 /// ```
 /// use image::RgbaImage;
-/// use pxl::spritesheet::render_spritesheet;
+/// use pixelsrc::spritesheet::render_spritesheet;
 ///
 /// // Create 4 simple 2x2 frames
 /// let frame = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));

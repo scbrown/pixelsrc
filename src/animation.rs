@@ -25,8 +25,8 @@ impl Warning {
 /// # Examples
 ///
 /// ```ignore
-/// use pxl::animation::validate_animation;
-/// use pxl::models::{Animation, Sprite, PaletteRef};
+/// use pixelsrc::animation::validate_animation;
+/// use pixelsrc::models::{Animation, Sprite, PaletteRef};
 ///
 /// let anim = Animation {
 ///     name: "walk".to_string(),

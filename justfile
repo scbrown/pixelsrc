@@ -1,4 +1,4 @@
-# TTP: Pixel Art DSL
+# Pixelsrc: Pixel Art Format
 # Run `just --list` to see available recipes
 
 # Quiet by default to save context; use verbose=true for full output

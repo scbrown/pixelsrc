@@ -82,8 +82,8 @@ impl std::error::Error for CompositionError {}
 /// # Examples
 ///
 /// ```ignore
-/// use pxl::composition::render_composition;
-/// use pxl::models::Composition;
+/// use pixelsrc::composition::render_composition;
+/// use pixelsrc::models::Composition;
 /// use std::collections::HashMap;
 /// use image::RgbaImage;
 ///

@@ -1,10 +1,10 @@
-# TTP Competitive Analysis & Differentiation
+# Competitive Analysis & Differentiation
 
 > Research conducted January 2025
 
 ## Executive Summary
 
-**TTP fills a genuine gap**: there is no existing text-based *source* format designed for AI-generatable, human-readable pixel art definition. Existing tools are either visual editors with text *exports*, or AI image generators that skip text entirely.
+**Pixelsrc fills a genuine gap**: there is no existing text-based *source* format designed for AI-generatable, human-readable pixel art definition. Existing tools are either visual editors with text *exports*, or AI image generators that skip text entirely.
 
 **End goal**: REXPaint-quality output. REXPaint sets the bar for roguelike/ASCII art tooling - our compiled output should match that level of polish.
 
@@ -37,7 +37,7 @@
 
 These exist but take a **fundamentally different approach**:
 
-| Tool | Approach | Why It's Not TTP |
+| Tool | Approach | Why It's Not Pixelsrc |
 |------|----------|------------------|
 | [PixelLab](https://www.pixellab.ai/) | Diffusion model → image | Generates images directly, no text format |
 | [pixel-plugin](https://github.com/willibrandon/pixel-plugin) | Natural language → Aseprite API | Procedural API calls, no file format |
@@ -59,11 +59,11 @@ Visual randomizers, not text source formats:
 EXISTING WORKFLOW (Visual-First):
   Draw in REXPaint/Aseprite → Export to text/image → Use in game
 
-TTP WORKFLOW (Text-First):
-  Write/Generate .ttp → Compile to image → Use in game
+Pixelsrc WORKFLOW (Text-First):
+  Write/Generate .pxs → Compile to image → Use in game
 ```
 
-| Capability | REXPaint | PICO-8 | XPM | AI Gen | TTP |
+| Capability | REXPaint | PICO-8 | XPM | AI Gen | Pixelsrc |
 |------------|----------|--------|-----|--------|-----|
 | Human-readable source | Export only | Hex-based | Yes | N/A | **Yes** |
 | Semantic color names | No | No | No | N/A | **Yes** |
@@ -83,7 +83,7 @@ TTP WORKFLOW (Text-First):
 
 ---
 
-## TTP's Unique Value Proposition
+## Pixelsrc's Unique Value Proposition
 
 ### 1. Source Format, Not Export Format
 - Edit the text, recompile → changes reflected
@@ -96,11 +96,11 @@ TTP WORKFLOW (Text-First):
 - JSONL streaming for real-time generation
 
 ### 3. Human-Readable
-- A developer can read a `.ttp` file and understand the sprite without rendering
+- A developer can read a `.pxs` file and understand the sprite without rendering
 - Comments and named palettes aid comprehension
 
 ### 4. Thin Layer Philosophy
-- TTP → ImageMagick → PNG (don't reinvent rendering)
+- Pixelsrc → ImageMagick → PNG (don't reinvent rendering)
 - Leverage existing tools, focus on the semantic gap
 
 ---
@@ -113,7 +113,7 @@ REXPaint produces stunning ASCII art and roguelike graphics. Examples from their
 - UI mockups, game maps, character art
 - Professional-quality results
 
-**Our goal**: A `.ttp` file, when compiled, should produce output indistinguishable from what a skilled REXPaint artist would create.
+**Our goal**: A `.pxs` file, when compiled, should produce output indistinguishable from what a skilled REXPaint artist would create.
 
 ---
 

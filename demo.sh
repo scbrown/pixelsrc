@@ -1,5 +1,5 @@
 #!/bin/bash
-# TTP (Text To Pixel) Demo
+# Pixelsrc Demo
 # Interactive slideshow demonstrating Phase 0 MVP
 
 set -e
@@ -17,7 +17,7 @@ DIM='\033[2m'
 NC='\033[0m'
 
 # Temp directory for rendered outputs
-DEMO_OUT="/tmp/ttp-demo"
+DEMO_OUT="/tmp/pixelsrc-demo"
 mkdir -p "$DEMO_OUT"
 
 # Wait for keypress
@@ -83,16 +83,16 @@ echo ""
 echo ""
 echo -e "${BOLD}${CYAN}"
 cat << 'EOF'
-                ████████╗████████╗██████╗
-                ╚══██╔══╝╚══██╔══╝██╔══██╗
-                   ██║      ██║   ██████╔╝
-                   ██║      ██║   ██╔═══╝
-                   ██║      ██║   ██║
-                   ╚═╝      ╚═╝   ╚═╝
+        ██████╗ ██╗██╗  ██╗███████╗██╗     ███████╗██████╗  ██████╗
+        ██╔══██╗██║╚██╗██╔╝██╔════╝██║     ██╔════╝██╔══██╗██╔════╝
+        ██████╔╝██║ ╚███╔╝ █████╗  ██║     ███████╗██████╔╝██║
+        ██╔═══╝ ██║ ██╔██╗ ██╔══╝  ██║     ╚════██║██╔══██╗██║
+        ██║     ██║██╔╝ ██╗███████╗███████╗███████║██║  ██║╚██████╗
+        ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Text To Pixel${NC}"
+echo -e "                ${BOLD}Pixelsrc${NC}"
 echo -e "                ${DIM}Define pixel art in JSON, render to PNG${NC}"
 echo ""
 echo ""
@@ -485,21 +485,18 @@ pause
 # ═══════════════════════════════════════════════════════════════════════════════
 # SLIDE 19: What's Next
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Coming Next: Phase 4"
+slide "Coming Next: Phase 5"
 
-echo -e "  ${CYAN}Game Engine Integration:${NC}"
+echo -e "  ${CYAN}Developer Tooling:${NC}"
 echo ""
-echo -e "  ${WHITE}Unity:${NC}"
-echo -e "  ${DIM}Spritesheet + .meta file with slice data${NC}"
+echo -e "  ${WHITE}VS Code Extension:${NC}"
+echo -e "  ${DIM}Syntax highlighting, live preview${NC}"
 echo ""
-echo -e "  ${WHITE}Godot:${NC}"
-echo -e "  ${DIM}.tres resource files with animation data${NC}"
+echo -e "  ${WHITE}Web Editor:${NC}"
+echo -e "  ${DIM}Browser-based sprite editor${NC}"
 echo ""
-echo -e "  ${WHITE}Tiled:${NC}"
-echo -e "  ${DIM}.tsx tileset export${NC}"
-echo ""
-echo -e "  ${CYAN}Future Phases:${NC}"
-echo -e "  ${DIM}Phase 5:${NC} VS Code extension, web previewer"
+echo -e "  ${CYAN}See Also:${NC}"
+echo -e "  ${DIM}BACKLOG.md:${NC} Game engine exports (Unity, Godot, Tiled)"
 
 pause
 
@@ -534,12 +531,12 @@ echo ""
 echo ""
 echo -e "${BOLD}${CYAN}"
 cat << 'EOF'
-                ████████╗████████╗██████╗
-                ╚══██╔══╝╚══██╔══╝██╔══██╗
-                   ██║      ██║   ██████╔╝
-                   ██║      ██║   ██╔═══╝
-                   ██║      ██║   ██║
-                   ╚═╝      ╚═╝   ╚═╝
+        ██████╗ ██╗██╗  ██╗███████╗██╗     ███████╗██████╗  ██████╗
+        ██╔══██╗██║╚██╗██╔╝██╔════╝██║     ██╔════╝██╔══██╗██╔════╝
+        ██████╔╝██║ ╚███╔╝ █████╗  ██║     ███████╗██████╔╝██║
+        ██╔═══╝ ██║ ██╔██╗ ██╔══╝  ██║     ╚════██║██╔══██╗██║
+        ██║     ██║██╔╝ ██╗███████╗███████╗███████║██║  ██║╚██████╗
+        ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝
 EOF
 echo -e "${NC}"
 echo ""

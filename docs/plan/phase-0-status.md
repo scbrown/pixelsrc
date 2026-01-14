@@ -7,7 +7,7 @@
 
 ## Summary
 
-Phase 0 MVP is complete. TTP can parse JSONL files and render sprites to PNG.
+Phase 0 MVP is complete. Pixelsrc can parse JSONL files and render sprites to PNG.
 
 ---
 

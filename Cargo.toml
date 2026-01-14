@@ -1,8 +1,12 @@
 [package]
-name = "pxl"
+name = "pixelsrc"
 version = "0.1.0"
 edition = "2021"
-description = "TTP (Text To Pixel) - Parse JSONL pixel art definitions and render to PNG"
+description = "Pixelsrc - GenAI-native pixel art format and compiler"
+
+[[bin]]
+name = "pxl"
+path = "src/main.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -49,7 +49,7 @@ impl std::error::Error for ColorError {}
 /// # Examples
 ///
 /// ```
-/// use pxl::color::parse_color;
+/// use pixelsrc::color::parse_color;
 ///
 /// // Short form red
 /// let red = parse_color("#F00").unwrap();

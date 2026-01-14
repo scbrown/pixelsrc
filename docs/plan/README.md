@@ -1,6 +1,6 @@
-# TTP Implementation Plan
+# Pixelsrc Implementation Plan
 
-This directory contains the phased implementation plan for TTP (Text To Pixel).
+This directory contains the phased implementation plan for Pixelsrc.
 
 ## Overview
 
@@ -11,7 +11,7 @@ This directory contains the phased implementation plan for TTP (Text To Pixel).
 | [Phase 2](./phase-2-composition.md) | Unified composition system (sprites & scenes) | Planning |
 | [Phase 2.5](./phase-2.5-upscaling.md) | Output upscaling (integer scale factor) | Planning |
 | [Phase 3](./phase-3-animation.md) | Animation and spritesheet export | Planning |
-| [Phase 4](./phase-4-game-integration.md) | Game engine format export | Planning |
+| [Phase 4](./phase-4-rename.md) | Project rename (TTP → Pixelsrc) | Complete |
 | [Phase 5](./phase-5-ecosystem.md) | Developer tooling and ecosystem | Planning |
 
 ### Future Ideas
@@ -25,7 +25,7 @@ This directory contains the phased implementation plan for TTP (Text To Pixel).
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Name | TTP (Text To Pixel) | Clear, memorable |
+| Name | Pixelsrc | Clear, describes source format nature |
 | Syntax | JSONL (JSON Lines) | Streaming-friendly, each line self-describing |
 | Tokens | Multi-char (`{skin}`) | Readability, expressability |
 | Coordinates | Implicit (grid position) | Avoids GenAI weakness |
@@ -34,15 +34,16 @@ This directory contains the phased implementation plan for TTP (Text To Pixel).
 | Language | Rust | Single binary, WASM target, fast streaming |
 | Image rendering | Native via `image` crate | Pure Rust, no external deps |
 | Error handling | Lenient default, strict opt-in | GenAI-friendly: fill gaps, warn, continue |
-| File extension | Any (`.ttp` or `.jsonl`) | CLI accepts any file, extension is convention |
+| File extension | Any (`.pxs` or `.jsonl`) | CLI accepts any file, extension is convention |
 
 ## Project Structure
 
 ```
-ttp/
+pixelsrc/
 ├── docs/
 │   ├── VISION.md              # Project vision and tenets
 │   ├── ANNOUNCEMENT.md        # Product positioning
+│   ├── BACKLOG.md             # Deferred features (game integration, etc.)
 │   ├── spec/
 │   │   └── format.md          # Formal JSONL specification
 │   └── plan/
@@ -51,7 +52,7 @@ ttp/
 │       ├── phase-1-palettes.md
 │       ├── phase-2-composition.md
 │       ├── phase-3-animation.md
-│       ├── phase-4-game-integration.md
+│       ├── phase-4-rename.md
 │       └── phase-5-ecosystem.md
 ├── CONTRIBUTING.md            # Dev setup, conventions
 ├── Cargo.toml                 # Rust package config

@@ -1,6 +1,6 @@
-# Contributing to TTP
+# Contributing to Pixelsrc
 
-Welcome! TTP (Text To Pixel) is designed to be approachable for contributors, including AI agents.
+Welcome! Pixelsrc is designed to be approachable for contributors, including AI agents.
 
 ---
 
@@ -16,7 +16,7 @@ Welcome! TTP (Text To Pixel) is designed to be approachable for contributors, in
 ```bash
 # Clone the repo
 git clone <repo-url>
-cd ttp
+cd pixelsrc
 
 # Build
 cargo build
@@ -33,7 +33,7 @@ cargo run -- render examples/coin.jsonl -o coin.png
 ## Project Structure
 
 ```
-ttp/
+pixelsrc/
 ├── docs/
 │   ├── VISION.md          # Why we're building this, core tenets
 │   ├── ANNOUNCEMENT.md    # Product positioning
@@ -80,7 +80,7 @@ Before contributing, read these:
 
 ### Error Handling
 
-TTP has two modes:
+Pixelsrc has two modes:
 
 - **Lenient (default)**: Fill gaps, warn, continue
 - **Strict (`--strict`)**: Fail on first warning
@@ -190,7 +190,7 @@ pxl palettes show gameboy
 
 ## For AI Agents
 
-If you're an AI agent working on TTP:
+If you're an AI agent working on Pixelsrc:
 
 1. **Read the spec first** - `spec/format.md` has all the rules
 2. **Check fixtures** - They show expected behavior for edge cases

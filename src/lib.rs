@@ -1,4 +1,4 @@
-//! TTP (Text To Pixel) - Library for parsing and rendering pixel art
+//! Pixelsrc - Library for parsing and rendering pixel art
 //!
 //! This library provides functionality to:
 //! - Parse JSONL files containing palette and sprite definitions

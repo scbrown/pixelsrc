@@ -26,10 +26,10 @@ Phase 5 adds developer experience improvements:
 ### Task 5.1: VS Code Extension
 **Parallelizable:** Yes
 
-Syntax highlighting and preview for TTP files.
+Syntax highlighting and preview for Pixelsrc files.
 
 **Deliverables:**
-- TextMate grammar for `.jsonl` TTP files
+- TextMate grammar for `.jsonl` Pixelsrc files
 - Syntax highlighting for tokens, colors
 - Preview panel showing rendered sprite
 - Publish to VS Code marketplace
@@ -44,18 +44,18 @@ Syntax highlighting and preview for TTP files.
 ### Task 5.2: Web Previewer
 **Parallelizable:** Yes
 
-Browser-based TTP editor and previewer.
+Browser-based Pixelsrc editor and previewer.
 
 **Deliverables:**
 - WASM build of renderer
 - Simple web UI with:
-  - Text editor for TTP input
+  - Text editor for Pixelsrc input
   - Live preview of rendered sprites
   - Download PNG button
 - Host on GitHub Pages or similar
 
 **Acceptance Criteria:**
-- Paste TTP, see rendered output
+- Paste Pixelsrc, see rendered output
 - Download works
 - Mobile-friendly
 
@@ -64,7 +64,7 @@ Browser-based TTP editor and previewer.
 ### Task 5.3: PNG Import
 **Parallelizable:** Yes
 
-Convert PNG images to TTP format.
+Convert PNG images to Pixelsrc format.
 
 **Deliverables:**
 - `pxl import image.png -o sprite.jsonl`
@@ -92,7 +92,7 @@ Templates and guides for GenAI sprite generation.
 - Include in CLI: `pxl prompts show <template>`
 
 **Acceptance Criteria:**
-- Templates produce valid TTP output
+- Templates produce valid Pixelsrc output
 - Guide is clear and helpful
 
 ---
@@ -131,6 +131,6 @@ Phase 2 complete ──┬── 5.1 (VS Code)
 
 1. VS Code extension works with example files
 2. Web previewer renders examples correctly
-3. PNG import produces valid TTP
+3. PNG import produces valid Pixelsrc
 4. GenAI (Claude) can generate sprites using templates
 5. Emoji output is recognizable

@@ -16,15 +16,15 @@ use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
 use crate::renderer::render_sprite;
 use crate::spritesheet::render_spritesheet;
 
-/// Exit codes per TTP spec
+/// Exit codes per Pixelsrc spec
 const EXIT_SUCCESS: u8 = 0;
 const EXIT_ERROR: u8 = 1;
 const EXIT_INVALID_ARGS: u8 = 2;
 
-/// TTP (Text To Pixel) - Parse JSONL pixel art definitions and render to PNG
+/// Pixelsrc - Parse JSONL pixel art definitions and render to PNG
 #[derive(Parser)]
 #[command(name = "pxl")]
-#[command(about = "TTP (Text To Pixel) - Parse JSONL pixel art definitions and render to PNG")]
+#[command(about = "Pixelsrc - Parse JSONL pixel art definitions and render to PNG")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -33,7 +33,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Render sprites from a TTP JSONL file to PNG
+    /// Render sprites from a Pixelsrc JSONL file to PNG
     Render {
         /// Input JSONL file containing palette and sprite definitions
         input: PathBuf,

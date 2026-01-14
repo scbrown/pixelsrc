@@ -1,6 +1,6 @@
 # Phase 0: MVP (Core)
 
-**Goal:** Parse TTP JSONL files and render sprites to PNG
+**Goal:** Parse Pixelsrc JSONL files and render sprites to PNG
 
 **Status:** Planning
 
@@ -146,7 +146,7 @@ cargo clippy                   # No errors
 
 **Wave:** 2 (parallel with 0.3, 0.4)
 
-Define Rust structs for TTP objects.
+Define Rust structs for Pixelsrc objects.
 
 **Deliverables:**
 - `src/models.rs`:
@@ -240,7 +240,7 @@ cargo test tokenizer           # Unit tests pass
 
 **Wave:** 3 (after 0.2)
 
-Parse JSONL stream into TTP objects.
+Parse JSONL stream into Pixelsrc objects.
 
 **Deliverables:**
 - `src/parser.rs`:
@@ -445,13 +445,13 @@ Create at project root - updated by each phase:
 
 ```bash
 #!/bin/bash
-# TTP Demo Script - Shows current capabilities
+# Pixelsrc Demo Script - Shows current capabilities
 # Updated: Phase 0
 
 set -e
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║                    TTP (Text To Pixel)                       ║"
+echo "║                    Pixelsrc (Text To Pixel)                       ║"
 echo "║                    Demo - Phase 0 MVP                        ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""

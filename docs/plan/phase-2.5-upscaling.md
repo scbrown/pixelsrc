@@ -90,7 +90,7 @@ Add `--scale` flag and implement nearest-neighbor scaling.
 
 1. Update `src/cli.rs` - add `--scale` argument:
    ```rust
-   /// Render sprites from a TTP JSONL file to PNG
+   /// Render sprites from a Pixelsrc JSONL file to PNG
    Render {
        // ... existing args ...
 

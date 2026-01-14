@@ -1,4 +1,4 @@
-# TTP Format Specification
+# Pixelsrc Format Specification
 
 **Version:** 0.1.0 (Draft)
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-TTP (Text To Pixel) is a JSONL-based format for defining pixel art sprites. Each line is a self-describing JSON object with a `type` field.
+Pixelsrc (Text To Pixel) is a JSONL-based format for defining pixel art sprites. Each line is a self-describing JSON object with a `type` field.
 
 **Design Philosophy:** Lenient by default, strict when requested. When GenAI makes small mistakes, fill the gaps and keep going.
 
@@ -137,7 +137,7 @@ Tokens in grid strings follow this pattern:
 
 ## Error Handling
 
-TTP has two modes: **lenient** (default) and **strict**.
+Pixelsrc has two modes: **lenient** (default) and **strict**.
 
 ### Lenient Mode (Default)
 
@@ -177,7 +177,7 @@ If `size` is provided:
 
 ## Stream Processing
 
-TTP files are processed line-by-line:
+Pixelsrc files are processed line-by-line:
 
 1. Each line is parsed as independent JSON
 2. Objects are processed in order

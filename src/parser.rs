@@ -1,4 +1,4 @@
-//! JSONL stream parsing for TTP objects
+//! JSONL stream parsing for Pixelsrc objects
 
 use crate::models::{TtpObject, Warning};
 use std::io::BufRead;
@@ -36,7 +36,7 @@ pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseErro
     })
 }
 
-/// Parse a JSONL stream into TTP objects.
+/// Parse a JSONL stream into Pixelsrc objects.
 ///
 /// - Skips blank lines
 /// - Collects warnings in lenient mode

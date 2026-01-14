@@ -1,4 +1,4 @@
-//! Data models for TTP objects (palettes, sprites, etc.)
+//! Data models for Pixelsrc objects (palettes, sprites, etc.)
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ pub struct Composition {
     pub layers: Vec<CompositionLayer>,
 }
 
-/// A TTP object - Palette, Sprite, Composition, or Animation.
+/// A Pixelsrc object - Palette, Sprite, Composition, or Animation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TtpObject {

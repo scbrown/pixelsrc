@@ -22,7 +22,7 @@ impl Warning {
 /// # Examples
 ///
 /// ```
-/// use pxl::tokenizer::tokenize;
+/// use pixelsrc::tokenizer::tokenize;
 ///
 /// let (tokens, warnings) = tokenize("{a}{b}{c}");
 /// assert_eq!(tokens, vec!["{a}", "{b}", "{c}"]);

@@ -51,8 +51,8 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 /// # Examples
 ///
 /// ```
-/// use pxl::renderer::render_sprite;
-/// use pxl::models::{Sprite, PaletteRef};
+/// use pixelsrc::renderer::render_sprite;
+/// use pixelsrc::models::{Sprite, PaletteRef};
 /// use std::collections::HashMap;
 ///
 /// let sprite = Sprite {

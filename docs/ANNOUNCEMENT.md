@@ -1,4 +1,4 @@
-# Introducing TTP: Text To Pixel
+# Introducing Pixelsrc
 
 **The first pixel art format designed for GenAI.**
 
@@ -23,7 +23,7 @@ Existing text-based formats (XPM, PPM) were designed for storage, not generation
 
 ## The Solution
 
-TTP is a pixel art format built from the ground up for LLM generation.
+Pixelsrc is a pixel art format built from the ground up for LLM generation.
 
 ```jsonl
 {"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#FFD700", "{shine}": "#FFFACD", "{shadow}": "#B8860B"}}
@@ -78,10 +78,10 @@ Define colors once with meaningful names. Reference them everywhere. This is how
 **Rapid prototyping**
 ```
 You: "Generate a 16x16 hero sprite, idle pose"
-AI: [outputs TTP]
+AI: [outputs Pixelsrc]
 You: pxl render hero.jsonl -o hero.png
 You: "Add a sword"
-AI: [modifies TTP]
+AI: [modifies Pixelsrc]
 ```
 
 **Consistent asset packs**
@@ -122,7 +122,7 @@ It's text. Git diff shows exactly what changed:
 
 2. **Implicit over explicit** — Position comes from grid location, not coordinates.
 
-3. **Don't reinvent the wheel** — TTP defines sprites. ImageMagick renders them.
+3. **Don't reinvent the wheel** — Pixelsrc defines sprites. ImageMagick renders them.
 
 4. **Streaming-native** — Each line stands alone. Parse incrementally.
 
@@ -145,7 +145,7 @@ It's text. Git diff shows exactly what changed:
 - Not a replacement for Aseprite
 - Not a rendering engine
 
-TTP is a thin semantic layer. A bridge between text and pixels.
+Pixelsrc is a thin semantic layer. A bridge between text and pixels.
 
 ---
 
@@ -153,7 +153,7 @@ TTP is a thin semantic layer. A bridge between text and pixels.
 
 ```bash
 # Install
-cargo install pxl
+cargo install pixelsrc
 
 # Render a sprite
 pxl render sprite.jsonl -o sprite.png
@@ -169,8 +169,8 @@ pxl palettes list
 
 ## The Pitch in One Sentence
 
-**TTP lets you describe pixel art in text and get actual pixels out — designed so AI can do it reliably.**
+**Pixelsrc lets you describe pixel art in text and get actual pixels out — designed so AI can do it reliably.**
 
 ---
 
-*TTP is open source. Contributions welcome.*
+*Pixelsrc is open source. Contributions welcome.*
