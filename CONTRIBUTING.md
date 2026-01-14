@@ -202,6 +202,57 @@ The codebase is designed to be straightforward. Most tasks are isolated to singl
 
 ---
 
+## Creating Releases
+
+Releases are automated via GitHub Actions. To create a new release:
+
+### 1. Update Version
+
+Update the version in `Cargo.toml`:
+```toml
+[package]
+version = "0.2.0"  # Bump appropriately
+```
+
+### 2. Commit and Tag
+
+```bash
+git add Cargo.toml
+git commit -m "Bump version to v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+```
+
+### 3. What Happens
+
+The release workflow automatically:
+- Builds binaries for 6 platforms:
+  - Linux (x86_64, aarch64)
+  - macOS (x86_64, aarch64)
+  - Windows (x86_64, aarch64)
+- Generates SHA256 checksums
+- Creates a GitHub Release with all assets
+
+### 4. Verify
+
+After pushing the tag:
+1. Check [Actions](../../actions) tab for workflow progress
+2. Once complete, verify the [Releases](../../releases) page has all artifacts
+3. Download and test a binary on your platform
+
+### Release Assets
+
+Each release includes:
+- `pxl-v{version}-x86_64-unknown-linux-gnu.tar.gz`
+- `pxl-v{version}-aarch64-unknown-linux-gnu.tar.gz`
+- `pxl-v{version}-x86_64-apple-darwin.tar.gz`
+- `pxl-v{version}-aarch64-apple-darwin.tar.gz`
+- `pxl-v{version}-x86_64-pc-windows-msvc.zip`
+- `pxl-v{version}-aarch64-pc-windows-msvc.zip`
+- `SHA256SUMS.txt`
+
+---
+
 ## Questions?
 
 - Check existing issues
