@@ -104,7 +104,8 @@ fn run_render(
 
     // Build palette registry and collect sprites
     let mut registry = PaletteRegistry::new();
-    let mut sprites = Vec::new();
+    let mut sprites_by_name: std::collections::HashMap<String, crate::models::Sprite> =
+        std::collections::HashMap::new();
 
     for obj in parse_result.objects {
         match obj {
@@ -112,13 +113,27 @@ fn run_render(
                 registry.register(palette);
             }
             TtpObject::Sprite(sprite) => {
-                sprites.push(sprite);
+                if sprites_by_name.contains_key(&sprite.name) {
+                    let warning_msg =
+                        format!("Duplicate sprite name '{}', using latest", sprite.name);
+                    all_warnings.push(warning_msg);
+                    if strict {
+                        for warning in &all_warnings {
+                            eprintln!("Error: {}", warning);
+                        }
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+                sprites_by_name.insert(sprite.name.clone(), sprite);
             }
             TtpObject::Animation(_) => {
                 // Animations are Phase 2, skip for now
             }
         }
     }
+
+    // Convert to Vec, preserving insertion order (last wins for duplicates)
+    let mut sprites: Vec<_> = sprites_by_name.into_values().collect();
 
     // Filter sprites if --sprite is provided
     if let Some(name) = sprite_filter {
