@@ -1,26 +1,26 @@
-import init, { render_to_png, validate } from '@pixelsrc/wasm';
+import init from '@pixelsrc/wasm';
 import LZString from 'lz-string';
-import { createEditor, Editor } from './editor';
-import { Export } from './export';
+import { Preview } from './preview';
 import { Gallery } from './gallery';
+import { Export } from './export';
 
 // DOM Elements
-let editorContainer: HTMLDivElement;
-let editor: Editor;
+let editor: HTMLTextAreaElement;
 let renderBtn: HTMLButtonElement;
-let previewCanvas: HTMLDivElement;
+let previewContainer: HTMLDivElement;
 let previewError: HTMLDivElement;
 let galleryContainer: HTMLDivElement;
-let gallery: Gallery;
 
 // State
 let wasmReady = false;
+let preview: Preview | null = null;
+let gallery: Gallery | null = null;
 
 async function initApp(): Promise<void> {
   // Get DOM elements
-  editorContainer = document.getElementById('editor-container') as HTMLDivElement;
+  editor = document.getElementById('editor') as HTMLTextAreaElement;
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
-  previewCanvas = document.getElementById('preview-canvas') as HTMLDivElement;
+  previewContainer = document.getElementById('preview-canvas') as HTMLDivElement;
   previewError = document.getElementById('preview-error') as HTMLDivElement;
   galleryContainer = document.getElementById('gallery') as HTMLDivElement;
 
@@ -35,39 +35,11 @@ async function initApp(): Promise<void> {
     return;
   }
 
-  // Initialize Gallery component (handles loading external example files)
-  gallery = new Gallery({
-    container: galleryContainer,
-    onSelect: (jsonl: string) => {
-      editor.setValue(jsonl);
-      handleRender();
-    },
+  // Initialize preview component
+  preview = new Preview({
+    container: previewContainer,
+    debounceMs: 100,
   });
-  await gallery.loadExamples();
-
-  // Determine initial content
-  let initialContent = '';
-  const hash = window.location.hash.slice(1);
-  if (hash) {
-    try {
-      const decompressed = LZString.decompressFromEncodedURIComponent(hash);
-      if (decompressed) {
-        initialContent = decompressed;
-      }
-    } catch (err) {
-      console.warn('Failed to decompress hash:', err);
-    }
-  }
-  if (!initialContent) {
-    // Use first example from gallery if available
-    const examples = gallery.getExamples();
-    if (examples.length > 0) {
-      initialContent = examples[0].jsonl;
-    }
-  }
-
-  // Initialize CodeMirror editor
-  editor = createEditor(editorContainer, initialContent);
 
   // Initialize export component
   const exportContainer = document.getElementById('export-controls') as HTMLDivElement;
@@ -79,56 +51,78 @@ async function initApp(): Promise<void> {
 
   // Set up event listeners
   renderBtn.addEventListener('click', handleRender);
+  editor.addEventListener('keydown', handleEditorKeydown);
+  editor.addEventListener('input', handleEditorInput);
+
+  // Load from URL hash if present
+  loadFromHash();
+
+  // Initialize gallery
+  gallery = new Gallery({
+    container: galleryContainer,
+    onSelect: (jsonl: string) => {
+      editor.value = jsonl;
+      handleRender();
+    },
+  });
+  await gallery.loadExamples();
+
+  // Set default content if editor is empty
+  if (!editor.value.trim() && gallery) {
+    const examples = gallery.getExamples();
+    if (examples.length > 0) {
+      editor.value = examples[0].jsonl;
+    }
+  }
+
+  // Initial render
+  handleRender();
+}
+
+function handleEditorKeydown(e: KeyboardEvent): void {
+  // Ctrl/Cmd + Enter to render
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    handleRender();
+  }
+}
+
+function handleEditorInput(): void {
+  // Debounced live preview as user types
+  if (!wasmReady || !preview) return;
+
+  const jsonl = editor.value.trim();
+  if (jsonl) {
+    preview.render(jsonl);
+  }
 }
 
 function handleRender(): void {
-  if (!wasmReady) {
+  if (!wasmReady || !preview) {
     showError('WASM module not ready');
     return;
   }
 
-  const jsonl = editor.getValue().trim();
+  const jsonl = editor.value.trim();
   if (!jsonl) {
     showError('Please enter some JSONL content');
     return;
   }
 
-  // Validate first
-  try {
-    const errors = validate(jsonl);
-    if (errors.length > 0) {
-      showError(errors.join('\n'));
-      return;
-    }
-  } catch (err) {
-    showError(`Validation error: ${err}`);
-    return;
-  }
+  // Use preview component for rendering (immediate, no debounce)
+  const result = preview.renderImmediate(jsonl);
 
-  // Render
-  try {
-    const pngBytes = render_to_png(jsonl);
-    displayImage(pngBytes);
+  if (result.success) {
     hideError();
     updateHash(jsonl);
-  } catch (err) {
-    showError(`Render error: ${err}`);
+
+    // Show warnings if any
+    if (result.warnings.length > 0) {
+      console.warn('Render warnings:', result.warnings);
+    }
+  } else if (result.error) {
+    showError(result.error);
   }
-}
-
-function displayImage(pngBytes: Uint8Array): void {
-  const blob = new Blob([pngBytes.slice()], { type: 'image/png' });
-  const url = URL.createObjectURL(blob);
-
-  // Clear previous content
-  previewCanvas.innerHTML = '';
-
-  const img = document.createElement('img');
-  img.src = url;
-  img.alt = 'Rendered sprite';
-  img.onload = () => URL.revokeObjectURL(url);
-
-  previewCanvas.appendChild(img);
 }
 
 function showError(message: string): void {
@@ -143,6 +137,20 @@ function hideError(): void {
 function updateHash(jsonl: string): void {
   const compressed = LZString.compressToEncodedURIComponent(jsonl);
   window.history.replaceState(null, '', `#${compressed}`);
+}
+
+function loadFromHash(): void {
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    try {
+      const decompressed = LZString.decompressFromEncodedURIComponent(hash);
+      if (decompressed) {
+        editor.value = decompressed;
+      }
+    } catch (err) {
+      console.warn('Failed to decompress hash:', err);
+    }
+  }
 }
 
 // Initialize when DOM is ready

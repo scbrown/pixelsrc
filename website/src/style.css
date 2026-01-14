@@ -94,26 +94,23 @@ html, body {
 }
 
 /* Editor Panel */
-#editor-container {
+#editor {
   width: 100%;
   height: 100%;
   min-height: 200px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  overflow: hidden;
-}
-
-#editor-container .cm-editor {
-  height: 100%;
-  font-size: 0.875rem;
-}
-
-#editor-container .cm-editor.cm-focused {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-#editor-container .cm-scroller {
+  color: var(--text-primary);
   font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.875rem;
+  padding: 1rem;
+  resize: none;
+}
+
+#editor:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 /* Preview Panel */
@@ -194,56 +191,65 @@ html, body {
 }
 
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .gallery-item {
-  aspect-ratio: 1;
   background-color: var(--bg-secondary);
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s, border-color 0.2s;
+  transition: transform 0.2s, border-color 0.2s, background-color 0.2s;
   border: 2px solid transparent;
-  padding: 0.5rem;
+  padding: 0.75rem;
+  min-width: 80px;
+  font-family: inherit;
+  color: var(--text-primary);
 }
 
 .gallery-item:hover {
   transform: scale(1.05);
   border-color: var(--accent);
+  background-color: var(--bg-panel);
 }
 
-.gallery-item img {
-  max-width: 90%;
-  max-height: 90%;
+.gallery-item:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.gallery-thumb {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.gallery-thumb img {
+  max-width: 100%;
+  max-height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-.gallery-thumb {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 60px;
+.gallery-fallback {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text-secondary);
 }
 
 .gallery-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  text-align: center;
-  margin-top: 0.25rem;
-}
-
-.gallery-fallback {
-  font-size: 1.5rem;
-  color: var(--text-secondary);
-  font-weight: 700;
+  text-transform: capitalize;
 }
 
 /* Export Controls */
@@ -313,14 +319,20 @@ html, body {
   opacity: 1;
 }
 
-/* Responsive */
+/* Responsive - Tablet */
 @media (max-width: 768px) {
   #main {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem;
   }
 
   #gallery-panel {
     max-height: 150px;
+  }
+
+  .panel-content {
+    padding: 0.75rem;
   }
 
   .preview-controls {
@@ -330,5 +342,114 @@ html, body {
   .export-controls {
     flex-wrap: wrap;
     gap: 0.25rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 480px) {
+  #header {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.25rem;
+  }
+
+  #header h1 {
+    font-size: 1.25rem;
+  }
+
+  #header .tagline {
+    font-size: 0.75rem;
+  }
+
+  #main {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .panel-header {
+    padding: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .panel-header h2 {
+    font-size: 0.875rem;
+  }
+
+  .panel-content {
+    padding: 0.5rem;
+  }
+
+  #editor {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+    min-height: 150px;
+  }
+
+  #render-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  #preview-canvas {
+    min-height: 150px;
+    padding: 0.5rem;
+  }
+
+  #gallery-panel {
+    margin: 0 0.5rem 0.5rem 0.5rem;
+    max-height: 120px;
+  }
+
+  .gallery-grid {
+    gap: 0.5rem;
+  }
+
+  .gallery-item {
+    padding: 0.5rem;
+    min-width: 60px;
+  }
+
+  .gallery-thumb {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0.25rem;
+  }
+
+  .gallery-label {
+    font-size: 0.625rem;
+  }
+
+  .export-controls {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 0.5rem;
+  }
+
+  .export-btn {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .export-scale-select {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .export-scale-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+  #render-btn {
+    min-height: 44px;
+    min-width: 80px;
+  }
+
+  .gallery-item {
+    min-height: 72px;
   }
 }
