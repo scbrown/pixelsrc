@@ -9,6 +9,7 @@ pub mod cli;
 pub mod color;
 pub mod models;
 pub mod output;
+pub mod palettes;
 pub mod parser;
 pub mod registry;
 pub mod renderer;
