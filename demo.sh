@@ -96,7 +96,7 @@ echo -e "                ${BOLD}Text To Pixel${NC}"
 echo -e "                ${DIM}Define pixel art in JSON, render to PNG${NC}"
 echo ""
 echo ""
-echo -e "                ${GREEN}Phase 0 MVP - Complete${NC}"
+echo -e "                ${GREEN}Phase 0 + Phase 1 Complete${NC}"
 echo ""
 echo ""
 pause
@@ -329,22 +329,91 @@ echo -e "  ${DIM}Strict mode fails on any warning${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 12: What's Complete
+# SLIDE 12: Phase 1 Feature - External Palette Include
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0: Complete"
+slide "Phase 1: External Palette Include"
 
-echo -e "  ${GREEN}All Tasks Done:${NC}"
+echo -e "  ${CYAN}Share palettes across files with @include:${NC}"
 echo ""
-echo -e "  ${GREEN}[x]${NC} Project scaffolding"
-echo -e "  ${GREEN}[x]${NC} Data models (Palette, Sprite, TtpObject)"
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}shared/palette.jsonl:${NC}                                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}type${NC}:   ${GREEN}palette${NC}                                     ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}name${NC}:   ${GREEN}shared${NC}                                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}colors${NC}: ${RED}{r}${NC}=#FF0000 ${GREEN}{g}${NC}=#00FF00 ${BLUE}{b}${NC}=#0000FF      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}sprite.jsonl:${NC}                                           ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}palette${NC}: ${CYAN}\"@include:shared/palette.jsonl\"${NC}             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}grid${NC}:    ${RED}{r}${NC}${GREEN}{g}${NC} / ${BLUE}{b}${NC}${DIM}{_}${NC}                                  ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+echo ""
+echo -e "  ${GREEN}Benefits:${NC}"
+echo -e "  ${DIM}•${NC} Define colors once, use across multiple sprites"
+echo -e "  ${DIM}•${NC} Relative paths from the including file"
+echo -e "  ${DIM}•${NC} Circular include detection"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 13: Render External Include Example
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Rendering: External Include"
+
+echo -e "  ${DIM}\$ pxl render tests/fixtures/valid/include_palette.jsonl${NC}"
+echo ""
+
+./target/release/pxl render tests/fixtures/valid/include_palette.jsonl -o "$DEMO_OUT/rgb_square.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Palette from:${NC} shared/palette.jsonl"
+echo -e "  ${BOLD}Result:${NC} 2x2 RGB square"
+echo ""
+show_image "$DEMO_OUT/rgb_square.png" 20
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 14: Phase 1 - Built-in Palettes
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 1: Built-in Palette Data"
+
+echo -e "  ${CYAN}6 palettes available in the library:${NC}"
+echo ""
+echo -e "  ${YELLOW}gameboy${NC}    ${DIM}4-color green${NC}"
+echo -e "             ${GREEN}lightest${NC} #9BBC0F  ${GREEN}light${NC} #8BAC0F"
+echo -e "             ${GREEN}dark${NC} #306230  ${GREEN}darkest${NC} #0F380F"
+echo ""
+echo -e "  ${YELLOW}nes${NC}        ${DIM}NES key colors${NC}"
+echo -e "             ${RED}red${NC} ${GREEN}green${NC} ${BLUE}blue${NC} ${CYAN}cyan${NC} ${YELLOW}yellow${NC} ${MAGENTA}pink${NC} ${DIM}+ more${NC}"
+echo ""
+echo -e "  ${YELLOW}pico8${NC}      ${DIM}PICO-8 16-color palette${NC}"
+echo -e "             ${MAGENTA}dark_purple${NC} ${GREEN}dark_green${NC} ${BLUE}blue${NC} ${RED}red${NC} ${DIM}+ more${NC}"
+echo ""
+echo -e "  ${YELLOW}dracula${NC}    ${DIM}Dark theme colors${NC}"
+echo -e "             ${MAGENTA}purple${NC} ${MAGENTA}pink${NC} ${CYAN}cyan${NC} ${GREEN}green${NC} ${YELLOW}yellow${NC} ${RED}red${NC} ${DIM}+ more${NC}"
+echo ""
+echo -e "  ${YELLOW}grayscale${NC}  ${DIM}8 shades white to black${NC}"
+echo ""
+echo -e "  ${YELLOW}1bit${NC}       ${DIM}Black and white only${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 15: What's Complete
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 0 + Phase 1: Complete"
+
+echo -e "  ${GREEN}Phase 0 - Core:${NC}"
+echo -e "  ${GREEN}[x]${NC} JSONL parser with palettes and sprites"
 echo -e "  ${GREEN}[x]${NC} Color parsing (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)"
 echo -e "  ${GREEN}[x]${NC} Token extraction from grid strings"
-echo -e "  ${GREEN}[x]${NC} JSONL stream parser"
-echo -e "  ${GREEN}[x]${NC} Palette registry with named references"
-echo -e "  ${GREEN}[x]${NC} Sprite renderer (grid → image)"
-echo -e "  ${GREEN}[x]${NC} PNG output with path generation"
+echo -e "  ${GREEN}[x]${NC} Sprite renderer (grid → PNG)"
+echo -e "  ${GREEN}[x]${NC} Lenient/strict error modes"
 echo -e "  ${GREEN}[x]${NC} CLI: pxl render"
-echo -e "  ${GREEN}[x]${NC} Integration tests"
+echo ""
+echo -e "  ${GREEN}Phase 1 - Palettes:${NC}"
+echo -e "  ${GREEN}[x]${NC} Built-in palette data (gameboy, nes, pico8, grayscale, 1bit)"
+echo -e "  ${GREEN}[x]${NC} External palette include (@include:path)"
+echo -e "  ${GREEN}[x]${NC} Circular include detection"
 echo ""
 echo -e "  ${BOLD}Tests:${NC} ${GREEN}All passing${NC}"
 echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
@@ -352,28 +421,29 @@ echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 13: What's Next
+# SLIDE 16: What's Next
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Coming Next: Phase 1"
+slide "Coming Next: Phase 2"
 
-echo -e "  ${CYAN}Built-in Palettes:${NC}"
+echo -e "  ${CYAN}Animation & Spritesheet Export:${NC}"
 echo ""
-echo -e "  ${DIM}Instead of defining colors manually...${NC}"
+echo -e "  ${WHITE}Animation objects:${NC}"
+echo -e "  ${DIM}Define frame sequences with timing${NC}"
+echo -e "  ${DIM}Reference multiple sprites as frames${NC}"
 echo ""
-echo -e "  ${WHITE}\"palette\": \"@gameboy\"${NC}    ${DIM}Classic 4-color green${NC}"
-echo -e "  ${WHITE}\"palette\": \"@nes\"${NC}        ${DIM}NES system palette${NC}"
-echo -e "  ${WHITE}\"palette\": \"@pico8\"${NC}      ${DIM}PICO-8 16-color palette${NC}"
-echo -e "  ${WHITE}\"palette\": \"@c64\"${NC}        ${DIM}Commodore 64 palette${NC}"
+echo -e "  ${WHITE}Spritesheet output:${NC}"
+echo -e "  ${DIM}Export all frames to a single image${NC}"
+echo -e "  ${DIM}Generate metadata for game engines${NC}"
 echo ""
 echo -e "  ${CYAN}Future Phases:${NC}"
-echo -e "  ${DIM}Phase 2:${NC} Animation & spritesheet export"
-echo -e "  ${DIM}Phase 3:${NC} Game engine integration (Unity, Godot, Tiled)"
-echo -e "  ${DIM}Phase 4:${NC} VS Code extension, web previewer"
+echo -e "  ${DIM}Phase 3:${NC} Animation timing & GIF export"
+echo -e "  ${DIM}Phase 4:${NC} Game engine integration (Unity, Godot, Tiled)"
+echo -e "  ${DIM}Phase 5:${NC} VS Code extension, web previewer"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 14: Try It
+# SLIDE 17: Try It
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Try It Yourself"
 
@@ -382,11 +452,11 @@ echo -e "  ${DIM}\$ pxl render examples/coin.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/hero.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/heart.jsonl${NC}"
 echo ""
+echo -e "  ${BOLD}Try external include:${NC}"
+echo -e "  ${DIM}\$ pxl render tests/fixtures/valid/include_palette.jsonl${NC}"
+echo ""
 echo -e "  ${BOLD}Run the tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
-echo ""
-echo -e "  ${BOLD}Read the spec:${NC}"
-echo -e "  ${DIM}\$ cat docs/spec/format.md${NC}"
 echo ""
 echo -e "  ${BOLD}Install image viewer (optional):${NC}"
 echo -e "  ${DIM}\$ brew install chafa    # For inline image display${NC}"
@@ -394,7 +464,7 @@ echo -e "  ${DIM}\$ brew install chafa    # For inline image display${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 15: End
+# SLIDE 18: End
 # ═══════════════════════════════════════════════════════════════════════════════
 clear
 echo ""
@@ -411,9 +481,10 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Phase 0 MVP Complete${NC}"
+echo -e "                ${BOLD}Phase 0 + Phase 1 Complete${NC}"
 echo ""
 echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
+echo -e "                ${GREEN}External Palette Includes${NC}"
 echo ""
 echo ""
 

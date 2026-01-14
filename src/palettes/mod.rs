@@ -7,7 +7,7 @@ use crate::models::Palette;
 use std::collections::HashMap;
 
 /// List of all available built-in palette names.
-const BUILTIN_NAMES: &[&str] = &["gameboy", "nes", "pico8", "grayscale", "1bit"];
+const BUILTIN_NAMES: &[&str] = &["gameboy", "nes", "pico8", "grayscale", "1bit", "dracula"];
 
 /// Returns a list of all available built-in palette names.
 pub fn list_builtins() -> Vec<&'static str> {
@@ -22,6 +22,7 @@ pub fn get_builtin(name: &str) -> Option<Palette> {
         "pico8" => Some(pico8()),
         "grayscale" => Some(grayscale()),
         "1bit" => Some(one_bit()),
+        "dracula" => Some(dracula()),
         _ => None,
     }
 }
@@ -121,6 +122,28 @@ fn one_bit() -> Palette {
     }
 }
 
+/// Dracula theme palette.
+/// Reference: https://draculatheme.com/contribute
+fn dracula() -> Palette {
+    Palette {
+        name: "dracula".to_string(),
+        colors: HashMap::from([
+            ("{_}".to_string(), "#00000000".to_string()),
+            ("{background}".to_string(), "#282A36".to_string()),
+            ("{current}".to_string(), "#44475A".to_string()),
+            ("{foreground}".to_string(), "#F8F8F2".to_string()),
+            ("{comment}".to_string(), "#6272A4".to_string()),
+            ("{cyan}".to_string(), "#8BE9FD".to_string()),
+            ("{green}".to_string(), "#50FA7B".to_string()),
+            ("{orange}".to_string(), "#FFB86C".to_string()),
+            ("{pink}".to_string(), "#FF79C6".to_string()),
+            ("{purple}".to_string(), "#BD93F9".to_string()),
+            ("{red}".to_string(), "#FF5555".to_string()),
+            ("{yellow}".to_string(), "#F1FA8C".to_string()),
+        ]),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,7 +156,8 @@ mod tests {
         assert!(builtins.contains(&"pico8"));
         assert!(builtins.contains(&"grayscale"));
         assert!(builtins.contains(&"1bit"));
-        assert_eq!(builtins.len(), 5);
+        assert!(builtins.contains(&"dracula"));
+        assert_eq!(builtins.len(), 6);
     }
 
     #[test]
@@ -183,6 +207,17 @@ mod tests {
         assert_eq!(palette.colors.len(), 3);
         assert_eq!(palette.colors.get("{black}"), Some(&"#000000".to_string()));
         assert_eq!(palette.colors.get("{white}"), Some(&"#FFFFFF".to_string()));
+    }
+
+    #[test]
+    fn test_get_builtin_dracula() {
+        let palette = get_builtin("dracula").expect("dracula palette should exist");
+        assert_eq!(palette.name, "dracula");
+        // 11 colors + transparent
+        assert_eq!(palette.colors.len(), 12);
+        assert_eq!(palette.colors.get("{background}"), Some(&"#282A36".to_string()));
+        assert_eq!(palette.colors.get("{purple}"), Some(&"#BD93F9".to_string()));
+        assert_eq!(palette.colors.get("{pink}"), Some(&"#FF79C6".to_string()));
     }
 
     #[test]
