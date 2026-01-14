@@ -10,32 +10,50 @@ default:
 
 # === Development ===
 
-# Run tests (quiet by default)
-test:
-    #!/usr/bin/env bash
-    if [ -d "src" ] && [ -f "pyproject.toml" ]; then
-        python -m pytest {{ if verbose == "true" { "-v" } else { "-q" } }}
-    else
-        echo "Test infrastructure not yet set up"
-    fi
+# Build the project
+build:
+    cargo build
 
-# Run linter
+# Build release binary
+release:
+    cargo build --release
+
+# Run tests
+test:
+    cargo test {{ if verbose == "true" { "--verbose" } else { "" } }}
+
+# Run linter (clippy)
 lint:
-    #!/usr/bin/env bash
-    if [ -d "src" ]; then
-        ruff check .
-    else
-        echo "Lint infrastructure not yet set up"
-    fi
+    cargo clippy --all-targets
 
 # Format code
 fmt:
-    #!/usr/bin/env bash
-    if [ -d "src" ]; then
-        ruff format .
-    else
-        echo "Format infrastructure not yet set up"
-    fi
+    cargo fmt --all
+
+# Check formatting without changing files
+fmt-check:
+    cargo fmt --all -- --check
+
+# Run all checks (format, lint, test)
+check: fmt-check lint test
+
+# Clean build artifacts
+clean:
+    cargo clean
+
+# === CLI ===
+
+# Render an example (e.g., just render coin)
+render name:
+    cargo run -- render examples/{{name}}.jsonl -o /tmp/{{name}}.png && echo "Saved to /tmp/{{name}}.png"
+
+# List built-in palettes
+palettes:
+    cargo run -- palettes list
+
+# Run the demo
+demo:
+    ./demo.sh
 
 # === Issue Tracking ===
 
