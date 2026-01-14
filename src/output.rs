@@ -334,4 +334,132 @@ mod tests {
         assert!(result.is_ok());
         assert!(path.exists());
     }
+
+    #[test]
+    fn test_scale_image_factor_one_returns_original() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255]));
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255]));
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255]));
+
+        let scaled = scale_image(image, 1);
+
+        assert_eq!(scaled.width(), 2);
+        assert_eq!(scaled.height(), 2);
+        // Verify pixels unchanged
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 0), Rgba([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_factor_zero_returns_original() {
+        let image = RgbaImage::new(3, 3);
+        let scaled = scale_image(image, 0);
+
+        // factor <= 1 returns original
+        assert_eq!(scaled.width(), 3);
+        assert_eq!(scaled.height(), 3);
+    }
+
+    #[test]
+    fn test_scale_image_factor_two() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Red
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255])); // Green
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255])); // Blue
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255])); // Yellow
+
+        let scaled = scale_image(image, 2);
+
+        // 2x2 scaled by 2 = 4x4
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+
+        // Each original pixel becomes a 2x2 block
+        // Red at (0,0) should fill (0,0), (1,0), (0,1), (1,1)
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(0, 1), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+
+        // Green at (1,0) should fill (2,0), (3,0), (2,1), (3,1)
+        assert_eq!(*scaled.get_pixel(2, 0), Rgba([0, 255, 0, 255]));
+        assert_eq!(*scaled.get_pixel(3, 0), Rgba([0, 255, 0, 255]));
+
+        // Blue at (0,1) should fill (0,2), (1,2), (0,3), (1,3)
+        assert_eq!(*scaled.get_pixel(0, 2), Rgba([0, 0, 255, 255]));
+        assert_eq!(*scaled.get_pixel(1, 3), Rgba([0, 0, 255, 255]));
+
+        // Yellow at (1,1) should fill (2,2), (3,2), (2,3), (3,3)
+        assert_eq!(*scaled.get_pixel(3, 3), Rgba([255, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_factor_four() {
+        let mut image = RgbaImage::new(1, 1);
+        image.put_pixel(0, 0, Rgba([128, 64, 32, 200]));
+
+        let scaled = scale_image(image, 4);
+
+        // 1x1 scaled by 4 = 4x4
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+
+        // All pixels should be the same color
+        for y in 0..4 {
+            for x in 0..4 {
+                assert_eq!(
+                    *scaled.get_pixel(x, y),
+                    Rgba([128, 64, 32, 200]),
+                    "Pixel at ({}, {}) should match original",
+                    x,
+                    y
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_scale_image_preserves_transparency() {
+        let mut image = RgbaImage::new(2, 1);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Opaque red
+        image.put_pixel(1, 0, Rgba([0, 0, 0, 0]));     // Transparent
+
+        let scaled = scale_image(image, 2);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 2);
+
+        // Opaque red should remain opaque
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+
+        // Transparent should remain transparent
+        assert_eq!(*scaled.get_pixel(2, 0), Rgba([0, 0, 0, 0]));
+        assert_eq!(*scaled.get_pixel(3, 1), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_scale_image_large_factor() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([100, 100, 100, 255]));
+        image.put_pixel(1, 0, Rgba([200, 200, 200, 255]));
+        image.put_pixel(0, 1, Rgba([50, 50, 50, 255]));
+        image.put_pixel(1, 1, Rgba([150, 150, 150, 255]));
+
+        let scaled = scale_image(image, 8);
+
+        // 2x2 scaled by 8 = 16x16
+        assert_eq!(scaled.width(), 16);
+        assert_eq!(scaled.height(), 16);
+
+        // Spot check corners of each quadrant
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([100, 100, 100, 255]));
+        assert_eq!(*scaled.get_pixel(7, 7), Rgba([100, 100, 100, 255]));
+        assert_eq!(*scaled.get_pixel(8, 0), Rgba([200, 200, 200, 255]));
+        assert_eq!(*scaled.get_pixel(15, 7), Rgba([200, 200, 200, 255]));
+        assert_eq!(*scaled.get_pixel(0, 8), Rgba([50, 50, 50, 255]));
+        assert_eq!(*scaled.get_pixel(8, 8), Rgba([150, 150, 150, 255]));
+    }
 }

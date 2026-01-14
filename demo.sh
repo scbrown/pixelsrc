@@ -285,6 +285,10 @@ echo ""
 echo -e "  ${DIM}\$ pxl render input.jsonl -o ./sprites/${NC}"
 echo -e "      All sprites to directory"
 echo ""
+echo -e "  ${BOLD}Scaling:${NC}"
+echo -e "  ${DIM}\$ pxl render input.jsonl --scale 4${NC}"
+echo -e "      Scale output by integer factor (1-16)"
+echo ""
 echo -e "  ${BOLD}Modes:${NC}"
 echo -e "  ${DIM}\$ pxl render input.jsonl${NC}"
 echo -e "      ${GREEN}Lenient${NC}: warns but continues on issues"
@@ -295,7 +299,37 @@ echo -e "      ${RED}Strict${NC}: fails on any warning"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 11: Strict vs Lenient
+# SLIDE 11: Output Scaling
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Output Scaling"
+
+echo -e "  ${CYAN}Scale output by integer factor (1-16):${NC}"
+echo ""
+echo -e "  ${BOLD}Default (1x):${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl -o heart_1x.png${NC}"
+echo ""
+./target/release/pxl render examples/heart.jsonl -o "$DEMO_OUT/heart_1x.png" 2>&1 | sed 's/^/  /'
+echo ""
+show_image "$DEMO_OUT/heart_1x.png" 10
+
+echo ""
+echo -e "  ${BOLD}Scaled 4x:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl --scale 4 -o heart_4x.png${NC}"
+echo ""
+./target/release/pxl render examples/heart.jsonl --scale 4 -o "$DEMO_OUT/heart_4x.png" 2>&1 | sed 's/^/  /'
+echo ""
+show_image "$DEMO_OUT/heart_4x.png" 20
+
+echo ""
+echo -e "  ${GREEN}Benefits:${NC}"
+echo -e "  ${DIM}•${NC} Nearest-neighbor interpolation preserves pixel-art crispness"
+echo -e "  ${DIM}•${NC} Great for previews and social media"
+echo -e "  ${DIM}•${NC} Works with PNG, GIF, and spritesheet output"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 12: Strict vs Lenient
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Error Handling: Lenient vs Strict"
 
@@ -465,6 +499,7 @@ echo -e "  ${GREEN}[x]${NC} Token extraction from grid strings"
 echo -e "  ${GREEN}[x]${NC} Sprite renderer (grid → PNG)"
 echo -e "  ${GREEN}[x]${NC} Lenient/strict error modes"
 echo -e "  ${GREEN}[x]${NC} CLI: pxl render"
+echo -e "  ${GREEN}[x]${NC} Output scaling (--scale 1-16)"
 echo ""
 echo -e "  ${GREEN}Phase 1 - Palettes:${NC}"
 echo -e "  ${GREEN}[x]${NC} Built-in palette data (gameboy, nes, pico8, grayscale, 1bit)"
@@ -510,9 +545,14 @@ echo -e "  ${DIM}\$ pxl render examples/coin.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/hero.jsonl${NC}"
 echo -e "  ${DIM}\$ pxl render examples/heart.jsonl${NC}"
 echo ""
+echo -e "  ${BOLD}Try scaling:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl --scale 4 -o heart_4x.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/coin.jsonl --scale 8 -o coin_8x.png${NC}"
+echo ""
 echo -e "  ${BOLD}Try animations:${NC}"
 echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.png${NC}"
 echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif -o walk.gif${NC}"
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif --scale 4 -o walk_4x.gif${NC}"
 echo ""
 echo -e "  ${BOLD}Run the tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
@@ -544,6 +584,7 @@ echo -e "                ${BOLD}Phase 0 + Phase 1 + Phase 3 Complete${NC}"
 echo ""
 echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
 echo -e "                ${GREEN}External Palette Includes${NC}"
+echo -e "                ${GREEN}Output Scaling (1-16x)${NC}"
 echo -e "                ${GREEN}Animation → GIF/Spritesheet${NC}"
 echo ""
 echo ""
