@@ -238,14 +238,16 @@ echo ""
 echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
 echo -e "  ${DIM}│${NC} ${CYAN}Palette: \"hero\"${NC}                                        ${DIM}│${NC}"
 echo -e "  ${DIM}│${NC}   ${DIM}{_}${NC}       = transparent                               ${DIM}│${NC}"
-echo -e "  ${DIM}│${NC}   ${YELLOW}{skin}${NC}   = #FFCC99                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}{skin}${NC}   = #FFCC99  ${DIM}(peach)${NC}                        ${DIM}│${NC}"
 echo -e "  ${DIM}│${NC}   ${RED}{hair}${NC}   = #8B4513  ${DIM}(brown)${NC}                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{eye}${NC}    = #000000  ${DIM}(black)${NC}                        ${DIM}│${NC}"
 echo -e "  ${DIM}│${NC}   ${BLUE}{shirt}${NC}  = #4169E1  ${DIM}(royal blue)${NC}                  ${DIM}│${NC}"
-echo -e "  ${DIM}│${NC}   ${DIM}{pants}${NC}  = #2F4F4F  ${DIM}(dark slate)${NC}                  ${DIM}│${NC}"
-echo -e "  ${DIM}│${NC}   ${DIM}{outline}${NC}= #000000                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${BLUE}{pants}${NC}  = #1E3A5F  ${DIM}(navy)${NC}                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{shoes}${NC}  = #000000                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{outline}${NC}= #2C1810  ${DIM}(dark brown)${NC}                  ${DIM}│${NC}"
 echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
 echo -e "  ${DIM}│${NC} ${GREEN}Sprite: \"hero_idle\" (16x16)${NC}                            ${DIM}│${NC}"
-echo -e "  ${DIM}│${NC}   16 rows of pixel data defining a character sprite    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   Character with hair, face, shirt, pants, shoes       ${DIM}│${NC}"
 echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
 
 pause
@@ -295,23 +297,34 @@ pause
 # ═══════════════════════════════════════════════════════════════════════════════
 # SLIDE 11: Strict vs Lenient
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Error Handling Demo"
+slide "Error Handling: Lenient vs Strict"
 
-echo -e "  ${BOLD}File with unknown token:${NC}"
-echo -e "  ${DIM}tests/fixtures/lenient/unknown_token.jsonl${NC}"
+echo -e "  ${BOLD}Test file with unknown token {y}:${NC}"
+echo -e "  ${DIM}palette: {x}=#FF0000, grid uses {x} and {y}${NC}"
+echo ""
+
+echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
 echo ""
 
 echo -e "  ${GREEN}Lenient mode (default):${NC}"
-echo -e "  ${DIM}\$ pxl render unknown_token.jsonl${NC}"
-./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl -o "$DEMO_OUT/lenient.png" 2>&1 | sed 's/^/  /'
+echo -e "  ${DIM}\$ pxl render unknown_token.jsonl -o lenient.png${NC}"
+echo ""
+./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl -o "$DEMO_OUT/lenient.png" 2>&1 | sed 's/^/    /'
+echo ""
+echo -e "  ${GREEN}Result: File saved, warning printed${NC}"
+echo -e "  ${DIM}Unknown token {y} rendered as ${NC}${MAGENTA}magenta${NC}"
+echo ""
+
+echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
 echo ""
 
 echo -e "  ${RED}Strict mode:${NC}"
 echo -e "  ${DIM}\$ pxl render unknown_token.jsonl --strict${NC}"
-./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl --strict -o "$DEMO_OUT/strict.png" 2>&1 | sed 's/^/  /' || true
 echo ""
-
-echo -e "  ${DIM}Unknown tokens render as ${NC}${MAGENTA}magenta (#FF00FF)${NC}${DIM} in lenient mode${NC}"
+./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl --strict -o "$DEMO_OUT/strict.png" 2>&1 | sed 's/^/    /' || true
+echo ""
+echo -e "  ${GREEN}Result: Correctly rejected (exit 1)${NC}"
+echo -e "  ${DIM}Strict mode fails on any warning${NC}"
 
 pause
 
