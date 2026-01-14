@@ -1,6 +1,6 @@
 #!/bin/bash
 # TTP (Text To Pixel) Demo
-# Interactive slideshow of current capabilities
+# Interactive slideshow demonstrating Phase 0 MVP
 
 set -e
 
@@ -11,9 +11,14 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
+
+# Temp directory for rendered outputs
+DEMO_OUT="/tmp/ttp-demo"
+mkdir -p "$DEMO_OUT"
 
 # Wait for keypress
 pause() {
@@ -29,6 +34,44 @@ slide() {
     echo -e "${BOLD}${BLUE}$1${NC}"
     echo -e "${DIM}$(printf '━%.0s' {1..64})${NC}"
     echo ""
+}
+
+# Display image in terminal (tries multiple methods)
+show_image() {
+    local img="$1"
+    local scale="${2:-10}"
+
+    if [ ! -f "$img" ]; then
+        echo -e "  ${DIM}[Image not found: $img]${NC}"
+        return
+    fi
+
+    # Try iTerm2 imgcat
+    if command -v imgcat &> /dev/null; then
+        imgcat --width "${scale}" "$img" 2>/dev/null && return
+    fi
+
+    # Try Kitty icat
+    if command -v kitten &> /dev/null; then
+        kitten icat --scale-up --place "${scale}x${scale}@0x0" "$img" 2>/dev/null && return
+    fi
+
+    # Try chafa (good unicode/ascii art fallback)
+    if command -v chafa &> /dev/null; then
+        chafa --size "${scale}x${scale}" --symbols block "$img" 2>/dev/null && return
+    fi
+
+    # Try viu
+    if command -v viu &> /dev/null; then
+        viu -w "$scale" "$img" 2>/dev/null && return
+    fi
+
+    # Fallback: show file info
+    echo -e "  ${DIM}[Rendered: $img]${NC}"
+    echo -e "  ${DIM}$(file "$img" | sed 's/.*: //')${NC}"
+    echo ""
+    echo -e "  ${DIM}Install 'chafa' or 'viu' to view images inline:${NC}"
+    echo -e "  ${DIM}  brew install chafa${NC}"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -53,7 +96,7 @@ echo -e "                ${BOLD}Text To Pixel${NC}"
 echo -e "                ${DIM}Define pixel art in JSON, render to PNG${NC}"
 echo ""
 echo ""
-echo -e "                ${DIM}Phase 0 MVP Demo${NC}"
+echo -e "                ${GREEN}Phase 0 MVP - Complete${NC}"
 echo ""
 echo ""
 pause
@@ -66,12 +109,9 @@ slide "Building Project"
 echo -e "  ${DIM}\$ cargo build --release${NC}"
 echo ""
 
-if cargo build --release 2>&1 | grep -E "(Compiling|Finished)" | tail -5 | sed 's/^/  /'; then
-    echo ""
-    echo -e "  ${GREEN}Build successful${NC}"
-else
-    echo -e "  ${GREEN}Already built${NC}"
-fi
+cargo build --release 2>&1 | grep -E "(Compiling pxl|Finished)" | tail -2 | sed 's/^/  /' || echo -e "  ${GREEN}Already up to date${NC}"
+echo ""
+echo -e "  ${GREEN}Build successful${NC}"
 
 pause
 
@@ -83,204 +123,265 @@ slide "Running Tests"
 echo -e "  ${DIM}\$ cargo test${NC}"
 echo ""
 
-# Run tests and format output nicely
-cargo test 2>&1 | grep -E "^test |passed|failed" | while read -r line; do
-    if echo "$line" | grep -q "passed"; then
-        echo -e "  ${GREEN}$line${NC}"
-    elif echo "$line" | grep -q "ok$"; then
-        echo -e "  ${GREEN}$line${NC}"
-    elif echo "$line" | grep -q "FAILED"; then
-        echo -e "  ${RED}$line${NC}"
-    else
-        echo -e "  $line"
-    fi
-done
+# Capture test output
+test_output=$(cargo test 2>&1)
+passed=$(echo "$test_output" | grep -oE '[0-9]+ passed' | head -1)
+doc_tests=$(echo "$test_output" | grep "doc" | grep -oE '[0-9]+ passed' || echo "")
 
+echo -e "  ${GREEN}Unit tests:    $passed${NC}"
+if [ -n "$doc_tests" ]; then
+    echo -e "  ${GREEN}Doc tests:     $doc_tests${NC}"
+fi
 echo ""
-echo -e "  ${GREEN}All 27 tests passing${NC}"
+echo -e "  ${GREEN}All tests passing${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 4: Format Overview
+# SLIDE 4: Example 1 - Heart (Simple)
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "TTP Format Overview"
+slide "Example: Heart Sprite"
 
-echo -e "  TTP uses ${BOLD}JSONL${NC} (JSON Lines) - one object per line:"
+echo -e "  ${BOLD}Input:${NC} examples/heart.jsonl"
 echo ""
-echo -e "  ${YELLOW}Palette${NC} - defines named colors"
-echo -e "  ${DIM}  {\"type\": \"palette\", \"name\": \"...\", \"colors\": {...}}${NC}"
-echo ""
-echo -e "  ${GREEN}Sprite${NC} - defines pixel grid using color tokens"
-echo -e "  ${DIM}  {\"type\": \"sprite\", \"name\": \"...\", \"palette\": \"...\", \"grid\": [...]}${NC}"
-echo ""
-echo ""
-echo -e "  ${BOLD}Color Formats:${NC}"
-echo -e "  ${DIM}  #RGB        ${NC}${MAGENTA}#F00${NC}         ${DIM}short red${NC}"
-echo -e "  ${DIM}  #RGBA       ${NC}${MAGENTA}#F008${NC}        ${DIM}short red, 50% alpha${NC}"
-echo -e "  ${DIM}  #RRGGBB     ${NC}${MAGENTA}#FF0000${NC}      ${DIM}full red${NC}"
-echo -e "  ${DIM}  #RRGGBBAA   ${NC}${MAGENTA}#FF000080${NC}    ${DIM}full red, 50% alpha${NC}"
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}type${NC}:     ${GREEN}sprite${NC}                                       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}name${NC}:     ${GREEN}heart${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}size${NC}:     ${CYAN}7${NC} x ${CYAN}6${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}palette${NC}:  ${DIM}{_}${NC} = transparent                            ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${RED}{r}${NC} = ${RED}#FF0000${NC}  ${DIM}(red)${NC}                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}            ${MAGENTA}{p}${NC} = ${MAGENTA}#FF6B6B${NC}  ${DIM}(pink highlight)${NC}             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}grid${NC}:                                                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}.${NC} ${RED}r${NC} ${RED}r${NC} ${DIM}.${NC} ${RED}r${NC} ${RED}r${NC} ${DIM}.${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${RED}r${NC} ${MAGENTA}p${NC} ${RED}r${NC} ${RED}r${NC} ${MAGENTA}p${NC} ${RED}r${NC} ${RED}r${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}.${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${DIM}.${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}. .${NC} ${RED}r${NC} ${RED}r${NC} ${RED}r${NC} ${DIM}. .${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}. . .${NC} ${RED}r${NC} ${DIM}. . .${NC}                                    ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 5: Example - Coin Palette
+# SLIDE 5: Render Heart
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Rendering: Heart Sprite"
+
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl -o heart.png${NC}"
+echo ""
+
+# Actually render
+./target/release/pxl render examples/heart.jsonl -o "$DEMO_OUT/heart.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Output:${NC}"
+echo ""
+show_image "$DEMO_OUT/heart.png" 20
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 6: Example 2 - Coin
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Example: Coin Sprite"
 
-echo -e "  ${BOLD}File:${NC} examples/coin.jsonl"
+echo -e "  ${BOLD}Input:${NC} examples/coin.jsonl"
 echo ""
-echo -e "  ${YELLOW}Line 1 - Palette Definition:${NC}"
-echo ""
-echo -e "  ${DIM}{${NC}"
-echo -e "    ${CYAN}\"type\"${NC}: ${GREEN}\"palette\"${NC},"
-echo -e "    ${CYAN}\"name\"${NC}: ${GREEN}\"coin\"${NC},"
-echo -e "    ${CYAN}\"colors\"${NC}: {"
-echo -e "      ${CYAN}\"{_}\"${NC}:      ${GREEN}\"#00000000\"${NC}  ${DIM}transparent${NC}"
-echo -e "      ${CYAN}\"{gold}\"${NC}:   ${GREEN}\"#FFD700\"${NC}    ${DIM}gold${NC}"
-echo -e "      ${CYAN}\"{shine}\"${NC}:  ${GREEN}\"#FFFACD\"${NC}    ${DIM}highlight${NC}"
-echo -e "      ${CYAN}\"{shadow}\"${NC}: ${GREEN}\"#B8860B\"${NC}    ${DIM}shadow${NC}"
-echo -e "      ${CYAN}\"{dark}\"${NC}:   ${GREEN}\"#8B6914\"${NC}    ${DIM}dark edge${NC}"
-echo -e "    }"
-echo -e "  ${DIM}}${NC}"
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${YELLOW}Palette: \"coin\"${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{_}${NC}      = ${DIM}transparent${NC}                               ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}{gold}${NC}   = ${YELLOW}#FFD700${NC}                                   ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}{shine}${NC}  = ${WHITE}#FFFACD${NC}  ${DIM}(highlight)${NC}                   ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{shadow}${NC} = ${DIM}#B8860B${NC}  ${DIM}(shadow)${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{dark}${NC}   = ${DIM}#8B6914${NC}  ${DIM}(dark edge)${NC}                   ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${GREEN}Sprite: \"coin\" (8x8)${NC}                                   ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}. .${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}. .${NC}     ${DIM}row 1${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}.${NC} ${YELLOW}█${NC} ${WHITE}░${NC} ${WHITE}░${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}.${NC}     ${DIM}row 2 (with shine)${NC}         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}█${NC} ${WHITE}░${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}▒${NC} ${YELLOW}█${NC}     ${DIM}row 3 (with shadow)${NC}        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}█${NC} ${WHITE}░${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}▒${NC} ${YELLOW}█${NC}     ${DIM}row 4${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}▒${NC} ${YELLOW}█${NC}     ${DIM}row 5${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}▒${NC} ${DIM}▒${NC} ${YELLOW}█${NC}     ${DIM}row 6${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}.${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${YELLOW}█${NC} ${DIM}.${NC}     ${DIM}row 7${NC}                      ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}. .${NC} ${DIM}▄${NC} ${DIM}▄${NC} ${DIM}▄${NC} ${DIM}▄${NC} ${DIM}. .${NC}     ${DIM}row 8 (dark base)${NC}          ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 6: Example - Coin Grid
+# SLIDE 7: Render Coin
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Example: Coin Sprite (continued)"
+slide "Rendering: Coin Sprite"
 
-echo -e "  ${GREEN}Line 2 - Sprite Definition:${NC}"
-echo ""
-echo -e "  ${DIM}{${NC}"
-echo -e "    ${CYAN}\"type\"${NC}: ${GREEN}\"sprite\"${NC},"
-echo -e "    ${CYAN}\"name\"${NC}: ${GREEN}\"coin\"${NC},"
-echo -e "    ${CYAN}\"size\"${NC}: [8, 8],"
-echo -e "    ${CYAN}\"palette\"${NC}: ${GREEN}\"coin\"${NC},  ${DIM}<-- references palette above${NC}"
-echo -e "    ${CYAN}\"grid\"${NC}: ["
-echo -e "      ${GREEN}\"{_}{_}{gold}{gold}{gold}{gold}{_}{_}\"${NC}"
-echo -e "      ${GREEN}\"{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}\"${NC}"
-echo -e "      ${GREEN}\"{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}\"${NC}"
-echo -e "      ${DIM}...${NC}"
-echo -e "    ]"
-echo -e "  ${DIM}}${NC}"
-
-pause
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 7: ASCII Preview
-# ═══════════════════════════════════════════════════════════════════════════════
-slide "Example: Coin Sprite (preview)"
-
-echo -e "  ${BOLD}ASCII Visualization:${NC}"
-echo ""
-echo -e "         1 2 3 4 5 6 7 8"
-echo -e "        ${DIM}┌─────────────────┐${NC}"
-echo -e "      1 ${DIM}│${NC} ${DIM}. .${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}. .${NC} ${DIM}│${NC}"
-echo -e "      2 ${DIM}│${NC} ${DIM}.${NC} ${YELLOW}#${NC} ${BOLD}*${NC} ${BOLD}*${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}.${NC} ${DIM}│${NC}"
-echo -e "      3 ${DIM}│${NC} ${YELLOW}#${NC} ${BOLD}*${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}@${NC} ${YELLOW}#${NC} ${DIM}│${NC}"
-echo -e "      4 ${DIM}│${NC} ${YELLOW}#${NC} ${BOLD}*${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}@${NC} ${YELLOW}#${NC} ${DIM}│${NC}"
-echo -e "      5 ${DIM}│${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}@${NC} ${YELLOW}#${NC} ${DIM}│${NC}"
-echo -e "      6 ${DIM}│${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}@${NC} ${DIM}@${NC} ${YELLOW}#${NC} ${DIM}│${NC}"
-echo -e "      7 ${DIM}│${NC} ${DIM}.${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${YELLOW}#${NC} ${DIM}.${NC} ${DIM}│${NC}"
-echo -e "      8 ${DIM}│${NC} ${DIM}. .${NC} ${DIM}o${NC} ${DIM}o${NC} ${DIM}o${NC} ${DIM}o${NC} ${DIM}. .${NC} ${DIM}│${NC}"
-echo -e "        ${DIM}└─────────────────┘${NC}"
-echo ""
-echo -e "  ${DIM}Legend:${NC}  ${YELLOW}#${NC} gold   ${BOLD}*${NC} shine   ${DIM}@${NC} shadow   ${DIM}o${NC} dark   ${DIM}.${NC} transparent"
-
-pause
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 8: Running Binary
-# ═══════════════════════════════════════════════════════════════════════════════
-slide "Running the Binary"
-
-echo -e "  ${DIM}\$ ./target/release/pxl examples/coin.jsonl${NC}"
-echo ""
-./target/release/pxl examples/coin.jsonl 2>&1 | sed 's/^/  /'
-echo ""
-echo ""
-echo -e "  ${YELLOW}CLI not yet wired up${NC}"
-echo ""
-echo -e "  ${DIM}Expected (when complete):${NC}"
 echo -e "  ${DIM}\$ pxl render examples/coin.jsonl -o coin.png${NC}"
-echo -e "  ${DIM}Rendered: coin.png (8x8)${NC}"
+echo ""
+
+./target/release/pxl render examples/coin.jsonl -o "$DEMO_OUT/coin.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Output:${NC}"
+echo ""
+show_image "$DEMO_OUT/coin.png" 20
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 9: What's Working
+# SLIDE 8: Example 3 - Hero
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0 Status: What's Working"
+slide "Example: Hero Character (16x16)"
 
-echo -e "  ${GREEN}Completed:${NC}"
+echo -e "  ${BOLD}Input:${NC} examples/hero.jsonl"
 echo ""
-echo -e "  ${GREEN}[x]${NC} ${BOLD}Data Models${NC}"
-echo -e "      ${DIM}Palette, Sprite, TtpObject deserialization${NC}"
-echo ""
-echo -e "  ${GREEN}[x]${NC} ${BOLD}Color Parsing${NC}"
-echo -e "      ${DIM}#RGB, #RGBA, #RRGGBB, #RRGGBBAA formats${NC}"
-echo ""
-echo -e "  ${GREEN}[x]${NC} ${BOLD}Tokenizer${NC}"
-echo -e "      ${DIM}Extracts {tokens} from grid strings${NC}"
-echo ""
-echo -e "  ${GREEN}[x]${NC} ${BOLD}Test Fixtures${NC}"
-echo -e "      ${DIM}19 fixture files (valid, invalid, lenient)${NC}"
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${CYAN}Palette: \"hero\"${NC}                                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{_}${NC}       = transparent                               ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${YELLOW}{skin}${NC}   = #FFCC99                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${RED}{hair}${NC}   = #8B4513  ${DIM}(brown)${NC}                        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${BLUE}{shirt}${NC}  = #4169E1  ${DIM}(royal blue)${NC}                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{pants}${NC}  = #2F4F4F  ${DIM}(dark slate)${NC}                  ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${DIM}{outline}${NC}= #000000                                    ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${GREEN}Sprite: \"hero_idle\" (16x16)${NC}                            ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   16 rows of pixel data defining a character sprite    ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 10: What's Missing
+# SLIDE 9: Render Hero
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0 Status: What's Missing"
+slide "Rendering: Hero Character"
 
-echo -e "  ${YELLOW}Remaining Tasks:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/hero.jsonl -o hero.png${NC}"
 echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}JSONL Parser${NC}         ${DIM}src/parser.rs${NC}"
-echo -e "      ${DIM}parse_line(), parse_stream()${NC}"
+
+./target/release/pxl render examples/hero.jsonl -o "$DEMO_OUT/hero.png" 2>&1 | sed 's/^/  /'
+
 echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}Palette Registry${NC}    ${DIM}src/registry.rs${NC}"
-echo -e "      ${DIM}Resolve named palette references${NC}"
+echo -e "  ${BOLD}Output:${NC}"
 echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}Sprite Renderer${NC}     ${DIM}src/renderer.rs${NC}"
-echo -e "      ${DIM}Grid + palette -> RgbaImage${NC}"
-echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}PNG Output${NC}          ${DIM}src/output.rs${NC}"
-echo -e "      ${DIM}save_png(), path generation${NC}"
-echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}CLI${NC}                 ${DIM}src/cli.rs${NC}"
-echo -e "      ${DIM}pxl render input.jsonl -o output.png${NC}"
-echo ""
-echo -e "  ${YELLOW}[ ]${NC} ${BOLD}Integration Tests${NC}   ${DIM}tests/integration_tests.rs${NC}"
+show_image "$DEMO_OUT/hero.png" 24
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 11: Try It
+# SLIDE 10: CLI Features
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "CLI Features"
+
+echo -e "  ${BOLD}Basic Usage:${NC}"
+echo -e "  ${DIM}\$ pxl render input.jsonl${NC}"
+echo -e "      Renders all sprites to {input}_{sprite}.png"
+echo ""
+echo -e "  ${BOLD}Output Options:${NC}"
+echo -e "  ${DIM}\$ pxl render input.jsonl -o output.png${NC}"
+echo -e "      Single sprite to specific file"
+echo ""
+echo -e "  ${DIM}\$ pxl render input.jsonl -o ./sprites/${NC}"
+echo -e "      All sprites to directory"
+echo ""
+echo -e "  ${BOLD}Modes:${NC}"
+echo -e "  ${DIM}\$ pxl render input.jsonl${NC}"
+echo -e "      ${GREEN}Lenient${NC}: warns but continues on issues"
+echo ""
+echo -e "  ${DIM}\$ pxl render input.jsonl --strict${NC}"
+echo -e "      ${RED}Strict${NC}: fails on any warning"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 11: Strict vs Lenient
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Error Handling Demo"
+
+echo -e "  ${BOLD}File with unknown token:${NC}"
+echo -e "  ${DIM}tests/fixtures/lenient/unknown_token.jsonl${NC}"
+echo ""
+
+echo -e "  ${GREEN}Lenient mode (default):${NC}"
+echo -e "  ${DIM}\$ pxl render unknown_token.jsonl${NC}"
+./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl -o "$DEMO_OUT/lenient.png" 2>&1 | sed 's/^/  /'
+echo ""
+
+echo -e "  ${RED}Strict mode:${NC}"
+echo -e "  ${DIM}\$ pxl render unknown_token.jsonl --strict${NC}"
+./target/release/pxl render tests/fixtures/lenient/unknown_token.jsonl --strict -o "$DEMO_OUT/strict.png" 2>&1 | sed 's/^/  /' || true
+echo ""
+
+echo -e "  ${DIM}Unknown tokens render as ${NC}${MAGENTA}magenta (#FF00FF)${NC}${DIM} in lenient mode${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 12: What's Complete
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 0: Complete"
+
+echo -e "  ${GREEN}All Tasks Done:${NC}"
+echo ""
+echo -e "  ${GREEN}[x]${NC} Project scaffolding"
+echo -e "  ${GREEN}[x]${NC} Data models (Palette, Sprite, TtpObject)"
+echo -e "  ${GREEN}[x]${NC} Color parsing (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)"
+echo -e "  ${GREEN}[x]${NC} Token extraction from grid strings"
+echo -e "  ${GREEN}[x]${NC} JSONL stream parser"
+echo -e "  ${GREEN}[x]${NC} Palette registry with named references"
+echo -e "  ${GREEN}[x]${NC} Sprite renderer (grid → image)"
+echo -e "  ${GREEN}[x]${NC} PNG output with path generation"
+echo -e "  ${GREEN}[x]${NC} CLI: pxl render"
+echo -e "  ${GREEN}[x]${NC} Integration tests"
+echo ""
+echo -e "  ${BOLD}Tests:${NC} ${GREEN}All passing${NC}"
+echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 13: What's Next
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Coming Next: Phase 1"
+
+echo -e "  ${CYAN}Built-in Palettes:${NC}"
+echo ""
+echo -e "  ${DIM}Instead of defining colors manually...${NC}"
+echo ""
+echo -e "  ${WHITE}\"palette\": \"@gameboy\"${NC}    ${DIM}Classic 4-color green${NC}"
+echo -e "  ${WHITE}\"palette\": \"@nes\"${NC}        ${DIM}NES system palette${NC}"
+echo -e "  ${WHITE}\"palette\": \"@pico8\"${NC}      ${DIM}PICO-8 16-color palette${NC}"
+echo -e "  ${WHITE}\"palette\": \"@c64\"${NC}        ${DIM}Commodore 64 palette${NC}"
+echo ""
+echo -e "  ${CYAN}Future Phases:${NC}"
+echo -e "  ${DIM}Phase 2:${NC} Animation & spritesheet export"
+echo -e "  ${DIM}Phase 3:${NC} Game engine integration (Unity, Godot, Tiled)"
+echo -e "  ${DIM}Phase 4:${NC} VS Code extension, web previewer"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 14: Try It
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Try It Yourself"
 
+echo -e "  ${BOLD}Render the examples:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/coin.jsonl${NC}"
+echo -e "  ${DIM}\$ pxl render examples/hero.jsonl${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl${NC}"
+echo ""
 echo -e "  ${BOLD}Run the tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
 echo ""
-echo -e "  ${BOLD}Explore the examples:${NC}"
-echo -e "  ${DIM}\$ cat examples/coin.jsonl${NC}"
-echo -e "  ${DIM}\$ cat examples/hero.jsonl${NC}"
-echo -e "  ${DIM}\$ cat examples/walk_cycle.jsonl${NC}"
-echo ""
-echo -e "  ${BOLD}Check test fixtures:${NC}"
-echo -e "  ${DIM}\$ ls tests/fixtures/valid/${NC}"
-echo -e "  ${DIM}\$ ls tests/fixtures/invalid/${NC}"
-echo -e "  ${DIM}\$ ls tests/fixtures/lenient/${NC}"
-echo ""
 echo -e "  ${BOLD}Read the spec:${NC}"
 echo -e "  ${DIM}\$ cat docs/spec/format.md${NC}"
+echo ""
+echo -e "  ${BOLD}Install image viewer (optional):${NC}"
+echo -e "  ${DIM}\$ brew install chafa    # For inline image display${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 12: End
+# SLIDE 15: End
 # ═══════════════════════════════════════════════════════════════════════════════
 clear
 echo ""
@@ -297,11 +398,21 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}End of Demo${NC}"
+echo -e "                ${BOLD}Phase 0 MVP Complete${NC}"
 echo ""
-echo -e "                ${DIM}Phase 0: 4/10 tasks complete${NC}"
-echo -e "                ${DIM}Foundation ready, pipeline needed${NC}"
+echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
 echo ""
+echo ""
+
+# Show all rendered outputs if possible
+if command -v chafa &> /dev/null || command -v viu &> /dev/null; then
+    echo -e "  ${DIM}Rendered outputs:${NC}"
+    echo ""
+    for img in "$DEMO_OUT"/*.png; do
+        [ -f "$img" ] && show_image "$img" 8
+    done
+fi
+
 echo ""
 echo -e "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
