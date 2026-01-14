@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::models::{Palette, PaletteRef, Sprite};
+use crate::palettes;
 
 /// Magenta fallback color for missing palettes/tokens
 pub const MAGENTA_FALLBACK: &str = "#FF00FF";
@@ -23,6 +24,8 @@ pub struct ResolvedPalette {
 pub enum PaletteSource {
     /// Resolved from a named palette in the registry
     Named(String),
+    /// Resolved from a built-in palette (@name syntax)
+    Builtin(String),
     /// Inline palette defined in the sprite
     Inline,
     /// Fallback used when palette was not found (lenient mode)
@@ -34,12 +37,17 @@ pub enum PaletteSource {
 pub enum PaletteError {
     /// Referenced palette name was not found in registry
     NotFound(String),
+    /// Referenced built-in palette (@name) was not found
+    BuiltinNotFound(String),
 }
 
 impl fmt::Display for PaletteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PaletteError::NotFound(name) => write!(f, "Palette '{}' not found", name),
+            PaletteError::BuiltinNotFound(name) => {
+                write!(f, "Built-in palette '{}' not found", name)
+            }
         }
     }
 }
@@ -56,6 +64,12 @@ impl PaletteWarning {
     pub fn not_found(name: &str) -> Self {
         Self {
             message: format!("Palette '{}' not found", name),
+        }
+    }
+
+    pub fn builtin_not_found(name: &str) -> Self {
+        Self {
+            message: format!("Built-in palette '{}' not found", name),
         }
     }
 }
@@ -101,10 +115,21 @@ impl PaletteRegistry {
     /// Resolve a sprite's palette reference in strict mode.
     ///
     /// Returns an error if a named palette is not found.
+    /// Handles @name syntax for built-in palettes.
     pub fn resolve_strict(&self, sprite: &Sprite) -> Result<ResolvedPalette, PaletteError> {
         match &sprite.palette {
             PaletteRef::Named(name) => {
-                if let Some(palette) = self.palettes.get(name) {
+                // Check for built-in palette reference (@name syntax)
+                if let Some(builtin_name) = name.strip_prefix('@') {
+                    if let Some(palette) = palettes::get_builtin(builtin_name) {
+                        Ok(ResolvedPalette {
+                            colors: palette.colors.clone(),
+                            source: PaletteSource::Builtin(builtin_name.to_string()),
+                        })
+                    } else {
+                        Err(PaletteError::BuiltinNotFound(builtin_name.to_string()))
+                    }
+                } else if let Some(palette) = self.palettes.get(name) {
                     Ok(ResolvedPalette {
                         colors: palette.colors.clone(),
                         source: PaletteSource::Named(name.clone()),
@@ -124,10 +149,31 @@ impl PaletteRegistry {
     ///
     /// Always returns a palette. If a named palette is not found, returns
     /// an empty fallback palette with a warning.
+    /// Handles @name syntax for built-in palettes.
     pub fn resolve_lenient(&self, sprite: &Sprite) -> LenientResult {
         match &sprite.palette {
             PaletteRef::Named(name) => {
-                if let Some(palette) = self.palettes.get(name) {
+                // Check for built-in palette reference (@name syntax)
+                if let Some(builtin_name) = name.strip_prefix('@') {
+                    if let Some(palette) = palettes::get_builtin(builtin_name) {
+                        LenientResult {
+                            palette: ResolvedPalette {
+                                colors: palette.colors.clone(),
+                                source: PaletteSource::Builtin(builtin_name.to_string()),
+                            },
+                            warning: None,
+                        }
+                    } else {
+                        // Fallback: empty palette (tokens will get magenta during rendering)
+                        LenientResult {
+                            palette: ResolvedPalette {
+                                colors: HashMap::new(),
+                                source: PaletteSource::Fallback,
+                            },
+                            warning: Some(PaletteWarning::builtin_not_found(builtin_name)),
+                        }
+                    }
+                } else if let Some(palette) = self.palettes.get(name) {
                     LenientResult {
                         palette: ResolvedPalette {
                             colors: palette.colors.clone(),
@@ -390,5 +436,143 @@ mod tests {
             "Palette 'nonexistent' not found"
         );
         assert_eq!(result.palette.source, PaletteSource::Fallback);
+    }
+
+    // ============================================================
+    // Built-in palette resolution tests (@name syntax)
+    // ============================================================
+
+    fn builtin_gameboy_sprite() -> Sprite {
+        Sprite {
+            name: "test".to_string(),
+            size: None,
+            palette: PaletteRef::Named("@gameboy".to_string()),
+            grid: vec!["{lightest}{dark}".to_string()],
+        }
+    }
+
+    fn builtin_nonexistent_sprite() -> Sprite {
+        Sprite {
+            name: "test".to_string(),
+            size: None,
+            palette: PaletteRef::Named("@nonexistent".to_string()),
+            grid: vec!["{x}{x}".to_string()],
+        }
+    }
+
+    #[test]
+    fn test_resolve_strict_builtin_found() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_gameboy_sprite();
+
+        let result = registry.resolve_strict(&sprite).unwrap();
+        assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
+        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
+        assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_strict_builtin_not_found() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_nonexistent_sprite();
+
+        let result = registry.resolve_strict(&sprite);
+        assert_eq!(
+            result,
+            Err(PaletteError::BuiltinNotFound("nonexistent".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_resolve_lenient_builtin_found() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_gameboy_sprite();
+
+        let result = registry.resolve_lenient(&sprite);
+        assert!(result.warning.is_none());
+        assert_eq!(result.palette.source, PaletteSource::Builtin("gameboy".to_string()));
+        assert_eq!(
+            result.palette.colors.get("{lightest}"),
+            Some(&"#9BBC0F".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_lenient_builtin_not_found() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_nonexistent_sprite();
+
+        let result = registry.resolve_lenient(&sprite);
+        assert!(result.warning.is_some());
+        assert_eq!(
+            result.warning.unwrap().message,
+            "Built-in palette 'nonexistent' not found"
+        );
+        assert_eq!(result.palette.source, PaletteSource::Fallback);
+        assert!(result.palette.colors.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_combined_builtin_strict() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_nonexistent_sprite();
+
+        let result = registry.resolve(&sprite, true);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            PaletteError::BuiltinNotFound("nonexistent".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_combined_builtin_lenient() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_nonexistent_sprite();
+
+        let result = registry.resolve(&sprite, false).unwrap();
+        assert!(result.warning.is_some());
+        assert_eq!(result.palette.source, PaletteSource::Fallback);
+    }
+
+    // Test fixture matching plan doc:
+    // {"type": "sprite", "name": "test", "palette": "@gameboy", "grid": ["{lightest}{dark}"]}
+    #[test]
+    fn test_fixture_builtin_palette() {
+        let registry = PaletteRegistry::new();
+        let sprite = builtin_gameboy_sprite();
+
+        let result = registry.resolve_strict(&sprite).unwrap();
+        assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
+        // Verify correct gameboy colors
+        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
+        assert_eq!(result.colors.get("{light}"), Some(&"#8BAC0F".to_string()));
+        assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
+        assert_eq!(result.colors.get("{darkest}"), Some(&"#0F380F".to_string()));
+    }
+
+    #[test]
+    fn test_all_builtins_resolvable() {
+        let registry = PaletteRegistry::new();
+        let builtin_names = ["gameboy", "nes", "pico8", "grayscale", "1bit"];
+
+        for name in builtin_names {
+            let sprite = Sprite {
+                name: "test".to_string(),
+                size: None,
+                palette: PaletteRef::Named(format!("@{}", name)),
+                grid: vec!["{_}".to_string()],
+            };
+            let result = registry.resolve_strict(&sprite);
+            assert!(
+                result.is_ok(),
+                "Built-in palette @{} should be resolvable",
+                name
+            );
+            assert_eq!(
+                result.unwrap().source,
+                PaletteSource::Builtin(name.to_string())
+            );
+        }
     }
 }
