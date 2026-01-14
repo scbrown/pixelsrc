@@ -1,0 +1,4 @@
+{"type": "palette", "name": "terrain_colors", "colors": {"{_}": "#00000000", "{grass}": "#228B22", "{trunk}": "#8B4513", "{leaves}": "#006400"}}
+{"type": "sprite", "name": "grass_tile", "size": [4, 4], "palette": "terrain_colors", "grid": ["{grass}{grass}{grass}{grass}", "{grass}{grass}{grass}{grass}", "{grass}{grass}{grass}{grass}", "{grass}{grass}{grass}{grass}"]}
+{"type": "sprite", "name": "tree", "size": [4, 4], "palette": "terrain_colors", "grid": ["{_}{leaves}{leaves}{_}", "{leaves}{leaves}{leaves}{leaves}", "{_}{trunk}{trunk}{_}", "{_}{trunk}{trunk}{_}"]}
+{"type": "composition", "name": "forest_clearing", "size": [16, 16], "cell_size": [4, 4], "sprites": {".": null, "g": "grass_tile", "T": "tree"}, "layers": [{"name": "terrain", "fill": "g"}, {"name": "objects", "map": ["T..T", "....", "....", "T..T"]}]}
