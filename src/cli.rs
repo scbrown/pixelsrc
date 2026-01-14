@@ -14,6 +14,7 @@ use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
+use crate::palettes;
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
 use crate::renderer::render_sprite;
@@ -106,6 +107,22 @@ pub enum Commands {
         #[arg()]
         template: Option<String>,
     },
+    /// List and inspect built-in palettes
+    Palettes {
+        #[command(subcommand)]
+        action: PaletteAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PaletteAction {
+    /// List all available built-in palettes
+    List,
+    /// Show details of a specific palette
+    Show {
+        /// Name of the palette to show
+        name: String,
+    },
 }
 
 /// Run the CLI application
@@ -143,6 +160,7 @@ pub fn run() -> ExitCode {
             name,
         } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
         Commands::Prompts { template } => run_prompts(template.as_deref()),
+        Commands::Palettes { action } => run_palettes(action),
     }
 }
 
@@ -193,6 +211,41 @@ fn run_prompts(template: Option<&str>) -> ExitCode {
                 eprintln!("  {}", tpl_name);
             }
             ExitCode::from(EXIT_ERROR)
+        }
+    }
+}
+
+/// Execute the palettes command
+fn run_palettes(action: PaletteAction) -> ExitCode {
+    match action {
+        PaletteAction::List => {
+            println!("Built-in palettes:");
+            for name in palettes::list_builtins() {
+                println!("  @{}", name);
+            }
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        PaletteAction::Show { name } => {
+            let palette_name = name.strip_prefix('@').unwrap_or(&name);
+            match palettes::get_builtin(palette_name) {
+                Some(palette) => {
+                    println!("Palette: @{}", palette_name);
+                    println!();
+                    for (key, color) in &palette.colors {
+                        println!("  {} => {}", key, color);
+                    }
+                    ExitCode::from(EXIT_SUCCESS)
+                }
+                None => {
+                    eprintln!("Error: Unknown palette '{}'", name);
+                    eprintln!();
+                    eprintln!("Available palettes:");
+                    for builtin_name in palettes::list_builtins() {
+                        eprintln!("  @{}", builtin_name);
+                    }
+                    ExitCode::from(EXIT_ERROR)
+                }
+            }
         }
     }
 }
