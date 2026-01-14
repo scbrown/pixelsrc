@@ -39,6 +39,21 @@ pub struct Animation {
     pub r#loop: Option<bool>,
 }
 
+impl Animation {
+    /// Default duration per frame in milliseconds.
+    pub const DEFAULT_DURATION_MS: u32 = 100;
+
+    /// Returns the duration per frame in milliseconds (default: 100ms).
+    pub fn duration_ms(&self) -> u32 {
+        self.duration.unwrap_or(Self::DEFAULT_DURATION_MS)
+    }
+
+    /// Returns whether the animation should loop (default: true).
+    pub fn loops(&self) -> bool {
+        self.r#loop.unwrap_or(true)
+    }
+}
+
 /// A layer within a composition.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositionLayer {
@@ -296,6 +311,88 @@ mod tests {
                 assert!(comp.cell_size.is_none());
             }
             _ => panic!("Expected composition"),
+        }
+    }
+
+    #[test]
+    fn test_animation_parse_full() {
+        // Animation with all fields specified
+        let json = r#"{"type": "animation", "name": "blink_anim", "frames": ["on", "off"], "duration": 500, "loop": true}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "blink_anim");
+                assert_eq!(anim.frames, vec!["on", "off"]);
+                assert_eq!(anim.duration, Some(500));
+                assert_eq!(anim.r#loop, Some(true));
+                // Helper methods should return specified values
+                assert_eq!(anim.duration_ms(), 500);
+                assert!(anim.loops());
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_default_duration() {
+        // Animation without duration - should default to 100ms
+        let json = r#"{"type": "animation", "name": "walk", "frames": ["frame1", "frame2"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "walk");
+                assert!(anim.duration.is_none());
+                assert_eq!(anim.duration_ms(), 100); // Default
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_default_loop() {
+        // Animation without loop - should default to true
+        let json = r#"{"type": "animation", "name": "idle", "frames": ["f1"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert!(anim.r#loop.is_none());
+                assert!(anim.loops()); // Default is true
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_loop_false() {
+        // Animation with loop=false
+        let json = r#"{"type": "animation", "name": "death", "frames": ["f1", "f2"], "loop": false}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.r#loop, Some(false));
+                assert!(!anim.loops());
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_roundtrip() {
+        let anim = Animation {
+            name: "test_anim".to_string(),
+            frames: vec!["a".to_string(), "b".to_string(), "c".to_string()],
+            duration: Some(200),
+            r#loop: Some(false),
+        };
+        let obj = TtpObject::Animation(anim.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""type":"animation""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Animation(parsed_anim) => {
+                assert_eq!(anim, parsed_anim);
+            }
+            _ => panic!("Expected animation"),
         }
     }
 }
