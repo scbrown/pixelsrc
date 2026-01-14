@@ -171,6 +171,70 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+/* Preview Status Indicator */
+.preview-content {
+  position: relative;
+}
+
+.preview-status {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+
+.preview-status.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preview-status .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+}
+
+.preview-status.rendering .status-icon::before {
+  content: "⟳";
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  color: #bd93f9; /* Dracula Purple */
+}
+
+.preview-status.success .status-icon::before {
+  content: "✓";
+  color: var(--success);
+}
+
+.preview-status.success .status-text::before {
+  content: "Rendered: ";
+}
+
+.preview-status.error .status-icon::before {
+  content: "✗";
+  color: var(--error);
+}
+
+.preview-status.error .status-text::before {
+  content: "Error: ";
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .error {
   color: var(--error);
   padding: 0.75rem;

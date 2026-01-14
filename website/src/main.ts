@@ -9,6 +9,7 @@ let editor: HTMLTextAreaElement;
 let renderBtn: HTMLButtonElement;
 let previewContainer: HTMLDivElement;
 let previewError: HTMLDivElement;
+let previewStatus: HTMLDivElement;
 let galleryContainer: HTMLDivElement;
 
 // State
@@ -22,6 +23,7 @@ async function initApp(): Promise<void> {
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
   previewContainer = document.getElementById('preview-canvas') as HTMLDivElement;
   previewError = document.getElementById('preview-error') as HTMLDivElement;
+  previewStatus = document.getElementById('preview-status') as HTMLDivElement;
   galleryContainer = document.getElementById('gallery') as HTMLDivElement;
 
   // Initialize WASM
@@ -109,6 +111,9 @@ function handleRender(): void {
     return;
   }
 
+  // Show rendering state
+  showStatus('rendering', 'Rendering...');
+
   // Use preview component for rendering (immediate, no debounce)
   const result = preview.renderImmediate(jsonl);
 
@@ -116,11 +121,17 @@ function handleRender(): void {
     hideError();
     updateHash(jsonl);
 
+    // Show success with dimensions
+    showStatus('success', `${result.width}×${result.height}`);
+    hideStatusAfter(2000);
+
     // Show warnings if any
     if (result.warnings.length > 0) {
       console.warn('Render warnings:', result.warnings);
     }
   } else if (result.error) {
+    // Show user-friendly error in status
+    showStatus('error', friendlyError(result.error));
     showError(result.error);
   }
 }
@@ -132,6 +143,54 @@ function showError(message: string): void {
 
 function hideError(): void {
   previewError.classList.add('hidden');
+}
+
+// Status indicator functions
+let statusTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showStatus(type: 'rendering' | 'success' | 'error', message: string): void {
+  if (statusTimer) {
+    clearTimeout(statusTimer);
+    statusTimer = null;
+  }
+
+  previewStatus.className = `preview-status ${type}`;
+  const textEl = previewStatus.querySelector('.status-text');
+  if (textEl) {
+    textEl.textContent = message;
+  }
+}
+
+function hideStatus(): void {
+  previewStatus.classList.add('hidden');
+}
+
+function hideStatusAfter(ms: number): void {
+  if (statusTimer) {
+    clearTimeout(statusTimer);
+  }
+  statusTimer = setTimeout(() => {
+    hideStatus();
+    statusTimer = null;
+  }, ms);
+}
+
+function friendlyError(error: string): string {
+  // Map common errors to helpful messages
+  if (error.includes('JSON')) {
+    return 'Invalid JSON syntax. Check for missing quotes or commas.';
+  }
+  if (error.includes('palette')) {
+    return 'Palette error. Make sure all colors in the grid are defined.';
+  }
+  if (error.includes('grid')) {
+    return 'Grid error. Check that all rows have the same length.';
+  }
+  if (error.includes('type')) {
+    return 'Missing or invalid "type" field. Try: {"type": "sprite", ...}';
+  }
+  // Fallback: show original but truncated
+  return error.length > 60 ? error.slice(0, 60) + '...' : error;
 }
 
 function updateHash(jsonl: string): void {
