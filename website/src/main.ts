@@ -17,6 +17,8 @@ let preview: Preview | null = null;
 let gallery: Gallery | null = null;
 
 async function initApp(): Promise<void> {
+  const overlay = document.getElementById('loading-overlay');
+
   // Get DOM elements
   editor = document.getElementById('editor') as HTMLTextAreaElement;
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
@@ -30,7 +32,31 @@ async function initApp(): Promise<void> {
     wasmReady = true;
     console.log('WASM module initialized');
   } catch (err) {
-    showError(`Failed to initialize WASM: ${err}`);
+    // Show user-friendly error in overlay
+    const loadingText = overlay?.querySelector('.loading-text');
+    const loadingContent = overlay?.querySelector('.loading-content');
+    const loadingSpinner = overlay?.querySelector('.loading-spinner');
+
+    if (loadingText && loadingContent) {
+      loadingText.textContent = 'Failed to load the editor';
+      loadingText.classList.add('error');
+
+      // Hide spinner
+      if (loadingSpinner) {
+        (loadingSpinner as HTMLElement).style.display = 'none';
+      }
+
+      // Add helpful retry/info
+      const helpText = document.createElement('p');
+      helpText.className = 'loading-help';
+      helpText.innerHTML = `
+        <button onclick="location.reload()">Try again</button>
+        <br><small>If this persists, try a different browser.</small>
+      `;
+      loadingContent.appendChild(helpText);
+    }
+
+    console.error('WASM init failed:', err);
     renderBtn.disabled = true;
     return;
   }
@@ -77,6 +103,10 @@ async function initApp(): Promise<void> {
 
   // Initial render
   handleRender();
+
+  // Hide loading overlay with animation
+  overlay?.classList.add('hidden');
+  setTimeout(() => overlay?.remove(), 300);
 }
 
 function handleEditorKeydown(e: KeyboardEvent): void {

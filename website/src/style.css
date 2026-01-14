@@ -319,6 +319,97 @@ html, body {
   opacity: 1;
 }
 
+/* Loading Overlay */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.3s ease-out;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.loading-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pixel-icon {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.loading-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.loading-text.error {
+  color: var(--error);
+}
+
+.loading-help {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.loading-help button {
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.loading-help button:hover {
+  background-color: #d13652;
+}
+
+.loading-help small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 /* Responsive - Tablet */
 @media (max-width: 768px) {
   #main {
