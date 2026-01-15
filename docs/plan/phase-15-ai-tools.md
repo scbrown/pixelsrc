@@ -1,4 +1,4 @@
-# Phase 17: AI Assistance Tools
+# Phase 15: AI Assistance Tools
 
 **Goal:** Build CLI tools that help AI systems generate better pixelsrc content - context injection, validation, suggestions, and debugging.
 

@@ -19,17 +19,18 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 9](./phase-9-packages.md) | **Package Distribution** | Complete |
 | [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Complete |
 | [Phase 11](./phase-11-website-improvements.md) | **Website Improvements** (Dracula theme, loading states, polish) | Planning |
-| [Phase 15](./phase-15-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Planning |
-| [Phase 16](./phase-16-tiling.md) | **Composition Tiling** (`cell_size` for large images) | Planning |
-| [Phase 17](./phase-17-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Planning |
+| [Phase 12](./phase-12-theming.md) | **Theming & Branding** (favicon, banners, social preview) | Planning |
+| [Phase 13](./phase-13-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Planning |
+| [Phase 14](./phase-14-tiling.md) | **Composition Tiling** (`cell_size` for large images) | Planning |
+| [Phase 15](./phase-15-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Planning |
 
 ### Future Ideas
 
 | Idea | Description |
 |------|-------------|
-| Phase 12: VS Code Extension | Syntax highlighting + live preview |
-| Phase 13: Token Efficiency | Run-length encoding, row repetition, compression |
-| Phase 14: Inheritance | Scene variants, extends, day/night themes |
+| VS Code Extension | Syntax highlighting + live preview |
+| Token Efficiency | Run-length encoding, row repetition, compression |
+| Inheritance | Scene variants, extends, day/night themes |
 | Edge Constraints | Tile connectivity validation (see BACKLOG) |
 | Metadata/Frontmatter | Optional metadata convention separate from spec (see BACKLOG) |
 
@@ -73,9 +74,10 @@ pixelsrc/
 │       ├── phase-9-packages.md
 │       ├── phase-10-github-migration.md
 │       ├── phase-11-website-improvements.md
-│       ├── phase-15-analyze.md
-│       ├── phase-16-tiling.md
-│       └── phase-17-ai-tools.md
+│       ├── phase-12-theming.md
+│       ├── phase-13-analyze.md
+│       ├── phase-14-tiling.md
+│       └── phase-15-ai-tools.md
 ├── CONTRIBUTING.md            # Dev setup, conventions
 ├── Cargo.toml                 # Rust package config
 ├── src/

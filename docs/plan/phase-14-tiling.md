@@ -1,4 +1,4 @@
-# Phase 16: Composition Tiling (`cell_size` Extension)
+# Phase 14: Composition Tiling (`cell_size` Extension)
 
 **Goal:** Extend the composition system to support tiling - arranging sprites at larger cell sizes to enable chunked generation of larger images.
 

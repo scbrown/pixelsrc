@@ -1,4 +1,4 @@
-# Phase 15: Corpus Analysis (`pxl analyze`)
+# Phase 13: Corpus Analysis (`pxl analyze`)
 
 **Goal:** Add a command to analyze pixelsrc files and extract metrics that inform future primitive development and format optimization.
 
