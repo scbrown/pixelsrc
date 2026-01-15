@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
@@ -113,6 +114,29 @@ pub enum Commands {
         #[command(subcommand)]
         action: PaletteAction,
     },
+
+    /// Analyze pixelsrc files and extract corpus metrics
+    Analyze {
+        /// Files to analyze
+        #[arg(required_unless_present = "dir")]
+        files: Vec<PathBuf>,
+
+        /// Directory to scan for .jsonl/.pxl files
+        #[arg(long)]
+        dir: Option<PathBuf>,
+
+        /// Include subdirectories when scanning a directory
+        #[arg(long, short)]
+        recursive: bool,
+
+        /// Output format: text or json
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Write output to file instead of stdout
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -162,6 +186,13 @@ pub fn run() -> ExitCode {
         } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
+        Commands::Analyze {
+            files,
+            dir,
+            recursive,
+            format,
+            output,
+        } => run_analyze(&files, dir.as_deref(), recursive, &format, output.as_deref()),
     }
 }
 
@@ -1006,5 +1037,83 @@ fn run_import(
         result.height,
         result.palette.len()
     );
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the analyze command
+fn run_analyze(
+    files: &[PathBuf],
+    dir: Option<&std::path::Path>,
+    recursive: bool,
+    format: &str,
+    output: Option<&std::path::Path>,
+) -> ExitCode {
+    // Validate format
+    if format != "text" && format != "json" {
+        eprintln!("Error: --format must be 'text' or 'json'");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Collect files to analyze
+    let file_list = match collect_files(files, dir, recursive) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    if file_list.is_empty() {
+        eprintln!("Error: No files to analyze");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Run analysis
+    let mut report = AnalysisReport::new();
+    for path in &file_list {
+        if let Err(e) = report.analyze_file(path) {
+            report.files_failed += 1;
+            report.failed_files.push((path.clone(), e));
+        }
+    }
+
+    // Format output
+    let output_text = if format == "json" {
+        // JSON output - basic structure for now
+        serde_json::json!({
+            "files_analyzed": report.files_analyzed,
+            "files_failed": report.files_failed,
+            "total_sprites": report.total_sprites,
+            "total_palettes": report.total_palettes,
+            "total_compositions": report.total_compositions,
+            "total_animations": report.total_animations,
+            "total_variants": report.total_variants,
+            "unique_tokens": report.token_counter.unique_count(),
+            "total_token_occurrences": report.token_counter.total(),
+            "top_tokens": report.token_counter.top_n(10).iter().map(|(t, c)| {
+                serde_json::json!({
+                    "token": t,
+                    "count": c,
+                    "percentage": report.token_counter.percentage(t)
+                })
+            }).collect::<Vec<_>>(),
+            "avg_palette_size": report.avg_palette_size(),
+        })
+        .to_string()
+    } else {
+        format_report_text(&report)
+    };
+
+    // Write output
+    if let Some(output_path) = output {
+        if let Err(e) = std::fs::write(output_path, &output_text) {
+            eprintln!("Error: Failed to write '{}': {}", output_path.display(), e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+        println!("Report written to: {}", output_path.display());
+    } else {
+        print!("{}", output_text);
+    }
+
     ExitCode::from(EXIT_SUCCESS)
 }
