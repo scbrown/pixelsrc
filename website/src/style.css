@@ -4,6 +4,40 @@
   box-sizing: border-box;
 }
 
+/* Accessibility: Skip link */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--accent-purple);
+  color: var(--bg-primary);
+  padding: 0.75rem 1.5rem;
+  z-index: 1001;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Accessibility: Visually hidden but accessible to screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 :root {
   /* Dracula Background Colors */
   --bg-primary: #282a36;      /* Background */
@@ -23,10 +57,10 @@
   --accent-pink: #ff79c6;      /* Pink */
   --accent-cyan: #8be9fd;      /* Cyan */
 
-  /* Text - Dracula Foreground */
+  /* Text - Dracula Foreground (adjusted for WCAG AA contrast) */
   --text-primary: #f8f8f2;     /* Foreground */
-  --text-secondary: #6272a4;   /* Comment */
-  --text-muted: #44475a;       /* Selection */
+  --text-secondary: #a0a8c0;   /* Comment - lightened for 4.5:1 contrast */
+  --text-muted: #6272a4;       /* Muted text for decorative elements */
 
   /* Semantic (using Dracula colors) */
   --success: #50fa7b;          /* Green */
@@ -48,6 +82,17 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+}
+
+/* Accessibility: Enhanced focus indicators */
+:focus-visible {
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users, keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 #app {
@@ -139,8 +184,14 @@ html, body {
 }
 
 #editor:focus {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.3);
+}
+
+#editor:focus-visible {
   outline: none;
   border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.3);
 }
 
 #editor::selection {
@@ -171,10 +222,15 @@ html, body {
 }
 
 #render-btn:disabled {
-  background-color: var(--text-secondary);
+  background-color: var(--text-muted);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+#render-btn:focus-visible {
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 #preview-canvas {
@@ -438,8 +494,12 @@ html, body {
 }
 
 .export-scale-select:focus {
-  outline: none;
   border-color: var(--accent-purple);
+}
+
+.export-scale-select:focus-visible {
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 .export-btn {
@@ -458,6 +518,11 @@ html, body {
   background-color: var(--bg-primary);
   border-color: var(--accent-cyan);
   color: var(--accent-cyan);
+}
+
+.export-btn:focus-visible {
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 .export-download-btn:hover {
@@ -711,5 +776,27 @@ html, body {
 
   .gallery-item {
     min-height: 72px;
+  }
+}
+
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .loading-spinner {
+    animation: none;
+    border-top-color: var(--accent);
+    opacity: 0.7;
+  }
+
+  #render-btn:hover,
+  .gallery-item:hover {
+    transform: none;
   }
 }

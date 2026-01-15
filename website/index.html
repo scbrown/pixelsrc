@@ -7,14 +7,15 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="loading-overlay">
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div id="loading-overlay" role="dialog" aria-modal="true" aria-labelledby="loading-title" aria-describedby="loading-status">
       <div class="loading-content">
         <div class="loading-logo">
-          <span class="pixel-icon">▣</span>
-          <span class="loading-title">Pixelsrc</span>
+          <span class="pixel-icon" aria-hidden="true">▣</span>
+          <span id="loading-title" class="loading-title">Pixelsrc</span>
         </div>
-        <div class="loading-spinner"></div>
-        <p class="loading-text">Initializing...</p>
+        <div class="loading-spinner" role="progressbar" aria-label="Loading application"></div>
+        <p id="loading-status" class="loading-text" aria-live="polite">Initializing...</p>
       </div>
     </div>
 
@@ -25,26 +26,28 @@
       </header>
 
       <main id="main">
-        <section id="editor-panel" class="panel">
+        <section id="editor-panel" class="panel" aria-labelledby="editor-heading">
           <div class="panel-header">
-            <h2>Editor</h2>
+            <h2 id="editor-heading">Editor</h2>
           </div>
           <div class="panel-content">
-            <textarea id="editor" placeholder="Enter your Pixelsrc JSONL here..."></textarea>
+            <label for="editor" class="visually-hidden">JSONL code editor - enter Pixelsrc sprite definitions</label>
+            <textarea id="editor" placeholder="Enter your Pixelsrc JSONL here..." aria-describedby="editor-hint"></textarea>
+            <span id="editor-hint" class="visually-hidden">Press Ctrl+Enter or Cmd+Enter to render the sprite</span>
           </div>
         </section>
 
-        <section id="preview-panel" class="panel">
+        <section id="preview-panel" class="panel" aria-labelledby="preview-heading">
           <div class="panel-header">
-            <h2>Preview</h2>
+            <h2 id="preview-heading">Preview</h2>
             <div class="preview-controls">
-              <button id="render-btn">Render</button>
+              <button id="render-btn" type="button" aria-keyshortcuts="Control+Enter Meta+Enter">Render</button>
               <div id="export-controls"></div>
             </div>
           </div>
           <div class="panel-content preview-content">
-            <div id="preview-canvas"></div>
-            <div id="preview-error" class="error hidden"></div>
+            <div id="preview-canvas" role="img" aria-label="Rendered sprite preview"></div>
+            <div id="preview-error" class="error hidden" role="alert" aria-live="assertive"></div>
             <div id="preview-status" class="preview-status hidden" role="status" aria-live="polite">
               <span class="status-icon" aria-hidden="true"></span>
               <span class="status-text"></span>
@@ -53,12 +56,12 @@
         </section>
       </main>
 
-      <section id="gallery-panel" class="panel">
+      <section id="gallery-panel" class="panel" aria-labelledby="gallery-heading">
         <div class="panel-header">
-          <h2>Gallery</h2>
+          <h2 id="gallery-heading">Gallery</h2>
         </div>
         <div class="panel-content">
-          <div id="gallery" class="gallery-grid"></div>
+          <div id="gallery" class="gallery-grid" role="group" aria-label="Example sprites"></div>
         </div>
       </section>
     </div>
