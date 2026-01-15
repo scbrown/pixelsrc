@@ -9,6 +9,7 @@ use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
+use crate::diff::{diff_files, format_diff};
 use crate::explain::{
     explain_object, format_explanation, resolve_palette_colors, Explanation,
 };
@@ -232,6 +233,23 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Compare sprites semantically between two files
+    Diff {
+        /// First file to compare
+        file_a: PathBuf,
+
+        /// Second file to compare
+        file_b: PathBuf,
+
+        /// Compare only a specific sprite by name
+        #[arg(long)]
+        sprite: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -301,6 +319,12 @@ pub fn run() -> ExitCode {
             json,
         } => run_validate(&files, stdin, strict, json),
         Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
+        Commands::Diff {
+            file_a,
+            file_b,
+            sprite,
+            json,
+        } => run_diff(&file_a, &file_b, sprite.as_deref(), json),
     }
 }
 
@@ -1650,6 +1674,129 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                 println!();
             }
             print!("{}", format_explanation(exp));
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the diff command
+fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool) -> ExitCode {
+    // Get display names for the files
+    let file_a_display = file_a.display().to_string();
+    let file_b_display = file_b.display().to_string();
+
+    // Compare the files
+    let diffs = match diff_files(file_a, file_b) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    // Filter by sprite name if specified
+    let filtered_diffs: Vec<_> = if let Some(name) = sprite {
+        diffs.into_iter().filter(|(n, _)| n == name).collect()
+    } else {
+        diffs
+    };
+
+    if filtered_diffs.is_empty() {
+        if sprite.is_some() {
+            eprintln!(
+                "Error: Sprite '{}' not found in either file",
+                sprite.unwrap()
+            );
+            return ExitCode::from(EXIT_ERROR);
+        }
+        println!("No sprites found to compare.");
+        return ExitCode::from(EXIT_SUCCESS);
+    }
+
+    if json {
+        // JSON output
+        let output: Vec<_> = filtered_diffs
+            .iter()
+            .map(|(name, diff)| {
+                let mut obj = serde_json::json!({
+                    "sprite": name,
+                    "summary": diff.summary,
+                });
+
+                if let Some(ref dim) = diff.dimension_change {
+                    obj["dimension_change"] = serde_json::json!({
+                        "old": [dim.old.0, dim.old.1],
+                        "new": [dim.new.0, dim.new.1],
+                    });
+                }
+
+                if !diff.palette_changes.is_empty() {
+                    let palette_changes: Vec<_> = diff
+                        .palette_changes
+                        .iter()
+                        .map(|c| match c {
+                            crate::diff::PaletteChange::Added { token, color } => {
+                                serde_json::json!({
+                                    "type": "added",
+                                    "token": token,
+                                    "color": color,
+                                })
+                            }
+                            crate::diff::PaletteChange::Removed { token } => {
+                                serde_json::json!({
+                                    "type": "removed",
+                                    "token": token,
+                                })
+                            }
+                            crate::diff::PaletteChange::Changed {
+                                token,
+                                old_color,
+                                new_color,
+                            } => {
+                                serde_json::json!({
+                                    "type": "changed",
+                                    "token": token,
+                                    "old_color": old_color,
+                                    "new_color": new_color,
+                                })
+                            }
+                        })
+                        .collect();
+                    obj["palette_changes"] = serde_json::json!(palette_changes);
+                }
+
+                if !diff.grid_changes.is_empty() {
+                    let grid_changes: Vec<_> = diff
+                        .grid_changes
+                        .iter()
+                        .map(|c| {
+                            serde_json::json!({
+                                "row": c.row,
+                                "description": c.description,
+                            })
+                        })
+                        .collect();
+                    obj["grid_changes"] = serde_json::json!(grid_changes);
+                }
+
+                obj
+            })
+            .collect();
+
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    } else {
+        // Text output
+        for (i, (name, diff)) in filtered_diffs.iter().enumerate() {
+            if i > 0 {
+                println!();
+                println!("---");
+                println!();
+            }
+            println!(
+                "{}",
+                format_diff(name, diff, &file_a_display, &file_b_display)
+            );
         }
     }
 
