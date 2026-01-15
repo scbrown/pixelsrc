@@ -11,6 +11,7 @@ pub mod cli;
 pub mod color;
 pub mod composition;
 pub mod emoji;
+pub mod fmt;
 pub mod gif;
 pub mod import;
 pub mod include;

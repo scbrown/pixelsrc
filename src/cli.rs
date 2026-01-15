@@ -11,6 +11,7 @@ use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
+use crate::fmt::format_pixelsrc;
 use glob::glob;
 
 /// Check if a path has a valid Pixelsrc file extension (.pxl or .jsonl).
@@ -1190,8 +1191,14 @@ fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
             }
         };
 
-        // Format the content (placeholder - actual implementation in Task 16.4)
-        let formatted = format_pixelsrc(&content);
+        // Format the content
+        let formatted = match format_pixelsrc(&content) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Error: Cannot format '{}': {}", file.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        };
 
         if check {
             // Check mode: compare and report
@@ -1221,12 +1228,6 @@ fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
     } else {
         ExitCode::from(EXIT_SUCCESS)
     }
-}
-
-/// Placeholder formatter - returns content unchanged
-/// Actual formatting logic will be implemented in Task 16.4
-fn format_pixelsrc(content: &str) -> String {
-    content.to_string()
 }
 
 #[cfg(test)]
