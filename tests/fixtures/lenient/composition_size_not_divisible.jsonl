@@ -1,0 +1,3 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000"}}
+{"type": "sprite", "name": "tile", "size": [8, 8], "palette": "colors", "grid": ["{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}{r}{r}"]}
+{"type": "composition", "name": "not_divisible", "size": [33, 32], "cell_size": [8, 8], "sprites": {".": null, "X": "tile"}, "layers": [{"name": "main", "map": ["X...", "....", "....", "...."]}]}
