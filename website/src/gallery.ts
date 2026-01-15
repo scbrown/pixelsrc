@@ -16,6 +16,7 @@ const EXAMPLE_FILES = [
   'coin.jsonl',
   'tree.jsonl',
   'sword.jsonl',
+  'scene.jsonl',
 ];
 
 export class Gallery {

@@ -115,6 +115,117 @@ Defines a sequence of sprites as an animation.
 
 ---
 
+### Variant
+
+Defines a color variation of an existing sprite.
+
+```json
+{
+  "type": "variant",
+  "name": "string (required)",
+  "base": "string (required)",
+  "palette": { "{token}": "#color", ... } (required)
+}
+```
+
+**Fields:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| type | Yes | Must be `"variant"` |
+| name | Yes | Unique identifier for this variant |
+| base | Yes | Name of the sprite to derive from |
+| palette | Yes | Color overrides - replaces matching tokens from base |
+
+**Behavior:**
+- Inherits grid and size from base sprite
+- Only specified tokens are overridden; others remain from base
+- Base sprite must be defined before the variant
+
+**Example:**
+```jsonl
+{"type": "sprite", "name": "hero", "palette": {"{skin}": "#FFCC99", "{hair}": "#8B4513"}, "grid": [...]}
+{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"{hair}": "#FF0000"}}
+```
+
+---
+
+### Composition
+
+Composes multiple sprites onto a canvas using a character-based map.
+
+```json
+{
+  "type": "composition",
+  "name": "string (required)",
+  "base": "string (optional)",
+  "size": [width, height] (optional),
+  "cell_size": [width, height] (optional, default [1, 1]),
+  "sprites": { "char": "sprite_name" | null, ... } (required),
+  "layers": [ { "name": "...", "map": [...] }, ... ] (required)
+}
+```
+
+**Fields:**
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| type | Yes | - | Must be `"composition"` |
+| name | Yes | - | Unique identifier |
+| base | No | - | Base sprite to render first (background) |
+| size | No | Inferred | Canvas size `[width, height]` in pixels |
+| cell_size | No | `[1, 1]` | Size of each map character in pixels |
+| sprites | Yes | - | Map of single characters to sprite names (`null` = transparent) |
+| layers | Yes | - | Array of layers, rendered bottom-to-top |
+
+**Layer Fields:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| name | No | Layer identifier (for debugging) |
+| fill | No | Sprite name to fill entire layer |
+| map | No | Array of strings - character map for sprite placement |
+
+**Size Inference (priority order):**
+1. Explicit `size` field
+2. `base` sprite dimensions
+3. Inferred from `layers` and `cell_size`
+
+**Cell Size (Tiling):**
+
+The `cell_size` field enables tiling - composing large images from smaller sprites:
+- `cell_size: [1, 1]` (default) - each map character = 1 pixel position
+- `cell_size: [8, 8]` - each map character = 8×8 pixel region
+- `cell_size: [32, 32]` - each map character = 32×32 pixel tile
+
+Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
+
+**Size Mismatch Handling:**
+- **Lenient mode:** Sprite larger than cell emits warning, anchors top-left, overwrites adjacent cells
+- **Strict mode:** Sprite larger than cell returns error
+
+**Example (Pixel Overlay):**
+```jsonl
+{"type": "composition", "name": "scene", "size": [32, 32],
+  "sprites": {".": null, "H": "hero"},
+  "layers": [{"map": ["........", "..H.....", "........"]}]}
+```
+
+**Example (Tiled Scene):**
+```jsonl
+{"type": "composition", "name": "landscape", "size": [64, 64], "cell_size": [32, 32],
+  "sprites": {"A": "sky_left", "B": "sky_right", "C": "ground_left", "D": "ground_right"},
+  "layers": [{"map": ["AB", "CD"]}]}
+```
+
+**Example (Layered with Base):**
+```jsonl
+{"type": "composition", "name": "hero_scene", "base": "background",
+  "sprites": {".": null, "H": "hero", "E": "enemy"},
+  "layers": [
+    {"name": "characters", "map": ["..H..", "...E."]}
+  ]}
+```
+
+---
+
 ## Token Parsing
 
 Tokens in grid strings follow this pattern:

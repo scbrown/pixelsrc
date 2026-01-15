@@ -246,6 +246,34 @@ All examples use the recommended multi-line format for sprite grids.
 
 ---
 
+## Scene: Tiled Composition
+
+**Prompt:**
+> Create a 32x32 scene using 8x8 tiles. Make sky and grass tiles, then compose them into a simple landscape with sky on top and grass on bottom.
+
+**Output:**
+```jsonl
+{"type":"palette","name":"nature","colors":{"{sky}":"#87CEEB","{cloud}":"#FFFFFF","{grass}":"#228B22","{grass_dark}":"#1E5F1E"}}
+{"type":"sprite","name":"sky_tile","size":[8,8],"palette":"nature","grid":["{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{cloud}{cloud}{sky}{sky}{sky}{sky}","{sky}{cloud}{cloud}{cloud}{cloud}{sky}{sky}{sky}","{sky}{sky}{cloud}{cloud}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}"]}
+{"type":"sprite","name":"grass_tile","size":[8,8],"palette":"nature","grid":["{grass}{grass_dark}{grass}{grass}{grass}{grass_dark}{grass}{grass}","{grass}{grass}{grass}{grass_dark}{grass}{grass}{grass}{grass_dark}","{grass_dark}{grass}{grass}{grass}{grass}{grass}{grass}{grass}","{grass}{grass}{grass}{grass}{grass_dark}{grass}{grass}{grass}","{grass}{grass_dark}{grass}{grass}{grass}{grass}{grass_dark}{grass}","{grass}{grass}{grass}{grass}{grass}{grass}{grass}{grass}","{grass}{grass}{grass}{grass_dark}{grass}{grass_dark}{grass}{grass}","{grass_dark}{grass}{grass}{grass}{grass}{grass}{grass}{grass_dark}"]}
+{"type":"composition","name":"landscape","size":[32,32],"cell_size":[8,8],"sprites":{"S":"sky_tile","G":"grass_tile"},"layers":[{"map":["SSSS","SSSS","GGGG","GGGG"]}]}
+```
+
+---
+
+## Variant: Color Swap
+
+**Prompt:**
+> Create a hero sprite, then make a variant with red hair for an "enemy" version
+
+**Output:**
+```jsonl
+{"type":"sprite","name":"hero","palette":{"{_}":"#00000000","{skin}":"#FFCC99","{hair}":"#8B4513","{shirt}":"#4169E1"},"grid":["{_}{hair}{hair}{_}","{hair}{skin}{skin}{hair}","{_}{skin}{skin}{_}","{shirt}{shirt}{shirt}{shirt}","{shirt}{_}{_}{shirt}"]}
+{"type":"variant","name":"enemy","base":"hero","palette":{"{hair}":"#FF0000","{shirt}":"#8B0000"}}
+```
+
+---
+
 ## Tips for Writing Prompts
 
 1. **Be specific about size**: "16x16", "32x32", "8x8"
