@@ -1,0 +1,18 @@
+{
+  "type": "palette",
+  "name": "test",
+  "colors": {
+    "{_}": "#00000000",
+    "{a}": "#FF0000"
+  }
+}
+{
+  "type": "sprite",
+  "name": "test",
+  "size": [4, 2],
+  "palette": "test",
+  "grid": [
+    "{_}{a}{a}{_}",
+    "{a}{a}{a}{a}"
+  ]
+}
