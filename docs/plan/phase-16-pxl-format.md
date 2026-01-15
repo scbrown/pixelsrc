@@ -2,7 +2,7 @@
 
 **Goal:** Improve file format readability with multi-line JSON support and auto-formatting
 
-**Status:** Planning
+**Status:** Complete
 
 **Depends on:** Phase 0 (Core CLI exists)
 

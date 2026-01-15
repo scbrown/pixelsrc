@@ -18,11 +18,12 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 8](./phase-8-obsidian.md) | **Obsidian Plugin** | Complete |
 | [Phase 9](./phase-9-packages.md) | **Package Distribution** | Complete |
 | [Phase 10](./phase-10-github-migration.md) | **GitHub Migration** | Complete |
-| [Phase 11](./phase-11-website-improvements.md) | **Website Improvements** (Dracula theme, loading states, polish) | Planning |
+| [Phase 11](./phase-11-website-improvements.md) | **Website Improvements** (Dracula theme, loading states, polish) | Complete |
 | [Phase 12](./phase-12-tiling.md) | **Composition Tiling** (`cell_size` for large images) | Complete |
-| [Phase 13](./phase-13-theming.md) | **Theming & Branding** (favicon, banners, social preview) | Planning |
-| [Phase 14](./phase-14-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Planning |
-| [Phase 15](./phase-15-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Planning |
+| [Phase 13](./phase-13-theming.md) | **Theming & Branding** (favicon, banners, social preview) | In Progress |
+| [Phase 14](./phase-14-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Complete |
+| [Phase 15](./phase-15-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Complete |
+| [Phase 16](./phase-16-pxl-format.md) | **.pxl Format** (multi-line JSON, `pxl fmt`) | Complete |
 
 ### Future Ideas
 
@@ -47,7 +48,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | Language | Rust | Single binary, WASM target, fast streaming |
 | Image rendering | Native via `image` crate | Pure Rust, no external deps |
 | Error handling | Lenient default, strict opt-in | GenAI-friendly: fill gaps, warn, continue |
-| File extension | Any (`.pxs` or `.jsonl`) | CLI accepts any file, extension is convention |
+| File extension | Any (`.pxl` or `.jsonl`) | CLI accepts any file, extension is convention |
 
 ## Project Structure
 
@@ -77,7 +78,8 @@ pixelsrc/
 │       ├── phase-12-tiling.md
 │       ├── phase-13-theming.md
 │       ├── phase-14-analyze.md
-│       └── phase-15-ai-tools.md
+│       ├── phase-15-ai-tools.md
+│       └── phase-16-pxl-format.md
 ├── CONTRIBUTING.md            # Dev setup, conventions
 ├── Cargo.toml                 # Rust package config
 ├── src/

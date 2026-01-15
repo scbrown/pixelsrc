@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pixelsrc Demo
-# Interactive slideshow demonstrating Phase 0 MVP
+# Interactive slideshow demonstrating all implemented features
 
 set -e
 
@@ -93,10 +93,10 @@ EOF
 echo -e "${NC}"
 echo ""
 echo -e "                ${BOLD}Pixelsrc${NC}"
-echo -e "                ${DIM}Define pixel art in JSON, render to PNG${NC}"
+echo -e "                ${DIM}GenAI-native pixel art format${NC}"
 echo ""
 echo ""
-echo -e "                ${GREEN}Phase 0 + Phase 1 Complete${NC}"
+echo -e "                ${GREEN}Phases 0-12, 14-16 Complete${NC}"
 echo ""
 echo ""
 pause
@@ -596,35 +596,117 @@ show_image "$DEMO_OUT/variants.png" 24
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 23: What's Complete
+# SLIDE 23: Phase 5 - CLI Extras
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Phase 0 + Phase 1 + Phase 2 + Phase 3: Complete"
+slide "Phase 5: CLI Extras"
 
-echo -e "  ${GREEN}Phase 0 - Core:${NC}"
-echo -e "  ${GREEN}[x]${NC} JSONL parser with palettes and sprites"
-echo -e "  ${GREEN}[x]${NC} Color parsing (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)"
-echo -e "  ${GREEN}[x]${NC} Token extraction from grid strings"
-echo -e "  ${GREEN}[x]${NC} Sprite renderer (grid → PNG)"
-echo -e "  ${GREEN}[x]${NC} Lenient/strict error modes"
-echo -e "  ${GREEN}[x]${NC} CLI: pxl render"
-echo -e "  ${GREEN}[x]${NC} Output scaling (--scale 1-16)"
+echo -e "  ${CYAN}PNG Import:${NC}"
+echo -e "  ${DIM}\$ pxl import image.png -o sprite.jsonl${NC}"
+echo -e "  ${DIM}Convert existing pixel art to Pixelsrc format${NC}"
 echo ""
-echo -e "  ${GREEN}Phase 1 - Palettes:${NC}"
-echo -e "  ${GREEN}[x]${NC} Built-in palette data (gameboy, nes, pico8, grayscale, 1bit)"
-echo -e "  ${GREEN}[x]${NC} External palette include (@include:path)"
-echo -e "  ${GREEN}[x]${NC} Circular include detection"
+echo -e "  ${CYAN}Emoji Preview:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl --emoji${NC}"
 echo ""
-echo -e "  ${GREEN}Phase 2 - Composition:${NC}"
-echo -e "  ${GREEN}[x]${NC} Multi-layer sprite composition"
-echo -e "  ${GREEN}[x]${NC} Cell-size based grid positioning"
-echo -e "  ${GREEN}[x]${NC} Base sprite support"
-echo -e "  ${GREEN}[x]${NC} CLI: pxl render --composition"
+./target/release/pxl render examples/heart.jsonl --emoji 2>&1 | sed 's/^/  /'
 echo ""
-echo -e "  ${GREEN}Phase 3 - Animation:${NC}"
-echo -e "  ${GREEN}[x]${NC} Animation model with frame timing"
-echo -e "  ${GREEN}[x]${NC} Spritesheet output (--spritesheet)"
-echo -e "  ${GREEN}[x]${NC} GIF output (--gif)"
-echo -e "  ${GREEN}[x]${NC} Animation selection (--animation <name>)"
+echo -e "  ${CYAN}GenAI Prompts:${NC}"
+echo -e "  ${DIM}\$ pxl prompts${NC}"
+echo -e "  ${DIM}Show templates for AI-assisted sprite generation${NC}"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 24: Phase 14 - Corpus Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 14: Corpus Analysis"
+
+echo -e "  ${CYAN}Analyze pixelsrc files for usage patterns:${NC}"
+echo ""
+echo -e "  ${DIM}\$ pxl analyze examples/*.jsonl${NC}"
+echo ""
+./target/release/pxl analyze examples/*.jsonl 2>&1 | head -20 | sed 's/^/  /'
+echo ""
+echo -e "  ${GREEN}Use cases:${NC}"
+echo -e "  ${DIM}•${NC} Understand token frequency across a corpus"
+echo -e "  ${DIM}•${NC} Identify common patterns"
+echo -e "  ${DIM}•${NC} Data-driven format optimization"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 25: Phase 15 - AI Tools
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 15: AI Assistance Tools"
+
+echo -e "  ${CYAN}pxl prime${NC} - Format guide for AI context injection"
+echo -e "  ${DIM}\$ pxl prime --brief${NC}"
+echo ""
+./target/release/pxl prime --brief 2>&1 | head -10 | sed 's/^/  /'
+echo ""
+echo -e "  ${CYAN}pxl validate${NC} - Check for common mistakes"
+echo -e "  ${DIM}\$ pxl validate sprite.jsonl${NC}"
+echo ""
+echo -e "  ${CYAN}pxl explain${NC} - Human-readable sprite explanation"
+echo -e "  ${DIM}\$ pxl explain examples/heart.jsonl${NC}"
+echo ""
+./target/release/pxl explain examples/heart.jsonl 2>&1 | head -8 | sed 's/^/  /'
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 26: Phase 15 - More AI Tools
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 15: More AI Tools"
+
+echo -e "  ${CYAN}pxl suggest${NC} - Suggest fixes for incomplete sprites"
+echo -e "  ${DIM}\$ pxl suggest incomplete.jsonl${NC}"
+echo ""
+echo -e "  ${CYAN}pxl diff${NC} - Compare sprites semantically"
+echo -e "  ${DIM}\$ pxl diff sprite1.jsonl sprite2.jsonl${NC}"
+echo ""
+echo -e "  ${GREEN}All tools support:${NC}"
+echo -e "  ${DIM}•${NC} --json for machine-readable output"
+echo -e "  ${DIM}•${NC} --stdin for piped input"
+echo -e "  ${DIM}•${NC} Multiple file arguments"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 27: Phase 16 - .pxl Format
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Phase 16: .pxl Format & Formatting"
+
+echo -e "  ${CYAN}.pxl file extension${NC} - More readable multi-line format"
+echo -e "  ${DIM}Both .pxl and .jsonl are supported${NC}"
+echo ""
+echo -e "  ${CYAN}pxl fmt${NC} - Auto-format pixelsrc files"
+echo -e "  ${DIM}\$ pxl fmt sprite.pxl${NC}           ${DIM}# Format in place${NC}"
+echo -e "  ${DIM}\$ pxl fmt --check sprite.pxl${NC}   ${DIM}# Check only${NC}"
+echo -e "  ${DIM}\$ pxl fmt --stdout sprite.pxl${NC}  ${DIM}# Print to stdout${NC}"
+echo ""
+echo -e "  ${GREEN}Benefits:${NC}"
+echo -e "  ${DIM}•${NC} Improved readability with visual grid alignment"
+echo -e "  ${DIM}•${NC} Consistent formatting across files"
+echo -e "  ${DIM}•${NC} CI-friendly --check mode"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 28: What's Complete
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Implementation Status"
+
+echo -e "  ${GREEN}Complete:${NC}"
+echo -e "  ${GREEN}[x]${NC} Phase 0-5:   Core, Palettes, Composition, Animation, CLI Extras"
+echo -e "  ${GREEN}[x]${NC} Phase 6-10:  WASM, Website, Obsidian, Packages, GitHub"
+echo -e "  ${GREEN}[x]${NC} Phase 11:    Website Improvements (Dracula theme, a11y)"
+echo -e "  ${GREEN}[x]${NC} Phase 12:    Composition Tiling"
+echo -e "  ${GREEN}[x]${NC} Phase 14:    Corpus Analysis (pxl analyze)"
+echo -e "  ${GREEN}[x]${NC} Phase 15:    AI Tools (prime, validate, suggest, diff, explain)"
+echo -e "  ${GREEN}[x]${NC} Phase 16:    .pxl Format (pxl fmt)"
+echo ""
+echo -e "  ${YELLOW}In Progress:${NC}"
+echo -e "  ${YELLOW}[ ]${NC} Phase 13:    Theming & Branding (favicon, banners, social preview)"
 echo ""
 echo -e "  ${BOLD}Tests:${NC} ${GREEN}All passing${NC}"
 echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
@@ -632,57 +714,62 @@ echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 19: What's Next
+# SLIDE 29: What's Next
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Coming Next: Phase 5"
+slide "Coming Next: Phase 13 - Branding"
 
-echo -e "  ${CYAN}Developer Tooling:${NC}"
+echo -e "  ${CYAN}Remaining branding assets:${NC}"
 echo ""
-echo -e "  ${WHITE}VS Code Extension:${NC}"
-echo -e "  ${DIM}Syntax highlighting, live preview${NC}"
+echo -e "  ${WHITE}Favicon:${NC}"
+echo -e "  ${DIM}Multiple sizes (16x16, 32x32, etc.)${NC}"
 echo ""
-echo -e "  ${WHITE}Web Editor:${NC}"
-echo -e "  ${DIM}Browser-based sprite editor${NC}"
+echo -e "  ${WHITE}Social Preview:${NC}"
+echo -e "  ${DIM}Open Graph image for link sharing${NC}"
 echo ""
-echo -e "  ${CYAN}See Also:${NC}"
-echo -e "  ${DIM}BACKLOG.md:${NC} Game engine exports (Unity, Godot, Tiled)"
+echo -e "  ${WHITE}Banner Assets:${NC}"
+echo -e "  ${DIM}README and marketing banners${NC}"
+echo ""
+echo -e "  ${WHITE}Synthwave Palette:${NC}"
+echo -e "  ${DIM}Additional built-in palette${NC}"
+echo ""
+echo -e "  ${CYAN}Future Ideas:${NC}"
+echo -e "  ${DIM}VS Code Extension, Token Efficiency, Inheritance${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 20: Try It
+# SLIDE 30: Try It
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Try It Yourself"
 
-echo -e "  ${BOLD}Render the examples:${NC}"
-echo -e "  ${DIM}\$ pxl render examples/coin.jsonl${NC}"
-echo -e "  ${DIM}\$ pxl render examples/hero.jsonl${NC}"
-echo -e "  ${DIM}\$ pxl render examples/heart.jsonl${NC}"
+echo -e "  ${BOLD}Render sprites:${NC}"
+echo -e "  ${DIM}\$ pxl render examples/heart.jsonl --scale 4 -o heart.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/hero.jsonl --emoji${NC}"
 echo ""
-echo -e "  ${BOLD}Try scaling:${NC}"
-echo -e "  ${DIM}\$ pxl render examples/heart.jsonl --scale 4 -o heart_4x.png${NC}"
-echo -e "  ${DIM}\$ pxl render examples/coin.jsonl --scale 8 -o coin_8x.png${NC}"
-echo ""
-echo -e "  ${BOLD}Try animations:${NC}"
-echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.png${NC}"
+echo -e "  ${BOLD}Animations:${NC}"
 echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif -o walk.gif${NC}"
-echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --gif --scale 4 -o walk_4x.gif${NC}"
+echo -e "  ${DIM}\$ pxl render examples/walk_cycle.jsonl --spritesheet -o sheet.png${NC}"
 echo ""
-echo -e "  ${BOLD}Try compositions:${NC}"
-echo -e "  ${DIM}\$ pxl render examples/forest_scene.jsonl -c forest_scene -o forest.png${NC}"
-echo -e "  ${DIM}\$ pxl render examples/color_variants.jsonl -c hat_variants -o variants.png${NC}"
-echo -e "  ${DIM}\$ pxl render examples/hero_equipped.jsonl -c hero_equipped -o hero.png${NC}"
+echo -e "  ${BOLD}AI Tools:${NC}"
+echo -e "  ${DIM}\$ pxl prime                    # Format guide for AI${NC}"
+echo -e "  ${DIM}\$ pxl validate sprite.jsonl    # Check for mistakes${NC}"
+echo -e "  ${DIM}\$ pxl explain examples/*.jsonl # Describe sprites${NC}"
+echo -e "  ${DIM}\$ pxl analyze examples/        # Corpus metrics${NC}"
 echo ""
-echo -e "  ${BOLD}Run the tests:${NC}"
+echo -e "  ${BOLD}Formatting:${NC}"
+echo -e "  ${DIM}\$ pxl fmt sprite.pxl           # Auto-format${NC}"
+echo -e "  ${DIM}\$ pxl fmt --check *.jsonl      # CI check${NC}"
+echo ""
+echo -e "  ${BOLD}Website:${NC}"
+echo -e "  ${DIM}https://scbrown.github.io/pixelsrc/${NC}"
+echo ""
+echo -e "  ${BOLD}Run tests:${NC}"
 echo -e "  ${DIM}\$ cargo test${NC}"
-echo ""
-echo -e "  ${BOLD}Install image viewer (optional):${NC}"
-echo -e "  ${DIM}\$ brew install chafa    # For inline image display${NC}"
 
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 21: End
+# SLIDE 31: End
 # ═══════════════════════════════════════════════════════════════════════════════
 clear
 echo ""
@@ -699,13 +786,12 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Phase 0 + Phase 1 + Phase 2 + Phase 3 Complete${NC}"
+echo -e "                ${BOLD}Phases 0-12, 14-16 Complete${NC}"
 echo ""
-echo -e "                ${GREEN}Parse JSONL → Render PNG${NC}"
-echo -e "                ${GREEN}External Palette Includes${NC}"
-echo -e "                ${GREEN}Sprite Composition${NC}"
-echo -e "                ${GREEN}Output Scaling (1-16x)${NC}"
-echo -e "                ${GREEN}Animation → GIF/Spritesheet${NC}"
+echo -e "                ${GREEN}Core: Parse .pxl/.jsonl → Render PNG/GIF${NC}"
+echo -e "                ${GREEN}Web: Website + Obsidian Plugin + WASM${NC}"
+echo -e "                ${GREEN}AI: prime, validate, explain, analyze, suggest${NC}"
+echo -e "                ${GREEN}Format: pxl fmt, .pxl extension support${NC}"
 echo ""
 echo ""
 
