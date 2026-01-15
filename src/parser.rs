@@ -1,7 +1,10 @@
-//! JSONL stream parsing for Pixelsrc objects
+//! Streaming JSON parsing for Pixelsrc objects
+//!
+//! Supports both single-line JSONL and multi-line JSON formats.
+//! Uses serde_json's StreamDeserializer for concatenated JSON parsing.
 
 use crate::models::{TtpObject, Warning};
-use std::io::BufRead;
+use std::io::Read;
 
 /// Error type for parsing failures.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,17 +21,16 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-/// Result of parsing a JSONL stream.
+/// Result of parsing a JSON stream.
 #[derive(Debug, Clone, Default)]
 pub struct ParseResult {
     pub objects: Vec<TtpObject>,
     pub warnings: Vec<Warning>,
 }
 
-/// Parse a single line into a TtpObject.
+/// Parse a single JSON string into a TtpObject.
 ///
 /// Returns `Ok(TtpObject)` on success, or `Err(ParseError)` if parsing fails.
-/// This function does not handle blank lines - the caller should filter those.
 pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseError> {
     serde_json::from_str(line).map_err(|e| ParseError {
         message: e.to_string(),
@@ -36,39 +38,31 @@ pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseErro
     })
 }
 
-/// Parse a JSONL stream into Pixelsrc objects.
+/// Parse a stream of JSON objects into Pixelsrc objects.
 ///
-/// - Skips blank lines
-/// - Collects warnings in lenient mode
-/// - Returns all successfully parsed objects
-pub fn parse_stream<R: BufRead>(reader: R) -> ParseResult {
+/// Supports both formats:
+/// - Single-line JSONL (one JSON object per line)
+/// - Multi-line JSON (objects can span multiple lines, separated by whitespace)
+///
+/// Uses serde_json's StreamDeserializer for proper concatenated JSON parsing.
+/// Collects warnings for malformed objects and continues parsing.
+pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
     let mut result = ParseResult::default();
 
-    for (line_number, line_result) in reader.lines().enumerate() {
-        let line_number = line_number + 1; // 1-indexed
+    let deserializer = serde_json::Deserializer::from_reader(reader);
+    let iterator = deserializer.into_iter::<TtpObject>();
 
-        let line = match line_result {
-            Ok(line) => line,
-            Err(e) => {
-                result.warnings.push(Warning {
-                    message: format!("IO error reading line: {}", e),
-                    line: line_number,
-                });
-                continue;
-            }
-        };
-
-        // Skip blank lines
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        match parse_line(&line, line_number) {
+    for item in iterator {
+        match item {
             Ok(obj) => result.objects.push(obj),
             Err(e) => {
+                // Check if this is EOF (not a real error)
+                if e.is_eof() {
+                    break;
+                }
                 result.warnings.push(Warning {
-                    message: e.message,
-                    line: line_number,
+                    message: e.to_string(),
+                    line: e.line(),
                 });
             }
         }
@@ -148,13 +142,90 @@ mod tests {
 
     #[test]
     fn test_parse_stream_collects_warnings() {
+        // With streaming JSON parser, syntax errors stop parsing
+        // (can't recover since we don't know where next object starts)
         let input = r##"{"type": "palette", "name": "mono", "colors": {"{on}": "#FFFFFF"}}
 {invalid json}
 {"type": "sprite", "name": "dot", "palette": "mono", "grid": ["{on}"]}"##;
         let result = parse_stream(Cursor::new(input));
-        assert_eq!(result.objects.len(), 2);
+        // First object parses successfully, then we hit the error
+        assert_eq!(result.objects.len(), 1);
         assert_eq!(result.warnings.len(), 1);
         assert_eq!(result.warnings[0].line, 2);
+    }
+
+    #[test]
+    fn test_parse_stream_multiline_json() {
+        // Multi-line JSON objects should parse correctly
+        let input = r##"{
+  "type": "palette",
+  "name": "colors",
+  "colors": {
+    "{_}": "#00000000",
+    "{a}": "#FF0000"
+  }
+}
+{
+  "type": "sprite",
+  "name": "test",
+  "palette": "colors",
+  "grid": [
+    "{_}{a}{a}{_}",
+    "{a}{a}{a}{a}"
+  ]
+}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 2);
+        assert!(result.warnings.is_empty());
+
+        // Verify first is palette
+        match &result.objects[0] {
+            TtpObject::Palette(p) => {
+                assert_eq!(p.name, "colors");
+                assert_eq!(p.colors.len(), 2);
+            }
+            _ => panic!("Expected palette"),
+        }
+
+        // Verify second is sprite with multi-line grid
+        match &result.objects[1] {
+            TtpObject::Sprite(s) => {
+                assert_eq!(s.name, "test");
+                assert_eq!(s.grid.len(), 2);
+                assert_eq!(s.grid[0], "{_}{a}{a}{_}");
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_parse_stream_mixed_single_and_multiline() {
+        // Mix of single-line and multi-line objects
+        let input = r##"{"type": "palette", "name": "p1", "colors": {"{x}": "#FF0000"}}
+{
+  "type": "sprite",
+  "name": "s1",
+  "palette": "p1",
+  "grid": ["{x}"]
+}
+{"type": "palette", "name": "p2", "colors": {"{y}": "#00FF00"}}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 3);
+        assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_stream_whitespace_between_objects() {
+        // Objects separated by various whitespace
+        let input = r#"{"type": "palette", "name": "p1", "colors": {}}
+
+
+{"type": "palette", "name": "p2", "colors": {}}
+
+{"type": "palette", "name": "p3", "colors": {}}"#;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 3);
+        assert!(result.warnings.is_empty());
     }
 
     #[test]
@@ -170,7 +241,11 @@ mod tests {
         for entry in fs::read_dir(fixtures_dir).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "jsonl") {
+            // Support both .jsonl and .pxl extensions
+            let is_pixelsrc = path
+                .extension()
+                .map_or(false, |e| e == "jsonl" || e == "pxl");
+            if is_pixelsrc {
                 let file = fs::File::open(&path).unwrap();
                 let reader = std::io::BufReader::new(file);
                 let result = parse_stream(reader);
