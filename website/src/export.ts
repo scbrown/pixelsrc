@@ -51,12 +51,13 @@ export class Export {
       <div class="export-controls" role="group" aria-label="Export options">
         <label class="export-scale-label">
           <span id="scale-label">Scale:</span>
-          <select class="export-scale-select" aria-labelledby="scale-label">
+          <select class="export-scale-select" aria-labelledby="scale-label" aria-describedby="scale-hint">
             <option value="1">1x</option>
             <option value="2">2x</option>
             <option value="4" selected>4x</option>
             <option value="8">8x</option>
           </select>
+          <span id="scale-hint" class="visually-hidden">Export scale multiplier for the image</span>
         </label>
         <button type="button" class="export-btn export-download-btn" aria-label="Download PNG at selected scale">
           Download PNG

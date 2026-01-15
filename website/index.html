@@ -7,7 +7,10 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="loading-overlay">
+    <!-- Skip link for keyboard navigation -->
+    <a href="#main" class="skip-link">Skip to main content</a>
+
+    <div id="loading-overlay" role="alert" aria-live="assertive">
       <div class="loading-content">
         <div class="loading-logo">
           <span class="pixel-icon">▣</span>
@@ -32,37 +35,40 @@
             <p class="tagline">GenAI-native pixel art format</p>
           </div>
         </div>
-        <nav class="header-nav">
+        <nav class="header-nav" aria-label="External links">
           <a href="https://github.com/scbrown/pixelsrc" class="nav-link" target="_blank" rel="noopener noreferrer">
-            GitHub
+            GitHub<span class="visually-hidden"> (opens in new tab)</span>
           </a>
           <a href="https://github.com/scbrown/pixelsrc#readme" class="nav-link" target="_blank" rel="noopener noreferrer">
-            Docs
+            Docs<span class="visually-hidden"> (opens in new tab)</span>
           </a>
         </nav>
       </header>
 
       <main id="main">
-        <section id="editor-panel" class="panel">
+        <section id="editor-panel" class="panel" aria-labelledby="editor-heading">
           <div class="panel-header">
-            <h2>Editor</h2>
+            <h2 id="editor-heading">Editor</h2>
           </div>
           <div class="panel-content">
-            <textarea id="editor" placeholder="Enter your Pixelsrc JSONL here..."></textarea>
+            <label for="editor" class="visually-hidden">Pixelsrc JSONL code editor</label>
+            <textarea id="editor" placeholder="Enter your Pixelsrc JSONL here..." aria-describedby="editor-hint"></textarea>
+            <span id="editor-hint" class="visually-hidden">Press Ctrl+Enter or Cmd+Enter to render</span>
           </div>
         </section>
 
-        <section id="preview-panel" class="panel">
+        <section id="preview-panel" class="panel" aria-labelledby="preview-heading">
           <div class="panel-header">
-            <h2>Preview</h2>
+            <h2 id="preview-heading">Preview</h2>
             <div class="preview-controls">
-              <button id="render-btn">Render</button>
-              <div id="export-controls"></div>
+              <button id="render-btn" aria-describedby="render-hint">Render</button>
+              <span id="render-hint" class="visually-hidden">Renders the JSONL code as pixel art</span>
+              <div id="export-controls" role="group" aria-label="Export options"></div>
             </div>
           </div>
           <div class="panel-content preview-content">
             <div id="preview-wrapper">
-              <div id="preview-canvas"></div>
+              <div id="preview-canvas" role="img" aria-label="Rendered pixel art preview"></div>
               <div id="preview-empty" class="preview-empty">
                 <div class="empty-icon" aria-hidden="true">🎨</div>
                 <p class="empty-text">Your pixel art will appear here</p>
@@ -78,7 +84,7 @@
                 <span class="zoom-value"></span>
               </div>
             </div>
-            <div id="preview-error" class="error hidden"></div>
+            <div id="preview-error" class="error hidden" role="alert" aria-live="assertive"></div>
             <div id="preview-status" class="preview-status hidden" role="status" aria-live="polite">
               <span class="status-icon" aria-hidden="true"></span>
               <span class="status-text"></span>
@@ -87,12 +93,12 @@
         </section>
       </main>
 
-      <section id="gallery-panel" class="panel">
+      <section id="gallery-panel" class="panel" aria-labelledby="gallery-heading">
         <div class="panel-header">
-          <h2>Gallery</h2>
+          <h2 id="gallery-heading">Gallery</h2>
         </div>
         <div class="panel-content">
-          <div id="gallery" class="gallery-grid"></div>
+          <div id="gallery" class="gallery-grid" role="list" aria-label="Example sprites"></div>
         </div>
       </section>
     </div>
