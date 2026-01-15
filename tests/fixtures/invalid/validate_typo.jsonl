@@ -1,0 +1,2 @@
+{"type": "palette", "name": "char", "colors": {"{skin}": "#FFCC99", "{hair}": "#8B4513"}}
+{"type": "sprite", "name": "test", "size": [2, 1], "palette": "char", "grid": ["{skni}{hiar}"]}
