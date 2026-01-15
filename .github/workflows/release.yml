@@ -138,7 +138,7 @@ jobs:
           EOF
 
           dpkg-deb --build "${PKG_DIR}"
-          mv "${PKG_DIR}.deb" "pxl_${VERSION}_amd64.deb"
+          # dpkg-deb creates PKG_DIR.deb which already has the correct name
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
