@@ -153,6 +153,300 @@ Complete separation. More files to manage.
 
 ---
 
+## Compositions as Animation Frames
+
+**Related to:** Phase 3 (Animation), Phase 2 (Composition)
+
+### The Problem
+
+When creating animations with sprites that need precise positioning (like logo assembly or complex multi-element scenes), you have to manually construct each frame's full grid. Compositions make positioning easy with character maps and `cell_size`, but currently animations can only reference sprites, not compositions.
+
+### Example: Current Workaround
+
+To create a logo assembly animation, each frame must be a full 32x32 sprite with manually positioned pixels:
+```jsonl
+{"type": "sprite", "name": "f01", "size": [32, 32], "grid": ["{p}{p}{_}...long grid..."]}
+{"type": "sprite", "name": "f02", "size": [32, 32], "grid": ["{P}{P}{_}...another long grid..."]}
+...
+{"type": "animation", "frames": ["f01", "f02", ...]}
+```
+
+### Proposed Solution
+
+Allow animations to reference compositions as frames:
+```jsonl
+{"type": "sprite", "name": "blk_p", "grid": ["{p}{p}", "{p}{p}"]}
+{"type": "composition", "name": "f01", "size": [32, 32], "cell_size": [2, 2],
+  "sprites": {"p": "blk_p", ...},
+  "layers": [{"map": ["p..............c", "...", "k..............g"]}]}
+{"type": "animation", "frames": ["f01", "f02", ...]}  // compositions work here
+```
+
+### Benefits
+
+1. **Cleaner authoring** - Use readable character maps instead of long token strings
+2. **Reusable elements** - Define color blocks once, position them in multiple frames
+3. **AI-friendly** - Easier to reason about character grid alignment
+4. **Smaller files** - DRY principle reduces repetition
+
+### Implementation Notes
+
+- Animation frame lookup should check both sprites and compositions
+- Compositions would be rendered to images at animation time
+- No change to animation format, just expanded resolution behavior
+
+---
+
+## `pxl show` - Grid Display with Coordinates
+
+**Related to:** Phase 15 (AI Assistance Tools)
+
+### The Problem
+
+AI struggles with pixel art alignment because there's no visual feedback during generation. When editing raw JSONL grids, it's hard to verify alignment, symmetry, and proportions without rendering to PNG.
+
+### Concept
+
+Simple grid display with row/column coordinates:
+
+```bash
+pxl show sprite.jsonl
+pxl show sprite.jsonl --sprite bracket_l
+```
+
+Output:
+```
+bracket_l (6x10):
+
+     0 1 2 3 4 5
+   ┌─────────────
+ 0 │ _ _ _ g c c
+ 1 │ _ _ g c c _
+ 2 │ _ _ g c g _
+ 3 │ _ _ g c g _
+ 4 │ _ g c g _ _
+ 5 │ _ g c g _ _
+ 6 │ _ _ g c g _
+ 7 │ _ _ g c g _
+ 8 │ _ _ g c c _
+ 9 │ _ _ _ g c c
+
+Tokens: _ g c
+Palette: favicon
+```
+
+### Key Features
+
+1. **Coordinate display** - Row/column numbers for precise reference
+2. **Token simplification** - Show short token names (strip `{}` braces)
+3. **Multiple sprites** - Show all sprites or filter with `--sprite`
+4. **Composition support** - Show composed result with `--composition`
+
+### Implementation Priority
+
+**P0** - Immediate value for AI workflows. Simple to implement.
+
+---
+
+## `pxl check` - Symmetry and Alignment Analysis
+
+**Related to:** Phase 15 (AI Assistance Tools)
+
+### The Problem
+
+Common pixel art mistakes:
+- Asymmetric sprites that should be symmetric
+- Off-center content
+- Inconsistent proportions between related sprites
+
+These are hard to spot in raw JSONL but obvious visually.
+
+### Concept
+
+Analyze sprites for symmetry and alignment:
+
+```bash
+pxl check sprite.jsonl
+pxl check sprite.jsonl --sprite bracket_l
+```
+
+Output:
+```
+bracket_l (6x10):
+
+     0 1 2 3 4 5
+   ┌─────────────
+ 0 │ _ _ _ g c c
+ 1 │ _ _ g c c _
+ 2 │ _ _ g c g _
+ 3 │ _ _ g c g _
+ 4 │ _ g c g _ _    ← middle point
+ 5 │ _ g c g _ _    ← middle point
+ 6 │ _ _ g c g _
+ 7 │ _ _ g c g _
+ 8 │ _ _ g c c _
+ 9 │ _ _ _ g c c
+         ↑
+     center (col 3)
+
+Symmetry:
+  ✓ Horizontal: 100% (rows 0-4 mirror rows 5-9)
+  ✗ Vertical: 0% (intentionally asymmetric - curly brace)
+
+Alignment:
+  Content bounds: cols 1-5, rows 0-9
+  Center of mass: col 3.2, row 4.5
+  ⚠ Horizontal: off-center right by 0.7px
+
+Suggestions:
+  - Consider adding 1 column of padding on left
+```
+
+### Analysis Features
+
+1. **Horizontal symmetry** - Top/bottom mirror check
+2. **Vertical symmetry** - Left/right mirror check
+3. **Center of mass** - Where the "weight" of non-transparent pixels sits
+4. **Bounding box** - Actual content area vs declared size
+5. **Comparison mode** - Check two sprites match proportions
+
+### Comparison Mode
+
+```bash
+pxl check sprite.jsonl --compare bracket_l bracket_r
+```
+
+Output:
+```
+Comparing bracket_l vs bracket_r:
+
+  bracket_l        bracket_r
+  _ _ _ g c c      k k g _ _ _
+  _ _ g c c _      _ k k g _ _
+  ...              ...
+
+  ✓ Same dimensions (6x10)
+  ✓ Horizontally mirrored (98% match)
+  ⚠ bracket_r middle point at row 4-5, bracket_l at row 4-5 (aligned)
+```
+
+### Implementation Priority
+
+**P1** - High value for catching mistakes before rendering.
+
+---
+
+## `pxl edit` - Region-Based Sprite Editing (Future)
+
+**Related to:** Phase 15 (AI Assistance Tools), Phase 12 (Tiling)
+
+**Note:** This is deferred. For most use cases, the **composition-as-jig** workflow is preferable - each element becomes its own sprite with guaranteed alignment.
+
+### Concept
+
+Region-based editing with discrete, verifiable commands:
+
+```bash
+# Define named regions
+pxl edit sprite.jsonl --define-region "p" 4 3 3 5
+
+# Edit a specific region
+pxl edit sprite.jsonl --region p --set "ppp|p_p|ppp|p__|p__"
+
+# Or use a region file for batch edits
+pxl edit sprite.jsonl --apply regions.txt
+```
+
+### Region File Format
+
+```
+# Region definitions
+region bracket_l 0 0 3 8
+region p 4 3 3 5
+region x 8 3 3 5
+
+# Content (rows separated by |)
+set bracket_l "_cc|c__|c__|c__|_c_|c__|c__|_cc"
+set p "ppp|p_p|ppp|p__|p__"
+set x "x_x|_x_|_x_|x_x|___"
+```
+
+### Key Design Principles
+
+1. **Batch/declarative over interactive** - AI can't track cursor state
+2. **Region isolation** - Changes to one region can't affect others
+3. **Atomic operations** - Each command is verifiable before next
+
+### Open Questions
+
+- Is this valuable enough vs. just using composition-as-jig?
+- Should regions be sprite-level metadata or external files?
+- What's the MVP feature set?
+
+---
+
+## Multi-File Compositions
+
+**Related to:** Phase 12 (Tiling)
+
+### The Problem
+
+For complex compositions using the "jig" workflow, having all sprites in one file creates large context. Editing one letter means loading the entire banner.
+
+### Basic Approach (Near-term)
+
+CLI accepts multiple files, builds shared namespace:
+
+```bash
+pxl render bracket_l.jsonl letter_p.jsonl letter_x.jsonl banner.jsonl
+```
+
+Each file exposes named objects. Compositions reference by name only - they don't know/care what file a sprite came from. Files expected to be in the same directory.
+
+### Project Mode (Future)
+
+For larger projects with nested directories:
+
+```
+my-game/
+  pxl.toml              # project manifest
+  palettes/
+    dracula.jsonl
+  sprites/
+    characters/
+      hero.jsonl
+    ui/
+      buttons.jsonl
+  scenes/
+    title.jsonl
+```
+
+With manifest:
+```toml
+[project]
+name = "my-game"
+
+[sources]
+include = ["**/*.jsonl"]
+
+[output]
+dir = "dist"
+```
+
+CLI works like a compiler:
+```bash
+pxl build                    # uses pxl.toml
+pxl build --composition title
+```
+
+### Open Questions
+
+- Name collision handling (error? last-wins?)
+- Order dependency (palette before sprite that uses it)
+- Does this stray too far from "GenAI-native" simplicity?
+
+---
+
 ## Game Engine Integration
 
 Export to Unity, Godot, Tiled, and CSS formats.

@@ -146,23 +146,67 @@ html, body {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  animation: pixelFadeIn 0.5s ease-out backwards;
 }
 
-/* Dracula accent colors for the pixel logo */
-.logo-pixel.p1 { background: var(--accent-purple); animation-delay: 0.1s; }
-.logo-pixel.p2 { background: var(--accent-cyan); animation-delay: 0.2s; }
-.logo-pixel.p3 { background: var(--accent-pink); animation-delay: 0.3s; }
-.logo-pixel.p4 { background: var(--accent-green); animation-delay: 0.4s; }
+/* Dracula accent colors for the pixel logo - fly in from corners */
+.logo-pixel.p1 {
+  background: var(--accent-purple);
+  animation: flyInTopLeft 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s backwards;
+}
+.logo-pixel.p2 {
+  background: var(--accent-cyan);
+  animation: flyInTopRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s backwards;
+}
+.logo-pixel.p3 {
+  background: var(--accent-pink);
+  animation: flyInBottomLeft 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+}
+.logo-pixel.p4 {
+  background: var(--accent-green);
+  animation: flyInBottomRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s backwards;
+}
 
-@keyframes pixelFadeIn {
+@keyframes flyInTopLeft {
   from {
     opacity: 0;
-    transform: scale(0);
+    transform: translate(-30px, -30px) scale(0.5);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes flyInTopRight {
+  from {
+    opacity: 0;
+    transform: translate(30px, -30px) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes flyInBottomLeft {
+  from {
+    opacity: 0;
+    transform: translate(-30px, 30px) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes flyInBottomRight {
+  from {
+    opacity: 0;
+    transform: translate(30px, 30px) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
   }
 }
 
