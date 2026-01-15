@@ -272,7 +272,12 @@ mod tests {
 
         // Files with semantic errors (valid JSON but invalid semantics)
         // These parse successfully but fail during later validation stages
-        let semantic_error_files = ["unknown_palette_ref.jsonl", "invalid_color.jsonl"];
+        let semantic_error_files = [
+            "unknown_palette_ref.jsonl",
+            "invalid_color.jsonl",
+            "validate_errors.jsonl",
+            "validate_typo.jsonl",
+        ];
 
         for entry in fs::read_dir(fixtures_dir).unwrap() {
             let entry = entry.unwrap();
