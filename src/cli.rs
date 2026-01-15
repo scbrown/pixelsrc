@@ -13,7 +13,7 @@ use crate::diff::{diff_files, format_diff};
 use crate::explain::{
     explain_object, format_explanation, resolve_palette_colors, Explanation,
 };
-use crate::suggest::{format_suggestion, suggest};
+use crate::suggest::{format_suggestion, suggest, SuggestionFix, SuggestionType, Suggester};
 use crate::validate::{Severity, Validator};
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
@@ -220,7 +220,7 @@ pub enum Commands {
         json: bool,
     },
 
-    /// Explain sprites and other objects in human-readable format
+/// Explain sprites and other objects in human-readable format
     Explain {
         /// Input file containing pixelsrc objects
         input: PathBuf,
@@ -249,6 +249,25 @@ pub enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+    },
+
+    /// Suggest fixes for pixelsrc files (missing tokens, row completion)
+    Suggest {
+        /// Files to analyze (omit if using --stdin)
+        #[arg(required_unless_present = "stdin")]
+        files: Vec<PathBuf>,
+
+        /// Read input from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Only show a specific type of suggestion (token, row)
+        #[arg(long)]
+        only: Option<String>,
     },
 }
 
@@ -318,13 +337,19 @@ pub fn run() -> ExitCode {
             strict,
             json,
         } => run_validate(&files, stdin, strict, json),
-        Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
+Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
         Commands::Diff {
             file_a,
             file_b,
             sprite,
             json,
         } => run_diff(&file_a, &file_b, sprite.as_deref(), json),
+        Commands::Suggest {
+            files,
+            stdin,
+            json,
+            only,
+        } => run_suggest(&files, stdin, json, only.as_deref()),
     }
 }
 
@@ -1793,10 +1818,132 @@ fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool
                 println!("---");
                 println!();
             }
-            println!(
+println!(
                 "{}",
                 format_diff(name, diff, &file_a_display, &file_b_display)
             );
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the suggest command
+fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -> ExitCode {
+    use std::io::{self, BufReader};
+
+    // Parse the --only filter
+    let type_filter: Option<SuggestionType> = match only {
+        Some("token") => Some(SuggestionType::MissingToken),
+        Some("row") => Some(SuggestionType::RowCompletion),
+        Some(other) => {
+            eprintln!("Error: Unknown suggestion type '{}'. Use 'token' or 'row'.", other);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+        None => None,
+    };
+
+    let mut suggester = Suggester::new();
+
+    if stdin {
+        // Read from stdin
+        let stdin_handle = io::stdin();
+        if let Err(e) = suggester.analyze_reader(stdin_handle.lock()) {
+            eprintln!("Error reading stdin: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    } else {
+        // Analyze files
+        if files.is_empty() {
+            eprintln!("Error: No files to analyze");
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+
+        for path in files {
+            if !json {
+                println!("Analyzing {}...", path.display());
+            }
+            let file = match File::open(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error: Cannot open '{}': {}", path.display(), e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            };
+            if let Err(e) = suggester.analyze_reader(BufReader::new(file)) {
+                eprintln!("Error reading '{}': {}", path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    }
+
+    let report = suggester.into_report();
+
+    // Apply type filter if specified
+    let suggestions: Vec<_> = if let Some(filter_type) = type_filter {
+        report.filter_by_type(filter_type).into_iter().cloned().collect()
+    } else {
+        report.suggestions.clone()
+    };
+
+    if json {
+        // JSON output
+        let output = serde_json::json!({
+            "sprites_analyzed": report.sprites_analyzed,
+            "suggestion_count": suggestions.len(),
+            "suggestions": suggestions,
+        });
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    } else {
+        // Text output
+        if suggestions.is_empty() {
+            println!();
+            println!("No suggestions found.");
+            println!("Analyzed {} sprite(s).", report.sprites_analyzed);
+        } else {
+            println!();
+            println!("Found {} suggestion(s) in {} sprite(s):", suggestions.len(), report.sprites_analyzed);
+            println!();
+
+            for suggestion in &suggestions {
+                println!("Line {}: [{}] {}", suggestion.line, suggestion.suggestion_type, suggestion.sprite);
+                println!("  {}", suggestion.message);
+
+                // Show fix details
+                match &suggestion.fix {
+                    SuggestionFix::ReplaceToken { from, to } => {
+                        println!("  Fix: Replace {} with {}", from, to);
+                    }
+                    SuggestionFix::AddToPalette { token, suggested_color } => {
+                        println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
+                    }
+                    SuggestionFix::ExtendRow { row_index, suggested, tokens_to_add, pad_token, .. } => {
+                        println!("  Fix: Extend row {} by adding {} {} token(s)", row_index + 1, tokens_to_add, pad_token);
+                        println!("  Suggested: \"{}\"", suggested);
+                    }
+                }
+                println!();
+            }
+
+            // Summary by type
+            let token_count = suggestions.iter()
+                .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
+                .count();
+            let row_count = suggestions.iter()
+                .filter(|s| s.suggestion_type == SuggestionType::RowCompletion)
+                .count();
+
+            if token_count > 0 || row_count > 0 {
+                print!("Summary: ");
+                let mut parts = Vec::new();
+                if token_count > 0 {
+                    parts.push(format!("{} missing token(s)", token_count));
+                }
+                if row_count > 0 {
+                    parts.push(format!("{} row completion(s)", row_count));
+                }
+                println!("{}", parts.join(", "));
+            }
         }
     }
 
