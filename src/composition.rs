@@ -29,6 +29,19 @@ pub enum CompositionError {
         cell_size: (u32, u32),
         composition_name: String,
     },
+    /// Canvas size is not divisible by cell_size
+    SizeNotDivisible {
+        size: (u32, u32),
+        cell_size: (u32, u32),
+        composition_name: String,
+    },
+    /// Map dimensions don't match expected grid size
+    MapDimensionMismatch {
+        layer_name: Option<String>,
+        actual_dimensions: (usize, usize),
+        expected_dimensions: (u32, u32),
+        composition_name: String,
+    },
 }
 
 impl fmt::Display for CompositionError {
@@ -49,6 +62,36 @@ impl fmt::Display for CompositionError {
                 cell_size.1,
                 composition_name
             ),
+            CompositionError::SizeNotDivisible {
+                size,
+                cell_size,
+                composition_name,
+            } => write!(
+                f,
+                "Size ({}x{}) is not divisible by cell_size ({}x{}) in composition '{}'",
+                size.0, size.1, cell_size.0, cell_size.1, composition_name
+            ),
+            CompositionError::MapDimensionMismatch {
+                layer_name,
+                actual_dimensions,
+                expected_dimensions,
+                composition_name,
+            } => {
+                let layer_desc = layer_name
+                    .as_ref()
+                    .map(|n| format!("layer '{}'", n))
+                    .unwrap_or_else(|| "unnamed layer".to_string());
+                write!(
+                    f,
+                    "Map dimensions ({}x{}) don't match expected grid size ({}x{}) for {} in composition '{}'",
+                    actual_dimensions.0,
+                    actual_dimensions.1,
+                    expected_dimensions.0,
+                    expected_dimensions.1,
+                    layer_desc,
+                    composition_name
+                )
+            }
         }
     }
 }
@@ -151,6 +194,39 @@ pub fn render_composition(
         }
     };
 
+    // Validate size is divisible by cell_size (only meaningful when cell_size > [1,1])
+    if cell_size[0] > 1 || cell_size[1] > 1 {
+        let width_divisible = width % cell_size[0] == 0;
+        let height_divisible = height % cell_size[1] == 0;
+
+        if !width_divisible || !height_divisible {
+            if strict {
+                return Err(CompositionError::SizeNotDivisible {
+                    size: (width, height),
+                    cell_size: (cell_size[0], cell_size[1]),
+                    composition_name: comp.name.clone(),
+                });
+            } else {
+                warnings.push(Warning::new(format!(
+                    "Size ({}x{}) is not divisible by cell_size ({}x{}) in composition '{}'",
+                    width, height, cell_size[0], cell_size[1], comp.name
+                )));
+            }
+        }
+    }
+
+    // Calculate expected grid dimensions for map validation
+    let expected_cols = if cell_size[0] > 0 {
+        width / cell_size[0]
+    } else {
+        width
+    };
+    let expected_rows = if cell_size[1] > 0 {
+        height / cell_size[1]
+    } else {
+        height
+    };
+
     // Create canvas (transparent by default)
     let mut canvas = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
 
@@ -162,6 +238,33 @@ pub fn render_composition(
     // Render each layer (bottom to top)
     for layer in &comp.layers {
         if let Some(ref map) = layer.map {
+            // Validate map dimensions match expected grid (only when cell_size > [1,1])
+            if cell_size[0] > 1 || cell_size[1] > 1 {
+                let actual_rows = map.len();
+                let actual_cols = map.iter().map(|r| r.chars().count()).max().unwrap_or(0);
+
+                if actual_rows != expected_rows as usize || actual_cols != expected_cols as usize {
+                    if strict {
+                        return Err(CompositionError::MapDimensionMismatch {
+                            layer_name: layer.name.clone(),
+                            actual_dimensions: (actual_cols, actual_rows),
+                            expected_dimensions: (expected_cols, expected_rows),
+                            composition_name: comp.name.clone(),
+                        });
+                    } else {
+                        let layer_desc = layer
+                            .name
+                            .as_ref()
+                            .map(|n| format!("layer '{}'", n))
+                            .unwrap_or_else(|| "unnamed layer".to_string());
+                        warnings.push(Warning::new(format!(
+                            "Map dimensions ({}x{}) don't match expected grid size ({}x{}) for {} in composition '{}'",
+                            actual_cols, actual_rows, expected_cols, expected_rows, layer_desc, comp.name
+                        )));
+                    }
+                }
+            }
+
             for (row_idx, row) in map.iter().enumerate() {
                 for (col_idx, char_key) in row.chars().enumerate() {
                     let key = char_key.to_string();
@@ -851,6 +954,7 @@ mod tests {
                 assert_eq!(cell_size, (2, 2));
                 assert_eq!(composition_name, "oversized_strict");
             }
+            _ => panic!("Expected SizeMismatch error, got {:?}", err),
         }
     }
 
@@ -1319,14 +1423,15 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
+                // Map 2x2 cells = 8x8 pixels with cell_size 4x4
                 map: Some(vec!["H.".to_string(), "..".to_string()]),
             }],
         };
 
-        // Base sprite is 20x24
-        let mut hero = RgbaImage::new(20, 24);
-        for y in 0..24 {
-            for x in 0..20 {
+        // Base sprite is 8x8 (2x2 cells with cell_size 4x4)
+        let mut hero = RgbaImage::new(8, 8);
+        for y in 0..8 {
+            for x in 0..8 {
                 hero.put_pixel(x, y, Rgba([100, 100, 100, 255])); // Gray
             }
         }
@@ -1344,12 +1449,12 @@ mod tests {
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
         assert!(warnings.is_empty());
-        // Canvas size should be inferred from base sprite (20x24)
-        assert_eq!(image.width(), 20);
-        assert_eq!(image.height(), 24);
+        // Canvas size should be inferred from base sprite (8x8)
+        assert_eq!(image.width(), 8);
+        assert_eq!(image.height(), 8);
 
         // Base sprite should be rendered first
-        assert_eq!(*image.get_pixel(10, 12), Rgba([100, 100, 100, 255]));
+        assert_eq!(*image.get_pixel(4, 4), Rgba([100, 100, 100, 255]));
 
         // Hat should be overlaid at (0,0)
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
@@ -1384,6 +1489,8 @@ mod tests {
     #[test]
     fn test_size_inference_priority_base_over_layers() {
         // Base sprite size should take priority over layer inference
+        // This test uses a base sprite size that differs from what the layer map would suggest
+        // With validation, this generates a map dimension warning (expected in lenient mode)
         let comp = Composition {
             name: "base_over_layers".to_string(),
             base: Some("background".to_string()),
@@ -1397,6 +1504,7 @@ mod tests {
                 name: None,
                 fill: None,
                 // Layer map would infer 8x8 (2x2 cells * 4x4 cell_size)
+                // But base sprite is 16x20, so expected grid is 4x5
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
             }],
         };
@@ -1419,10 +1527,16 @@ mod tests {
 
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
-        assert!(warnings.is_empty());
-        // Should use base sprite size (16x20), not layer-inferred (8x8)
+        // The key assertion: base sprite size (16x20) takes priority over layer-inferred (8x8)
         assert_eq!(image.width(), 16);
         assert_eq!(image.height(), 20);
+
+        // With validation, we expect a map dimension warning since map is 2x2 but expected is 4x5
+        let dim_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("don't match expected"))
+            .collect();
+        assert_eq!(dim_warnings.len(), 1);
     }
 
     #[test]
@@ -1637,5 +1751,333 @@ mod tests {
 
         // (3, 2) is hero's skin pixel (at grid position (1, 1) * cell_size (2,2))
         assert_eq!(*image.get_pixel(3, 2), Rgba([255, 204, 153, 255])); // Original skin
+    }
+
+    // ========== Task 14.3: Tiling Validation Tests ==========
+
+    #[test]
+    fn test_size_divisible_by_cell_size_valid() {
+        // Size 64x64 with cell_size 16x16 = 4x4 grid - valid
+        let comp = Composition {
+            name: "valid_grid".to_string(),
+            base: None,
+            size: Some([64, 64]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec![
+                    "....".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                ]),
+            }],
+        };
+
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+
+        // No divisibility warnings
+        let div_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("not divisible"))
+            .collect();
+        assert!(div_warnings.is_empty());
+    }
+
+    #[test]
+    fn test_size_not_divisible_lenient_warning() {
+        // Size 65x64 with cell_size 16x16 - width not divisible
+        let comp = Composition {
+            name: "invalid_width".to_string(),
+            base: None,
+            size: Some([65, 64]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["....".to_string()]),
+            }],
+        };
+
+        let result = render_composition(&comp, &HashMap::new(), false);
+
+        // Should succeed in lenient mode
+        assert!(result.is_ok());
+        let (_, warnings) = result.unwrap();
+
+        // Should have divisibility warning
+        let div_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("not divisible"))
+            .collect();
+        assert_eq!(div_warnings.len(), 1);
+        assert!(div_warnings[0].message.contains("65x64"));
+        assert!(div_warnings[0].message.contains("16x16"));
+    }
+
+    #[test]
+    fn test_size_not_divisible_strict_error() {
+        // Size 64x65 with cell_size 16x16 - height not divisible
+        let comp = Composition {
+            name: "invalid_height".to_string(),
+            base: None,
+            size: Some([64, 65]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["....".to_string()]),
+            }],
+        };
+
+        let result = render_composition(&comp, &HashMap::new(), true);
+
+        // Should fail in strict mode
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        match err {
+            CompositionError::SizeNotDivisible {
+                size,
+                cell_size,
+                composition_name,
+            } => {
+                assert_eq!(size, (64, 65));
+                assert_eq!(cell_size, (16, 16));
+                assert_eq!(composition_name, "invalid_height");
+            }
+            _ => panic!("Expected SizeNotDivisible error"),
+        }
+    }
+
+    #[test]
+    fn test_map_dimensions_match_expected_grid() {
+        // Size 32x32 with cell_size 16x16 = 2x2 grid
+        // Map has 2x2 = valid
+        let comp = Composition {
+            name: "valid_map".to_string(),
+            base: None,
+            size: Some([32, 32]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: Some("terrain".to_string()),
+                fill: None,
+                map: Some(vec!["..".to_string(), "..".to_string()]),
+            }],
+        };
+
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+
+        // No dimension warnings
+        let dim_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("don't match expected"))
+            .collect();
+        assert!(dim_warnings.is_empty());
+    }
+
+    #[test]
+    fn test_map_dimensions_mismatch_lenient_warning() {
+        // Size 32x32 with cell_size 16x16 = expected 2x2 grid
+        // Map has 3x2 = mismatch
+        let comp = Composition {
+            name: "map_mismatch".to_string(),
+            base: None,
+            size: Some([32, 32]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: Some("terrain".to_string()),
+                fill: None,
+                map: Some(vec!["...".to_string(), "...".to_string()]),
+            }],
+        };
+
+        let result = render_composition(&comp, &HashMap::new(), false);
+
+        // Should succeed in lenient mode
+        assert!(result.is_ok());
+        let (_, warnings) = result.unwrap();
+
+        // Should have dimension warning
+        let dim_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("don't match expected"))
+            .collect();
+        assert_eq!(dim_warnings.len(), 1);
+        assert!(dim_warnings[0].message.contains("3x2")); // actual
+        assert!(dim_warnings[0].message.contains("2x2")); // expected
+        assert!(dim_warnings[0].message.contains("layer 'terrain'"));
+    }
+
+    #[test]
+    fn test_map_dimensions_mismatch_strict_error() {
+        // Size 32x32 with cell_size 16x16 = expected 2x2 grid
+        // Map has 2x3 = mismatch (too many rows)
+        let comp = Composition {
+            name: "map_rows_mismatch".to_string(),
+            base: None,
+            size: Some([32, 32]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: Some("layer1".to_string()),
+                fill: None,
+                map: Some(vec!["..".to_string(), "..".to_string(), "..".to_string()]),
+            }],
+        };
+
+        let result = render_composition(&comp, &HashMap::new(), true);
+
+        // Should fail in strict mode
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        match err {
+            CompositionError::MapDimensionMismatch {
+                layer_name,
+                actual_dimensions,
+                expected_dimensions,
+                composition_name,
+            } => {
+                assert_eq!(layer_name, Some("layer1".to_string()));
+                assert_eq!(actual_dimensions, (2, 3)); // (cols, rows)
+                assert_eq!(expected_dimensions, (2, 2));
+                assert_eq!(composition_name, "map_rows_mismatch");
+            }
+            _ => panic!("Expected MapDimensionMismatch error"),
+        }
+    }
+
+    #[test]
+    fn test_map_dimensions_unnamed_layer() {
+        // Unnamed layer should say "unnamed layer" in error/warning
+        let comp = Composition {
+            name: "unnamed_layer_test".to_string(),
+            base: None,
+            size: Some([32, 32]),
+            cell_size: Some([16, 16]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None, // No name
+                fill: None,
+                map: Some(vec!["...".to_string()]),
+            }],
+        };
+
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+
+        // Should have warning mentioning unnamed layer
+        let dim_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| w.message.contains("unnamed layer"))
+            .collect();
+        assert_eq!(dim_warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_cell_size_1x1_no_validation() {
+        // With default cell_size [1,1], size divisibility doesn't apply
+        // Size 65x65 with cell_size [1,1] should be fine
+        let comp = Composition {
+            name: "default_cell".to_string(),
+            base: None,
+            size: Some([65, 65]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec![".".to_string()]), // Just 1 cell
+            }],
+        };
+
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+
+        // No divisibility or dimension warnings for cell_size [1,1]
+        let validation_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| {
+                w.message.contains("not divisible") || w.message.contains("don't match expected")
+            })
+            .collect();
+        assert!(validation_warnings.is_empty());
+    }
+
+    #[test]
+    fn test_cell_size_none_no_validation() {
+        // When cell_size is None (defaults to [1,1]), no validation
+        let comp = Composition {
+            name: "no_cell_size".to_string(),
+            base: None,
+            size: Some([65, 65]),
+            cell_size: None, // Defaults to [1,1]
+            sprites: HashMap::from([(".".to_string(), None)]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec![".".to_string()]),
+            }],
+        };
+
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+
+        // No validation warnings
+        let validation_warnings: Vec<_> = warnings
+            .iter()
+            .filter(|w| {
+                w.message.contains("not divisible") || w.message.contains("don't match expected")
+            })
+            .collect();
+        assert!(validation_warnings.is_empty());
+    }
+
+    #[test]
+    fn test_size_not_divisible_error_display() {
+        let err = CompositionError::SizeNotDivisible {
+            size: (65, 64),
+            cell_size: (16, 16),
+            composition_name: "test_comp".to_string(),
+        };
+
+        let msg = format!("{}", err);
+        assert!(msg.contains("65x64"));
+        assert!(msg.contains("16x16"));
+        assert!(msg.contains("test_comp"));
+        assert!(msg.contains("not divisible"));
+    }
+
+    #[test]
+    fn test_map_dimension_mismatch_error_display() {
+        let err = CompositionError::MapDimensionMismatch {
+            layer_name: Some("terrain".to_string()),
+            actual_dimensions: (3, 2),
+            expected_dimensions: (2, 2),
+            composition_name: "test_comp".to_string(),
+        };
+
+        let msg = format!("{}", err);
+        assert!(msg.contains("3x2"));
+        assert!(msg.contains("2x2"));
+        assert!(msg.contains("layer 'terrain'"));
+        assert!(msg.contains("test_comp"));
+    }
+
+    #[test]
+    fn test_map_dimension_mismatch_unnamed_error_display() {
+        let err = CompositionError::MapDimensionMismatch {
+            layer_name: None,
+            actual_dimensions: (3, 2),
+            expected_dimensions: (2, 2),
+            composition_name: "test_comp".to_string(),
+        };
+
+        let msg = format!("{}", err);
+        assert!(msg.contains("unnamed layer"));
     }
 }

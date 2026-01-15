@@ -305,8 +305,7 @@ mod tests {
 
         // Create a palette file with .pxl extension
         let mut file = fs::File::create(&palette_path).unwrap();
-        let content =
-            r##"{"type": "palette", "name": "pxl_palette", "colors": {"{_}": "#00000000", "{x}": "#00FF00"}}"##;
+        let content = r##"{"type": "palette", "name": "pxl_palette", "colors": {"{_}": "#00000000", "{x}": "#00FF00"}}"##;
         writeln!(file, "{}", content).unwrap();
 
         // Resolve with explicit .pxl extension
@@ -325,8 +324,7 @@ mod tests {
 
         // Create a palette file with .pxl extension
         let mut file = fs::File::create(&palette_path).unwrap();
-        let content =
-            r##"{"type": "palette", "name": "auto_pxl", "colors": {"{a}": "#0000FF"}}"##;
+        let content = r##"{"type": "palette", "name": "auto_pxl", "colors": {"{a}": "#0000FF"}}"##;
         writeln!(file, "{}", content).unwrap();
 
         // Resolve without extension - should find .pxl
