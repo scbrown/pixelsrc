@@ -37,7 +37,12 @@ impl std::fmt::Display for IncludeError {
                 write!(f, "No palette found in included file: {}", path.display())
             }
             IncludeError::IoError(path, msg) => {
-                write!(f, "Error reading include file '{}': {}", path.display(), msg)
+                write!(
+                    f,
+                    "Error reading include file '{}': {}",
+                    path.display(),
+                    msg
+                )
             }
         }
     }
@@ -117,9 +122,7 @@ pub fn resolve_include_with_detection(
 
     // Get the directory of the included file for nested includes
     // (reserved for future nested include support)
-    let _include_dir = canonical_path
-        .parent()
-        .unwrap_or(Path::new("."));
+    let _include_dir = canonical_path.parent().unwrap_or(Path::new("."));
 
     // Find the first palette in the included file
     for obj in parse_result.objects {
@@ -226,11 +229,13 @@ mod tests {
         let mut visited = HashSet::new();
 
         // First resolution should succeed
-        let result1 = resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+        let result1 =
+            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
         assert!(result1.is_ok());
 
         // Second resolution of same file should detect circular include
-        let result2 = resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+        let result2 =
+            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
         assert!(result2.is_err());
 
         match result2.unwrap_err() {
@@ -249,7 +254,8 @@ mod tests {
 
         let palette_path = sub_dir.join("colors.jsonl");
         let mut file = fs::File::create(&palette_path).unwrap();
-        let content = r##"{"type": "palette", "name": "shared_colors", "colors": {"{a}": "#AA0000"}}"##;
+        let content =
+            r##"{"type": "palette", "name": "shared_colors", "colors": {"{a}": "#AA0000"}}"##;
         writeln!(file, "{}", content).unwrap();
 
         // Resolve from parent directory

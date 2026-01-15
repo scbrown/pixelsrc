@@ -227,7 +227,8 @@ mod tests {
 
     #[test]
     fn test_validate_missing_palette() {
-        let jsonl = r#"{"type": "sprite", "name": "bad", "palette": "nonexistent", "grid": ["{x}"]}"#;
+        let jsonl =
+            r#"{"type": "sprite", "name": "bad", "palette": "nonexistent", "grid": ["{x}"]}"#;
         let result = validate(jsonl);
         assert!(!result.is_empty());
         assert!(result[0].contains("not found"));
@@ -239,10 +240,10 @@ mod tests {
         assert_eq!(result.width(), 1);
         assert_eq!(result.height(), 1);
         assert_eq!(result.pixels().len(), 4); // 1 pixel * 4 bytes (RGBA)
-        // Red pixel: #FF0000 = [255, 0, 0, 255]
+                                              // Red pixel: #FF0000 = [255, 0, 0, 255]
         assert_eq!(result.pixels()[0], 255); // R
-        assert_eq!(result.pixels()[1], 0);   // G
-        assert_eq!(result.pixels()[2], 0);   // B
+        assert_eq!(result.pixels()[1], 0); // G
+        assert_eq!(result.pixels()[2], 0); // B
         assert_eq!(result.pixels()[3], 255); // A
     }
 

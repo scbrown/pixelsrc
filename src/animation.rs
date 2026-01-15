@@ -77,9 +77,10 @@ mod tests {
         Sprite {
             name: name.to_string(),
             size: None,
-            palette: PaletteRef::Inline(HashMap::from([
-                ("{_}".to_string(), "#00000000".to_string()),
-            ])),
+            palette: PaletteRef::Inline(HashMap::from([(
+                "{_}".to_string(),
+                "#00000000".to_string(),
+            )])),
             grid: vec!["{_}".to_string()],
         }
     }
@@ -89,7 +90,11 @@ mod tests {
         // Animation with existing sprites should produce no warnings
         let anim = Animation {
             name: "walk".to_string(),
-            frames: vec!["frame1".to_string(), "frame2".to_string(), "frame3".to_string()],
+            frames: vec![
+                "frame1".to_string(),
+                "frame2".to_string(),
+                "frame3".to_string(),
+            ],
             duration: None,
             r#loop: None,
         };

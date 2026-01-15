@@ -174,11 +174,7 @@ mod tests {
                 let file = fs::File::open(&path).unwrap();
                 let reader = std::io::BufReader::new(file);
                 let result = parse_stream(reader);
-                assert!(
-                    !result.objects.is_empty(),
-                    "Expected objects in {:?}",
-                    path
-                );
+                assert!(!result.objects.is_empty(), "Expected objects in {:?}", path);
                 assert!(
                     result.warnings.is_empty(),
                     "Unexpected warnings in {:?}: {:?}",

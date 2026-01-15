@@ -226,7 +226,10 @@ mod tests {
         assert_eq!(parse_color("#GGG"), Err(ColorError::InvalidHex('G')));
         assert_eq!(parse_color("#XYZ"), Err(ColorError::InvalidHex('X')));
         assert_eq!(parse_color("#12345G"), Err(ColorError::InvalidHex('G')));
-        assert_eq!(parse_color("#not-a-color"), Err(ColorError::InvalidHex('n')));
+        assert_eq!(
+            parse_color("#not-a-color"),
+            Err(ColorError::InvalidHex('n'))
+        );
     }
 
     // Tests matching the fixture file: tests/fixtures/valid/color_formats.jsonl

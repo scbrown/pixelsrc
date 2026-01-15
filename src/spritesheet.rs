@@ -126,9 +126,9 @@ mod tests {
         assert_eq!(sheet.height(), 2);
 
         // Check first pixel of each frame
-        assert_eq!(*sheet.get_pixel(0, 0), red);    // Frame 0 at (0,0)
-        assert_eq!(*sheet.get_pixel(2, 0), green);  // Frame 1 at (2,0)
-        assert_eq!(*sheet.get_pixel(4, 0), blue);   // Frame 2 at (4,0)
+        assert_eq!(*sheet.get_pixel(0, 0), red); // Frame 0 at (0,0)
+        assert_eq!(*sheet.get_pixel(2, 0), green); // Frame 1 at (2,0)
+        assert_eq!(*sheet.get_pixel(4, 0), blue); // Frame 2 at (4,0)
         assert_eq!(*sheet.get_pixel(6, 0), yellow); // Frame 3 at (6,0)
     }
 
@@ -176,7 +176,7 @@ mod tests {
 
         let sheet = render_spritesheet(&frames, Some(2));
 
-        assert_eq!(sheet.width(), 4);  // 2 cols * 2 pixels
+        assert_eq!(sheet.width(), 4); // 2 cols * 2 pixels
         assert_eq!(sheet.height(), 4); // 2 rows * 2 pixels
 
         // Row 0: red (0,0), green (2,0)
@@ -203,7 +203,7 @@ mod tests {
 
         let sheet = render_spritesheet(&frames, Some(2));
 
-        assert_eq!(sheet.width(), 4);  // 2 cols * 2 pixels
+        assert_eq!(sheet.width(), 4); // 2 cols * 2 pixels
         assert_eq!(sheet.height(), 4); // 2 rows * 2 pixels
 
         // Row 0: red, green
@@ -257,7 +257,7 @@ mod tests {
 
         let sheet = render_spritesheet(&frames, Some(1));
 
-        assert_eq!(sheet.width(), 3);  // 1 col * 3 pixels
+        assert_eq!(sheet.width(), 3); // 1 col * 3 pixels
         assert_eq!(sheet.height(), 6); // 3 rows * 2 pixels
 
         // Vertically stacked

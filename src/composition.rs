@@ -235,7 +235,11 @@ fn infer_size_from_layers(
     for layer in layers {
         if let Some(ref map) = layer.map {
             let rows = map.len() as u32;
-            let cols = map.iter().map(|r| r.chars().count() as u32).max().unwrap_or(0);
+            let cols = map
+                .iter()
+                .map(|r| r.chars().count() as u32)
+                .max()
+                .unwrap_or(0);
             max_rows = max_rows.max(rows);
             max_cols = max_cols.max(cols);
         }
@@ -760,7 +764,12 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
-                map: Some(vec!["X...".to_string(), "....".to_string(), "....".to_string(), "....".to_string()]),
+                map: Some(vec![
+                    "X...".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                ]),
             }],
         };
 
@@ -806,7 +815,12 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
-                map: Some(vec!["X...".to_string(), "....".to_string(), "....".to_string(), "....".to_string()]),
+                map: Some(vec![
+                    "X...".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                    "....".to_string(),
+                ]),
             }],
         };
 
@@ -858,13 +872,21 @@ mod tests {
                 CompositionLayer {
                     name: Some("background".to_string()),
                     fill: None,
-                    map: Some(vec!["BBB".to_string(), "BBB".to_string(), "BBB".to_string()]),
+                    map: Some(vec![
+                        "BBB".to_string(),
+                        "BBB".to_string(),
+                        "BBB".to_string(),
+                    ]),
                 },
                 // Second layer: big red sprite at (0,0)
                 CompositionLayer {
                     name: Some("foreground".to_string()),
                     fill: None,
-                    map: Some(vec!["X..".to_string(), "...".to_string(), "...".to_string()]),
+                    map: Some(vec![
+                        "X..".to_string(),
+                        "...".to_string(),
+                        "...".to_string(),
+                    ]),
                 },
             ],
         };
@@ -954,7 +976,12 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
-                map: Some(vec!["X.".to_string(), "..".to_string(), "..".to_string(), "..".to_string()]),
+                map: Some(vec![
+                    "X.".to_string(),
+                    "..".to_string(),
+                    "..".to_string(),
+                    "..".to_string(),
+                ]),
             }],
         };
 
@@ -989,7 +1016,12 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
-                map: Some(vec!["A...".to_string(), "....".to_string(), "..B.".to_string(), "....".to_string()]),
+                map: Some(vec![
+                    "A...".to_string(),
+                    "....".to_string(),
+                    "..B.".to_string(),
+                    "....".to_string(),
+                ]),
             }],
         };
 
@@ -1007,10 +1039,7 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("big_a".to_string(), big_a),
-            ("big_b".to_string(), big_b),
-        ]);
+        let sprites = HashMap::from([("big_a".to_string(), big_a), ("big_b".to_string(), big_b)]);
 
         let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
@@ -1069,10 +1098,7 @@ mod tests {
         let mut green = RgbaImage::new(1, 1);
         green.put_pixel(0, 0, Rgba([0, 255, 0, 255]));
 
-        let sprites = HashMap::from([
-            ("red".to_string(), red),
-            ("green".to_string(), green),
-        ]);
+        let sprites = HashMap::from([("red".to_string(), red), ("green".to_string(), green)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
@@ -1082,11 +1108,11 @@ mod tests {
 
         // Check diagonal pattern
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255])); // R at (0,0)
-        assert_eq!(*image.get_pixel(2, 0), Rgba([0, 255, 0, 255]));  // G at (2,0)
+        assert_eq!(*image.get_pixel(2, 0), Rgba([0, 255, 0, 255])); // G at (2,0)
         assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255])); // R at (1,1)
-        assert_eq!(*image.get_pixel(2, 1), Rgba([0, 255, 0, 255]));  // G at (2,1)
+        assert_eq!(*image.get_pixel(2, 1), Rgba([0, 255, 0, 255])); // G at (2,1)
         assert_eq!(*image.get_pixel(3, 3), Rgba([255, 0, 0, 255])); // R at (3,3)
-        // Transparent pixels
+                                                                    // Transparent pixels
         assert_eq!(*image.get_pixel(1, 0), Rgba([0, 0, 0, 0]));
         assert_eq!(*image.get_pixel(0, 3), Rgba([0, 0, 0, 0]));
     }
@@ -1179,10 +1205,7 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: Some("terrain".to_string()),
                 fill: None,
-                map: Some(vec![
-                    "GGW".to_string(),
-                    "GWW".to_string(),
-                ]),
+                map: Some(vec!["GGW".to_string(), "GWW".to_string()]),
             }],
         };
 
@@ -1201,10 +1224,7 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("grass".to_string(), grass),
-            ("water".to_string(), water),
-        ]);
+        let sprites = HashMap::from([("grass".to_string(), grass), ("water".to_string(), water)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
@@ -1213,12 +1233,12 @@ mod tests {
         assert_eq!(image.height(), 32);
 
         // Row 0: G at (0,0), G at (16,0), W at (32,0)
-        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 128, 0, 255]));   // Grass
-        assert_eq!(*image.get_pixel(16, 0), Rgba([0, 128, 0, 255]));  // Grass
-        assert_eq!(*image.get_pixel(32, 0), Rgba([0, 0, 200, 255]));  // Water
+        assert_eq!(*image.get_pixel(0, 0), Rgba([0, 128, 0, 255])); // Grass
+        assert_eq!(*image.get_pixel(16, 0), Rgba([0, 128, 0, 255])); // Grass
+        assert_eq!(*image.get_pixel(32, 0), Rgba([0, 0, 200, 255])); // Water
 
         // Row 1: G at (0,16), W at (16,16), W at (32,16)
-        assert_eq!(*image.get_pixel(0, 16), Rgba([0, 128, 0, 255]));  // Grass
+        assert_eq!(*image.get_pixel(0, 16), Rgba([0, 128, 0, 255])); // Grass
         assert_eq!(*image.get_pixel(16, 16), Rgba([0, 0, 200, 255])); // Water
         assert_eq!(*image.get_pixel(32, 16), Rgba([0, 0, 200, 255])); // Water
 
@@ -1319,10 +1339,7 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("hero".to_string(), hero),
-            ("hat".to_string(), hat),
-        ]);
+        let sprites = HashMap::from([("hero".to_string(), hero), ("hat".to_string(), hat)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
@@ -1469,7 +1486,9 @@ mod tests {
 
         // Should have warning about missing base
         assert!(!warnings.is_empty());
-        assert!(warnings[0].message.contains("Base sprite 'nonexistent' not found"));
+        assert!(warnings[0]
+            .message
+            .contains("Base sprite 'nonexistent' not found"));
 
         // Should still render with size inferred from layers
         assert_eq!(image.width(), 4); // 2 cells * 2 cell_size
@@ -1512,10 +1531,7 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("bg".to_string(), bg),
-            ("overlay".to_string(), overlay),
-        ]);
+        let sprites = HashMap::from([("bg".to_string(), bg), ("overlay".to_string(), overlay)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
 
@@ -1537,7 +1553,7 @@ mod tests {
     fn test_variant_usable_in_composition() {
         // Verify that a variant can be used in a composition's sprites map
         // just like a regular sprite
-        use crate::models::{Sprite, Variant, PaletteRef};
+        use crate::models::{PaletteRef, Sprite, Variant};
         use crate::registry::{PaletteRegistry, SpriteRegistry};
         use crate::renderer::render_resolved;
 
@@ -1549,10 +1565,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
             ])),
-            grid: vec![
-                "{_}{skin}".to_string(),
-                "{skin}{_}".to_string(),
-            ],
+            grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
         };
 
         let variant = Variant {
@@ -1570,8 +1583,12 @@ mod tests {
         sprite_registry.register_variant(variant);
 
         // Render both base and variant
-        let hero_resolved = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
-        let variant_resolved = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        let hero_resolved = sprite_registry
+            .resolve("hero", &palette_registry, false)
+            .unwrap();
+        let variant_resolved = sprite_registry
+            .resolve("hero_red", &palette_registry, false)
+            .unwrap();
 
         let (hero_img, _) = render_resolved(&hero_resolved);
         let (variant_img, _) = render_resolved(&variant_resolved);

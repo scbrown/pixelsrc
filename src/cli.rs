@@ -430,7 +430,11 @@ fn run_render(
                 PaletteRef::Named(name) if is_include_ref(name) => {
                     // Handle @include:path syntax
                     let include_path = extract_include_path(name).unwrap();
-                    match resolve_include_with_detection(include_path, input_dir, &mut include_visited) {
+                    match resolve_include_with_detection(
+                        include_path,
+                        input_dir,
+                        &mut include_visited,
+                    ) {
                         Ok(palette) => ResolvedPalette {
                             colors: palette.colors,
                             source: PaletteSource::Named(format!("@include:{}", include_path)),
@@ -454,10 +458,8 @@ fn run_render(
                     match registry.resolve(sprite, strict) {
                         Ok(result) => {
                             if let Some(warning) = result.warning {
-                                all_warnings.push(format!(
-                                    "sprite '{}': {}",
-                                    sprite.name, warning.message
-                                ));
+                                all_warnings
+                                    .push(format!("sprite '{}': {}", sprite.name, warning.message));
                                 if strict {
                                     for warning in &all_warnings {
                                         eprintln!("Error: {}", warning);
@@ -892,7 +894,10 @@ fn run_animation_render(
     }
 
     if frame_images.is_empty() {
-        eprintln!("Error: No valid frames to render in animation '{}'", animation.name);
+        eprintln!(
+            "Error: No valid frames to render in animation '{}'",
+            animation.name
+        );
         return ExitCode::from(EXIT_ERROR);
     }
 
@@ -917,14 +922,22 @@ fn run_animation_render(
             animation.loops(),
             &output_path,
         ) {
-            eprintln!("Error: Failed to save GIF '{}': {}", output_path.display(), e);
+            eprintln!(
+                "Error: Failed to save GIF '{}': {}",
+                output_path.display(),
+                e
+            );
             return ExitCode::from(EXIT_ERROR);
         }
     } else {
         // Spritesheet output
         let sheet = render_spritesheet(&frame_images, None);
         if let Err(e) = save_png(&sheet, &output_path) {
-            eprintln!("Error: Failed to save spritesheet '{}': {}", output_path.display(), e);
+            eprintln!(
+                "Error: Failed to save spritesheet '{}': {}",
+                output_path.display(),
+                e
+            );
             return ExitCode::from(EXIT_ERROR);
         }
     }
@@ -953,15 +966,13 @@ fn run_import(
     }
 
     // Derive sprite name from filename if not provided
-    let name = sprite_name
-        .map(String::from)
-        .unwrap_or_else(|| {
-            input
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        });
+    let name = sprite_name.map(String::from).unwrap_or_else(|| {
+        input
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    });
 
     // Import the PNG
     let result = match import_png(input, &name, max_colors) {
@@ -973,15 +984,13 @@ fn run_import(
     };
 
     // Generate output path
-    let output_path = output
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| {
-            let stem = input.file_stem().unwrap_or_default().to_string_lossy();
-            input
-                .parent()
-                .unwrap_or(std::path::Path::new("."))
-                .join(format!("{}.jsonl", stem))
-        });
+    let output_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+        let stem = input.file_stem().unwrap_or_default().to_string_lossy();
+        input
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join(format!("{}.jsonl", stem))
+    });
 
     // Write JSONL output
     let jsonl = result.to_jsonl();
@@ -990,6 +999,12 @@ fn run_import(
         return ExitCode::from(EXIT_ERROR);
     }
 
-    println!("Imported: {} ({}x{}, {} colors)", output_path.display(), result.width, result.height, result.palette.len());
+    println!(
+        "Imported: {} ({}x{}, {} colors)",
+        output_path.display(),
+        result.width,
+        result.height,
+        result.palette.len()
+    );
     ExitCode::from(EXIT_SUCCESS)
 }

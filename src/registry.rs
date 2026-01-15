@@ -206,11 +206,7 @@ impl PaletteRegistry {
     ///
     /// In strict mode, returns an error for missing palettes.
     /// In lenient mode, returns a fallback with a warning.
-    pub fn resolve(
-        &self,
-        sprite: &Sprite,
-        strict: bool,
-    ) -> Result<LenientResult, PaletteError> {
+    pub fn resolve(&self, sprite: &Sprite, strict: bool) -> Result<LenientResult, PaletteError> {
         if strict {
             self.resolve_strict(sprite).map(|palette| LenientResult {
                 palette,
@@ -240,7 +236,11 @@ impl fmt::Display for SpriteError {
         match self {
             SpriteError::NotFound(name) => write!(f, "Sprite or variant '{}' not found", name),
             SpriteError::BaseNotFound { variant, base } => {
-                write!(f, "Variant '{}' references unknown base sprite '{}'", variant, base)
+                write!(
+                    f,
+                    "Variant '{}' references unknown base sprite '{}'",
+                    variant, base
+                )
             }
         }
     }
@@ -263,7 +263,10 @@ impl SpriteWarning {
 
     pub fn base_not_found(variant: &str, base: &str) -> Self {
         Self {
-            message: format!("Variant '{}' references unknown base sprite '{}'", variant, base),
+            message: format!(
+                "Variant '{}' references unknown base sprite '{}'",
+                variant, base
+            ),
         }
     }
 }
@@ -378,7 +381,9 @@ impl SpriteRegistry {
         let palette = match palette_registry.resolve(sprite, strict) {
             Ok(result) => {
                 if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning { message: warning.message });
+                    warnings.push(SpriteWarning {
+                        message: warning.message,
+                    });
                 }
                 result.palette.colors
             }
@@ -436,7 +441,9 @@ impl SpriteRegistry {
         let base_palette = match palette_registry.resolve(base_sprite, strict) {
             Ok(result) => {
                 if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning { message: warning.message });
+                    warnings.push(SpriteWarning {
+                        message: warning.message,
+                    });
                 }
                 result.palette.colors
             }
@@ -572,7 +579,10 @@ mod tests {
         let sprite = bad_ref_sprite();
 
         let result = registry.resolve_strict(&sprite);
-        assert_eq!(result, Err(PaletteError::NotFound("nonexistent".to_string())));
+        assert_eq!(
+            result,
+            Err(PaletteError::NotFound("nonexistent".to_string()))
+        );
     }
 
     #[test]
@@ -593,7 +603,10 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_none());
-        assert_eq!(result.palette.source, PaletteSource::Named("mono".to_string()));
+        assert_eq!(
+            result.palette.source,
+            PaletteSource::Named("mono".to_string())
+        );
     }
 
     #[test]
@@ -603,7 +616,12 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_some());
-        assert!(result.warning.as_ref().unwrap().message.contains("nonexistent"));
+        assert!(result
+            .warning
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("nonexistent"));
         assert_eq!(result.palette.source, PaletteSource::Fallback);
         assert!(result.palette.colors.is_empty());
     }
@@ -666,7 +684,10 @@ mod tests {
         let result = registry.resolve_strict(&sprite);
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), PaletteError::NotFound("nonexistent".to_string()));
+        assert_eq!(
+            result.unwrap_err(),
+            PaletteError::NotFound("nonexistent".to_string())
+        );
     }
 
     #[test]
@@ -731,9 +752,7 @@ mod tests {
         Variant {
             name: "hero_red".to_string(),
             base: "hero".to_string(),
-            palette: HashMap::from([
-                ("{skin}".to_string(), "#FF6666".to_string()),
-            ]),
+            palette: HashMap::from([("{skin}".to_string(), "#FF6666".to_string())]),
         }
     }
 
@@ -763,7 +782,10 @@ mod tests {
 
         let result = registry.resolve_strict(&sprite).unwrap();
         assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
-        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
+        assert_eq!(
+            result.colors.get("{lightest}"),
+            Some(&"#9BBC0F".to_string())
+        );
         assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
     }
 
@@ -786,7 +808,10 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_none());
-        assert_eq!(result.palette.source, PaletteSource::Builtin("gameboy".to_string()));
+        assert_eq!(
+            result.palette.source,
+            PaletteSource::Builtin("gameboy".to_string())
+        );
         assert_eq!(
             result.palette.colors.get("{lightest}"),
             Some(&"#9BBC0F".to_string())
@@ -841,7 +866,10 @@ mod tests {
         let result = registry.resolve_strict(&sprite).unwrap();
         assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
         // Verify correct gameboy colors
-        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
+        assert_eq!(
+            result.colors.get("{lightest}"),
+            Some(&"#9BBC0F".to_string())
+        );
         assert_eq!(result.colors.get("{light}"), Some(&"#8BAC0F".to_string()));
         assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
         assert_eq!(result.colors.get("{darkest}"), Some(&"#0F380F".to_string()));
@@ -905,7 +933,9 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("hero", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "hero");
         assert_eq!(result.size, Some([4, 4]));
         assert_eq!(result.grid.len(), 4);
@@ -921,7 +951,9 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("hero_red", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "hero_red");
         assert_eq!(result.size, Some([4, 4])); // Inherited from base
         assert_eq!(result.grid.len(), 4); // Copied from base
@@ -943,7 +975,9 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("hero_alt", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "hero_alt");
 
         // Both skin and hair should be overridden
@@ -978,7 +1012,9 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("ghost", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "ghost");
         assert!(result.grid.is_empty());
         assert!(result.palette.is_empty());
@@ -1004,7 +1040,9 @@ mod tests {
         let sprite_registry = SpriteRegistry::new();
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry.resolve("missing", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("missing", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "missing");
         assert!(result.grid.is_empty());
         assert_eq!(result.warnings.len(), 1);
@@ -1019,8 +1057,12 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let sprite_result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
-        let variant_result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        let sprite_result = sprite_registry
+            .resolve("hero", &palette_registry, false)
+            .unwrap();
+        let variant_result = sprite_registry
+            .resolve("hero_red", &palette_registry, false)
+            .unwrap();
 
         // Grid should be identical
         assert_eq!(sprite_result.grid, variant_result.grid);
@@ -1043,13 +1085,13 @@ mod tests {
         let variant = Variant {
             name: "checker_red".to_string(),
             base: "checker".to_string(),
-            palette: HashMap::from([
-                ("{on}".to_string(), "#FF0000".to_string()),
-            ]),
+            palette: HashMap::from([("{on}".to_string(), "#FF0000".to_string())]),
         };
         sprite_registry.register_variant(variant);
 
-        let result = sprite_registry.resolve("checker_red", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("checker_red", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.name, "checker_red");
         // {on} should be overridden
         assert_eq!(result.palette.get("{on}"), Some(&"#FF0000".to_string()));

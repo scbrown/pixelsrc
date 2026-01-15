@@ -74,7 +74,10 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 /// assert_eq!(image.height(), 1);
 /// assert!(warnings.is_empty());
 /// ```
-pub fn render_sprite(sprite: &Sprite, palette: &HashMap<String, String>) -> (RgbaImage, Vec<Warning>) {
+pub fn render_sprite(
+    sprite: &Sprite,
+    palette: &HashMap<String, String>,
+) -> (RgbaImage, Vec<Warning>) {
     let mut warnings = Vec::new();
 
     // Parse all grid rows into tokens
@@ -366,10 +369,7 @@ mod tests {
             grid: vec!["{x}".to_string()],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{x}", "#FF0000"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -399,11 +399,7 @@ mod tests {
             ],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{r}", "#FF0000"),
-            ("{p}", "#FF6B6B"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{r}", "#FF0000"), ("{p}", "#FF6B6B")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -435,10 +431,7 @@ mod tests {
             ],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{x}", "#0000FF"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#0000FF")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -461,15 +454,12 @@ mod tests {
             size: Some([4, 2]),
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![
-                "{x}{x}".to_string(),      // Only 2 tokens, expects 4
+                "{x}{x}".to_string(),       // Only 2 tokens, expects 4
                 "{x}{x}{x}{x}".to_string(), // Full row
             ],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{x}", "#FF0000"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -478,7 +468,9 @@ mod tests {
 
         // Should have warning about short row
         assert!(!warnings.is_empty());
-        assert!(warnings.iter().any(|w| w.message.contains("Row 1") && w.message.contains("2 tokens")));
+        assert!(warnings
+            .iter()
+            .any(|w| w.message.contains("Row 1") && w.message.contains("2 tokens")));
 
         // First row: 2 red, 2 transparent (padded)
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
@@ -499,14 +491,11 @@ mod tests {
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![
                 "{x}{x}{x}{x}{x}".to_string(), // 5 tokens, expects 2
-                "{x}{x}".to_string(),           // Full row
+                "{x}{x}".to_string(),          // Full row
             ],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{x}", "#FF0000"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -535,10 +524,7 @@ mod tests {
             ],
         };
 
-        let palette = make_palette(&[
-            ("{_}", "#00000000"),
-            ("{x}", "#FF0000"),
-        ]);
+        let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -547,7 +533,9 @@ mod tests {
 
         // Should have warning about unknown token
         assert!(!warnings.is_empty());
-        assert!(warnings.iter().any(|w| w.message.contains("Unknown token {y}")));
+        assert!(warnings
+            .iter()
+            .any(|w| w.message.contains("Unknown token {y}")));
 
         // {y} should be magenta
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255])); // {x}
@@ -586,9 +574,7 @@ mod tests {
             grid: vec!["{x}".to_string()],
         };
 
-        let palette = make_palette(&[
-            ("{x}", "not-a-color"),
-        ]);
+        let palette = make_palette(&[("{x}", "not-a-color")]);
 
         let (image, warnings) = render_sprite(&sprite, &palette);
 
@@ -637,9 +623,7 @@ mod tests {
             name: "dupe".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![
-                "{x}{x}{x}".to_string(),
-            ],
+            grid: vec!["{x}{x}{x}".to_string()],
         };
 
         let palette = make_palette(&[]); // {x} is not defined
@@ -661,10 +645,10 @@ mod tests {
 
     #[test]
     fn test_render_from_fixture_files() {
+        use crate::models::{PaletteRef, TtpObject};
+        use crate::parser::parse_stream;
         use std::fs;
         use std::io::BufReader;
-        use crate::parser::parse_stream;
-        use crate::models::{TtpObject, PaletteRef};
 
         // Test minimal_dot.jsonl
         let file = fs::File::open("tests/fixtures/valid/minimal_dot.jsonl").unwrap();
@@ -728,9 +712,7 @@ mod tests {
                 "{x}{x}".to_string(), // Only 2 tokens, will be padded
                 "{x}{x}{x}".to_string(),
             ],
-            palette: HashMap::from([
-                ("{x}".to_string(), "#FF0000".to_string()),
-            ]),
+            palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
             warnings: vec![],
         };
 
@@ -796,10 +778,7 @@ mod tests {
         let resolved = ResolvedSprite {
             name: "hero_red".to_string(),
             size: Some([2, 2]),
-            grid: vec![
-                "{_}{skin}".to_string(),
-                "{skin}{_}".to_string(),
-            ],
+            grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
             palette: HashMap::from([
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{skin}".to_string(), "#FF6666".to_string()), // Overridden color
@@ -826,17 +805,21 @@ mod tests {
 
     #[test]
     fn test_variant_full_integration() {
+        use crate::models::TtpObject;
+        use crate::parser::parse_stream;
+        use crate::registry::{PaletteRegistry, SpriteRegistry};
         use std::fs;
         use std::io::BufReader;
-        use crate::parser::parse_stream;
-        use crate::models::TtpObject;
-        use crate::registry::{PaletteRegistry, SpriteRegistry};
 
         // Parse the variant_basic.jsonl fixture
         let file = fs::File::open("tests/fixtures/valid/variant_basic.jsonl").unwrap();
         let result = parse_stream(BufReader::new(file));
 
-        assert!(result.warnings.is_empty(), "Parse warnings: {:?}", result.warnings);
+        assert!(
+            result.warnings.is_empty(),
+            "Parse warnings: {:?}",
+            result.warnings
+        );
 
         // Should have 3 objects: 1 sprite + 2 variants
         assert_eq!(result.objects.len(), 3);
@@ -855,7 +838,9 @@ mod tests {
         }
 
         // Resolve and render the base sprite
-        let hero = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let hero = sprite_registry
+            .resolve("hero", &palette_registry, false)
+            .unwrap();
         assert_eq!(hero.name, "hero");
         // Size is inferred from grid (4x4), not explicitly set
         assert_eq!(hero.size, None);
@@ -866,7 +851,9 @@ mod tests {
         assert_eq!(hero_img.height(), 4);
 
         // Resolve and render hero_red variant
-        let hero_red = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
+        let hero_red = sprite_registry
+            .resolve("hero_red", &palette_registry, false)
+            .unwrap();
         assert_eq!(hero_red.name, "hero_red");
         assert_eq!(hero_red.size, None); // Inherited from base (also None)
         assert_eq!(hero_red.grid, hero.grid); // Same grid
@@ -878,7 +865,9 @@ mod tests {
         assert_eq!(*hero_red_img.get_pixel(1, 1), Rgba([255, 102, 102, 255]));
 
         // Resolve and render hero_alt variant (multiple overrides)
-        let hero_alt = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
+        let hero_alt = sprite_registry
+            .resolve("hero_alt", &palette_registry, false)
+            .unwrap();
         assert_eq!(hero_alt.name, "hero_alt");
         let (hero_alt_img, hero_alt_warns) = render_resolved(&hero_alt);
         assert!(hero_alt_warns.is_empty());
@@ -886,7 +875,7 @@ mod tests {
         // hero_alt should have #66FF66 for skin and #FFFF00 for hair
         // Hair pixels are at: (1,0), (2,0), (0,1), (3,1)
         assert_eq!(*hero_alt_img.get_pixel(1, 0), Rgba([255, 255, 0, 255])); // #FFFF00 hair
-        // Skin pixels
+                                                                             // Skin pixels
         assert_eq!(*hero_alt_img.get_pixel(1, 1), Rgba([102, 255, 102, 255])); // #66FF66 skin
 
         // Verify the images are different from each other
@@ -901,8 +890,8 @@ mod tests {
 
     #[test]
     fn test_variant_unknown_base_integration() {
-        use crate::registry::{PaletteRegistry, SpriteRegistry};
         use crate::models::Variant;
+        use crate::registry::{PaletteRegistry, SpriteRegistry};
 
         let palette_registry = PaletteRegistry::new();
         let mut sprite_registry = SpriteRegistry::new();
@@ -920,7 +909,9 @@ mod tests {
         assert!(result.is_err());
 
         // Lenient mode should succeed with warnings
-        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
+        let result = sprite_registry
+            .resolve("ghost", &palette_registry, false)
+            .unwrap();
         assert_eq!(result.warnings.len(), 1);
         assert!(result.warnings[0].message.contains("nonexistent"));
 

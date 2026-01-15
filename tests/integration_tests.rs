@@ -46,10 +46,7 @@ fn run_pxl_render(fixture: &Path, strict: bool) -> std::process::Output {
     let output_path = output_dir.join("test_output.png");
 
     let mut cmd = Command::new(pxl_binary());
-    cmd.arg("render")
-        .arg(fixture)
-        .arg("-o")
-        .arg(&output_path);
+    cmd.arg("render").arg(fixture).arg("-o").arg(&output_path);
 
     if strict {
         cmd.arg("--strict");

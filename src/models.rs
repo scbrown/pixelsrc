@@ -294,13 +294,11 @@ mod tests {
                 (".".to_string(), None),
                 ("A".to_string(), Some("sprite_a".to_string())),
             ]),
-            layers: vec![
-                CompositionLayer {
-                    name: Some("layer1".to_string()),
-                    fill: None,
-                    map: Some(vec!["A.".to_string(), ".A".to_string()]),
-                },
-            ],
+            layers: vec![CompositionLayer {
+                name: Some("layer1".to_string()),
+                fill: None,
+                map: Some(vec!["A.".to_string(), ".A".to_string()]),
+            }],
         };
         let obj = TtpObject::Composition(comp.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -317,7 +315,8 @@ mod tests {
     #[test]
     fn test_composition_default_cell_size() {
         // cell_size should default to None when not specified
-        let json = r#"{"type": "composition", "name": "no_cell_size", "sprites": {}, "layers": []}"#;
+        let json =
+            r#"{"type": "composition", "name": "no_cell_size", "sprites": {}, "layers": []}"#;
         let obj: TtpObject = serde_json::from_str(json).unwrap();
         match obj {
             TtpObject::Composition(comp) => {
@@ -378,7 +377,8 @@ mod tests {
     #[test]
     fn test_animation_loop_false() {
         // Animation with loop=false
-        let json = r#"{"type": "animation", "name": "death", "frames": ["f1", "f2"], "loop": false}"#;
+        let json =
+            r#"{"type": "animation", "name": "death", "frames": ["f1", "f2"], "loop": false}"#;
         let obj: TtpObject = serde_json::from_str(json).unwrap();
         match obj {
             TtpObject::Animation(anim) => {

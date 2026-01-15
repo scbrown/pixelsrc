@@ -19,8 +19,7 @@ const MINIMAL_DOT: &str =
 const HEART_SPRITE: &str = r##"{"type": "palette", "name": "reds", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}}
 {"type": "sprite", "name": "heart", "palette": "reds", "grid": ["{_}{r}{r}{_}", "{r}{r}{r}{r}", "{_}{r}{r}{_}", "{_}{_}{r}{_}"]}"##;
 
-const TRANSPARENT_SPRITE: &str =
-    r##"{"type": "sprite", "name": "transparent", "palette": {"{_}": "#00000000", "{x}": "#FF000080"}, "grid": ["{_}{x}", "{x}{_}"]}"##;
+const TRANSPARENT_SPRITE: &str = r##"{"type": "sprite", "name": "transparent", "palette": {"{_}": "#00000000", "{x}": "#FF000080"}, "grid": ["{_}{x}", "{x}{_}"]}"##;
 
 const MULTI_SPRITE: &str = r##"{"type": "sprite", "name": "first", "palette": {"{a}": "#FF0000"}, "grid": ["{a}"]}
 {"type": "sprite", "name": "second", "palette": {"{b}": "#00FF00"}, "grid": ["{b}"]}
@@ -55,7 +54,10 @@ fn test_render_png_empty_input() {
 fn test_render_png_palette_only() {
     let jsonl = r##"{"type": "palette", "name": "test", "colors": {"{x}": "#FF0000"}}"##;
     let result = render_to_png(jsonl);
-    assert!(result.is_empty(), "Palette-only input should produce empty PNG");
+    assert!(
+        result.is_empty(),
+        "Palette-only input should produce empty PNG"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -63,7 +65,11 @@ fn test_render_png_complex_sprite() {
     let result = render_to_png(HEART_SPRITE);
 
     assert!(!result.is_empty(), "Complex sprite should produce PNG");
-    assert_eq!(&result[0..4], &[0x89, 0x50, 0x4E, 0x47], "Should have PNG magic bytes");
+    assert_eq!(
+        &result[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "Should have PNG magic bytes"
+    );
 }
 
 // ============================================================================
@@ -234,13 +240,20 @@ fn test_list_sprites_mixed_content() {
 #[wasm_bindgen_test]
 fn test_validate_valid_input() {
     let result = validate(HEART_SPRITE);
-    assert!(result.is_empty(), "Valid input should have no warnings: {:?}", result);
+    assert!(
+        result.is_empty(),
+        "Valid input should have no warnings: {:?}",
+        result
+    );
 }
 
 #[wasm_bindgen_test]
 fn test_validate_valid_minimal() {
     let result = validate(MINIMAL_DOT);
-    assert!(result.is_empty(), "Minimal valid sprite should have no warnings");
+    assert!(
+        result.is_empty(),
+        "Minimal valid sprite should have no warnings"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -251,7 +264,8 @@ fn test_validate_invalid_json() {
 
 #[wasm_bindgen_test]
 fn test_validate_missing_palette() {
-    let jsonl = r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
+    let jsonl =
+        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
     let result = validate(jsonl);
 
     assert!(!result.is_empty(), "Missing palette reference should warn");
@@ -306,7 +320,8 @@ fn test_render_with_transparency_full() {
 #[wasm_bindgen_test]
 fn test_render_with_transparency_partial() {
     // 50% transparent red (#FF000080)
-    let jsonl = r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "grid": ["{s}"]}"##;
+    let jsonl =
+        r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "grid": ["{s}"]}"##;
     let result = render_to_rgba(jsonl);
 
     let pixels = result.pixels();

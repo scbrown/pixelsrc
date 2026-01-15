@@ -120,8 +120,7 @@ pub fn generate_output_path(
     match output_arg {
         Some(output) => {
             // Check if output is a directory (ends with / or is existing directory)
-            let is_dir = output.as_os_str().to_string_lossy().ends_with('/')
-                || output.is_dir();
+            let is_dir = output.as_os_str().to_string_lossy().ends_with('/') || output.is_dir();
 
             if is_dir {
                 // -o dir/ → dir/{name}.png
@@ -167,30 +166,15 @@ mod tests {
     #[test]
     fn test_generate_output_path_default_single() {
         // Single sprite, no -o argument
-        let path = generate_output_path(
-            Path::new("input.jsonl"),
-            "hero",
-            None,
-            true,
-        );
+        let path = generate_output_path(Path::new("input.jsonl"), "hero", None, true);
         assert_eq!(path, PathBuf::from("input_hero.png"));
     }
 
     #[test]
     fn test_generate_output_path_default_multiple() {
         // Multiple sprites, no -o argument
-        let path1 = generate_output_path(
-            Path::new("input.jsonl"),
-            "hero",
-            None,
-            false,
-        );
-        let path2 = generate_output_path(
-            Path::new("input.jsonl"),
-            "enemy",
-            None,
-            false,
-        );
+        let path1 = generate_output_path(Path::new("input.jsonl"), "hero", None, false);
+        let path2 = generate_output_path(Path::new("input.jsonl"), "enemy", None, false);
         assert_eq!(path1, PathBuf::from("input_hero.png"));
         assert_eq!(path2, PathBuf::from("input_enemy.png"));
     }
@@ -260,12 +244,8 @@ mod tests {
     #[test]
     fn test_generate_output_path_nested_input() {
         // Input in subdirectory
-        let path = generate_output_path(
-            Path::new("assets/sprites/input.jsonl"),
-            "hero",
-            None,
-            true,
-        );
+        let path =
+            generate_output_path(Path::new("assets/sprites/input.jsonl"), "hero", None, true);
         assert_eq!(path, PathBuf::from("assets/sprites/input_hero.png"));
     }
 
@@ -305,7 +285,7 @@ mod tests {
         image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Red
         image.put_pixel(1, 0, Rgba([0, 255, 0, 255])); // Green
         image.put_pixel(0, 1, Rgba([0, 0, 255, 255])); // Blue
-        image.put_pixel(1, 1, Rgba([0, 0, 0, 0]));     // Transparent
+        image.put_pixel(1, 1, Rgba([0, 0, 0, 0])); // Transparent
 
         let result = save_png(&image, &path);
         assert!(result.is_ok());
@@ -424,7 +404,7 @@ mod tests {
     fn test_scale_image_preserves_transparency() {
         let mut image = RgbaImage::new(2, 1);
         image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Opaque red
-        image.put_pixel(1, 0, Rgba([0, 0, 0, 0]));     // Transparent
+        image.put_pixel(1, 0, Rgba([0, 0, 0, 0])); // Transparent
 
         let scaled = scale_image(image, 2);
 

@@ -252,12 +252,12 @@ mod tests {
     #[test]
     fn test_render_emoji_art() {
         let mut image = image::RgbaImage::new(3, 2);
-        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));   // Red
-        image.put_pixel(1, 0, Rgba([0, 255, 0, 255]));   // Green
-        image.put_pixel(2, 0, Rgba([0, 0, 255, 255]));   // Blue
-        image.put_pixel(0, 1, Rgba([0, 0, 0, 255]));     // Black
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Red
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255])); // Green
+        image.put_pixel(2, 0, Rgba([0, 0, 255, 255])); // Blue
+        image.put_pixel(0, 1, Rgba([0, 0, 0, 255])); // Black
         image.put_pixel(1, 1, Rgba([255, 255, 255, 255])); // White
-        image.put_pixel(2, 1, Rgba([0, 0, 0, 0]));       // Transparent
+        image.put_pixel(2, 1, Rgba([0, 0, 0, 0])); // Transparent
 
         let output = render_emoji_art(&image);
         assert_eq!(output, "🟥🟩🟦\n⬛⬜⬜\n");
@@ -267,7 +267,7 @@ mod tests {
     fn test_hsl_conversion() {
         // Test RGB to HSL conversion
         let (h, s, l) = rgb_to_hsl(255, 0, 0);
-        assert!((h - 0.0).abs() < 1.0);  // Red hue ~0
+        assert!((h - 0.0).abs() < 1.0); // Red hue ~0
         assert!((s - 1.0).abs() < 0.01); // Full saturation
         assert!((l - 0.5).abs() < 0.01); // Mid lightness
 
