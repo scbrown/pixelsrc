@@ -241,11 +241,11 @@ mod tests {
         for entry in fs::read_dir(fixtures_dir).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
-            // Support both .jsonl and .pxl extensions
-            let is_pixelsrc = path
+            // Support both .pxl and .jsonl extensions
+            if path
                 .extension()
-                .map_or(false, |e| e == "jsonl" || e == "pxl");
-            if is_pixelsrc {
+                .map_or(false, |e| e == "jsonl" || e == "pxl")
+            {
                 let file = fs::File::open(&path).unwrap();
                 let reader = std::io::BufReader::new(file);
                 let result = parse_stream(reader);
@@ -277,7 +277,11 @@ mod tests {
         for entry in fs::read_dir(fixtures_dir).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "jsonl") {
+            // Support both .pxl and .jsonl extensions
+            if path
+                .extension()
+                .map_or(false, |e| e == "jsonl" || e == "pxl")
+            {
                 let filename = path.file_name().unwrap().to_str().unwrap();
 
                 // Skip semantic error files - they parse successfully
