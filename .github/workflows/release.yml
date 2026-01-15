@@ -4,9 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.0)'
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
+  VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -66,7 +73,7 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release
-          tar czvf ../../../pxl-${{ github.ref_name }}-${{ matrix.target }}.tar.gz pxl
+          tar czvf ../../../pxl-${{ env.VERSION }}-${{ matrix.target }}.tar.gz pxl
           cd ../../..
 
       - name: Package (Windows)
@@ -74,14 +81,14 @@ jobs:
         shell: pwsh
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path pxl.exe -DestinationPath ../../../pxl-${{ github.ref_name }}-${{ matrix.target }}.zip
+          Compress-Archive -Path pxl.exe -DestinationPath ../../../pxl-${{ env.VERSION }}-${{ matrix.target }}.zip
           cd ../../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: pxl-${{ matrix.target }}
-          path: pxl-${{ github.ref_name }}-${{ matrix.target }}.${{ matrix.archive }}
+          path: pxl-${{ env.VERSION }}-${{ matrix.target }}.${{ matrix.archive }}
 
   build-deb:
     name: Build Debian package
@@ -104,8 +111,10 @@ jobs:
           chmod +x pxl
 
       - name: Build .deb package
+        env:
+          RELEASE_VERSION: ${{ env.VERSION }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG_NAME="pxl"
           PKG_DIR="${PKG_NAME}_${VERSION}_amd64"
 
@@ -183,6 +192,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.VERSION }}
           files: artifacts/*
           generate_release_notes: true
           fail_on_unmatched_files: true
