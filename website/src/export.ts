@@ -48,23 +48,23 @@ export class Export {
    */
   private render(): void {
     this.container.innerHTML = `
-      <div class="export-controls">
+      <div class="export-controls" role="group" aria-label="Export options">
         <label class="export-scale-label">
-          Scale:
-          <select class="export-scale-select">
+          <span id="scale-label">Scale:</span>
+          <select class="export-scale-select" aria-labelledby="scale-label">
             <option value="1">1x</option>
             <option value="2">2x</option>
             <option value="4" selected>4x</option>
             <option value="8">8x</option>
           </select>
         </label>
-        <button class="export-btn export-download-btn" title="Download PNG">
+        <button type="button" class="export-btn export-download-btn" aria-label="Download PNG at selected scale">
           Download PNG
         </button>
-        <button class="export-btn export-copy-btn" title="Copy to Clipboard">
+        <button type="button" class="export-btn export-copy-btn" aria-label="Copy image to clipboard at selected scale">
           Copy
         </button>
-        <span class="export-copy-feedback hidden">Copied!</span>
+        <span class="export-copy-feedback hidden" role="status" aria-live="polite">Copied!</span>
       </div>
     `;
 

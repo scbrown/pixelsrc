@@ -57,9 +57,11 @@ export class Preview {
     this.minScale = options.minScale ?? 1;
     this.maxScale = options.maxScale ?? 32;
 
-    // Create main canvas
+    // Create main canvas with accessibility attributes
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'preview-canvas';
+    this.canvas.setAttribute('role', 'img');
+    this.canvas.setAttribute('aria-label', 'Sprite preview - no content rendered');
     this.ctx = this.canvas.getContext('2d')!;
 
     // Disable image smoothing for crisp pixels
@@ -227,8 +229,11 @@ export class Preview {
       );
 
       output.success = true;
+      // Update canvas accessibility label with dimensions
+      this.canvas.setAttribute('aria-label', `Rendered sprite preview: ${result.width}×${result.height} pixels at ${scale}x scale`);
     } catch (err) {
       output.error = `Render error: ${err}`;
+      this.canvas.setAttribute('aria-label', 'Sprite preview - render failed');
     }
 
     return output;
