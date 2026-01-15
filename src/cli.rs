@@ -9,6 +9,9 @@ use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
+use crate::explain::{
+    explain_object, format_explanation, resolve_palette_colors, Explanation,
+};
 use crate::suggest::{format_suggestion, suggest};
 use crate::validate::{Severity, Validator};
 #[allow(unused_imports)]
@@ -215,6 +218,20 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Explain sprites and other objects in human-readable format
+    Explain {
+        /// Input file containing pixelsrc objects
+        input: PathBuf,
+
+        /// Name of specific object to explain (sprite, palette, etc.)
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -283,6 +300,7 @@ pub fn run() -> ExitCode {
             strict,
             json,
         } => run_validate(&files, stdin, strict, json),
+        Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
     }
 }
 
@@ -1470,6 +1488,172 @@ fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> Exi
     } else {
         ExitCode::from(EXIT_SUCCESS)
     }
+}
+
+/// Execute the explain command
+fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCode {
+    use std::collections::HashMap;
+
+    // Open input file
+    let file = match File::open(input) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    // Parse JSONL stream
+    let reader = BufReader::new(file);
+    let parse_result = parse_stream(reader);
+
+    if parse_result.objects.is_empty() {
+        eprintln!("Error: No objects found in input file");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Collect palettes for color resolution
+    let mut known_palettes: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for obj in &parse_result.objects {
+        if let TtpObject::Palette(palette) = obj {
+            known_palettes.insert(palette.name.clone(), palette.colors.clone());
+        }
+    }
+
+    // Filter objects if name is specified
+    let objects_to_explain: Vec<&TtpObject> = if let Some(name) = name_filter {
+        let filtered: Vec<_> = parse_result
+            .objects
+            .iter()
+            .filter(|obj| match obj {
+                TtpObject::Sprite(s) => s.name == name,
+                TtpObject::Palette(p) => p.name == name,
+                TtpObject::Animation(a) => a.name == name,
+                TtpObject::Composition(c) => c.name == name,
+                TtpObject::Variant(v) => v.name == name,
+            })
+            .collect();
+
+        if filtered.is_empty() {
+            eprintln!("Error: No object named '{}' found", name);
+            // Suggest similar names
+            let all_names: Vec<&str> = parse_result
+                .objects
+                .iter()
+                .map(|obj| match obj {
+                    TtpObject::Sprite(s) => s.name.as_str(),
+                    TtpObject::Palette(p) => p.name.as_str(),
+                    TtpObject::Animation(a) => a.name.as_str(),
+                    TtpObject::Composition(c) => c.name.as_str(),
+                    TtpObject::Variant(v) => v.name.as_str(),
+                })
+                .collect();
+            if let Some(suggestion) = format_suggestion(&suggest(name, &all_names, 3)) {
+                eprintln!("{}", suggestion);
+            }
+            return ExitCode::from(EXIT_ERROR);
+        }
+        filtered
+    } else {
+        parse_result.objects.iter().collect()
+    };
+
+    // Generate explanations
+    let mut explanations = Vec::new();
+    for obj in objects_to_explain {
+        // Resolve palette colors for sprites
+        let palette_colors = match obj {
+            TtpObject::Sprite(sprite) => resolve_palette_colors(&sprite.palette, &known_palettes),
+            _ => None,
+        };
+
+        let explanation = explain_object(obj, palette_colors.as_ref());
+        explanations.push(explanation);
+    }
+
+    // Output
+    if json {
+        // JSON output
+        let json_explanations: Vec<serde_json::Value> = explanations
+            .iter()
+            .map(|exp| match exp {
+                Explanation::Sprite(s) => serde_json::json!({
+                    "type": "sprite",
+                    "name": s.name,
+                    "width": s.width,
+                    "height": s.height,
+                    "total_cells": s.total_cells,
+                    "palette": s.palette_ref,
+                    "tokens": s.tokens.iter().map(|t| serde_json::json!({
+                        "token": t.token,
+                        "count": t.count,
+                        "percentage": t.percentage,
+                        "color": t.color,
+                        "color_name": t.color_name,
+                    })).collect::<Vec<_>>(),
+                    "transparency_ratio": s.transparency_ratio,
+                    "consistent_rows": s.consistent_rows,
+                    "issues": s.issues,
+                }),
+                Explanation::Palette(p) => serde_json::json!({
+                    "type": "palette",
+                    "name": p.name,
+                    "color_count": p.color_count,
+                    "colors": p.colors.iter().map(|(token, hex, name)| serde_json::json!({
+                        "token": token,
+                        "color": hex,
+                        "color_name": name,
+                    })).collect::<Vec<_>>(),
+                    "is_builtin": p.is_builtin,
+                }),
+                Explanation::Animation(a) => serde_json::json!({
+                    "type": "animation",
+                    "name": a.name,
+                    "frames": a.frames,
+                    "frame_count": a.frame_count,
+                    "duration_ms": a.duration_ms,
+                    "loops": a.loops,
+                }),
+                Explanation::Composition(c) => serde_json::json!({
+                    "type": "composition",
+                    "name": c.name,
+                    "base": c.base,
+                    "size": c.size,
+                    "cell_size": c.cell_size,
+                    "sprite_count": c.sprite_count,
+                    "layer_count": c.layer_count,
+                }),
+                Explanation::Variant(v) => serde_json::json!({
+                    "type": "variant",
+                    "name": v.name,
+                    "base": v.base,
+                    "override_count": v.override_count,
+                    "overrides": v.overrides.iter().map(|(token, color)| serde_json::json!({
+                        "token": token,
+                        "color": color,
+                    })).collect::<Vec<_>>(),
+                }),
+            })
+            .collect();
+
+        let output = if json_explanations.len() == 1 {
+            serde_json::to_string_pretty(&json_explanations[0]).unwrap()
+        } else {
+            serde_json::to_string_pretty(&json_explanations).unwrap()
+        };
+        println!("{}", output);
+    } else {
+        // Text output
+        for (i, exp) in explanations.iter().enumerate() {
+            if i > 0 {
+                println!("\n{}", "=".repeat(40));
+                println!();
+            }
+            print!("{}", format_explanation(exp));
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
 }
 
 #[cfg(test)]
