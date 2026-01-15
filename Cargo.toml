@@ -23,6 +23,7 @@ clap = { version = "4.0", features = ["derive"] }
 glob = "0.3"
 wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
+regex = "1.12.2"
 
 [dev-dependencies]
 tempfile = "3"
