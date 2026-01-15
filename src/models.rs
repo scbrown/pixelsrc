@@ -91,6 +91,16 @@ pub struct Composition {
     pub layers: Vec<CompositionLayer>,
 }
 
+impl Composition {
+    /// Default cell size when not specified: 1x1 pixels.
+    pub const DEFAULT_CELL_SIZE: [u32; 2] = [1, 1];
+
+    /// Returns the cell size for tiling (default: [1, 1]).
+    pub fn cell_size(&self) -> [u32; 2] {
+        self.cell_size.unwrap_or(Self::DEFAULT_CELL_SIZE)
+    }
+}
+
 /// A Pixelsrc object - Palette, Sprite, Variant, Composition, or Animation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -321,9 +331,37 @@ mod tests {
         match obj {
             TtpObject::Composition(comp) => {
                 assert!(comp.cell_size.is_none());
+                // Helper method should return default [1, 1]
+                assert_eq!(comp.cell_size(), [1, 1]);
             }
             _ => panic!("Expected composition"),
         }
+    }
+
+    #[test]
+    fn test_composition_cell_size_helper() {
+        // When cell_size is specified, helper returns it
+        let comp = Composition {
+            name: "test".to_string(),
+            base: None,
+            size: None,
+            cell_size: Some([8, 8]),
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+        assert_eq!(comp.cell_size(), [8, 8]);
+
+        // When cell_size is None, helper returns default [1, 1]
+        let comp_default = Composition {
+            name: "test_default".to_string(),
+            base: None,
+            size: None,
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+        assert_eq!(comp_default.cell_size(), Composition::DEFAULT_CELL_SIZE);
+        assert_eq!(comp_default.cell_size(), [1, 1]);
     }
 
     #[test]
