@@ -113,6 +113,21 @@ pub enum Commands {
         #[command(subcommand)]
         action: PaletteAction,
     },
+
+    /// Format pixelsrc files for readability
+    Fmt {
+        /// Input file(s) to format
+        #[arg(required = true)]
+        files: Vec<PathBuf>,
+
+        /// Check formatting without writing (exit 1 if changes needed)
+        #[arg(long)]
+        check: bool,
+
+        /// Write to stdout instead of in-place
+        #[arg(long)]
+        stdout: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -162,6 +177,11 @@ pub fn run() -> ExitCode {
         } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
+        Commands::Fmt {
+            files,
+            check,
+            stdout,
+        } => run_fmt(&files, check, stdout),
     }
 }
 
@@ -1007,4 +1027,57 @@ fn run_import(
         result.palette.len()
     );
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the fmt command
+fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
+    let mut needs_formatting = false;
+
+    for file in files {
+        // Read file content
+        let content = match std::fs::read_to_string(file) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Error: Cannot read '{}': {}", file.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        };
+
+        // Format the content (placeholder - actual implementation in Task 16.4)
+        let formatted = format_pixelsrc(&content);
+
+        if check {
+            // Check mode: compare and report
+            if content != formatted {
+                eprintln!("{}: needs formatting", file.display());
+                needs_formatting = true;
+            }
+        } else if stdout_mode {
+            // Stdout mode: print formatted content
+            print!("{}", formatted);
+        } else {
+            // In-place mode: write back to file
+            if content != formatted {
+                if let Err(e) = std::fs::write(file, &formatted) {
+                    eprintln!("Error: Cannot write '{}': {}", file.display(), e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                eprintln!("{}: formatted", file.display());
+            } else {
+                eprintln!("{}: already formatted", file.display());
+            }
+        }
+    }
+
+    if check && needs_formatting {
+        ExitCode::from(EXIT_ERROR)
+    } else {
+        ExitCode::from(EXIT_SUCCESS)
+    }
+}
+
+/// Placeholder formatter - returns content unchanged
+/// Actual formatting logic will be implemented in Task 16.4
+fn format_pixelsrc(content: &str) -> String {
+    content.to_string()
 }
