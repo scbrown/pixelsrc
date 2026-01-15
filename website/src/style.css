@@ -815,3 +815,290 @@ html, body {
     min-height: 72px;
   }
 }
+
+/* ========================================
+   ANIMATIONS & MICRO-INTERACTIONS (11.8)
+   ======================================== */
+
+/* Page Load Entrance Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Panel entrance animations */
+#header {
+  animation: fadeIn 0.4s ease-out;
+}
+
+#editor-panel {
+  animation: fadeInUp 0.5s ease-out 0.1s both;
+}
+
+#preview-panel {
+  animation: fadeInUp 0.5s ease-out 0.2s both;
+}
+
+#gallery-panel {
+  animation: fadeInUp 0.5s ease-out 0.3s both;
+}
+
+/* Header Title Glow Effect */
+@keyframes titleGlow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(189, 147, 249, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(189, 147, 249, 0.6), 0 0 30px rgba(189, 147, 249, 0.3);
+  }
+}
+
+#header h1 {
+  animation: titleGlow 4s ease-in-out infinite;
+}
+
+/* Preview Canvas Render Animation */
+@keyframes canvasFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#preview-canvas canvas.preview-canvas {
+  animation: canvasFadeIn 0.3s ease-out;
+}
+
+/* Render Button Pulse on Idle */
+@keyframes subtlePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(189, 147, 249, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(189, 147, 249, 0.2);
+  }
+}
+
+#render-btn {
+  animation: subtlePulse 3s ease-in-out infinite;
+}
+
+#render-btn:hover {
+  animation: none;
+}
+
+#render-btn:active {
+  transform: translateY(0) scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Enhanced Gallery Item Interactions */
+.gallery-item {
+  transform-origin: center;
+  will-change: transform, box-shadow;
+}
+
+.gallery-item:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.gallery-item:active {
+  transform: translateY(-2px) scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Gallery Item Image Hover Effect */
+.gallery-item:hover .gallery-thumb img {
+  filter: brightness(1.1);
+}
+
+/* Status Indicator Entrance/Exit */
+@keyframes statusSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.preview-status {
+  animation: statusSlideIn 0.2s ease-out;
+}
+
+.preview-status.hidden {
+  animation: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Copy Feedback Pop Animation */
+@keyframes copyPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.export-copy-feedback.visible {
+  animation: copyPop 0.3s ease-out;
+}
+
+/* Error Shake Animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.error:not(.hidden) {
+  animation: shake 0.4s ease-out;
+}
+
+/* Loading Overlay Exit Enhancement */
+#loading-overlay {
+  transition: opacity 0.4s ease-out, visibility 0.4s;
+}
+
+#loading-overlay.hidden {
+  visibility: hidden;
+}
+
+.loading-content {
+  transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+#loading-overlay.hidden .loading-content {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
+/* Loading Spinner Enhancement */
+@keyframes spinnerPulse {
+  0%, 100% {
+    border-top-color: var(--accent);
+    transform: rotate(0deg);
+  }
+  25% {
+    border-top-color: var(--accent-pink);
+  }
+  50% {
+    border-top-color: var(--accent-cyan);
+  }
+  75% {
+    border-top-color: var(--accent-green);
+  }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite, spinnerPulse 4s ease-in-out infinite;
+}
+
+/* Editor Focus Glow */
+#editor {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#editor:focus {
+  box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.2), inset 0 0 20px rgba(189, 147, 249, 0.05);
+}
+
+/* Export Button Hover Animations */
+.export-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.export-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.export-btn:hover::after {
+  transform: translateX(100%);
+}
+
+/* Scale Select Subtle Animation */
+.export-scale-select {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.export-scale-select:focus {
+  box-shadow: 0 0 0 2px rgba(189, 147, 249, 0.2);
+}
+
+/* Gallery Grid Stagger Animation */
+@keyframes galleryItemIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.gallery-item {
+  animation: galleryItemIn 0.3s ease-out backwards;
+}
+
+.gallery-item:nth-child(1) { animation-delay: 0.05s; }
+.gallery-item:nth-child(2) { animation-delay: 0.1s; }
+.gallery-item:nth-child(3) { animation-delay: 0.15s; }
+.gallery-item:nth-child(4) { animation-delay: 0.2s; }
+.gallery-item:nth-child(5) { animation-delay: 0.25s; }
+.gallery-item:nth-child(6) { animation-delay: 0.3s; }
+.gallery-item:nth-child(7) { animation-delay: 0.35s; }
+.gallery-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
