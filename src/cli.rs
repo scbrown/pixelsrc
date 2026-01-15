@@ -10,6 +10,7 @@ use std::process::ExitCode;
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
 use crate::suggest::{format_suggestion, suggest};
+use crate::validate::{Severity, Validator};
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
 use crate::fmt::format_pixelsrc;
@@ -195,6 +196,25 @@ pub enum Commands {
         #[arg(long)]
         section: Option<String>,
     },
+
+    /// Validate pixelsrc files for common mistakes
+    Validate {
+        /// Files to validate (omit if using --stdin)
+        #[arg(required_unless_present = "stdin")]
+        files: Vec<PathBuf>,
+
+        /// Read input from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Treat warnings as errors
+        #[arg(long)]
+        strict: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -257,6 +277,12 @@ pub fn run() -> ExitCode {
             stdout,
         } => run_fmt(&files, check, stdout),
         Commands::Prime { brief, section } => run_prime(brief, section.as_deref()),
+        Commands::Validate {
+            files,
+            stdin,
+            strict,
+            json,
+        } => run_validate(&files, stdin, strict, json),
     }
 }
 
@@ -1300,6 +1326,146 @@ fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
     }
 
     if check && needs_formatting {
+        ExitCode::from(EXIT_ERROR)
+    } else {
+        ExitCode::from(EXIT_SUCCESS)
+    }
+}
+
+/// Execute the validate command
+fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> ExitCode {
+    use std::io::{self, BufRead};
+
+    let mut validator = Validator::new();
+
+    if stdin {
+        // Read from stdin
+        let stdin_handle = io::stdin();
+        for (line_idx, line_result) in stdin_handle.lock().lines().enumerate() {
+            let line_number = line_idx + 1;
+            match line_result {
+                Ok(line) => validator.validate_line(line_number, &line),
+                Err(e) => {
+                    eprintln!("Error reading stdin at line {}: {}", line_number, e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
+        }
+    } else {
+        // Validate files
+        if files.is_empty() {
+            eprintln!("Error: No files to validate");
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+
+        for path in files {
+            if !json {
+                println!("Validating {}...", path.display());
+            }
+            if let Err(e) = validator.validate_file(path) {
+                eprintln!("Error: Cannot read '{}': {}", path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    }
+
+    let issues = validator.into_issues();
+    let error_count = issues.iter().filter(|i| matches!(i.severity, Severity::Error)).count();
+    let warning_count = issues.iter().filter(|i| matches!(i.severity, Severity::Warning)).count();
+
+    // Determine validity based on strict mode
+    let has_failures = error_count > 0 || (strict && warning_count > 0);
+
+    if json {
+        // JSON output
+        let errors: Vec<_> = issues
+            .iter()
+            .filter(|i| matches!(i.severity, Severity::Error))
+            .map(|i| {
+                let mut obj = serde_json::json!({
+                    "line": i.line,
+                    "type": i.issue_type.to_string(),
+                    "message": i.message,
+                });
+                if let Some(ref ctx) = i.context {
+                    obj["context"] = serde_json::json!(ctx);
+                }
+                if let Some(ref sug) = i.suggestion {
+                    obj["suggestion"] = serde_json::json!(sug);
+                }
+                obj
+            })
+            .collect();
+
+        let warnings: Vec<_> = issues
+            .iter()
+            .filter(|i| matches!(i.severity, Severity::Warning))
+            .map(|i| {
+                let mut obj = serde_json::json!({
+                    "line": i.line,
+                    "type": i.issue_type.to_string(),
+                    "message": i.message,
+                });
+                if let Some(ref ctx) = i.context {
+                    obj["context"] = serde_json::json!(ctx);
+                }
+                if let Some(ref sug) = i.suggestion {
+                    obj["suggestion"] = serde_json::json!(sug);
+                }
+                obj
+            })
+            .collect();
+
+        let output = serde_json::json!({
+            "valid": !has_failures,
+            "errors": errors,
+            "warnings": warnings,
+        });
+
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    } else {
+        // Text output
+        if issues.is_empty() {
+            println!();
+            println!("No issues found.");
+        } else {
+            println!();
+            for issue in &issues {
+                let severity_str = match issue.severity {
+                    Severity::Error => "ERROR",
+                    Severity::Warning => "WARNING",
+                };
+
+                let mut msg = format!("Line {}: {} - {}", issue.line, severity_str, issue.message);
+
+                if let Some(ref ctx) = issue.context {
+                    msg.push_str(&format!(" ({})", ctx));
+                }
+                if let Some(ref sug) = issue.suggestion {
+                    msg.push_str(&format!(" ({})", sug));
+                }
+
+                eprintln!("{}", msg);
+            }
+
+            println!();
+            match (error_count, warning_count) {
+                (0, w) => println!("Found {} warning{}.", w, if w == 1 { "" } else { "s" }),
+                (e, 0) => println!("Found {} error{}.", e, if e == 1 { "" } else { "s" }),
+                (e, w) => println!(
+                    "Found {} error{}, {} warning{}.",
+                    e, if e == 1 { "" } else { "s" },
+                    w, if w == 1 { "" } else { "s" }
+                ),
+            }
+
+            if !strict && warning_count > 0 && error_count == 0 {
+                println!("Hint: Run with --strict to treat warnings as errors.");
+            }
+        }
+    }
+
+    if has_failures {
         ExitCode::from(EXIT_ERROR)
     } else {
         ExitCode::from(EXIT_SUCCESS)
