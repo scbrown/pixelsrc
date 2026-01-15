@@ -76,7 +76,7 @@ pub fn color_to_emoji(color: Rgba<u8>) -> &'static str {
     // Map hue to emoji color
     // Brown is a special case: medium-low saturation + low-medium lightness + orange-ish hue
     // Brown is essentially "dark orange" - saturated orange/yellow hues with low lightness
-    if l >= 0.2 && l < 0.5 && h >= 15.0 && h < 50.0 && s < 0.7 {
+    if (0.2..0.5).contains(&l) && (15.0..50.0).contains(&h) && s < 0.7 {
         return BROWN;
     }
 
@@ -88,7 +88,7 @@ fn hue_to_emoji(hue: f32) -> &'static str {
     // Normalize hue to 0-360 range
     let h = hue % 360.0;
 
-    if h < 15.0 || h >= 345.0 {
+    if !(15.0..345.0).contains(&h) {
         RED
     } else if h < 45.0 {
         ORANGE

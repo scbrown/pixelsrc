@@ -64,7 +64,7 @@ impl Color {
         }
     }
 
-    fn to_hex(&self) -> String {
+    fn to_hex(self) -> String {
         if self.a == 255 {
             format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
         } else {

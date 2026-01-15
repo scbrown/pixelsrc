@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::composition::render_composition;
+#[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
 use crate::gif::render_gif;
 use crate::import::import_png;
@@ -261,7 +262,7 @@ fn run_render(
     scale: u8,
     gif_output: bool,
     spritesheet_output: bool,
-    emoji_output: bool,
+    _emoji_output: bool,
     animation_filter: Option<&str>,
 ) -> ExitCode {
     // Open input file
