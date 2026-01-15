@@ -11,6 +11,35 @@ use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
+use glob::glob;
+
+/// Check if a path has a valid Pixelsrc file extension (.pxl or .jsonl).
+pub fn is_pixelsrc_file(path: &std::path::Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("pxl") | Some("jsonl")
+    )
+}
+
+/// Find all Pixelsrc files in a directory (recursively).
+///
+/// Searches for both `.pxl` and `.jsonl` files.
+pub fn find_pixelsrc_files(dir: &std::path::Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    let dir_str = dir.display().to_string();
+
+    // Search for .pxl files
+    if let Ok(paths) = glob(&format!("{}/**/*.pxl", dir_str)) {
+        files.extend(paths.filter_map(Result::ok));
+    }
+
+    // Search for .jsonl files
+    if let Ok(paths) = glob(&format!("{}/**/*.jsonl", dir_str)) {
+        files.extend(paths.filter_map(Result::ok));
+    }
+
+    files
+}
 use crate::gif::render_gif;
 use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
@@ -27,10 +56,10 @@ const EXIT_SUCCESS: u8 = 0;
 const EXIT_ERROR: u8 = 1;
 const EXIT_INVALID_ARGS: u8 = 2;
 
-/// Pixelsrc - Parse JSONL pixel art definitions and render to PNG
+/// Pixelsrc - Parse pixel art definitions and render to PNG
 #[derive(Parser)]
 #[command(name = "pxl")]
-#[command(about = "Pixelsrc - Parse JSONL pixel art definitions and render to PNG")]
+#[command(about = "Pixelsrc - Parse pixel art definitions (.pxl, .jsonl) and render to PNG")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -39,9 +68,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Render sprites from a Pixelsrc JSONL file to PNG
+    /// Render sprites from a Pixelsrc file to PNG
     Render {
-        /// Input JSONL file containing palette and sprite definitions
+        /// Input file containing palette and sprite definitions (.pxl or .jsonl)
         input: PathBuf,
 
         /// Output file or directory.
@@ -84,12 +113,12 @@ pub enum Commands {
         #[arg(long)]
         animation: Option<String>,
     },
-    /// Import a PNG image and convert to Pixelsrc JSONL format
+    /// Import a PNG image and convert to Pixelsrc format
     Import {
         /// Input PNG file to convert
         input: PathBuf,
 
-        /// Output JSONL file (default: {input}.jsonl)
+        /// Output file (default: {input}.jsonl, use .pxl extension for new format)
         #[arg(short, long)]
         output: Option<PathBuf>,
 
@@ -1198,4 +1227,63 @@ fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
 /// Actual formatting logic will be implemented in Task 16.4
 fn format_pixelsrc(content: &str) -> String {
     content.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn test_is_pixelsrc_file_pxl() {
+        assert!(is_pixelsrc_file(Path::new("test.pxl")));
+        assert!(is_pixelsrc_file(Path::new("path/to/sprite.pxl")));
+        assert!(is_pixelsrc_file(Path::new("/absolute/path.pxl")));
+    }
+
+    #[test]
+    fn test_is_pixelsrc_file_jsonl() {
+        assert!(is_pixelsrc_file(Path::new("test.jsonl")));
+        assert!(is_pixelsrc_file(Path::new("path/to/sprite.jsonl")));
+        assert!(is_pixelsrc_file(Path::new("/absolute/path.jsonl")));
+    }
+
+    #[test]
+    fn test_is_pixelsrc_file_invalid() {
+        assert!(!is_pixelsrc_file(Path::new("test.png")));
+        assert!(!is_pixelsrc_file(Path::new("test.json")));
+        assert!(!is_pixelsrc_file(Path::new("test.txt")));
+        assert!(!is_pixelsrc_file(Path::new("test")));
+        assert!(!is_pixelsrc_file(Path::new("pxl")));
+        assert!(!is_pixelsrc_file(Path::new(".pxl")));
+    }
+
+    #[test]
+    fn test_find_pixelsrc_files() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let dir_path = temp_dir.path();
+
+        // Create test files
+        fs::write(dir_path.join("test1.pxl"), "{}").unwrap();
+        fs::write(dir_path.join("test2.jsonl"), "{}").unwrap();
+        fs::write(dir_path.join("test3.png"), "ignored").unwrap();
+
+        // Create a subdirectory with more files
+        let sub_dir = dir_path.join("subdir");
+        fs::create_dir(&sub_dir).unwrap();
+        fs::write(sub_dir.join("nested.pxl"), "{}").unwrap();
+
+        let files = find_pixelsrc_files(dir_path);
+
+        // Should find 3 pixelsrc files (.pxl and .jsonl)
+        assert_eq!(files.len(), 3);
+
+        // Check that all found files have correct extensions
+        for file in &files {
+            assert!(is_pixelsrc_file(file));
+        }
+    }
 }
