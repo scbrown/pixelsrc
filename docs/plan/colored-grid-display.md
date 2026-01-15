@@ -1,4 +1,6 @@
-# Plan: Colored Terminal Output & Alias Management
+# Colored Terminal Output & Alias Management
+
+**Related:** [Transforms](./transforms.md) - Use `pxl show` to visualize transform results
 
 ## Summary
 
@@ -192,10 +194,10 @@ Output:
 
 ## Verification
 
-1. `pxl show examples/walk_cycle.jsonl` - colored grid with legend
-2. `pxl grid examples/heart.jsonl` - coordinate reference display
-3. `pxl inline examples/hero.jsonl` - column-aligned output
-4. `pxl alias examples/hero.jsonl` - extract to single-letter aliases
+1. `pxl show examples/walk_cycle.pxl` - colored grid with legend
+2. `pxl grid examples/heart.pxl` - coordinate reference display
+3. `pxl inline examples/hero.pxl` - column-aligned output
+4. `pxl alias examples/hero.pxl` - extract to single-letter aliases
 5. `echo "_ _ b b\n_ b c b" | pxl sketch --name test` - simple grid to sprite
 6. Round-trip: `pxl alias | pxl inline` preserves meaning
 7. Workflow: `pxl sketch` -> edit colors -> `pxl show` to verify

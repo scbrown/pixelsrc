@@ -27,13 +27,19 @@ This directory contains the phased implementation plan for Pixelsrc.
 
 ### Future Ideas
 
-| Idea | Description |
-|------|-------------|
-| VS Code Extension | Syntax highlighting + live preview |
-| Token Efficiency | Run-length encoding, row repetition, compression |
-| Inheritance | Scene variants, extends, day/night themes |
-| Edge Constraints | Tile connectivity validation (see BACKLOG) |
-| Metadata/Frontmatter | Optional metadata convention separate from spec (see BACKLOG) |
+See [personas](../personas.md) for user context on feature complexity.
+
+| Idea | Personas | Description |
+|------|----------|-------------|
+| [Transforms](./transforms.md) | Pixel Artist+ | Mirror, rotate, tile, keyframes, user-defined transforms |
+| [Advanced Transforms](./advanced-transforms.md) | Motion Designer, Game Dev | Palette cycling, color ramps, nine-slice, particles |
+| [Colored Grid Display](./colored-grid-display.md) | All | Terminal display (`pxl show`), coordinate grids, alias management |
+| [Persona Integration](./persona-integration.md) | All | Personas in `pxl prime`, frontmatter tags in docs |
+| [Build System](./build-system.md) | Animator, Game Dev | `pxl.toml`, `pxl init`, `pxl build`, justfile |
+| VS Code Extension | All | Syntax highlighting + live preview |
+| Token Efficiency | All | Run-length encoding, row repetition, compression |
+| Inheritance | Pixel Artist+ | Scene variants, extends, day/night themes |
+| Edge Constraints | Game Dev | Tile connectivity validation (see BACKLOG) |
 
 ## Technical Decisions
 
