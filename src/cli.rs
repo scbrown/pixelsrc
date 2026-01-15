@@ -9,6 +9,7 @@ use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
+use crate::suggest::{format_suggestion, suggest};
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
 use crate::fmt::format_pixelsrc;
@@ -325,6 +326,10 @@ fn run_prompts(template: Option<&str>) -> ExitCode {
             }
             // Template not found
             eprintln!("Error: Unknown template '{}'", name);
+            let template_names: Vec<&str> = TEMPLATES.iter().map(|(n, _)| *n).collect();
+            if let Some(suggestion) = format_suggestion(&suggest(name, &template_names, 3)) {
+                eprintln!("{}", suggestion);
+            }
             eprintln!();
             eprintln!("Available templates:");
             for (tpl_name, _) in TEMPLATES {
@@ -358,6 +363,12 @@ fn run_palettes(action: PaletteAction) -> ExitCode {
                 }
                 None => {
                     eprintln!("Error: Unknown palette '{}'", name);
+                    let builtin_names = palettes::list_builtins();
+                    if let Some(suggestion) =
+                        format_suggestion(&suggest(palette_name, &builtin_names, 3))
+                    {
+                        eprintln!("{}", suggestion);
+                    }
                     eprintln!();
                     eprintln!("Available palettes:");
                     for builtin_name in palettes::list_builtins() {
@@ -529,6 +540,11 @@ fn run_render(
         sprites.retain(|s| s.name == name);
         if sprites.is_empty() {
             eprintln!("Error: No sprite named '{}' found in input", name);
+            let sprite_names: Vec<&str> =
+                sprites_by_name.keys().map(|s| s.as_str()).collect();
+            if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
+                eprintln!("{}", suggestion);
+            }
             return ExitCode::from(EXIT_ERROR);
         }
     }
@@ -700,6 +716,10 @@ fn run_composition_render(
         Some(c) => c,
         None => {
             eprintln!("Error: No composition named '{}' found in input", comp_name);
+            let comp_names: Vec<&str> = compositions.keys().map(|s| s.as_str()).collect();
+            if let Some(suggestion) = format_suggestion(&suggest(comp_name, &comp_names, 3)) {
+                eprintln!("{}", suggestion);
+            }
             return ExitCode::from(EXIT_ERROR);
         }
     };
@@ -897,6 +917,10 @@ fn run_animation_render(
             Some(anim) => anim,
             None => {
                 eprintln!("Error: No animation named '{}' found in input", name);
+                let anim_names: Vec<&str> = animations.keys().map(|s| s.as_str()).collect();
+                if let Some(suggestion) = format_suggestion(&suggest(name, &anim_names, 3)) {
+                    eprintln!("{}", suggestion);
+                }
                 return ExitCode::from(EXIT_ERROR);
             }
         }

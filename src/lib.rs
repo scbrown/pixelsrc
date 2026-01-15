@@ -23,6 +23,7 @@ pub mod prime;
 pub mod registry;
 pub mod renderer;
 pub mod spritesheet;
+pub mod suggest;
 pub mod tokenizer;
 pub mod validate;
 
