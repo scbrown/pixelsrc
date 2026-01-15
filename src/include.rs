@@ -89,6 +89,30 @@ pub fn resolve_include(include_path: &str, base_path: &Path) -> Result<Palette, 
     resolve_include_with_detection(include_path, base_path, &mut visited)
 }
 
+/// Resolve a path, trying alternate extensions if the exact path doesn't exist.
+///
+/// Tries paths in order:
+/// 1. Exact path as specified
+/// 2. Path with .pxl extension
+/// 3. Path with .jsonl extension
+fn resolve_path_with_extensions(path: &Path) -> Option<PathBuf> {
+    // Try exact path first
+    if path.exists() {
+        return Some(path.to_path_buf());
+    }
+
+    // Try alternate extensions
+    let alternates = [path.with_extension("pxl"), path.with_extension("jsonl")];
+
+    for alt in &alternates {
+        if alt.exists() {
+            return Some(alt.clone());
+        }
+    }
+
+    None
+}
+
 /// Resolve an include reference with circular include detection.
 ///
 /// This is the internal implementation that tracks visited files to detect cycles.
@@ -100,10 +124,18 @@ pub fn resolve_include_with_detection(
     // Resolve the include path relative to the base path
     let resolved_path = base_path.join(include_path);
 
+    // Try to find the file, using extension fallback if needed
+    let found_path = resolve_path_with_extensions(&resolved_path).ok_or_else(|| {
+        IncludeError::FileNotFound(
+            resolved_path.clone(),
+            "file not found (tried .pxl and .jsonl extensions)".to_string(),
+        )
+    })?;
+
     // Canonicalize for consistent comparison (handles .., symlinks, etc.)
-    let canonical_path = resolved_path
+    let canonical_path = found_path
         .canonicalize()
-        .map_err(|e| IncludeError::FileNotFound(resolved_path.clone(), e.to_string()))?;
+        .map_err(|e| IncludeError::FileNotFound(found_path.clone(), e.to_string()))?;
 
     // Check for circular includes
     if visited.contains(&canonical_path) {
@@ -264,5 +296,119 @@ mod tests {
 
         let palette = result.unwrap();
         assert_eq!(palette.name, "shared_colors");
+    }
+
+    #[test]
+    fn test_resolve_include_pxl_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("palette.pxl");
+
+        // Create a palette file with .pxl extension
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content =
+            r##"{"type": "palette", "name": "pxl_palette", "colors": {"{_}": "#00000000", "{x}": "#00FF00"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        // Resolve with explicit .pxl extension
+        let result = resolve_include("palette.pxl", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "pxl_palette");
+        assert!(palette.colors.contains_key("{x}"));
+    }
+
+    #[test]
+    fn test_resolve_include_extension_auto_detect_pxl() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("colors.pxl");
+
+        // Create a palette file with .pxl extension
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content =
+            r##"{"type": "palette", "name": "auto_pxl", "colors": {"{a}": "#0000FF"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        // Resolve without extension - should find .pxl
+        let result = resolve_include("colors", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "auto_pxl");
+    }
+
+    #[test]
+    fn test_resolve_include_extension_auto_detect_jsonl() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("colors.jsonl");
+
+        // Create a palette file with .jsonl extension
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content =
+            r##"{"type": "palette", "name": "auto_jsonl", "colors": {"{b}": "#FF00FF"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        // Resolve without extension - should find .jsonl
+        let result = resolve_include("colors", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "auto_jsonl");
+    }
+
+    #[test]
+    fn test_resolve_include_extension_priority_pxl_first() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create both .pxl and .jsonl files
+        let pxl_path = temp_dir.path().join("colors.pxl");
+        let mut pxl_file = fs::File::create(&pxl_path).unwrap();
+        writeln!(
+            pxl_file,
+            r##"{{"type": "palette", "name": "pxl_wins", "colors": {{}}}}"##
+        )
+        .unwrap();
+
+        let jsonl_path = temp_dir.path().join("colors.jsonl");
+        let mut jsonl_file = fs::File::create(&jsonl_path).unwrap();
+        writeln!(
+            jsonl_file,
+            r##"{{"type": "palette", "name": "jsonl_loses", "colors": {{}}}}"##
+        )
+        .unwrap();
+
+        // Resolve without extension - .pxl should be preferred
+        let result = resolve_include("colors", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "pxl_wins");
+    }
+
+    #[test]
+    fn test_resolve_include_subdirectory_pxl() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a subdirectory
+        let sub_dir = temp_dir.path().join("shared");
+        fs::create_dir(&sub_dir).unwrap();
+
+        let palette_path = sub_dir.join("colors.pxl");
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let content =
+            r##"{"type": "palette", "name": "shared_pxl", "colors": {"{c}": "#CCCCCC"}}"##;
+        writeln!(file, "{}", content).unwrap();
+
+        // Resolve with .pxl extension
+        let result = resolve_include("shared/colors.pxl", temp_dir.path());
+        assert!(result.is_ok());
+
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "shared_pxl");
+
+        // Also test without extension
+        let result2 = resolve_include("shared/colors", temp_dir.path());
+        assert!(result2.is_ok());
+        assert_eq!(result2.unwrap().name, "shared_pxl");
     }
 }
