@@ -192,7 +192,13 @@ pub fn run() -> ExitCode {
             recursive,
             format,
             output,
-        } => run_analyze(&files, dir.as_deref(), recursive, &format, output.as_deref()),
+        } => run_analyze(
+            &files,
+            dir.as_deref(),
+            recursive,
+            &format,
+            output.as_deref(),
+        ),
     }
 }
 
@@ -1079,7 +1085,7 @@ fn run_analyze(
 
     // Format output
     let output_text = if format == "json" {
-        // JSON output - basic structure for now
+        // JSON output
         serde_json::json!({
             "files_analyzed": report.files_analyzed,
             "files_failed": report.files_failed,
@@ -1095,6 +1101,20 @@ fn run_analyze(
                     "token": t,
                     "count": c,
                     "percentage": report.token_counter.percentage(t)
+                })
+            }).collect::<Vec<_>>(),
+            "co_occurrence": report.co_occurrence.top_n(10).iter().map(|((t1, t2), count)| {
+                serde_json::json!({
+                    "token1": t1,
+                    "token2": t2,
+                    "sprites": count
+                })
+            }).collect::<Vec<_>>(),
+            "token_families": report.token_families().iter().take(10).map(|family| {
+                serde_json::json!({
+                    "prefix": family.prefix,
+                    "tokens": family.tokens,
+                    "total_count": family.total_count
                 })
             }).collect::<Vec<_>>(),
             "avg_palette_size": report.avg_palette_size(),

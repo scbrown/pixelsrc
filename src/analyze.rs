@@ -6,7 +6,7 @@
 //! - Structural patterns
 //! - Compression opportunities
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -79,6 +79,180 @@ impl TokenCounter {
     }
 }
 
+/// Tracks token co-occurrence across sprites.
+///
+/// Records which tokens appear together in the same sprite, enabling
+/// analysis of token relationships and discovery of semantic groups.
+#[derive(Debug, Default)]
+pub struct CoOccurrenceMatrix {
+    /// Map from (token1, token2) pair to sprite count where they co-occur
+    /// Pairs are stored in sorted order to avoid duplicates
+    pairs: HashMap<(String, String), usize>,
+}
+
+impl CoOccurrenceMatrix {
+    /// Create a new empty co-occurrence matrix.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record that a set of tokens appeared together in one sprite.
+    pub fn record_sprite(&mut self, tokens: &HashSet<String>) {
+        let mut token_list: Vec<_> = tokens.iter().collect();
+        token_list.sort();
+
+        // Record all unique pairs
+        for i in 0..token_list.len() {
+            for j in (i + 1)..token_list.len() {
+                let pair = (token_list[i].clone(), token_list[j].clone());
+                *self.pairs.entry(pair).or_insert(0) += 1;
+            }
+        }
+    }
+
+    /// Get the co-occurrence count for a specific pair.
+    pub fn get(&self, token1: &str, token2: &str) -> usize {
+        // Ensure sorted order for lookup
+        let pair = if token1 < token2 {
+            (token1.to_string(), token2.to_string())
+        } else {
+            (token2.to_string(), token1.to_string())
+        };
+        self.pairs.get(&pair).copied().unwrap_or(0)
+    }
+
+    /// Get top N token pairs by co-occurrence count.
+    pub fn top_n(&self, n: usize) -> Vec<((&String, &String), usize)> {
+        let mut items: Vec<_> = self
+            .pairs
+            .iter()
+            .map(|((a, b), count)| ((a, b), *count))
+            .collect();
+        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.truncate(n);
+        items
+    }
+
+    /// Get all pairs involving a specific token, sorted by count.
+    pub fn pairs_for_token(&self, token: &str) -> Vec<(&String, usize)> {
+        let mut results: Vec<_> = self
+            .pairs
+            .iter()
+            .filter_map(|((a, b), count)| {
+                if a == token {
+                    Some((b, *count))
+                } else if b == token {
+                    Some((a, *count))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        results.sort_by(|a, b| b.1.cmp(&a.1));
+        results
+    }
+
+    /// Get total number of unique pairs recorded.
+    pub fn pair_count(&self) -> usize {
+        self.pairs.len()
+    }
+}
+
+/// Token family - a group of semantically related tokens with common prefix.
+#[derive(Debug, Clone)]
+pub struct TokenFamily {
+    /// The common prefix (e.g., "skin" for {skin}, {skin_light}, {skin_shadow})
+    pub prefix: String,
+    /// All tokens in this family
+    pub tokens: Vec<String>,
+    /// Total occurrences across all tokens in family
+    pub total_count: usize,
+}
+
+/// Detects and groups tokens into semantic families based on naming patterns.
+#[derive(Debug, Default)]
+pub struct TokenFamilyDetector {
+    /// Minimum family size to report
+    min_family_size: usize,
+}
+
+impl TokenFamilyDetector {
+    /// Create a new detector with default settings.
+    pub fn new() -> Self {
+        Self { min_family_size: 2 }
+    }
+
+    /// Create a detector with custom minimum family size.
+    pub fn with_min_size(min_size: usize) -> Self {
+        Self {
+            min_family_size: min_size,
+        }
+    }
+
+    /// Detect token families from a token counter.
+    pub fn detect(&self, counter: &TokenCounter) -> Vec<TokenFamily> {
+        // Group tokens by their base name (prefix before _ or variant suffix)
+        let mut prefix_groups: HashMap<String, Vec<(String, usize)>> = HashMap::new();
+
+        for (token, count) in counter.sorted_by_frequency() {
+            // Extract base prefix from token like {skin_light} -> "skin"
+            if let Some(base) = self.extract_prefix(token) {
+                prefix_groups
+                    .entry(base)
+                    .or_default()
+                    .push((token.clone(), *count));
+            }
+        }
+
+        // Build families from groups that meet minimum size
+        let mut families: Vec<TokenFamily> = prefix_groups
+            .into_iter()
+            .filter(|(_, tokens)| tokens.len() >= self.min_family_size)
+            .map(|(prefix, tokens)| {
+                let total_count = tokens.iter().map(|(_, c)| c).sum();
+                let token_names = tokens.into_iter().map(|(t, _)| t).collect();
+                TokenFamily {
+                    prefix,
+                    tokens: token_names,
+                    total_count,
+                }
+            })
+            .collect();
+
+        // Sort by total count descending
+        families.sort_by(|a, b| b.total_count.cmp(&a.total_count));
+        families
+    }
+
+    /// Extract the base prefix from a token.
+    /// {skin} -> "skin"
+    /// {skin_light} -> "skin"
+    /// {hair_dark} -> "hair"
+    /// {_} -> None (transparency token)
+    fn extract_prefix(&self, token: &str) -> Option<String> {
+        // Strip braces
+        let inner = token.trim_start_matches('{').trim_end_matches('}');
+
+        // Skip transparency token
+        if inner == "_" || inner.is_empty() {
+            return None;
+        }
+
+        // Find the base prefix (before first underscore or digit suffix)
+        let base = inner
+            .split('_')
+            .next()
+            .unwrap_or(inner)
+            .trim_end_matches(|c: char| c.is_ascii_digit());
+
+        if base.is_empty() {
+            None
+        } else {
+            Some(base.to_string())
+        }
+    }
+}
+
 /// Dimensional statistics for sprites.
 #[derive(Debug, Default)]
 pub struct DimensionStats {
@@ -129,6 +303,8 @@ pub struct AnalysisReport {
     pub total_variants: usize,
     /// Token frequency counter
     pub token_counter: TokenCounter,
+    /// Token co-occurrence matrix
+    pub co_occurrence: CoOccurrenceMatrix,
     /// Dimension statistics
     pub dimension_stats: DimensionStats,
     /// Palette sizes (tokens per palette)
@@ -164,13 +340,20 @@ impl AnalysisReport {
         };
         self.dimension_stats.add(w, h);
 
+        // Collect all unique tokens in this sprite for co-occurrence tracking
+        let mut sprite_tokens: HashSet<String> = HashSet::new();
+
         // Count all tokens in the grid
         for row in &sprite.grid {
             let (tokens, _) = tokenize(row);
             for token in tokens {
                 self.token_counter.add(&token);
+                sprite_tokens.insert(token);
             }
         }
+
+        // Record co-occurrences
+        self.co_occurrence.record_sprite(&sprite_tokens);
     }
 
     /// Analyze a single file and add results to the report.
@@ -211,6 +394,12 @@ impl AnalysisReport {
         }
         let sum: usize = self.palette_sizes.iter().sum();
         sum as f64 / self.palette_sizes.len() as f64
+    }
+
+    /// Detect token families from the collected tokens.
+    pub fn token_families(&self) -> Vec<TokenFamily> {
+        let detector = TokenFamilyDetector::new();
+        detector.detect(&self.token_counter)
     }
 }
 
@@ -290,7 +479,10 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
     output.push_str(&format!("Total sprites: {}\n", report.total_sprites));
     output.push_str(&format!("Total palettes: {}\n", report.total_palettes));
     if report.total_compositions > 0 {
-        output.push_str(&format!("Total compositions: {}\n", report.total_compositions));
+        output.push_str(&format!(
+            "Total compositions: {}\n",
+            report.total_compositions
+        ));
     }
     if report.total_animations > 0 {
         output.push_str(&format!("Total animations: {}\n", report.total_animations));
@@ -306,7 +498,51 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
         output.push_str("────────────────────────\n");
         for (token, count) in report.token_counter.top_n(10) {
             let percentage = report.token_counter.percentage(token);
-            output.push_str(&format!("  {:12} {:>8}  ({:.1}%)\n", token, count, percentage));
+            output.push_str(&format!(
+                "  {:12} {:>8}  ({:.1}%)\n",
+                token, count, percentage
+            ));
+        }
+        output.push('\n');
+    }
+
+    // Token co-occurrence (top 5 pairs)
+    if report.co_occurrence.pair_count() > 0 {
+        output.push_str("TOKEN CO-OCCURRENCE (top 5 pairs)\n");
+        output.push_str("─────────────────────────────────\n");
+        for ((token1, token2), count) in report.co_occurrence.top_n(5) {
+            output.push_str(&format!(
+                "  {} + {:12} {:>4} sprites\n",
+                token1, token2, count
+            ));
+        }
+        output.push('\n');
+    }
+
+    // Token families
+    let families = report.token_families();
+    if !families.is_empty() {
+        output.push_str("TOKEN FAMILIES\n");
+        output.push_str("──────────────\n");
+        for family in families.iter().take(5) {
+            let tokens_str = family.tokens.join(", ");
+            output.push_str(&format!(
+                "  {:<12} {} tokens, {} occurrences\n",
+                format!("{{{}*}}", family.prefix),
+                family.tokens.len(),
+                family.total_count
+            ));
+            // Show first few members if space allows
+            if family.tokens.len() <= 4 {
+                output.push_str(&format!("               {}\n", tokens_str));
+            } else {
+                let preview: Vec<_> = family.tokens.iter().take(3).cloned().collect();
+                output.push_str(&format!(
+                    "               {}, ... +{} more\n",
+                    preview.join(", "),
+                    family.tokens.len() - 3
+                ));
+            }
         }
         output.push('\n');
     }
@@ -418,5 +654,110 @@ mod tests {
     fn test_analysis_report_empty_palette() {
         let report = AnalysisReport::new();
         assert!((report.avg_palette_size() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_co_occurrence_basic() {
+        let mut matrix = CoOccurrenceMatrix::new();
+
+        let mut tokens1: HashSet<String> = HashSet::new();
+        tokens1.insert("{skin}".to_string());
+        tokens1.insert("{outline}".to_string());
+        tokens1.insert("{_}".to_string());
+
+        let mut tokens2: HashSet<String> = HashSet::new();
+        tokens2.insert("{skin}".to_string());
+        tokens2.insert("{hair}".to_string());
+
+        matrix.record_sprite(&tokens1);
+        matrix.record_sprite(&tokens2);
+
+        // skin+outline appears in 1 sprite
+        assert_eq!(matrix.get("{skin}", "{outline}"), 1);
+        // skin appears in both sprites but with different partners
+        assert_eq!(matrix.get("{skin}", "{_}"), 1);
+        assert_eq!(matrix.get("{skin}", "{hair}"), 1);
+        // hair+outline never co-occur
+        assert_eq!(matrix.get("{hair}", "{outline}"), 0);
+    }
+
+    #[test]
+    fn test_co_occurrence_top_n() {
+        let mut matrix = CoOccurrenceMatrix::new();
+
+        // Record same sprite tokens twice to get higher counts
+        let mut tokens: HashSet<String> = HashSet::new();
+        tokens.insert("{skin}".to_string());
+        tokens.insert("{outline}".to_string());
+
+        matrix.record_sprite(&tokens);
+        matrix.record_sprite(&tokens);
+
+        let top = matrix.top_n(1);
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].1, 2); // 2 occurrences
+    }
+
+    #[test]
+    fn test_co_occurrence_pairs_for_token() {
+        let mut matrix = CoOccurrenceMatrix::new();
+
+        let mut tokens1: HashSet<String> = HashSet::new();
+        tokens1.insert("{skin}".to_string());
+        tokens1.insert("{a}".to_string());
+        tokens1.insert("{b}".to_string());
+
+        matrix.record_sprite(&tokens1);
+
+        let pairs = matrix.pairs_for_token("{skin}");
+        assert_eq!(pairs.len(), 2);
+        // Both {a} and {b} appear once with {skin}
+        assert!(pairs.iter().all(|(_, c)| *c == 1));
+    }
+
+    #[test]
+    fn test_token_family_detector() {
+        let mut counter = TokenCounter::new();
+        counter.add_count("{skin}", 100);
+        counter.add_count("{skin_light}", 50);
+        counter.add_count("{skin_shadow}", 30);
+        counter.add_count("{hair}", 80);
+        counter.add_count("{hair_dark}", 40);
+        counter.add_count("{outline}", 200);
+
+        let detector = TokenFamilyDetector::new();
+        let families = detector.detect(&counter);
+
+        // Should find "skin" and "hair" families
+        assert!(families.len() >= 2);
+
+        // Find the skin family
+        let skin_family = families.iter().find(|f| f.prefix == "skin");
+        assert!(skin_family.is_some());
+        let skin = skin_family.unwrap();
+        assert_eq!(skin.tokens.len(), 3);
+        assert_eq!(skin.total_count, 180); // 100 + 50 + 30
+    }
+
+    #[test]
+    fn test_token_family_prefix_extraction() {
+        let detector = TokenFamilyDetector::new();
+
+        // Test extract_prefix directly via a simple test
+        let mut counter = TokenCounter::new();
+        counter.add("{_}"); // Should be skipped (transparency)
+        counter.add("{skin}");
+        counter.add("{skin_light}");
+        counter.add("{color1}");
+        counter.add("{color2}");
+
+        let families = detector.detect(&counter);
+
+        // Should have "skin" and "color" families
+        let prefixes: Vec<_> = families.iter().map(|f| f.prefix.as_str()).collect();
+        assert!(prefixes.contains(&"skin"));
+        assert!(prefixes.contains(&"color"));
+        // {_} should not create a family
+        assert!(!prefixes.iter().any(|p| p.is_empty() || *p == "_"));
     }
 }
