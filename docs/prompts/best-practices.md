@@ -149,6 +149,31 @@ For tilesets, establish rules:
 
 > "Create a 4-tile grass tileset that tiles seamlessly. Use the same 3 shades of green across all tiles. Ensure edges match when tiles are placed adjacent."
 
+### Large Images with Tiling
+
+For images larger than 32x32, use composition with `cell_size`:
+
+> "Create a 64x64 landscape scene. First generate four 32x32 tiles: sky_left, sky_right, ground_left, ground_right. Then compose them with cell_size [32, 32]."
+
+Example composition:
+```jsonl
+{"type": "composition", "name": "landscape", "size": [64, 64], "cell_size": [32, 32],
+  "sprites": {"A": "sky_left", "B": "sky_right", "C": "ground_left", "D": "ground_right"},
+  "layers": [{"map": ["AB", "CD"]}]}
+```
+
+This keeps each tile generation manageable and allows parallel generation.
+
+### Color Variants
+
+Use variants to recolor existing sprites without regenerating:
+
+> "Create a hero sprite, then create a variant called 'hero_fire' with red hair instead of brown"
+
+```jsonl
+{"type": "variant", "name": "hero_fire", "base": "hero", "palette": {"{hair}": "#FF4400"}}
+```
+
 ---
 
 ## Iteration Strategies
