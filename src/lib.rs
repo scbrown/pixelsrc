@@ -19,6 +19,7 @@ pub mod models;
 pub mod output;
 pub mod palettes;
 pub mod parser;
+pub mod prime;
 pub mod registry;
 pub mod renderer;
 pub mod spritesheet;
