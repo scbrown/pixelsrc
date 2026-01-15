@@ -21,6 +21,7 @@ pub mod parser;
 pub mod registry;
 pub mod renderer;
 pub mod spritesheet;
+pub mod suggest;
 pub mod tokenizer;
 
 #[cfg(feature = "wasm")]
