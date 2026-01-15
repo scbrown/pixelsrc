@@ -10,6 +10,7 @@ use std::process::ExitCode;
 use crate::composition::render_composition;
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
+use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::gif::render_gif;
 use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
@@ -113,6 +114,17 @@ pub enum Commands {
         #[command(subcommand)]
         action: PaletteAction,
     },
+
+    /// Print pixelsrc format guide for AI context injection
+    Prime {
+        /// Print condensed version (~2000 tokens)
+        #[arg(long)]
+        brief: bool,
+
+        /// Print specific section: format, examples, tips, full
+        #[arg(long)]
+        section: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -162,6 +174,7 @@ pub fn run() -> ExitCode {
         } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
+        Commands::Prime { brief, section } => run_prime(brief, section.as_deref()),
     }
 }
 
@@ -178,6 +191,31 @@ const TEMPLATES: &[(&str, &str)] = &[
     ("tileset", TEMPLATE_TILESET),
     ("animation", TEMPLATE_ANIMATION),
 ];
+
+/// Execute the prime command
+fn run_prime(brief: bool, section: Option<&str>) -> ExitCode {
+    // Parse section if provided
+    let primer_section = match section {
+        None => PrimerSection::Full,
+        Some(s) => match s.parse::<PrimerSection>() {
+            Ok(sec) => sec,
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                eprintln!();
+                eprintln!("Available sections:");
+                for sec in list_sections() {
+                    eprintln!("  {}", sec);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+        },
+    };
+
+    // Get and print the primer content
+    let content = get_primer(primer_section, brief);
+    println!("{}", content);
+    ExitCode::from(EXIT_SUCCESS)
+}
 
 /// Execute the prompts command
 fn run_prompts(template: Option<&str>) -> ExitCode {
