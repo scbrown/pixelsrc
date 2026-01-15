@@ -61,18 +61,23 @@ export class Gallery {
 
   private showLoading(): void {
     this.container.innerHTML = '';
+    this.container.setAttribute('aria-busy', 'true');
     const loadingEl = document.createElement('div');
     loadingEl.className = 'gallery-loading';
+    loadingEl.setAttribute('role', 'status');
+    loadingEl.setAttribute('aria-live', 'polite');
     loadingEl.textContent = 'Loading examples...';
     this.container.appendChild(loadingEl);
   }
 
   private render(): void {
     this.container.innerHTML = '';
+    this.container.setAttribute('aria-busy', 'false');
 
     if (this.examples.length === 0) {
       const emptyEl = document.createElement('div');
       emptyEl.className = 'gallery-empty';
+      emptyEl.setAttribute('role', 'status');
       emptyEl.textContent = 'No examples available';
       this.container.appendChild(emptyEl);
       return;
@@ -81,6 +86,8 @@ export class Gallery {
     for (const example of this.examples) {
       const item = document.createElement('button');
       item.className = 'gallery-item';
+      item.setAttribute('role', 'listitem');
+      item.setAttribute('aria-label', `Load ${example.name} example into editor`);
       item.title = `Load ${example.name} example`;
       item.type = 'button';
 

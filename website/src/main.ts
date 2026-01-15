@@ -113,6 +113,13 @@ async function initApp(): Promise<void> {
   }
 
   // Hide loading overlay with animation
+  if (overlay) {
+    // Update aria-live region to announce ready state
+    const loadingText = overlay.querySelector('.loading-text');
+    if (loadingText) {
+      loadingText.textContent = 'Ready';
+    }
+  }
   overlay?.classList.add('hidden');
   setTimeout(() => overlay?.remove(), 300);
 }
@@ -238,9 +245,14 @@ function showStatus(type: 'rendering' | 'success' | 'error', message: string): v
   }
 
   previewStatus.className = `preview-status ${type}`;
+  previewStatus.setAttribute('aria-busy', type === 'rendering' ? 'true' : 'false');
   const textEl = previewStatus.querySelector('.status-text');
   if (textEl) {
+    // Prefix message for screen readers based on type
+    const srPrefix = type === 'rendering' ? 'Rendering: ' : type === 'success' ? 'Success: ' : 'Error: ';
     textEl.textContent = message;
+    // Set aria-label with full context for screen readers
+    previewStatus.setAttribute('aria-label', srPrefix + message);
   }
 }
 
