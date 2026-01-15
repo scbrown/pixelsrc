@@ -1,12 +1,20 @@
 # Pixelsrc Format Specification
 
-**Version:** 0.1.0 (Draft)
+**Version:** 0.2.0 (Draft)
 
 ---
 
 ## Overview
 
-Pixelsrc (Text To Pixel) is a JSONL-based format for defining pixel art sprites. Each line is a self-describing JSON object with a `type` field.
+Pixelsrc (Text To Pixel) is a text-based format for defining pixel art sprites using JSON objects with a `type` field.
+
+**File Extensions:**
+- `.pxl` - Preferred extension (supports multi-line JSON)
+- `.jsonl` - Legacy extension (supported for backward compatibility)
+
+**Format Support:**
+- **Single-line JSONL**: Traditional one-object-per-line format
+- **Multi-line JSON**: Objects can span multiple lines for readability
 
 **Design Philosophy:** Lenient by default, strict when requested. When GenAI makes small mistakes, fill the gaps and keep going.
 
@@ -177,15 +185,43 @@ If `size` is provided:
 
 ## Stream Processing
 
-Pixelsrc files are processed line-by-line:
+Pixelsrc files use streaming JSON parsing:
 
-1. Each line is parsed as independent JSON
-2. Objects are processed in order
+1. Objects are parsed as complete JSON values (may span multiple lines)
+2. Objects are processed in order of appearance
 3. Palettes must be defined before sprites that reference them (by name)
 4. Forward references are errors (lenient: use magenta, strict: fail)
 
-**Blank Lines:** Ignored
+**Whitespace:** Ignored between objects
 **Comments:** Not supported in JSON (use separate documentation)
+
+### Single-Line Format (JSONL)
+
+Traditional format with one object per line:
+
+```jsonl
+{"type": "palette", "name": "mono", "colors": {"{_}": "#00000000", "{on}": "#FFFFFF"}}
+{"type": "sprite", "name": "dot", "palette": "mono", "grid": ["{on}"]}
+```
+
+### Multi-Line Format
+
+Objects can span multiple lines for improved readability, especially for sprite grids:
+
+```json
+{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "colors", "grid": [
+  "{_}{_}{hair}{hair}{hair}{hair}{_}{_}",
+  "{_}{hair}{hair}{hair}{hair}{hair}{hair}{_}",
+  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
+  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
+  "{_}{_}{shirt}{shirt}{shirt}{shirt}{_}{_}",
+  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
+  "{_}{_}{skin}{_}{_}{skin}{_}{_}",
+  "{_}{_}{skin}{_}{_}{skin}{_}{_}"
+]}
+```
+
+Both formats parse identically—the renderer handles concatenated JSON objects regardless of whitespace.
 
 ---
 
@@ -194,7 +230,7 @@ Pixelsrc files are processed line-by-line:
 ### Default Output Naming
 
 ```bash
-pxl render input.jsonl
+pxl render input.pxl      # or input.jsonl
 ```
 
 | Scenario | Output |
@@ -206,6 +242,8 @@ pxl render input.jsonl
 | With `-o dir/` | `dir/{name}.png` |
 | With `--sprite hero` | Only render "hero" |
 
+Both `.pxl` and `.jsonl` extensions produce identical output—the extension only affects the source file naming convention.
+
 ### Exit Codes
 
 | Code | Meaning |
@@ -213,6 +251,67 @@ pxl render input.jsonl
 | 0 | Success (lenient: may have warnings) |
 | 1 | Error (strict: any warning; lenient: fatal error) |
 | 2 | Invalid arguments |
+
+---
+
+## Formatting
+
+The `pxl fmt` command formats pixelsrc files for improved readability.
+
+### Command Options
+
+```bash
+pxl fmt <files...>         # Format files in-place
+pxl fmt <files> --check    # Check formatting without writing (exit 1 if changes needed)
+pxl fmt <files> --stdout   # Write formatted output to stdout
+```
+
+### Formatting Rules
+
+The formatter applies these rules:
+
+**Sprites** - Grid arrays expanded for visual alignment:
+```json
+{"type": "sprite", "name": "hero", "size": [16, 16], "palette": "colors", "grid": [
+  "{_}{_}{_}{_}{o}{o}{o}{o}{o}{o}{_}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{o}{skin}{skin}{skin}{skin}{skin}{skin}{o}{_}{_}{_}{_}{_}",
+  ...
+]}
+```
+
+**Compositions** - Layer maps expanded for visual clarity:
+```json
+{"type": "composition", "name": "scene", "size": [64, 64], "sprites": {"H": "hero", "T": "tree"}, "layers": [
+  {"name": "background", "fill": "grass"},
+  {"name": "objects", "map": [
+    "T......T",
+    "........",
+    "...H....",
+    "........"
+  ]}
+]}
+```
+
+**Palettes** - Single line for compactness:
+```json
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{skin}": "#FFCC99", "{o}": "#000000"}}
+```
+
+**Animations** - Single line:
+```json
+{"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3"], "duration": 100}
+```
+
+### Round-Trip Safety
+
+Formatting is lossless—rendered output is identical before and after formatting:
+
+```bash
+pxl render input.jsonl -o before.png
+pxl fmt input.jsonl --stdout > formatted.pxl
+pxl render formatted.pxl -o after.png
+diff before.png after.png  # Identical
+```
 
 ---
 
@@ -224,7 +323,24 @@ pxl render input.jsonl
 {"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}
 ```
 
-### Sprite with Named Palette
+### Sprite with Named Palette (Multi-Line)
+
+```json
+{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFD5B4", "{hair}": "#8B4513", "{shirt}": "#4169E1"}}
+
+{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "hero", "grid": [
+  "{_}{_}{hair}{hair}{hair}{hair}{_}{_}",
+  "{_}{hair}{hair}{hair}{hair}{hair}{hair}{_}",
+  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
+  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
+  "{_}{_}{shirt}{shirt}{shirt}{shirt}{_}{_}",
+  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
+  "{_}{_}{skin}{_}{_}{skin}{_}{_}",
+  "{_}{_}{skin}{_}{_}{skin}{_}{_}"
+]}
+```
+
+### Checker Pattern (Single-Line)
 
 ```jsonl
 {"type": "palette", "name": "mono", "colors": {"{_}": "#00000000", "{on}": "#FFFFFF", "{off}": "#000000"}}
@@ -270,4 +386,5 @@ pxl render input.jsonl
 
 | Version | Changes |
 |---------|---------|
+| 0.2.0 | Add `.pxl` extension, multi-line JSON support, `pxl fmt` command |
 | 0.1.0 | Initial draft |
