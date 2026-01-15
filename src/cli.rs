@@ -1068,13 +1068,22 @@ fn run_analyze(
         return ExitCode::from(EXIT_INVALID_ARGS);
     }
 
-    // Run analysis
+    // Run analysis with progress indication
     let mut report = AnalysisReport::new();
-    for path in &file_list {
+    let total_files = file_list.len();
+    let show_progress = total_files > 1 && output.is_some();
+
+    for (i, path) in file_list.iter().enumerate() {
+        if show_progress {
+            eprint!("\rAnalyzing file {}/{}: {}", i + 1, total_files, path.display());
+        }
         if let Err(e) = report.analyze_file(path) {
             report.files_failed += 1;
             report.failed_files.push((path.clone(), e));
         }
+    }
+    if show_progress {
+        eprintln!(); // Clear progress line
     }
 
     // Format output
