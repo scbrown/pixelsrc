@@ -72,8 +72,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd wasm
           npm publish --access public --provenance || echo "Version already published or publish failed"
