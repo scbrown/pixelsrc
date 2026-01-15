@@ -17,7 +17,7 @@ LLMs work best with clear, specific instructions. Always include:
 
 ### Good Prompt Example
 
-> Create a 16x16 pixel art treasure chest in pixelsrc JSONL format. Use a warm brown wood color, gold trim, and a dark shadow. Include a keyhole detail. Use semantic token names like {wood}, {gold}, {shadow}. Keep the palette under 8 colors.
+> Create a 16x16 pixel art treasure chest in pixelsrc format. Use a warm brown wood color, gold trim, and a dark shadow. Include a keyhole detail. Use semantic token names like {wood}, {gold}, {shadow}. Keep the palette under 8 colors. Output grids with one row per line.
 
 ### Bad Prompt Example
 
@@ -96,7 +96,7 @@ Always request transparency handling:
 
 Or use `--strict` mode to catch issues:
 ```bash
-pxl render output.jsonl --strict
+pxl render output.pxl --strict
 ```
 
 ### Issue: Missing Transparency
@@ -188,7 +188,10 @@ Before using generated sprites, verify:
 
 ```bash
 # Quick validation
-pxl render generated.jsonl --strict
+pxl render generated.pxl --strict
+
+# Format for consistency
+pxl fmt generated.pxl
 
 # If it renders without errors, you're good
 ```

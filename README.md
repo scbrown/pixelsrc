@@ -50,7 +50,7 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
 
 ## Quick Start
 
-1. Create a file `hero.jsonl`:
+1. Create a file `hero.pxl`:
 
 ```jsonl
 {"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFD5B4", "{hair}": "#8B4513", "{shirt}": "#4169E1"}}
@@ -69,13 +69,13 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
 2. Render it:
 
 ```bash
-pxl render hero.jsonl -o hero.png
+pxl render hero.pxl -o hero.png
 ```
 
 3. Scale it up:
 
 ```bash
-pxl render hero.jsonl -o hero.png --scale 8
+pxl render hero.pxl -o hero.png --scale 8
 ```
 
 ## Features
@@ -84,11 +84,12 @@ pxl render hero.jsonl -o hero.png --scale 8
 
 | Command | Description |
 |---------|-------------|
-| `pxl render <file>` | Render JSONL to PNG |
+| `pxl render <file>` | Render .pxl/.jsonl to PNG |
 | `pxl render --gif` | Export animations to GIF |
 | `pxl render --spritesheet` | Generate sprite sheets |
+| `pxl fmt <files>` | Format files for readability |
 | `pxl palettes list` | List built-in palettes |
-| `pxl import <image>` | Convert PNG to JSONL |
+| `pxl import <image>` | Convert PNG to .pxl |
 
 ### Format Capabilities
 
