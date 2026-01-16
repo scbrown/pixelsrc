@@ -1,0 +1,7 @@
+{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{b}": "#000000", "{h}": "#FFD700", "{c}": "#8B0000"}}
+{"type": "sprite", "name": "hero_walk1", "palette": "hero", "grid": ["{h}{h}{_}", "{b}{b}{b}", "{b}{_}{b}"], "metadata": {"origin": [1, 2]}}
+{"type": "sprite", "name": "hero_walk2", "palette": "hero", "grid": ["{_}{h}{h}", "{b}{b}{b}", "{b}{_}{b}"], "metadata": {"origin": [1, 2]}}
+{"type": "sprite", "name": "hair_1", "palette": "hero", "grid": ["{h}", "{h}"], "metadata": {"attach_in": [0, 0], "attach_out": [0, 1]}}
+{"type": "sprite", "name": "hair_2", "palette": "hero", "grid": ["{h}"], "metadata": {"attach_in": [0, 0]}}
+{"type": "sprite", "name": "cape_1", "palette": "hero", "grid": ["{c}{c}", "{c}{c}"], "metadata": {"attach_in": [1, 0], "attach_out": [1, 1]}}
+{"type": "animation", "name": "hero_walk", "frames": ["hero_walk1", "hero_walk2", "hero_walk1", "hero_walk2"], "duration": 150, "attachments": [{"name": "hair", "anchor": [1, 0], "chain": ["hair_1", "hair_2"], "delay": 1, "follow": "position"}, {"name": "cape", "anchor": [1, 1], "chain": ["cape_1"], "delay": 2, "follow": "velocity", "z_index": -1}]}

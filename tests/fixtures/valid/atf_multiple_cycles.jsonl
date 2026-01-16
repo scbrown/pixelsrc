@@ -1,0 +1,3 @@
+{"type": "palette", "name": "scene", "colors": {"{_}": "#00000000", "{w1}": "#1E90FF", "{w2}": "#00BFFF", "{w3}": "#87CEEB", "{f1}": "#FF4500", "{f2}": "#FF6347", "{f3}": "#FF7F50"}}
+{"type": "sprite", "name": "scene_tile", "palette": "scene", "grid": ["{w1}{w2}{f1}{f2}", "{w2}{w3}{f2}{f3}", "{w3}{w1}{f3}{f1}", "{w1}{w2}{f1}{f2}"]}
+{"type": "animation", "name": "scene_cycle", "frames": ["scene_tile"], "duration": 100, "palette_cycle": [{"tokens": ["{w1}", "{w2}", "{w3}"], "duration": 200}, {"tokens": ["{f1}", "{f2}", "{f3}"], "duration": 100}]}
