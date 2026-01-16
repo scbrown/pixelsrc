@@ -376,6 +376,19 @@ pub enum Commands {
         verbose: bool,
     },
 
+    /// Create a new asset from template
+    New {
+        /// Asset type: sprite, animation, palette
+        asset_type: String,
+
+        /// Asset name
+        name: String,
+
+        /// Palette to use (for sprites and animations)
+        #[arg(long)]
+        palette: Option<String>,
+    },
+
     /// Initialize a new pixelsrc project
     Init {
         /// Project directory (default: current directory)
@@ -520,6 +533,11 @@ pub fn run() -> ExitCode {
             dry_run,
             verbose,
         } => run_build(out.as_deref(), src.as_deref(), watch, dry_run, verbose),
+        Commands::New {
+            asset_type,
+            name,
+            palette,
+        } => run_new(&asset_type, &name, palette.as_deref()),
         Commands::Init {
             path,
             name,
@@ -3120,6 +3138,51 @@ fn run_build(
             for error in &result.errors {
                 eprintln!("  {}", error);
             }
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
+}
+
+/// Run the new command
+fn run_new(asset_type: &str, name: &str, palette: Option<&str>) -> ExitCode {
+    use crate::scaffold::{new_animation, new_palette, new_sprite, ScaffoldError};
+
+    let result = match asset_type.to_lowercase().as_str() {
+        "sprite" => new_sprite(name, palette),
+        "animation" | "anim" => new_animation(name, palette),
+        "palette" => new_palette(name),
+        _ => {
+            eprintln!(
+                "Unknown asset type '{}'. Available types: sprite, animation, palette",
+                asset_type
+            );
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    match result {
+        Ok(path) => {
+            println!("Created {} at {}", asset_type, path.display());
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Err(ScaffoldError::FileExists(path)) => {
+            eprintln!("Error: File already exists: {}", path.display());
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(ScaffoldError::NotInProject) => {
+            eprintln!("Error: Not in a pixelsrc project (no pxl.toml found)");
+            eprintln!("Run 'pxl init' to create a new project first");
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(ScaffoldError::InvalidName(name)) => {
+            eprintln!(
+                "Error: Invalid asset name '{}'. Use lowercase letters, numbers, and underscores.",
+                name
+            );
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
             ExitCode::from(EXIT_ERROR)
         }
     }

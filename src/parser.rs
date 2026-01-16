@@ -75,6 +75,7 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
 mod tests {
     use super::*;
     use crate::models::PaletteRef;
+    use serial_test::serial;
     use std::io::Cursor;
 
     #[test]
@@ -229,6 +230,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_parse_valid_fixtures() {
         use std::fs;
         use std::path::Path;
@@ -261,6 +263,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_parse_invalid_fixtures() {
         use std::fs;
         use std::path::Path;

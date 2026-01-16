@@ -31,6 +31,7 @@ pub mod parser;
 pub mod prime;
 pub mod registry;
 pub mod renderer;
+pub mod scaffold;
 pub mod spritesheet;
 pub mod suggest;
 pub mod terminal;
