@@ -20,6 +20,7 @@ pub mod fmt;
 pub mod gif;
 pub mod import;
 pub mod include;
+pub mod init;
 pub mod models;
 pub mod motion;
 pub mod onion;
