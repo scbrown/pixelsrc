@@ -168,7 +168,87 @@ impl Composition {
     }
 }
 
-/// A Pixelsrc object - Palette, Sprite, Variant, Composition, or Animation.
+/// Velocity range for particle emitter (ATF-16)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VelocityRange {
+    /// X velocity range [min, max]
+    pub x: [f64; 2],
+    /// Y velocity range [min, max]
+    pub y: [f64; 2],
+}
+
+impl Default for VelocityRange {
+    fn default() -> Self {
+        Self {
+            x: [0.0, 0.0],
+            y: [0.0, 0.0],
+        }
+    }
+}
+
+/// Particle emitter configuration (ATF-16)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParticleEmitter {
+    /// Particles to emit per frame
+    #[serde(default = "default_rate")]
+    pub rate: f64,
+    /// Particle lifetime in frames [min, max]
+    #[serde(default = "default_lifetime")]
+    pub lifetime: [u32; 2],
+    /// Initial velocity range
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub velocity: Option<VelocityRange>,
+    /// Gravity acceleration (pixels per frame^2)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub gravity: Option<f64>,
+    /// Whether particles fade out over lifetime
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub fade: Option<bool>,
+    /// Rotation range in degrees [min, max]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub rotation: Option<[f64; 2]>,
+    /// Random seed for reproducible effects
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub seed: Option<u64>,
+}
+
+fn default_rate() -> f64 {
+    1.0
+}
+
+fn default_lifetime() -> [u32; 2] {
+    [10, 20]
+}
+
+impl Default for ParticleEmitter {
+    fn default() -> Self {
+        Self {
+            rate: default_rate(),
+            lifetime: default_lifetime(),
+            velocity: None,
+            gravity: None,
+            fade: None,
+            rotation: None,
+            seed: None,
+        }
+    }
+}
+
+/// A particle system definition (ATF-16)
+///
+/// Particle systems emit sprites with randomized motion for effects
+/// like sparks, dust, rain, snow, fire, etc.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Particle {
+    /// Name of this particle system
+    pub name: String,
+    /// Reference to the sprite to emit as particles
+    pub sprite: String,
+    /// Emitter configuration
+    pub emitter: ParticleEmitter,
+}
+
+/// A Pixelsrc object - Palette, Sprite, Variant, Composition, Animation, or Particle.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TtpObject {
@@ -177,6 +257,7 @@ pub enum TtpObject {
     Variant(Variant),
     Composition(Composition),
     Animation(Animation),
+    Particle(Particle),
 }
 
 /// A warning message from parsing/rendering.
@@ -684,5 +765,140 @@ mod tests {
             }
             _ => panic!("Expected variant"),
         }
+    }
+
+    // ========================================================================
+    // Particle System Tests (ATF-16)
+    // ========================================================================
+
+    #[test]
+    fn test_particle_parse_basic() {
+        let json = r#"{
+            "type": "particle",
+            "name": "sparkle",
+            "sprite": "spark",
+            "emitter": {
+                "rate": 5,
+                "lifetime": [10, 20]
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Particle(p) => {
+                assert_eq!(p.name, "sparkle");
+                assert_eq!(p.sprite, "spark");
+                assert_eq!(p.emitter.rate, 5.0);
+                assert_eq!(p.emitter.lifetime, [10, 20]);
+            }
+            _ => panic!("Expected particle"),
+        }
+    }
+
+    #[test]
+    fn test_particle_parse_full() {
+        let json = r#"{
+            "type": "particle",
+            "name": "rain",
+            "sprite": "raindrop",
+            "emitter": {
+                "rate": 10,
+                "lifetime": [30, 60],
+                "velocity": {"x": [-1, 1], "y": [5, 8]},
+                "gravity": 0.5,
+                "fade": true,
+                "rotation": [0, 360],
+                "seed": 12345
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Particle(p) => {
+                assert_eq!(p.name, "rain");
+                assert_eq!(p.sprite, "raindrop");
+                assert_eq!(p.emitter.rate, 10.0);
+                assert_eq!(p.emitter.lifetime, [30, 60]);
+                let vel = p.emitter.velocity.unwrap();
+                assert_eq!(vel.x, [-1.0, 1.0]);
+                assert_eq!(vel.y, [5.0, 8.0]);
+                assert_eq!(p.emitter.gravity, Some(0.5));
+                assert_eq!(p.emitter.fade, Some(true));
+                assert_eq!(p.emitter.rotation, Some([0.0, 360.0]));
+                assert_eq!(p.emitter.seed, Some(12345));
+            }
+            _ => panic!("Expected particle"),
+        }
+    }
+
+    #[test]
+    fn test_particle_roundtrip() {
+        let particle = Particle {
+            name: "dust".to_string(),
+            sprite: "dust_mote".to_string(),
+            emitter: ParticleEmitter {
+                rate: 2.0,
+                lifetime: [5, 15],
+                velocity: Some(VelocityRange {
+                    x: [-2.0, 2.0],
+                    y: [-1.0, 0.0],
+                }),
+                gravity: Some(0.1),
+                fade: Some(true),
+                rotation: None,
+                seed: Some(42),
+            },
+        };
+        let obj = TtpObject::Particle(particle.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""type":"particle""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Particle(parsed_particle) => {
+                assert_eq!(particle, parsed_particle);
+            }
+            _ => panic!("Expected particle"),
+        }
+    }
+
+    #[test]
+    fn test_particle_emitter_defaults() {
+        // Emitter with minimal fields should use defaults
+        let json = r#"{
+            "type": "particle",
+            "name": "minimal",
+            "sprite": "dot",
+            "emitter": {}
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Particle(p) => {
+                assert_eq!(p.emitter.rate, 1.0); // default
+                assert_eq!(p.emitter.lifetime, [10, 20]); // default
+                assert!(p.emitter.velocity.is_none());
+                assert!(p.emitter.gravity.is_none());
+                assert!(p.emitter.fade.is_none());
+                assert!(p.emitter.rotation.is_none());
+                assert!(p.emitter.seed.is_none());
+            }
+            _ => panic!("Expected particle"),
+        }
+    }
+
+    #[test]
+    fn test_velocity_range_default() {
+        let vel = VelocityRange::default();
+        assert_eq!(vel.x, [0.0, 0.0]);
+        assert_eq!(vel.y, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_particle_emitter_default() {
+        let emitter = ParticleEmitter::default();
+        assert_eq!(emitter.rate, 1.0);
+        assert_eq!(emitter.lifetime, [10, 20]);
+        assert!(emitter.velocity.is_none());
+        assert!(emitter.gravity.is_none());
+        assert!(emitter.fade.is_none());
+        assert!(emitter.rotation.is_none());
+        assert!(emitter.seed.is_none());
     }
 }

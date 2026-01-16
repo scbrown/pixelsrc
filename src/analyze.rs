@@ -380,6 +380,9 @@ impl AnalysisReport {
                 TtpObject::Variant(_) => {
                     self.total_variants += 1;
                 }
+                TtpObject::Particle(_) => {
+                    // Particle systems are runtime constructs, not analyzed
+                }
             }
         }
 

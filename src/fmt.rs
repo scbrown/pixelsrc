@@ -6,7 +6,8 @@
 //! - Keeping palettes, animations, and variants as single-line JSON
 
 use crate::models::{
-    Animation, Composition, CompositionLayer, Palette, PaletteRef, Sprite, TtpObject, Variant,
+    Animation, Composition, CompositionLayer, Palette, PaletteRef, Particle, Sprite, TtpObject,
+    Variant,
 };
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -57,6 +58,7 @@ fn format_object(obj: &TtpObject) -> String {
         TtpObject::Composition(c) => format_composition(c),
         TtpObject::Animation(a) => format_animation(a),
         TtpObject::Variant(v) => format_variant(v),
+        TtpObject::Particle(p) => format_particle(p),
     }
 }
 
@@ -343,6 +345,53 @@ fn format_variant(variant: &Variant) -> String {
         s.push_str(r#"": ""#);
         s.push_str(&escape_json_string(value));
         s.push('"');
+    }
+
+    s.push_str("}}");
+    s
+}
+
+/// Format a particle system as single-line JSON.
+fn format_particle(particle: &Particle) -> String {
+    let mut s = String::new();
+
+    s.push_str(r#"{"type": "particle", "name": ""#);
+    s.push_str(&escape_json_string(&particle.name));
+    s.push_str(r#"", "sprite": ""#);
+    s.push_str(&escape_json_string(&particle.sprite));
+    s.push_str(r#"", "emitter": {"#);
+
+    // Rate
+    s.push_str(&format!(r#""rate": {}"#, particle.emitter.rate));
+
+    // Lifetime
+    s.push_str(&format!(
+        r#", "lifetime": [{}, {}]"#,
+        particle.emitter.lifetime[0], particle.emitter.lifetime[1]
+    ));
+
+    // Optional fields
+    if let Some(ref velocity) = particle.emitter.velocity {
+        s.push_str(&format!(
+            r#", "velocity": {{"x": [{}, {}], "y": [{}, {}]}}"#,
+            velocity.x[0], velocity.x[1], velocity.y[0], velocity.y[1]
+        ));
+    }
+
+    if let Some(gravity) = particle.emitter.gravity {
+        s.push_str(&format!(r#", "gravity": {}"#, gravity));
+    }
+
+    if let Some(fade) = particle.emitter.fade {
+        s.push_str(&format!(r#", "fade": {}"#, fade));
+    }
+
+    if let Some(ref rotation) = particle.emitter.rotation {
+        s.push_str(&format!(r#", "rotation": [{}, {}]"#, rotation[0], rotation[1]));
+    }
+
+    if let Some(seed) = particle.emitter.seed {
+        s.push_str(&format!(r#", "seed": {}"#, seed));
     }
 
     s.push_str("}}");

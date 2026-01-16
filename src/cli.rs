@@ -653,6 +653,9 @@ fn run_render(
                 // Variant rendering in CLI is handled by resolving to sprites
                 // The variant will be processed when rendering sprites
             }
+            TtpObject::Particle(_) => {
+                // Particle systems are runtime constructs, not rendered statically
+            }
         }
     }
 
@@ -2090,6 +2093,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                 TtpObject::Animation(a) => a.name == name,
                 TtpObject::Composition(c) => c.name == name,
                 TtpObject::Variant(v) => v.name == name,
+                TtpObject::Particle(p) => p.name == name,
             })
             .collect();
 
@@ -2105,6 +2109,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     TtpObject::Animation(a) => a.name.as_str(),
                     TtpObject::Composition(c) => c.name.as_str(),
                     TtpObject::Variant(v) => v.name.as_str(),
+                    TtpObject::Particle(p) => p.name.as_str(),
                 })
                 .collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &all_names, 3)) {
@@ -2191,6 +2196,15 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                         "token": token,
                         "color": color,
                     })).collect::<Vec<_>>(),
+                }),
+                Explanation::Particle(p) => serde_json::json!({
+                    "type": "particle",
+                    "name": p.name,
+                    "sprite": p.sprite,
+                    "rate": p.rate,
+                    "lifetime": p.lifetime,
+                    "has_gravity": p.has_gravity,
+                    "has_fade": p.has_fade,
                 }),
             })
             .collect();

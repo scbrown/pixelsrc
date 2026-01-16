@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use crate::color::parse_color;
-use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject, Variant};
+use crate::models::{Animation, Composition, Particle, PaletteRef, Sprite, TtpObject, Variant};
 use crate::palettes;
 use crate::tokenizer::tokenize;
 
@@ -108,6 +108,23 @@ pub struct VariantExplanation {
     pub overrides: Vec<(String, String)>,
 }
 
+/// Explanation of a particle system
+#[derive(Debug, Clone)]
+pub struct ParticleExplanation {
+    /// Particle system name
+    pub name: String,
+    /// Source sprite name
+    pub sprite: String,
+    /// Emission rate (particles per frame)
+    pub rate: f64,
+    /// Lifetime range [min, max] in frames
+    pub lifetime: [u32; 2],
+    /// Whether gravity is applied
+    pub has_gravity: bool,
+    /// Whether particles fade out
+    pub has_fade: bool,
+}
+
 /// Unified explanation for any pixelsrc object
 #[derive(Debug)]
 pub enum Explanation {
@@ -116,6 +133,7 @@ pub enum Explanation {
     Animation(AnimationExplanation),
     Composition(CompositionExplanation),
     Variant(VariantExplanation),
+    Particle(ParticleExplanation),
 }
 
 /// Analyze a sprite and produce an explanation
@@ -278,6 +296,18 @@ pub fn explain_variant(variant: &Variant) -> VariantExplanation {
     }
 }
 
+/// Explain a particle system
+pub fn explain_particle(particle: &Particle) -> ParticleExplanation {
+    ParticleExplanation {
+        name: particle.name.clone(),
+        sprite: particle.sprite.clone(),
+        rate: particle.emitter.rate,
+        lifetime: particle.emitter.lifetime,
+        has_gravity: particle.emitter.gravity.is_some(),
+        has_fade: particle.emitter.fade.unwrap_or(false),
+    }
+}
+
 /// Explain any TtpObject
 pub fn explain_object(
     obj: &TtpObject,
@@ -291,6 +321,7 @@ pub fn explain_object(
         TtpObject::Animation(anim) => Explanation::Animation(explain_animation(anim)),
         TtpObject::Composition(comp) => Explanation::Composition(explain_composition(comp)),
         TtpObject::Variant(variant) => Explanation::Variant(explain_variant(variant)),
+        TtpObject::Particle(particle) => Explanation::Particle(explain_particle(particle)),
     }
 }
 
@@ -541,7 +572,23 @@ pub fn format_explanation(exp: &Explanation) -> String {
         Explanation::Animation(a) => format_animation_explanation(a),
         Explanation::Composition(c) => format_composition_explanation(c),
         Explanation::Variant(v) => format_variant_explanation(v),
+        Explanation::Particle(p) => format_particle_explanation(p),
     }
+}
+
+/// Format a particle explanation as human-readable text
+fn format_particle_explanation(p: &ParticleExplanation) -> String {
+    let mut lines = vec![format!("Particle System: {}", p.name)];
+    lines.push(format!("  Sprite: {}", p.sprite));
+    lines.push(format!("  Rate: {} particles/frame", p.rate));
+    lines.push(format!("  Lifetime: {}-{} frames", p.lifetime[0], p.lifetime[1]));
+    if p.has_gravity {
+        lines.push("  Gravity: enabled".to_string());
+    }
+    if p.has_fade {
+        lines.push("  Fade: enabled".to_string());
+    }
+    lines.join("\n")
 }
 
 /// Resolve palette colors from a sprite's palette reference

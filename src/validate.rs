@@ -4,7 +4,7 @@
 //! common mistakes like undefined tokens, row mismatches, and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{PaletteRef, TtpObject};
+use crate::models::{Particle, PaletteRef, TtpObject};
 use crate::tokenizer::tokenize;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -273,6 +273,9 @@ impl Validator {
             }
             TtpObject::Variant(variant) => {
                 self.validate_variant(line_number, &variant.name, &variant.palette);
+            }
+            TtpObject::Particle(particle) => {
+                self.validate_particle(line_number, &particle);
             }
         }
     }
@@ -549,6 +552,48 @@ impl Validator {
                     .with_context(format!("variant \"{}\"", name)),
                 );
             }
+        }
+    }
+
+    /// Validate a particle system definition
+    fn validate_particle(&mut self, line_number: usize, particle: &Particle) {
+        // Check for empty name
+        if particle.name.is_empty() {
+            self.issues.push(
+                ValidationIssue::error(
+                    line_number,
+                    IssueType::DuplicateName, // Reusing for empty name validation
+                    "Particle system has empty name".to_string(),
+                )
+                .with_context("particle".to_string()),
+            );
+        }
+
+        // Check for empty sprite reference
+        if particle.sprite.is_empty() {
+            self.issues.push(
+                ValidationIssue::error(
+                    line_number,
+                    IssueType::MissingPalette, // Reusing for missing sprite reference
+                    "Particle system has empty sprite reference".to_string(),
+                )
+                .with_context(format!("particle \"{}\"", particle.name)),
+            );
+        }
+
+        // Validate emitter lifetime range
+        if particle.emitter.lifetime[0] > particle.emitter.lifetime[1] {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::SizeMismatch, // Reusing for range validation
+                    format!(
+                        "Particle lifetime min ({}) > max ({})",
+                        particle.emitter.lifetime[0], particle.emitter.lifetime[1]
+                    ),
+                )
+                .with_context(format!("particle \"{}\"", particle.name)),
+            );
         }
     }
 
