@@ -30,6 +30,7 @@ pub mod incremental;
 pub mod manifest;
 pub mod parallel;
 pub mod pipeline;
+pub mod progress;
 pub mod result;
 pub mod target;
 
@@ -39,5 +40,6 @@ pub use incremental::*;
 pub use manifest::*;
 pub use parallel::*;
 pub use pipeline::*;
+pub use progress::*;
 pub use result::*;
 pub use target::*;
