@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use crate::alias::{parse_simple_grid, simple_grid_to_sprite};
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::atlas::{pack_atlas, add_animation_to_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
@@ -402,6 +403,31 @@ pub enum Commands {
         #[arg(long, default_value = "minimal")]
         preset: String,
     },
+
+    /// Create sprite from simple text grid (space-separated characters)
+    ///
+    /// Input format: each line is a row, characters separated by spaces.
+    /// Use _ for transparent pixels. Example:
+    ///   _ _ b b
+    ///   _ b c b
+    ///   b c c b
+    Sketch {
+        /// Input file (omit to read from stdin)
+        #[arg()]
+        file: Option<PathBuf>,
+
+        /// Sprite name (default: "sketch")
+        #[arg(short, long, default_value = "sketch")]
+        name: String,
+
+        /// Reference a named palette instead of inline placeholder colors
+        #[arg(short, long)]
+        palette: Option<String>,
+
+        /// Output file (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -543,6 +569,12 @@ pub fn run() -> ExitCode {
             name,
             preset,
         } => run_init(path.as_deref(), name.as_deref(), &preset),
+        Commands::Sketch {
+            file,
+            name,
+            palette,
+            output,
+        } => run_sketch(file.as_deref(), &name, palette.as_deref(), output.as_deref()),
     }
 }
 
@@ -3242,6 +3274,80 @@ fn run_init(path: Option<&Path>, name: Option<&str>, preset: &str) -> ExitCode {
             ExitCode::from(EXIT_ERROR)
         }
     }
+}
+
+/// Create sprite from simple text grid input
+fn run_sketch(
+    file: Option<&Path>,
+    name: &str,
+    palette: Option<&str>,
+    output: Option<&Path>,
+) -> ExitCode {
+    use std::io::{self, Read, Write};
+
+    // Read input
+    let input = match file {
+        Some(path) => {
+            match std::fs::read_to_string(path) {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("Error: Cannot read '{}': {}", path.display(), e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
+        }
+        None => {
+            // Read from stdin
+            let mut buffer = String::new();
+            if let Err(e) = io::stdin().read_to_string(&mut buffer) {
+                eprintln!("Error: Cannot read from stdin: {}", e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+            buffer
+        }
+    };
+
+    // Parse the simple grid
+    let grid = parse_simple_grid(&input);
+
+    if grid.is_empty() {
+        eprintln!("Error: Empty input - no grid data found");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Convert to sprite JSON
+    let sprite = simple_grid_to_sprite(grid, name, palette);
+
+    // Format output as pretty JSON
+    let json_output = match serde_json::to_string_pretty(&sprite) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Failed to serialize sprite: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    // Write output
+    match output {
+        Some(path) => {
+            let mut file = match std::fs::File::create(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error: Cannot create '{}': {}", path.display(), e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            };
+            if let Err(e) = writeln!(file, "{}", json_output) {
+                eprintln!("Error: Cannot write to '{}': {}", path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+        None => {
+            println!("{}", json_output);
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
 }
 
 #[cfg(test)]
