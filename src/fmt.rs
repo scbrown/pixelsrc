@@ -430,6 +430,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         let formatted = format_animation(&anim);
         assert!(!formatted.contains('\n'));

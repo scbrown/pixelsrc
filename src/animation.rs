@@ -160,6 +160,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites = vec![
@@ -183,6 +184,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         // Only "on" sprite exists
@@ -207,6 +209,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -233,6 +236,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -255,6 +259,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         // No matching sprites
@@ -276,6 +281,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -297,6 +303,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -321,6 +328,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];
@@ -351,6 +359,7 @@ mod tests {
                 FrameMetadata::default(), // Only 2 entries for 3 frames
                 FrameMetadata::default(),
             ]),
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
@@ -374,6 +383,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: Some(vec![FrameMetadata::default(), FrameMetadata::default()]),
+            attachments: None,
         };
 
         let sprites = vec![make_sprite("f1"), make_sprite("f2")];
