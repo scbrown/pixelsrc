@@ -1,0 +1,24 @@
+[book]
+title = "Pixelsrc Documentation"
+authors = ["Steve Brown"]
+description = "Complete documentation for Pixelsrc - the GenAI-native pixel art format"
+src = "src"
+language = "en"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "coal"
+preferred-dark-theme = "coal"
+git-repository-url = "https://github.com/scbrown/pixelsrc"
+edit-url-template = "https://github.com/scbrown/pixelsrc/edit/main/docs/book/{path}"
+additional-css = ["custom/css/custom.css"]
+additional-js = ["custom/js/wasm-demo.js"]
+site-url = "/book/"
+
+[output.html.search]
+enable = true
+
+[output.linkcheck]
+warning-policy = "warn"
