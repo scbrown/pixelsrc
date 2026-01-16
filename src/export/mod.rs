@@ -9,7 +9,7 @@
 //! - **JSON** (BST-6): Generic JSON format with frame positions, animations, and metadata
 //! - **Godot** (BST-12): Godot engine .tres resource files
 //! - **Unity** (BST-13): Unity sprite metadata JSON
-//! - **libGDX** (BST-14): libGDX TextureAtlas format (future)
+//! - **libGDX** (BST-14): libGDX TextureAtlas format (.atlas files)
 //!
 //! # Example
 //!
@@ -24,10 +24,12 @@
 
 pub mod godot;
 pub mod json;
+pub mod libgdx;
 pub mod unity;
 
 pub use godot::*;
 pub use json::*;
+pub use libgdx::*;
 pub use unity::*;
 
 use std::path::Path;
