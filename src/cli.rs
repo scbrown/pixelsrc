@@ -14,6 +14,7 @@ use crate::explain::{
     explain_object, format_explanation, resolve_palette_colors, Explanation,
 };
 use crate::suggest::{format_suggestion, suggest, SuggestionFix, SuggestionType, Suggester};
+use crate::terminal::render_coordinate_grid;
 use crate::validate::{Severity, Validator};
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
@@ -269,6 +270,20 @@ pub enum Commands {
         #[arg(long)]
         only: Option<String>,
     },
+
+    /// Display grid with row/column coordinates for easy reference
+    Grid {
+        /// Input file containing palette and sprite definitions
+        input: PathBuf,
+
+        /// Sprite name (if file contains multiple sprites)
+        #[arg(long)]
+        sprite: Option<String>,
+
+        /// Show full token names instead of abbreviations
+        #[arg(long)]
+        full: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -350,6 +365,11 @@ Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), 
             json,
             only,
         } => run_suggest(&files, stdin, json, only.as_deref()),
+        Commands::Grid {
+            input,
+            sprite,
+            full,
+        } => run_grid(&input, sprite.as_deref(), full),
     }
 }
 
@@ -1946,6 +1966,68 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
             }
         }
     }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the grid command
+fn run_grid(input: &PathBuf, sprite_filter: Option<&str>, full_names: bool) -> ExitCode {
+    // Open input file
+    let file = match File::open(input) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    // Parse JSONL stream
+    let reader = BufReader::new(file);
+    let parse_result = parse_stream(reader);
+
+    // Collect sprites
+    let mut sprites_by_name: std::collections::HashMap<String, crate::models::Sprite> =
+        std::collections::HashMap::new();
+
+    for obj in parse_result.objects {
+        if let TtpObject::Sprite(sprite) = obj {
+            sprites_by_name.insert(sprite.name.clone(), sprite);
+        }
+    }
+
+    if sprites_by_name.is_empty() {
+        eprintln!("Error: No sprites found in input file");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Find the sprite to display
+    let sprite = if let Some(name) = sprite_filter {
+        match sprites_by_name.get(name) {
+            Some(s) => s,
+            None => {
+                eprintln!("Error: No sprite named '{}' found in input", name);
+                let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
+                if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
+                    eprintln!("{}", suggestion);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    } else {
+        // Use the first sprite found
+        sprites_by_name.values().next().unwrap()
+    };
+
+    // Render the coordinate grid
+    let output = render_coordinate_grid(&sprite.grid, full_names);
+
+    // Print sprite name if there are multiple sprites
+    if sprites_by_name.len() > 1 || sprite_filter.is_some() {
+        println!("Sprite: {}", sprite.name);
+        println!();
+    }
+
+    print!("{}", output);
 
     ExitCode::from(EXIT_SUCCESS)
 }
