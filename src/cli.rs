@@ -353,6 +353,42 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
+    /// Build all assets according to pxl.toml
+    Build {
+        /// Override output directory
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+
+        /// Override source directory
+        #[arg(long)]
+        src: Option<PathBuf>,
+
+        /// Watch for changes and rebuild automatically
+        #[arg(short, long)]
+        watch: bool,
+
+        /// Dry run (show what would be built without building)
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Create a new asset from template
+    New {
+        /// Asset type: sprite, animation, palette
+        asset_type: String,
+
+        /// Asset name
+        name: String,
+
+        /// Palette to use (for sprites and animations)
+        #[arg(long)]
+        palette: Option<String>,
+    },
+
     /// Initialize a new pixelsrc project
     Init {
         /// Project directory (default: current directory)
@@ -490,6 +526,18 @@ pub fn run() -> ExitCode {
             onion_fade,
             output.as_deref(),
         ),
+        Commands::Build {
+            out,
+            src,
+            watch,
+            dry_run,
+            verbose,
+        } => run_build(out.as_deref(), src.as_deref(), watch, dry_run, verbose),
+        Commands::New {
+            asset_type,
+            name,
+            palette,
+        } => run_new(&asset_type, &name, palette.as_deref()),
         Commands::Init {
             path,
             name,
@@ -2991,6 +3039,153 @@ fn run_show(
     println!("{}", legend);
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Run the build command
+fn run_build(
+    out: Option<&Path>,
+    src: Option<&Path>,
+    watch: bool,
+    dry_run: bool,
+    verbose: bool,
+) -> ExitCode {
+    use crate::config::loader::{find_config, load_config};
+    use crate::watch::{simple_build, watch_and_rebuild, WatchOptions};
+
+    // Try to find and load config
+    let config = match find_config() {
+        Some(config_path) => {
+            if verbose {
+                println!("Using config: {}", config_path.display());
+            }
+            match load_config(Some(&config_path)) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    eprintln!("Error loading config: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
+        }
+        None => {
+            if verbose {
+                println!("No pxl.toml found, using defaults");
+            }
+            crate::config::loader::default_config()
+        }
+    };
+
+    // Determine source and output directories
+    let src_dir = src
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from(&config.project.src));
+    let out_dir = out
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from(&config.project.out));
+
+    // Check source directory exists
+    if !src_dir.exists() {
+        eprintln!("Error: Source directory not found: {}", src_dir.display());
+        eprintln!("Create the directory or specify a different path with --src");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Dry run mode
+    if dry_run {
+        println!("Dry run - would build:");
+        println!("  Source: {}", src_dir.display());
+        println!("  Output: {}", out_dir.display());
+
+        // Count files that would be processed
+        let result = simple_build(&src_dir, &out_dir);
+        println!("  Files: {}", result.files_processed);
+        println!("  Sprites: {}", result.sprites_rendered);
+        return ExitCode::from(EXIT_SUCCESS);
+    }
+
+    // Watch mode
+    if watch {
+        let options = WatchOptions {
+            src_dir,
+            out_dir,
+            config: config.watch,
+            verbose,
+        };
+
+        println!("Starting watch mode...");
+        println!("Press Ctrl+C to stop");
+        println!();
+
+        match watch_and_rebuild(options) {
+            Ok(()) => ExitCode::from(EXIT_SUCCESS),
+            Err(e) => {
+                eprintln!("Watch error: {}", e);
+                ExitCode::from(EXIT_ERROR)
+            }
+        }
+    } else {
+        // Single build
+        println!("Building...");
+        let result = simple_build(&src_dir, &out_dir);
+
+        if result.success() {
+            println!(
+                "Build complete - Files: {} | Sprites: {}",
+                result.files_processed, result.sprites_rendered
+            );
+            ExitCode::from(EXIT_SUCCESS)
+        } else {
+            eprintln!("Build failed with {} errors", result.errors.len());
+            for error in &result.errors {
+                eprintln!("  {}", error);
+            }
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
+}
+
+/// Run the new command
+fn run_new(asset_type: &str, name: &str, palette: Option<&str>) -> ExitCode {
+    use crate::scaffold::{new_animation, new_palette, new_sprite, ScaffoldError};
+
+    let result = match asset_type.to_lowercase().as_str() {
+        "sprite" => new_sprite(name, palette),
+        "animation" | "anim" => new_animation(name, palette),
+        "palette" => new_palette(name),
+        _ => {
+            eprintln!(
+                "Unknown asset type '{}'. Available types: sprite, animation, palette",
+                asset_type
+            );
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    match result {
+        Ok(path) => {
+            println!("Created {} at {}", asset_type, path.display());
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Err(ScaffoldError::FileExists(path)) => {
+            eprintln!("Error: File already exists: {}", path.display());
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(ScaffoldError::NotInProject) => {
+            eprintln!("Error: Not in a pixelsrc project (no pxl.toml found)");
+            eprintln!("Run 'pxl init' to create a new project first");
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(ScaffoldError::InvalidName(name)) => {
+            eprintln!(
+                "Error: Invalid asset name '{}'. Use lowercase letters, numbers, and underscores.",
+                name
+            );
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
 }
 
 /// Run the init command

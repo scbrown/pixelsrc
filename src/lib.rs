@@ -33,6 +33,7 @@ pub mod parser;
 pub mod prime;
 pub mod registry;
 pub mod renderer;
+pub mod scaffold;
 pub mod spritesheet;
 pub mod suggest;
 pub mod templates;
@@ -40,6 +41,7 @@ pub mod terminal;
 pub mod tokenizer;
 pub mod transforms;
 pub mod validate;
+pub mod watch;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

@@ -352,6 +352,7 @@ pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
 mod tests {
     use super::*;
     use crate::models::PaletteRef;
+    use serial_test::serial;
 
     fn make_palette(colors: &[(&str, &str)]) -> HashMap<String, String> {
         colors
@@ -655,6 +656,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_render_from_fixture_files() {
         use crate::models::{PaletteRef, TtpObject};
         use crate::parser::parse_stream;
@@ -815,6 +817,7 @@ mod tests {
     // ========== Full variant integration test ==========
 
     #[test]
+    #[serial]
     fn test_variant_full_integration() {
         use crate::models::TtpObject;
         use crate::parser::parse_stream;

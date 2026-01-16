@@ -729,6 +729,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_levenshtein_identical() {
@@ -946,6 +947,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_validate_file_errors() {
         use std::path::Path;
 
@@ -980,6 +982,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_validate_file_typos() {
         use std::path::Path;
 
