@@ -1,4 +1,15 @@
-# Sprite Transforms
+---
+phase: 17
+title: Sprite Transforms
+---
+
+# Phase 17: Sprite Transforms
+
+**Status:** Not Started
+
+**Depends on:** Phase 0 (Core CLI exists)
+
+---
 
 Add transform operations for pixelsrc sprites at two levels:
 1. **CLI command** (`pxl transform`) - Source-to-source transformation, outputs new `.pxl`
@@ -787,3 +798,528 @@ Frame 0 → shift right, frame 1 → shift left, frame 2 → shift down, frame 3
 - **Color transforms**: `invert`, `grayscale`, `hue-shift`
 - **Blend modes**: For composition layers
 - **Conditional transforms**: Apply based on variant state
+
+---
+
+## Task Dependency Diagram
+
+```
+                           SPRITE TRANSFORMS TASK FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+PREREQUISITE
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Phase 0 Complete                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 1 (Foundation)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            TRF-1                                    │    │
+│  │               Transform Module Foundation                           │    │
+│  │               (src/transforms.rs)                                   │    │
+│  │               - Transform enum                                      │    │
+│  │               - parse_transform_str/value                           │    │
+│  │               - lib.rs export                                       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 2 (Transform Types - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐ │
+│  │    TRF-2      │  │    TRF-3      │  │    TRF-4      │  │    TRF-5      │ │
+│  │  Geometric    │  │  Expansion    │  │   Effect      │  │  Animation    │ │
+│  │  Transforms   │  │  Transforms   │  │  Transforms   │  │  Transforms   │ │
+│  │  - mirror     │  │  - tile       │  │  - outline    │  │  - pingpong   │ │
+│  │  - rotate     │  │  - pad        │  │  - shift      │  │  - reverse    │ │
+│  │               │  │  - crop       │  │  - shadow     │  │  - hold       │ │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘ │
+│                                                                     │       │
+│  ┌──────────────────────────────────────────────────────────────────┼─────┐ │
+│  │                            TRF-7                                 │     │ │
+│  │               Format Support Models                              │     │ │
+│  │               - TransformSpec                                    │     │ │
+│  │               - Update Sprite/Variant/Animation                  │     │ │
+│  └──────────────────────────────────────────────────────────────────┼─────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                                                         │
+            ▼                                                         ▼
+WAVE 3 (Integration)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            TRF-6                                    │    │
+│  │               Transform CLI Command                                 │    │
+│  │               (pxl transform with all flags)                        │    │
+│  │               Needs: TRF-2, TRF-3, TRF-4, TRF-5                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            TRF-8                                    │    │
+│  │               Format Support Registry                               │    │
+│  │               (resolve transforms in registry)                      │    │
+│  │               Needs: TRF-7                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                                     │
+            │                                     ▼
+            │         ┌─────────────────────────────────────────────────────┐
+            │         │                    TRF-9                            │
+            │         │           Render Integration                        │
+            │         │           Needs: TRF-7, TRF-8                        │
+            │         └─────────────────────────────────────────────────────┘
+            │                                     │
+            │         ┌─────────────────────────────────────────────────────┐
+            │         │                    TRF-10                           │
+            │         │           User-Defined Transforms                   │
+            │         │           - TransformDef, keyframes                 │
+            │         │           - Easing, expressions                     │
+            │         │           Needs: TRF-8                              │
+            │         └─────────────────────────────────────────────────────┘
+            │                                     │
+            ▼                                     ▼
+WAVE 4 (Testing)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            TRF-11                                   │    │
+│  │                    Transform Test Suite                             │    │
+│  │                    (unit + integration tests)                       │    │
+│  │                    Needs: TRF-6, TRF-9, TRF-10                       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 5 (Documentation)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            TRF-12                                   │    │
+│  │                    Transform Documentation                          │    │
+│  │                    - prime output                                   │    │
+│  │                    - format spec                                    │    │
+│  │                    - demo.sh examples                               │    │
+│  │                    Needs: TRF-11                                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+PARALLELIZATION SUMMARY:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Wave 1: TRF-1                               (1 task)                       │
+│  Wave 2: TRF-2 + TRF-3 + TRF-4 + TRF-5 + TRF-7  (5 tasks in parallel)       │
+│  Wave 3: TRF-6 (after TRF-2-5) + TRF-8 (after TRF-7)  (2 parallel tracks)   │
+│          TRF-9 (after TRF-7,8) + TRF-10 (after TRF-8)                       │
+│  Wave 4: TRF-11                              (1 task, needs TRF-6,9,10)     │
+│  Wave 5: TRF-12                              (1 task)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CRITICAL PATH: TRF-1 → TRF-2 → TRF-6 → TRF-11 → TRF-12
+          OR:  TRF-1 → TRF-7 → TRF-8 → TRF-10 → TRF-11 → TRF-12
+
+BEADS CREATION ORDER:
+  1. TRF-1 (no deps)
+  2. TRF-2, TRF-3, TRF-4, TRF-5, TRF-7 (dep: TRF-1)
+  3. TRF-6 (dep: TRF-2,3,4,5), TRF-8 (dep: TRF-7)
+  4. TRF-9 (dep: TRF-7,8), TRF-10 (dep: TRF-8)
+  5. TRF-11 (dep: TRF-6,9,10)
+  6. TRF-12 (dep: TRF-11)
+```
+
+---
+
+## Tasks
+
+### Task TRF-1: Transform Module Foundation
+
+**Wave:** 1
+
+Create the core transform infrastructure.
+
+**Deliverables:**
+- New file `src/transforms.rs`:
+  ```rust
+  /// A single transform operation with optional parameters
+  #[derive(Debug, Clone, PartialEq)]
+  pub enum Transform {
+      // Geometric
+      MirrorH,
+      MirrorV,
+      Rotate { degrees: u16 },
+
+      // Expansion
+      Tile { w: u32, h: u32 },
+      Pad { size: u32 },
+      Crop { x: u32, y: u32, w: u32, h: u32 },
+
+      // Effects
+      Outline { token: Option<String>, width: u32 },
+      Shift { x: i32, y: i32 },
+      Shadow { x: i32, y: i32, token: Option<String> },
+
+      // Animation
+      Pingpong { exclude_ends: bool },
+      Reverse,
+      FrameOffset { offset: i32 },
+      Hold { frame: usize, count: usize },
+  }
+
+  /// Parse transform from string syntax
+  pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError>;
+
+  /// Parse transform from JSON value
+  pub fn parse_transform_value(value: &serde_json::Value) -> Result<Transform, TransformError>;
+  ```
+- Update `src/lib.rs` to add `pub mod transforms;`
+
+**Verification:**
+```bash
+cargo build
+cargo test transforms
+```
+
+**Dependencies:** Phase 0 complete
+
+---
+
+### Task TRF-2: Geometric Transforms
+
+**Wave:** 2 (parallel with TRF-3, TRF-4, TRF-5, TRF-7)
+
+Implement mirror and rotate operations.
+
+**Deliverables:**
+- In `src/transforms.rs`:
+  ```rust
+  /// Mirror grid horizontally (reverse token order in each row)
+  pub fn mirror_horizontal(grid: &[String]) -> Vec<String>
+
+  /// Mirror grid vertically (reverse row order)
+  pub fn mirror_vertical(grid: &[String]) -> Vec<String>
+
+  /// Rotate grid by 90, 180, or 270 degrees clockwise
+  pub fn rotate_grid(grid: &[String], degrees: u16) -> Result<Vec<String>, TransformError>
+  ```
+
+**Verification:**
+```bash
+cargo test mirror
+cargo test rotate
+```
+
+**Dependencies:** Task TRF-1
+
+---
+
+### Task TRF-3: Expansion Transforms
+
+**Wave:** 2 (parallel with TRF-2, TRF-4, TRF-5, TRF-7)
+
+Implement tile, pad, and crop operations.
+
+**Deliverables:**
+- In `src/transforms.rs`:
+  ```rust
+  /// Tile grid into WxH repetitions
+  pub fn tile_grid(grid: &[String], w: u32, h: u32) -> Vec<String>
+
+  /// Add transparent padding around grid
+  pub fn pad_grid(grid: &[String], size: u32, token: &str) -> Vec<String>
+
+  /// Extract sub-region from grid
+  pub fn crop_grid(grid: &[String], x: u32, y: u32, w: u32, h: u32) -> Result<Vec<String>, TransformError>
+  ```
+
+**Verification:**
+```bash
+cargo test tile
+cargo test pad
+cargo test crop
+```
+
+**Dependencies:** Task TRF-1
+
+---
+
+### Task TRF-4: Effect Transforms
+
+**Wave:** 2 (parallel with TRF-2, TRF-3, TRF-5, TRF-7)
+
+Implement outline, shift, and shadow operations.
+
+**Deliverables:**
+- In `src/transforms.rs`:
+  ```rust
+  /// Add outline around opaque pixels
+  pub fn outline_grid(grid: &[String], token: Option<&str>, width: u32) -> Vec<String>
+
+  /// Circular shift (wrap around)
+  pub fn shift_grid(grid: &[String], x: i32, y: i32) -> Vec<String>
+
+  /// Add drop shadow
+  pub fn shadow_grid(grid: &[String], x: i32, y: i32, token: Option<&str>) -> Vec<String>
+  ```
+
+**Verification:**
+```bash
+cargo test outline
+cargo test shift
+cargo test shadow
+```
+
+**Dependencies:** Task TRF-1
+
+---
+
+### Task TRF-5: Animation Transforms
+
+**Wave:** 2 (parallel with TRF-2, TRF-3, TRF-4, TRF-7)
+
+Implement frame sequence operations.
+
+**Deliverables:**
+- In `src/transforms.rs`:
+  ```rust
+  /// Duplicate frames in reverse (1,2,3 → 1,2,3,2,1)
+  pub fn pingpong_frames(frames: &[String], exclude_ends: bool) -> Vec<String>
+
+  /// Reverse frame order
+  pub fn reverse_frames(frames: &[String]) -> Vec<String>
+
+  /// Rotate frame order by offset
+  pub fn frame_offset(frames: &[String], offset: i32) -> Vec<String>
+
+  /// Hold specific frame for extra ticks
+  pub fn hold_frame(frames: &[String], frame: usize, count: usize) -> Vec<String>
+  ```
+
+**Verification:**
+```bash
+cargo test pingpong
+cargo test reverse_frames
+cargo test frame_offset
+cargo test hold
+```
+
+**Dependencies:** Task TRF-1
+
+---
+
+### Task TRF-6: Transform CLI Command
+
+**Wave:** 3 (after TRF-2, TRF-3, TRF-4, TRF-5)
+
+Add `pxl transform` command with all flags.
+
+**Deliverables:**
+- Update `src/cli.rs`:
+  ```rust
+  /// Transform sprites (mirror, rotate, tile, etc.)
+  Transform {
+      input: PathBuf,
+      #[arg(long)] mirror: Option<String>,
+      #[arg(long)] rotate: Option<u16>,
+      #[arg(long)] tile: Option<String>,
+      #[arg(long)] pad: Option<u32>,
+      #[arg(long)] outline: bool,
+      #[arg(long)] crop: Option<String>,
+      #[arg(long)] shift: Option<String>,
+      #[arg(long)] sprite: Option<String>,
+      #[arg(short, long)] output: PathBuf,
+      #[arg(long)] stdin: bool,
+      #[arg(long)] allow_large: bool,
+  }
+  ```
+
+**Verification:**
+```bash
+./target/release/pxl transform examples/arrow.pxl --mirror horizontal -o arrow_left.pxl
+./target/release/pxl transform examples/tile.pxl --tile 3x3 -o tiled.pxl
+./target/release/pxl transform examples/sprite.pxl --rotate 90 --outline -o output.pxl
+```
+
+**Dependencies:** Tasks TRF-2, TRF-3, TRF-4, TRF-5
+
+---
+
+### Task TRF-7: Format Support Models
+
+**Wave:** 2 (parallel with TRF-2, TRF-3, TRF-4, TRF-5)
+
+Add transform support to format types.
+
+**Deliverables:**
+- Update `src/models.rs`:
+  ```rust
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(untagged)]
+  pub enum TransformSpec {
+      String(String),
+      Object { op: String, #[serde(flatten)] params: HashMap<String, Value> },
+  }
+
+  // Add to Sprite, Variant, CompositionLayer, Animation:
+  pub transform: Option<Vec<TransformSpec>>,
+
+  // Add source field to Sprite:
+  pub source: Option<String>,
+  ```
+
+**Verification:**
+```bash
+cargo build
+cargo test models
+```
+
+**Dependencies:** Task TRF-1
+
+---
+
+### Task TRF-8: Format Support Registry
+
+**Wave:** 3 (after TRF-7)
+
+Resolve transforms during sprite/animation resolution.
+
+**Deliverables:**
+- Update `src/registry.rs`:
+  - Resolve `source` references for sprites
+  - Apply transforms when resolving sprites/animations
+  - Handle transform chains
+
+**Verification:**
+```bash
+cargo test registry
+./target/release/pxl render examples/transformed.pxl
+```
+
+**Dependencies:** Task TRF-7
+
+---
+
+### Task TRF-9: Render Integration
+
+**Wave:** 3 (after TRF-7, TRF-8)
+
+Apply transforms during rendering.
+
+**Deliverables:**
+- Update `src/renderer.rs`:
+  - Apply transforms after resolving sprite but before rasterizing
+  - Transform the token grid, not the pixels
+
+**Verification:**
+```bash
+./target/release/pxl render examples/with_transforms.pxl -o output.png
+```
+
+**Dependencies:** Tasks TRF-7, TRF-8
+
+---
+
+### Task TRF-10: User-Defined Transforms
+
+**Wave:** 3 (after TRF-8)
+
+Support custom reusable transforms with keyframes.
+
+**Deliverables:**
+- Add `TransformDef` type to `src/models.rs`
+- Implement keyframe interpolation
+- Implement easing functions (linear, ease-in, ease-out, etc.)
+- Implement expression evaluation for advanced animations
+
+**Verification:**
+```bash
+cargo test keyframe
+cargo test easing
+./target/release/pxl render examples/custom_transform.pxl -o output.gif
+```
+
+**Dependencies:** Task TRF-8
+
+---
+
+### Task TRF-11: Transform Test Suite
+
+**Wave:** 4 (after TRF-6, TRF-9, TRF-10)
+
+Comprehensive tests for all transform functionality.
+
+**Deliverables:**
+- `tests/transform_tests.rs`:
+  - Unit tests for each transform operation
+  - Edge cases (empty grids, single-pixel, etc.)
+  - Transform composition tests
+- `tests/cli_integration.rs` additions:
+  - CLI transform command tests
+  - Round-trip tests
+- Test fixtures in `tests/fixtures/valid/`
+
+**Verification:**
+```bash
+cargo test transforms
+cargo test --test cli_integration transform
+```
+
+**Dependencies:** Tasks TRF-6, TRF-9, TRF-10
+
+---
+
+### Task TRF-12: Transform Documentation
+
+**Wave:** 5 (after TRF-11)
+
+Update all documentation for transform feature.
+
+**Deliverables:**
+- Update `src/prime.rs` with transform commands and examples
+- Update `docs/spec/format.md` with transform syntax
+- Update `demo.sh` with transform examples
+
+**Verification:**
+```bash
+./target/release/pxl prime | grep transform
+grep "transform" docs/spec/format.md
+./demo.sh  # Should run without errors
+```
+
+**Dependencies:** Task TRF-11
+
+---
+
+## Verification Summary
+
+```bash
+# 1. All existing tests pass
+cargo test
+
+# 2. Transform module tests pass
+cargo test transforms
+
+# 3. CLI command works
+./target/release/pxl transform examples/arrow.pxl --mirror horizontal -o left.pxl
+./target/release/pxl transform examples/tile.pxl --tile 3x3 -o tiled.pxl
+./target/release/pxl transform examples/sprite.pxl --rotate 90 --pad 2 --outline -o output.pxl
+
+# 4. Format transforms work
+./target/release/pxl render examples/with_transforms.pxl -o output.png
+
+# 5. Chain transforms work
+./target/release/pxl transform input.pxl --mirror h --rotate 90 --tile 2x2 -o output.pxl
+
+# 6. Documentation updated
+./target/release/pxl prime | grep transform
+```
+
+---
+
+## Success Criteria
+
+1. All transform operations work as documented
+2. CLI `pxl transform` supports all flags and chains transforms correctly
+3. Format `transform` attribute works on sprites, variants, compositions, and animations
+4. User-defined transforms support keyframes and easing
+5. Large expansion warnings work with `--allow-large` override
+6. All tests pass
+7. Documentation reflects new capabilities
