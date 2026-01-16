@@ -19,6 +19,19 @@ This defines:
 - A **palette** named "star" with two colors: transparent (`{_}`) and yellow (`{y}`)
 - A **sprite** named "star" that uses that palette to draw a 3x3 star shape
 
+### Try It
+
+Edit the colors below and click "Try it" to see your sprite:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="quickstart-star">{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700"}}
+{"type": "sprite", "name": "star", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('quickstart-star', 'quickstart-star-preview')">Try it</button>
+  <div class="preview" id="quickstart-star-preview"></div>
+</div>
+
+Try changing `{y}` to use `#FF0000` (red) or `#00FF00` (green) to see how palette colors work.
+
 ## Step 2: Render to PNG
 
 Run the render command:

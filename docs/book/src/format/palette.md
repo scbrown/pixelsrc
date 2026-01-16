@@ -34,6 +34,19 @@ A palette defines named color tokens for use in sprites. Palettes separate color
 }}
 ```
 
+### Try It
+
+Edit the palette colors and see how they affect the sprite:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="palette-demo">{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFCC99", "{hair}": "#8B4513", "{shirt}": "#4169E1", "{outline}": "#000000"}}
+{"type": "sprite", "name": "hero", "palette": "hero", "grid": ["{_}{hair}{hair}{hair}{_}", "{_}{skin}{skin}{skin}{_}", "{outline}{skin}{skin}{skin}{outline}", "{_}{shirt}{shirt}{shirt}{_}", "{_}{shirt}{_}{shirt}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('palette-demo', 'palette-demo-preview')">Try it</button>
+  <div class="preview" id="palette-demo-preview"></div>
+</div>
+
+Try changing `{hair}` to `#FFD700` (blonde) or `{shirt}` to `#FF0000` (red).
+
 ## Color Formats
 
 Palettes accept colors in these hexadecimal formats:

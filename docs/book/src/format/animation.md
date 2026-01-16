@@ -216,6 +216,22 @@ Both examples create the same 20 FPS animation.
 {"type": "animation", "name": "blink", "frames": ["light_on", "light_off"], "duration": 500, "loop": true}
 ```
 
+### Try It
+
+Click to render the first frame of the blinking animation:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="animation-demo">{"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FFFF00", "{off}": "#888800"}}
+{"type": "sprite", "name": "light_on", "palette": "blink", "grid": ["{_}{on}{on}{_}", "{on}{on}{on}{on}", "{on}{on}{on}{on}", "{_}{on}{on}{_}"]}
+{"type": "sprite", "name": "light_off", "palette": "blink", "grid": ["{_}{off}{off}{_}", "{off}{off}{off}{off}", "{off}{off}{off}{off}", "{_}{off}{off}{_}"]}
+{"type": "animation", "name": "blink", "frames": ["light_on", "light_off"], "duration": 500, "loop": true}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('animation-demo', 'animation-demo-preview', {spriteName: 'light_on'})">Show "On" Frame</button>
+  <button onclick="pixelsrcDemo.renderFromTextarea('animation-demo', 'animation-demo-preview', {spriteName: 'light_off'})">Show "Off" Frame</button>
+  <div class="preview" id="animation-demo-preview"></div>
+</div>
+
+Try changing the `{on}` color to `#00FF00` (green) or `#FF0000` (red).
+
 ## Rendering Animations
 
 ```bash

@@ -9,6 +9,17 @@ You're building a game and need **production-ready assets**. Spritesheets, atlas
 3. Import into your game engine
 4. Iterate without breaking references
 
+## Quick Preview
+
+Before exporting, verify your sprites render correctly:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="gamedev-demo">{"type": "palette", "name": "hero", "colors": {"{_}": "#0000", "{outline}": "#1a1a2e", "{body}": "#4169E1", "{skin}": "#FFCC99"}}
+{"type": "sprite", "name": "hero_idle", "palette": "hero", "grid": ["{_}{outline}{outline}{outline}{_}", "{outline}{skin}{skin}{skin}{outline}", "{_}{body}{body}{body}{_}", "{_}{body}{_}{body}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('gamedev-demo', 'gamedev-demo-preview')">Try it</button>
+  <div class="preview" id="gamedev-demo-preview"></div>
+</div>
+
 ## Spritesheet Export
 
 ### Basic Spritesheet

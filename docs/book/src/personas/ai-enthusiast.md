@@ -84,6 +84,19 @@ Here's an example of the format:
 Now create a 12x10 sprite of a key using similar style.
 ```
 
+#### Try It
+
+See the example sprite rendered—modify it to experiment with AI output:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="ai-demo">{"type": "palette", "name": "chest", "colors": {"{_}": "#0000", "{wood}": "#8b4513", "{metal}": "#c0c0c0", "{dark}": "#5c4033"}}
+{"type": "sprite", "name": "chest_closed", "palette": "chest", "grid": ["{_}{metal}{metal}{metal}{metal}{_}", "{wood}{dark}{wood}{wood}{dark}{wood}", "{wood}{wood}{wood}{wood}{wood}{wood}", "{wood}{dark}{wood}{wood}{dark}{wood}", "{_}{wood}{wood}{wood}{wood}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('ai-demo', 'ai-demo-preview')">Try it</button>
+  <div class="preview" id="ai-demo-preview"></div>
+</div>
+
+This is exactly the kind of output you want AI to generate—validate it works before moving on.
+
 ### Request Semantic Naming
 
 ```

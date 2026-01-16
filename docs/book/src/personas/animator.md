@@ -74,6 +74,23 @@ A classic 4-frame coin rotation:
 {"type": "animation", "name": "coin_spin", "frames": ["coin_1", "coin_2", "coin_3", "coin_4"], "duration": 120, "loop": true}
 ```
 
+### Try It
+
+Preview each frame of the coin spin animation:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="animator-demo">{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#ffd700", "{gold_light}": "#ffec8b", "{gold_dark}": "#daa520", "{shine}": "#ffffff"}}
+{"type": "sprite", "name": "coin_1", "palette": "coin", "grid": ["{_}{gold}{gold}{gold}{gold}{_}", "{gold}{gold_light}{gold}{gold}{gold}{gold}", "{gold}{shine}{gold}{gold}{gold}{gold}", "{gold}{gold}{gold}{gold}{gold}{gold}", "{gold}{gold}{gold}{gold}{gold_dark}{gold}", "{_}{gold}{gold}{gold}{gold}{_}"]}
+{"type": "sprite", "name": "coin_2", "palette": "coin", "grid": ["{_}{_}{gold}{gold}{_}{_}", "{_}{gold}{gold_light}{gold}{gold}{_}", "{_}{gold}{shine}{gold}{gold}{_}", "{_}{gold}{gold}{gold}{gold}{_}", "{_}{gold}{gold}{gold_dark}{gold}{_}", "{_}{_}{gold}{gold}{_}{_}"]}
+{"type": "sprite", "name": "coin_3", "palette": "coin", "grid": ["{_}{_}{gold}{_}{_}{_}", "{_}{gold}{gold_light}{gold}{_}{_}", "{_}{gold}{gold}{gold}{_}{_}", "{_}{gold}{gold}{gold}{_}{_}", "{_}{gold}{gold_dark}{gold}{_}{_}", "{_}{_}{gold}{_}{_}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_1'})">Frame 1</button>
+  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_2'})">Frame 2</button>
+  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_3'})">Frame 3</button>
+  <div class="preview" id="animator-demo-preview"></div>
+</div>
+
+Try changing the shine color to `#FFC0CB` (pink) for a magical coin effect.
+
 ## Preview Animations
 
 Preview in terminal:

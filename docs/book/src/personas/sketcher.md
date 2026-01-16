@@ -102,4 +102,17 @@ Start with a simple silhouette to nail the proportions:
 ]}
 ```
 
+### Try It
+
+Experiment with the silhouette shape—adjust the pose, add arms, or change proportions:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="sketcher-demo">{"type": "palette", "name": "silhouette", "colors": {"{_}": "#0000", "{s}": "#000000"}}
+{"type": "sprite", "name": "hero", "palette": "silhouette", "grid": ["{_}{_}{s}{s}{s}{_}{_}", "{_}{s}{s}{s}{s}{s}{_}", "{_}{_}{s}{s}{s}{_}{_}", "{_}{s}{s}{s}{s}{s}{_}", "{s}{_}{s}{s}{s}{_}{s}", "{_}{_}{s}{_}{s}{_}{_}", "{_}{_}{s}{_}{s}{_}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('sketcher-demo', 'sketcher-demo-preview')">Try it</button>
+  <div class="preview" id="sketcher-demo-preview"></div>
+</div>
+
+Try changing `{s}` to `#4169E1` (blue) to see color, or add more rows to make the character taller.
+
 Once the shape feels right, you can add detail colors, animate it, or hand it off to your sprite artist persona.

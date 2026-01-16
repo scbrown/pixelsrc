@@ -165,4 +165,17 @@ Strict mode catches warnings that lenient mode ignores.
 }}
 ```
 
+### Try It
+
+Edit the knight's palette to create your own color scheme:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="sprite-artist-demo">{"type": "palette", "name": "knight", "colors": {"{_}": "#00000000", "{outline}": "#1a1a2e", "{armor}": "#7f8c8d", "{armor_light}": "#95a5a6", "{armor_dark}": "#5d6d7e", "{visor}": "#2c3e50", "{plume}": "#c0392b", "{plume_dark}": "#922b21"}}
+{"type": "sprite", "name": "knight_idle", "palette": "knight", "grid": ["{_}{_}{plume}{plume}{plume}{_}{_}{_}", "{_}{plume_dark}{plume}{plume}{plume}{plume}{_}{_}", "{_}{outline}{armor}{armor}{armor}{outline}{_}{_}", "{outline}{armor_light}{armor}{visor}{armor}{armor_light}{outline}{_}", "{outline}{armor}{armor_dark}{armor_dark}{armor_dark}{armor}{outline}{_}", "{_}{outline}{armor}{armor}{armor}{outline}{_}{_}", "{_}{armor}{armor_dark}{armor}{armor_dark}{armor}{_}{_}", "{_}{outline}{armor}{_}{armor}{outline}{_}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('sprite-artist-demo', 'sprite-artist-demo-preview')">Try it</button>
+  <div class="preview" id="sprite-artist-demo-preview"></div>
+</div>
+
+Try changing `{armor}` to `#FFD700` (gold) and `{plume}` to `#4169E1` (blue) for a royal knight.
+
 This gives you a silver knight, a gold variant, and a reusable palette for additional knight sprites.

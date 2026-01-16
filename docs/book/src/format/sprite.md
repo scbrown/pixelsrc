@@ -35,6 +35,19 @@ A sprite defines a pixel art image using a grid of color tokens. Sprites are the
 ]}
 ```
 
+### Try It
+
+Modify the grid pattern and colors to create different sprites:
+
+<div class="pixelsrc-demo" data-pixelsrc-demo>
+  <textarea id="sprite-demo">{"type": "palette", "name": "gold", "colors": {"{_}": "#0000", "{g}": "#FFD700", "{h}": "#FFFACD"}}
+{"type": "sprite", "name": "coin", "palette": "gold", "grid": ["{_}{g}{g}{_}", "{g}{h}{g}{g}", "{g}{g}{g}{g}", "{_}{g}{g}{_}"]}</textarea>
+  <button onclick="pixelsrcDemo.renderFromTextarea('sprite-demo', 'sprite-demo-preview')">Try it</button>
+  <div class="preview" id="sprite-demo-preview"></div>
+</div>
+
+Try adding more rows to make the coin larger, or change `{h}` (highlight) to create different shine effects.
+
 ## Grid Format
 
 The grid is an array of strings representing pixel rows:
