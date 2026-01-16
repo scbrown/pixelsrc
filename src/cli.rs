@@ -16,7 +16,7 @@ use crate::explain::{explain_object, format_explanation, resolve_palette_colors,
 use crate::fmt::format_pixelsrc;
 use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
-use crate::terminal::render_coordinate_grid;
+use crate::terminal::{render_ansi_grid, render_coordinate_grid};
 use crate::validate::{Severity, Validator};
 use glob::glob;
 
@@ -292,6 +292,16 @@ pub enum Commands {
         #[arg(long)]
         full: bool,
     },
+
+    /// Display sprite with colored terminal output (ANSI true-color)
+    Show {
+        /// Input file containing sprite definitions
+        file: PathBuf,
+
+        /// Sprite name (if file contains multiple sprites)
+        #[arg(long)]
+        sprite: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -385,6 +395,7 @@ pub fn run() -> ExitCode {
             sprite,
             full,
         } => run_grid(&input, sprite.as_deref(), full),
+        Commands::Show { file, sprite } => run_show(&file, sprite.as_deref()),
     }
 }
 
@@ -2167,6 +2178,115 @@ fn run_grid(input: &PathBuf, sprite_filter: Option<&str>, full_names: bool) -> E
     }
 
     print!("{}", output);
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the show command - display sprite with colored terminal output
+fn run_show(file: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
+    use std::collections::HashMap;
+    use crate::models::{TtpObject, Sprite};
+    use crate::registry::PaletteRegistry;
+
+    // Open input file
+    let input_file = match File::open(file) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error: Cannot open input file '{}': {}", file.display(), e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    // Parse JSONL stream
+    let reader = BufReader::new(input_file);
+    let parse_result = parse_stream(reader);
+
+    // Collect sprites and palettes
+    let mut sprites_by_name: HashMap<String, Sprite> = HashMap::new();
+    let mut registry = PaletteRegistry::new();
+
+    for obj in parse_result.objects {
+        match obj {
+            TtpObject::Palette(palette) => {
+                registry.register(palette);
+            }
+            TtpObject::Sprite(sprite) => {
+                sprites_by_name.insert(sprite.name.clone(), sprite);
+            }
+            _ => {}
+        }
+    }
+
+    if sprites_by_name.is_empty() {
+        eprintln!("Error: No sprites found in input file");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Find the sprite to display
+    let sprite = if let Some(name) = sprite_filter {
+        match sprites_by_name.get(name) {
+            Some(s) => s,
+            None => {
+                eprintln!("Error: No sprite named '{}' found in input", name);
+                let sprite_names: Vec<&str> =
+                    sprites_by_name.keys().map(|s| s.as_str()).collect();
+                if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
+                    eprintln!("{}", suggestion);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    } else {
+        // Use the first sprite found
+        match sprites_by_name.values().next() {
+            Some(s) => s,
+            None => {
+                eprintln!("Error: No sprites found in input file");
+                return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    };
+
+    // Resolve the palette colors
+    let resolved_palette = match registry.resolve(sprite, false) {
+        Ok(result) => result.palette.colors,
+        Err(e) => {
+            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    // Convert palette colors to hex strings for render_ansi_grid
+    let palette_hex: HashMap<String, String> = resolved_palette
+        .iter()
+        .map(|(token, hex)| (token.clone(), hex.clone()))
+        .collect();
+
+    // Build aliases map (empty for now - we'll use auto-aliasing)
+    let aliases: HashMap<char, String> = HashMap::new();
+
+    // Render the colored grid
+    let (colored_output, legend) = render_ansi_grid(&sprite.grid, &palette_hex, &aliases);
+
+    // Calculate dimensions from grid if size not provided
+    let height = sprite.grid.len();
+    let width = if let Some(size) = &sprite.size {
+        size[0] as usize
+    } else {
+        // Infer from first row by counting tokens
+        use crate::tokenizer::tokenize;
+        sprite.grid.first().map(|row| tokenize(row).0.len()).unwrap_or(0)
+    };
+
+    // Print sprite name and dimensions
+    println!("Sprite: {} ({}x{})", sprite.name, width, height);
+    println!();
+
+    // Print the colored grid
+    print!("{}", colored_output);
+
+    // Print the legend
+    println!("{}", legend);
 
     ExitCode::from(EXIT_SUCCESS)
 }
