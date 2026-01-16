@@ -20,6 +20,7 @@ pub mod gif;
 pub mod import;
 pub mod include;
 pub mod models;
+pub mod onion;
 pub mod output;
 pub mod palette_cycle;
 pub mod palettes;
