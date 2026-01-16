@@ -6,6 +6,7 @@ on:
     paths:
       - 'website/**'
       - 'wasm/**'
+      - 'docs/book/**'
       - '.github/workflows/website.yml'
   workflow_dispatch:
 
@@ -51,6 +52,26 @@ jobs:
       - name: Build website
         run: npm run build
         working-directory: website
+
+      - name: Install mdbook
+        run: |
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+          chmod +x mdbook
+          sudo mv mdbook /usr/local/bin/
+
+      - name: Copy WASM assets to book
+        run: |
+          mkdir -p docs/book/wasm-assets
+          cp wasm/pkg/pixelsrc_wasm.js docs/book/wasm-assets/
+          cp wasm/pkg/pixelsrc_wasm_bg.wasm docs/book/wasm-assets/
+
+      - name: Build mdbook
+        run: mdbook build docs/book
+
+      - name: Combine website and book
+        run: |
+          mkdir -p website/dist/book
+          cp -r docs/book/book/* website/dist/book/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
