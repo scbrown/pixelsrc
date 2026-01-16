@@ -77,7 +77,7 @@ fn default_out() -> PathBuf {
 }
 
 /// Default settings applied to all outputs
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DefaultsConfig {
     /// Default scale factor
     #[serde(default = "default_scale")]
@@ -85,6 +85,15 @@ pub struct DefaultsConfig {
     /// Default padding between sprites
     #[serde(default = "default_padding")]
     pub padding: u32,
+}
+
+impl Default for DefaultsConfig {
+    fn default() -> Self {
+        Self {
+            scale: default_scale(),
+            padding: default_padding(),
+        }
+    }
 }
 
 fn default_scale() -> u32 {
@@ -119,7 +128,7 @@ fn default_max_size() -> [u32; 2] {
 }
 
 /// Animation output configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimationsConfig {
     /// Glob patterns for animation files
     #[serde(default = "default_animation_sources")]
@@ -133,6 +142,17 @@ pub struct AnimationsConfig {
     /// Layout direction for sprite sheets
     #[serde(default)]
     pub sheet_layout: SheetLayout,
+}
+
+impl Default for AnimationsConfig {
+    fn default() -> Self {
+        Self {
+            sources: default_animation_sources(),
+            preview: false,
+            preview_scale: default_scale(),
+            sheet_layout: SheetLayout::default(),
+        }
+    }
 }
 
 fn default_animation_sources() -> Vec<String> {
