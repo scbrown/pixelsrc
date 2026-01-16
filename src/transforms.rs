@@ -300,6 +300,20 @@ pub enum Transform {
         /// Dither pattern to use
         pattern: DitherPattern,
     },
+
+    // Sub-pixel Animation (ATF-13)
+    /// Create apparent motion smaller than 1 pixel via color blending
+    ///
+    /// The subpixel values (0.0-1.0) control how much to blend toward
+    /// adjacent pixels:
+    /// - `subpixel_x: 0.5` = 50% blend toward the right pixel
+    /// - `subpixel_y: 0.5` = 50% blend toward the bottom pixel
+    Subpixel {
+        /// Horizontal sub-pixel offset (0.0-1.0)
+        x: f64,
+        /// Vertical sub-pixel offset (0.0-1.0)
+        y: f64,
+    },
 }
 
 /// Parse transform from string syntax: "mirror-h", "rotate:90", "tile:3x2"
@@ -445,6 +459,17 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
                 param: "direction:from_token,to_token".to_string(),
             })?;
             parse_dither_gradient_str(gradient_params)
+        }
+
+        // Sub-pixel Animation (ATF-13)
+        // String syntax: subpixel:x,y (values 0.0-1.0)
+        // Example: subpixel:0.5,0.25
+        "subpixel" | "sub-pixel" | "subpixel-shift" => {
+            let subpixel_params = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "subpixel".to_string(),
+                param: "x,y".to_string(),
+            })?;
+            parse_subpixel_str(subpixel_params)
         }
 
         _ => Err(TransformError::UnknownOperation(op.to_string())),
@@ -682,6 +707,24 @@ fn parse_transform_object(
                 to,
                 pattern,
             })
+        }
+
+        // Sub-pixel Animation (ATF-13)
+        "subpixel" | "sub-pixel" | "subpixel-shift" => {
+            let x = params
+                .get("x")
+                .or_else(|| params.get("subpixel-x"))
+                .or_else(|| params.get("subpixel_x"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let y = params
+                .get("y")
+                .or_else(|| params.get("subpixel-y"))
+                .or_else(|| params.get("subpixel_y"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+
+            Ok(Transform::Subpixel { x, y })
         }
 
         _ => Err(TransformError::UnknownOperation(op.to_string())),
@@ -960,6 +1003,38 @@ fn parse_dither_gradient_str(s: &str) -> Result<Transform, TransformError> {
         to,
         pattern,
     })
+}
+
+/// Parse subpixel from string syntax: x,y (values 0.0-1.0)
+/// Example: "0.5,0.25"
+fn parse_subpixel_str(s: &str) -> Result<Transform, TransformError> {
+    let parts: Vec<&str> = s.split(',').collect();
+
+    let x = if !parts.is_empty() && !parts[0].is_empty() {
+        parts[0]
+            .trim()
+            .parse::<f64>()
+            .map_err(|_| TransformError::InvalidParameter {
+                op: "subpixel".to_string(),
+                message: format!("cannot parse '{}' as x offset", parts[0]),
+            })?
+    } else {
+        0.0
+    };
+
+    let y = if parts.len() > 1 && !parts[1].is_empty() {
+        parts[1]
+            .trim()
+            .parse::<f64>()
+            .map_err(|_| TransformError::InvalidParameter {
+                op: "subpixel".to_string(),
+                message: format!("cannot parse '{}' as y offset", parts[1]),
+            })?
+    } else {
+        0.0
+    };
+
+    Ok(Transform::Subpixel { x, y })
 }
 
 /// Parse a token pair like "{dark},{light}" or "dark,light"
@@ -2019,5 +2094,98 @@ mod tests {
 
         // Missing first token
         assert_eq!(parse_token_pair(",{b}"), None);
+    }
+
+    // ========================================================================
+    // Sub-pixel Animation Tests (ATF-13)
+    // ========================================================================
+
+    #[test]
+    fn test_parse_subpixel_str_basic() {
+        let result = parse_transform_str("subpixel:0.5,0.25").unwrap();
+        assert_eq!(result, Transform::Subpixel { x: 0.5, y: 0.25 });
+    }
+
+    #[test]
+    fn test_parse_subpixel_str_x_only() {
+        let result = parse_transform_str("subpixel:0.5,").unwrap();
+        assert_eq!(result, Transform::Subpixel { x: 0.5, y: 0.0 });
+    }
+
+    #[test]
+    fn test_parse_subpixel_str_aliases() {
+        // Test alternative names
+        let result1 = parse_transform_str("sub-pixel:0.3,0.7").unwrap();
+        let result2 = parse_transform_str("subpixel-shift:0.3,0.7").unwrap();
+        assert_eq!(result1, Transform::Subpixel { x: 0.3, y: 0.7 });
+        assert_eq!(result2, Transform::Subpixel { x: 0.3, y: 0.7 });
+    }
+
+    #[test]
+    fn test_parse_subpixel_str_invalid() {
+        assert!(parse_transform_str("subpixel:invalid,0.5").is_err());
+        assert!(parse_transform_str("subpixel:0.5,invalid").is_err());
+    }
+
+    #[test]
+    fn test_parse_subpixel_value_object() {
+        let value = serde_json::json!({
+            "op": "subpixel",
+            "x": 0.5,
+            "y": 0.25
+        });
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::Subpixel { x: 0.5, y: 0.25 }
+        );
+    }
+
+    #[test]
+    fn test_parse_subpixel_value_object_alt_keys() {
+        // Test alternative key names (subpixel-x, subpixel_x)
+        let value1 = serde_json::json!({
+            "op": "subpixel",
+            "subpixel-x": 0.3,
+            "subpixel-y": 0.7
+        });
+        assert_eq!(
+            parse_transform_value(&value1).unwrap(),
+            Transform::Subpixel { x: 0.3, y: 0.7 }
+        );
+
+        let value2 = serde_json::json!({
+            "op": "subpixel",
+            "subpixel_x": 0.2,
+            "subpixel_y": 0.8
+        });
+        assert_eq!(
+            parse_transform_value(&value2).unwrap(),
+            Transform::Subpixel { x: 0.2, y: 0.8 }
+        );
+    }
+
+    #[test]
+    fn test_parse_subpixel_value_object_defaults() {
+        // Missing x and y should default to 0.0
+        let value = serde_json::json!({
+            "op": "subpixel"
+        });
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::Subpixel { x: 0.0, y: 0.0 }
+        );
+    }
+
+    #[test]
+    fn test_parse_subpixel_value_object_partial() {
+        // Only x specified
+        let value = serde_json::json!({
+            "op": "subpixel",
+            "x": 0.5
+        });
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::Subpixel { x: 0.5, y: 0.0 }
+        );
     }
 }
