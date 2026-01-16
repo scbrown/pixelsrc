@@ -534,6 +534,170 @@ fn get_i32_param(
         })
 }
 
+// ============================================================================
+// Animation Transform Application Functions
+// ============================================================================
+
+/// Apply pingpong transform: duplicate frames in reverse order for forward-backward play.
+///
+/// Given frames [A, B, C], produces:
+/// - `exclude_ends=false`: [A, B, C, C, B, A]
+/// - `exclude_ends=true`:  [A, B, C, B]
+///
+/// # Arguments
+/// * `frames` - The animation frames (sprite names)
+/// * `exclude_ends` - If true, don't duplicate first/last frame in reverse
+///
+/// # Returns
+/// A new Vec with the pingpong sequence
+pub fn apply_pingpong<T: Clone>(frames: &[T], exclude_ends: bool) -> Vec<T> {
+    if frames.is_empty() {
+        return Vec::new();
+    }
+    if frames.len() == 1 {
+        return frames.to_vec();
+    }
+
+    let mut result = frames.to_vec();
+
+    if exclude_ends {
+        // Reverse without first and last: [A, B, C] -> [A, B, C, B]
+        // Skip first (0) and last (len-1) when reversing
+        for i in (1..frames.len() - 1).rev() {
+            result.push(frames[i].clone());
+        }
+    } else {
+        // Full reverse including ends: [A, B, C] -> [A, B, C, C, B, A]
+        for i in (0..frames.len()).rev() {
+            result.push(frames[i].clone());
+        }
+    }
+
+    result
+}
+
+/// Apply reverse transform: reverse the order of frames.
+///
+/// Given frames [A, B, C], produces [C, B, A].
+///
+/// # Arguments
+/// * `frames` - The animation frames (sprite names)
+///
+/// # Returns
+/// A new Vec with reversed frame order
+pub fn apply_reverse<T: Clone>(frames: &[T]) -> Vec<T> {
+    frames.iter().rev().cloned().collect()
+}
+
+/// Apply frame-offset transform: rotate frames by offset positions.
+///
+/// Given frames [A, B, C, D] with offset=1, produces [B, C, D, A].
+/// Negative offsets rotate in the opposite direction.
+///
+/// # Arguments
+/// * `frames` - The animation frames (sprite names)
+/// * `offset` - Number of positions to rotate (positive = forward, negative = backward)
+///
+/// # Returns
+/// A new Vec with rotated frame order
+pub fn apply_frame_offset<T: Clone>(frames: &[T], offset: i32) -> Vec<T> {
+    if frames.is_empty() {
+        return Vec::new();
+    }
+
+    let len = frames.len() as i32;
+    // Normalize offset to positive value within range
+    let normalized = ((offset % len) + len) % len;
+
+    let mut result = Vec::with_capacity(frames.len());
+    for i in 0..frames.len() {
+        let idx = (i as i32 + normalized) % len;
+        result.push(frames[idx as usize].clone());
+    }
+    result
+}
+
+/// Apply hold transform: duplicate a specific frame multiple times.
+///
+/// Given frames [A, B, C] with frame=1 and count=3, produces [A, B, B, B, C].
+///
+/// # Arguments
+/// * `frames` - The animation frames (sprite names)
+/// * `frame` - Index of the frame to hold (0-based)
+/// * `count` - Number of times to repeat the frame (total occurrences)
+///
+/// # Returns
+/// A new Vec with the held frame duplicated, or original if frame index is invalid
+pub fn apply_hold<T: Clone>(frames: &[T], frame: usize, count: usize) -> Vec<T> {
+    if frames.is_empty() || frame >= frames.len() {
+        return frames.to_vec();
+    }
+    if count == 0 {
+        // count=0 means remove the frame
+        let mut result = Vec::with_capacity(frames.len().saturating_sub(1));
+        for (i, f) in frames.iter().enumerate() {
+            if i != frame {
+                result.push(f.clone());
+            }
+        }
+        return result;
+    }
+
+    let mut result = Vec::with_capacity(frames.len() + count - 1);
+    for (i, f) in frames.iter().enumerate() {
+        if i == frame {
+            // Insert count copies
+            for _ in 0..count {
+                result.push(f.clone());
+            }
+        } else {
+            result.push(f.clone());
+        }
+    }
+    result
+}
+
+/// Apply an animation transform to a list of frames.
+///
+/// Only animation-specific transforms are applied here. Non-animation transforms
+/// (geometric, expansion, effects) return an error.
+///
+/// # Arguments
+/// * `transform` - The transform to apply
+/// * `frames` - The animation frames (sprite names)
+///
+/// # Returns
+/// A new Vec with the transform applied, or an error if not an animation transform
+pub fn apply_animation_transform<T: Clone>(
+    transform: &Transform,
+    frames: &[T],
+) -> Result<Vec<T>, TransformError> {
+    match transform {
+        Transform::Pingpong { exclude_ends } => Ok(apply_pingpong(frames, *exclude_ends)),
+        Transform::Reverse => Ok(apply_reverse(frames)),
+        Transform::FrameOffset { offset } => Ok(apply_frame_offset(frames, *offset)),
+        Transform::Hold { frame, count } => Ok(apply_hold(frames, *frame, *count)),
+        _ => Err(TransformError::InvalidParameter {
+            op: "animation_transform".to_string(),
+            message: "transform is not an animation transform".to_string(),
+        }),
+    }
+}
+
+/// Check if a transform is an animation transform.
+///
+/// Animation transforms only make sense for animations (not sprites):
+/// - Pingpong, Reverse, FrameOffset, Hold
+pub fn is_animation_transform(transform: &Transform) -> bool {
+    matches!(
+        transform,
+        Transform::Pingpong { .. }
+            | Transform::Reverse
+            | Transform::FrameOffset { .. }
+            | Transform::Hold { .. }
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -746,5 +910,263 @@ mod tests {
 
         let value = serde_json::json!({"no_op": "tile"});
         assert!(parse_transform_value(&value).is_err());
+    }
+
+    // ========================================================================
+    // Animation Transform Application Tests
+    // ========================================================================
+
+    #[test]
+    fn test_apply_pingpong_basic() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_pingpong(&frames, false);
+        assert_eq!(result, vec!["A", "B", "C", "C", "B", "A"]);
+    }
+
+    #[test]
+    fn test_apply_pingpong_exclude_ends() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_pingpong(&frames, true);
+        assert_eq!(result, vec!["A", "B", "C", "B"]);
+    }
+
+    #[test]
+    fn test_apply_pingpong_exclude_ends_longer() {
+        let frames = vec!["A", "B", "C", "D", "E"];
+        let result = apply_pingpong(&frames, true);
+        assert_eq!(result, vec!["A", "B", "C", "D", "E", "D", "C", "B"]);
+    }
+
+    #[test]
+    fn test_apply_pingpong_two_frames() {
+        let frames = vec!["A", "B"];
+        // Without exclude_ends: [A, B, B, A]
+        let result = apply_pingpong(&frames, false);
+        assert_eq!(result, vec!["A", "B", "B", "A"]);
+
+        // With exclude_ends: [A, B] (nothing to add - first and last are excluded)
+        let result = apply_pingpong(&frames, true);
+        assert_eq!(result, vec!["A", "B"]);
+    }
+
+    #[test]
+    fn test_apply_pingpong_single_frame() {
+        let frames = vec!["A"];
+        let result = apply_pingpong(&frames, false);
+        assert_eq!(result, vec!["A"]);
+
+        let result = apply_pingpong(&frames, true);
+        assert_eq!(result, vec!["A"]);
+    }
+
+    #[test]
+    fn test_apply_pingpong_empty() {
+        let frames: Vec<&str> = vec![];
+        let result = apply_pingpong(&frames, false);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_reverse_basic() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_reverse(&frames);
+        assert_eq!(result, vec!["C", "B", "A"]);
+    }
+
+    #[test]
+    fn test_apply_reverse_single() {
+        let frames = vec!["A"];
+        let result = apply_reverse(&frames);
+        assert_eq!(result, vec!["A"]);
+    }
+
+    #[test]
+    fn test_apply_reverse_empty() {
+        let frames: Vec<&str> = vec![];
+        let result = apply_reverse(&frames);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_frame_offset_positive() {
+        let frames = vec!["A", "B", "C", "D"];
+        let result = apply_frame_offset(&frames, 1);
+        assert_eq!(result, vec!["B", "C", "D", "A"]);
+    }
+
+    #[test]
+    fn test_apply_frame_offset_positive_multiple() {
+        let frames = vec!["A", "B", "C", "D"];
+        let result = apply_frame_offset(&frames, 2);
+        assert_eq!(result, vec!["C", "D", "A", "B"]);
+    }
+
+    #[test]
+    fn test_apply_frame_offset_negative() {
+        let frames = vec!["A", "B", "C", "D"];
+        let result = apply_frame_offset(&frames, -1);
+        assert_eq!(result, vec!["D", "A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_frame_offset_wrap_around() {
+        let frames = vec!["A", "B", "C"];
+        // Offset 4 on 3 frames = offset 1
+        let result = apply_frame_offset(&frames, 4);
+        assert_eq!(result, vec!["B", "C", "A"]);
+    }
+
+    #[test]
+    fn test_apply_frame_offset_zero() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_frame_offset(&frames, 0);
+        assert_eq!(result, vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_frame_offset_empty() {
+        let frames: Vec<&str> = vec![];
+        let result = apply_frame_offset(&frames, 5);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_hold_basic() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 1, 3);
+        assert_eq!(result, vec!["A", "B", "B", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_first_frame() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 0, 2);
+        assert_eq!(result, vec!["A", "A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_last_frame() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 2, 3);
+        assert_eq!(result, vec!["A", "B", "C", "C", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_count_one() {
+        // count=1 means keep one copy (no change)
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 1, 1);
+        assert_eq!(result, vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_count_zero() {
+        // count=0 removes the frame
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 1, 0);
+        assert_eq!(result, vec!["A", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_invalid_frame_index() {
+        let frames = vec!["A", "B", "C"];
+        let result = apply_hold(&frames, 10, 5);
+        // Should return unchanged
+        assert_eq!(result, vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_hold_empty() {
+        let frames: Vec<&str> = vec![];
+        let result = apply_hold(&frames, 0, 5);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_animation_transform_pingpong() {
+        let frames = vec!["A", "B", "C"];
+        let transform = Transform::Pingpong { exclude_ends: false };
+        let result = apply_animation_transform(&transform, &frames).unwrap();
+        assert_eq!(result, vec!["A", "B", "C", "C", "B", "A"]);
+    }
+
+    #[test]
+    fn test_apply_animation_transform_reverse() {
+        let frames = vec!["A", "B", "C"];
+        let transform = Transform::Reverse;
+        let result = apply_animation_transform(&transform, &frames).unwrap();
+        assert_eq!(result, vec!["C", "B", "A"]);
+    }
+
+    #[test]
+    fn test_apply_animation_transform_frame_offset() {
+        let frames = vec!["A", "B", "C", "D"];
+        let transform = Transform::FrameOffset { offset: 2 };
+        let result = apply_animation_transform(&transform, &frames).unwrap();
+        assert_eq!(result, vec!["C", "D", "A", "B"]);
+    }
+
+    #[test]
+    fn test_apply_animation_transform_hold() {
+        let frames = vec!["A", "B", "C"];
+        let transform = Transform::Hold { frame: 0, count: 3 };
+        let result = apply_animation_transform(&transform, &frames).unwrap();
+        assert_eq!(result, vec!["A", "A", "A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_apply_animation_transform_non_animation() {
+        let frames = vec!["A", "B", "C"];
+        let transform = Transform::MirrorH;
+        let result = apply_animation_transform(&transform, &frames);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_animation_transform() {
+        assert!(is_animation_transform(&Transform::Pingpong { exclude_ends: false }));
+        assert!(is_animation_transform(&Transform::Reverse));
+        assert!(is_animation_transform(&Transform::FrameOffset { offset: 1 }));
+        assert!(is_animation_transform(&Transform::Hold { frame: 0, count: 2 }));
+
+        assert!(!is_animation_transform(&Transform::MirrorH));
+        assert!(!is_animation_transform(&Transform::MirrorV));
+        assert!(!is_animation_transform(&Transform::Rotate { degrees: 90 }));
+        assert!(!is_animation_transform(&Transform::Tile { w: 2, h: 2 }));
+        assert!(!is_animation_transform(&Transform::Pad { size: 4 }));
+        assert!(!is_animation_transform(&Transform::Crop { x: 0, y: 0, w: 8, h: 8 }));
+        assert!(!is_animation_transform(&Transform::Outline { token: None, width: 1 }));
+        assert!(!is_animation_transform(&Transform::Shift { x: 1, y: 1 }));
+        assert!(!is_animation_transform(&Transform::Shadow { x: 1, y: 1, token: None }));
+    }
+
+    #[test]
+    fn test_chained_animation_transforms() {
+        // Test applying multiple transforms in sequence
+        let frames = vec!["A", "B", "C"];
+
+        // First reverse: [C, B, A]
+        let frames = apply_reverse(&frames);
+        assert_eq!(frames, vec!["C", "B", "A"]);
+
+        // Then pingpong: [C, B, A, A, B, C]
+        let frames = apply_pingpong(&frames, false);
+        assert_eq!(frames, vec!["C", "B", "A", "A", "B", "C"]);
+
+        // Then hold frame 2 for 3: [C, B, A, A, A, A, B, C]
+        let frames = apply_hold(&frames, 2, 3);
+        assert_eq!(frames, vec!["C", "B", "A", "A", "A", "A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_animation_transforms_with_strings() {
+        // Test with actual String type (not &str)
+        let frames: Vec<String> = vec!["frame1".to_string(), "frame2".to_string(), "frame3".to_string()];
+
+        let result = apply_reverse(&frames);
+        assert_eq!(result, vec!["frame3", "frame2", "frame1"]);
+
+        let result = apply_pingpong(&frames, true);
+        assert_eq!(result, vec!["frame1", "frame2", "frame3", "frame2"]);
     }
 }
