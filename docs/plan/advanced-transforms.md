@@ -5,13 +5,15 @@ title: Advanced Transforms & Animation Features
 
 # Phase 19: Advanced Transforms & Animation Features
 
-**Status:** Not Started
+**Status:** In Progress
 
 **Depends on:** Phase 18 (Sprite Transforms - core transform system required)
 
 ---
 
 Advanced features for power users. See [personas](../personas.md) for user context.
+
+**Detailed Specification:** [Format Spec - ATF sections](../spec/format.md#transform-operations)
 
 **Related:**
 - [Transforms](./transforms.md) - Core transform system (implement first)

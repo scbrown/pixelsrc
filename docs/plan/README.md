@@ -24,6 +24,11 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 14](./phase-14-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Complete |
 | [Phase 15](./phase-15-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Complete |
 | [Phase 16](./phase-16-pxl-format.md) | **.pxl Format** (multi-line JSON, `pxl fmt`) | Complete |
+| [Phase 17](./colored-grid-display.md) | **Colored Terminal Output** (`pxl show`, coordinate grids, alias management) | Not Started |
+| [Phase 18](./transforms.md) | **Sprite Transforms** (mirror, rotate, tile, outline, crop) | Not Started |
+| [Phase 19](./advanced-transforms.md) | **Advanced Texture Features** (palette cycling, color ramps, atlas export) | In Progress |
+| [Phase 20](./build-system.md) | **Build System** (`pxl.toml`, `pxl init`, `pxl build`) | Not Started |
+| [Phase 21](./mdbook.md) | **mdbook Documentation** (exhaustive docs, WASM demos, playground) | Not Started |
 
 ### Future Ideas
 
@@ -31,11 +36,7 @@ See [personas](../personas.md) for user context on feature complexity.
 
 | Idea | Personas | Description |
 |------|----------|-------------|
-| [Transforms](./transforms.md) | Pixel Artist+ | Mirror, rotate, tile, keyframes, user-defined transforms |
-| [Advanced Transforms](./advanced-transforms.md) | Motion Designer, Game Dev | Palette cycling, color ramps, nine-slice, particles |
-| [Colored Grid Display](./colored-grid-display.md) | All | Terminal display (`pxl show`), coordinate grids, alias management |
 | [Persona Integration](./persona-integration.md) | All | Personas in `pxl prime`, frontmatter tags in docs |
-| [Build System](./build-system.md) | Animator, Game Dev | `pxl.toml`, `pxl init`, `pxl build`, justfile |
 | VS Code Extension | All | Syntax highlighting + live preview |
 | Token Efficiency | All | Run-length encoding, row repetition, compression |
 | Inheritance | Pixel Artist+ | Scene variants, extends, day/night themes |

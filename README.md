@@ -120,6 +120,7 @@ just render coin # Render an example sprite
 ## Documentation
 
 - [Format Specification](docs/spec/format.md) - Complete JSONL schema
+- [Implementation Plan](docs/plan/README.md) - Roadmap and phase status
 - [Vision & Philosophy](docs/VISION.md) - Design principles
 - [Contributing](CONTRIBUTING.md) - Development guide
 
