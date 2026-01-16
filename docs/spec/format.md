@@ -812,6 +812,126 @@ pxl show walk_cycle.pxl --onion 2
 
 ---
 
+## CLI Utility Formats
+
+### `pxl alias` Output Format
+
+The `pxl alias` command extracts common tokens into single-letter aliases and outputs JSON.
+
+**Output Structure:**
+```json
+{
+  "aliases": {
+    "a": "token_name_1",
+    "b": "token_name_2",
+    "_": "_"
+  },
+  "grid": [
+    "{a}{a}{b}{b}",
+    "{a}{b}{_}{_}"
+  ]
+}
+```
+
+**Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| aliases | object | Map of single character to token name (without braces) |
+| grid | string[] | Transformed grid with `{letter}` format tokens |
+
+**Alias Assignment Rules:**
+- Frequency-based: most common token gets `a`, next gets `b`, etc.
+- The special token `{_}` always maps to underscore (`_`)
+- Aliases are sorted alphabetically in output
+
+**Example:**
+```bash
+$ pxl alias hero.pxl
+{
+  "aliases": {
+    "_": "_",
+    "a": "skin",
+    "b": "hair",
+    "c": "shirt"
+  },
+  "grid": [
+    "{_}{_}{b}{b}{b}{b}{_}{_}",
+    "{_}{a}{a}{a}{a}{a}{a}{_}",
+    "{_}{_}{c}{c}{c}{c}{_}{_}"
+  ]
+}
+```
+
+**Round-Trip:**
+The alias output can be used with `pxl inline` for column-aligned display. The original tokens can be reconstructed by mapping aliases back to full names.
+
+---
+
+### `pxl sketch` Input Format
+
+The `pxl sketch` command creates sprite definitions from simple space-separated text grids.
+
+**Input Format:**
+```
+_ _ b b b b _ _
+_ b c c c c b _
+_ b c d d c b _
+```
+
+**Input Rules:**
+- Rows are separated by newlines
+- Tokens within a row are separated by whitespace (spaces or tabs)
+- Each token is a single letter or short identifier
+- `_` is treated as transparent
+
+**Output:**
+The command outputs a complete sprite JSON object:
+```json
+{
+  "type": "sprite",
+  "name": "sprite_1",
+  "size": [8, 3],
+  "palette": {
+    "{_}": "#00000000",
+    "{b}": "#000000",
+    "{c}": "#000000",
+    "{d}": "#000000"
+  },
+  "grid": [
+    "{_}{_}{b}{b}{b}{b}{_}{_}",
+    "{_}{b}{c}{c}{c}{c}{b}{_}",
+    "{_}{b}{c}{d}{d}{c}{b}{_}"
+  ]
+}
+```
+
+**CLI Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--name <name>` | `sprite_1` | Sprite name |
+| `--palette <name>` | inline | Reference existing palette instead of generating inline |
+| `--output <file>` | stdout | Write to file instead of stdout |
+
+**Examples:**
+```bash
+# From stdin
+echo "_ _ b b
+_ b c b" | pxl sketch --name quick_test
+
+# From file
+pxl sketch input.txt --name hero --palette @gameboy
+
+# With output file
+pxl sketch grid.txt --name tile -o tile.pxl
+```
+
+**Workflow:**
+1. Create simple grid with `pxl sketch`
+2. Edit generated palette colors
+3. Verify with `pxl show`
+
+---
+
 ## Formatting
 
 The `pxl fmt` command formats pixelsrc files for improved readability.
