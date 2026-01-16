@@ -27,6 +27,7 @@ pub mod renderer;
 pub mod spritesheet;
 pub mod suggest;
 pub mod tokenizer;
+pub mod transforms;
 pub mod validate;
 
 #[cfg(feature = "wasm")]
