@@ -4,6 +4,7 @@
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
@@ -41,6 +42,114 @@ impl std::fmt::Display for WatchError {
 
 impl std::error::Error for WatchError {}
 
+/// A detailed build error with file location information
+#[derive(Debug, Clone)]
+pub struct BuildError {
+    /// Path to the file containing the error
+    pub file: PathBuf,
+    /// Line number (1-indexed, None if unknown)
+    pub line: Option<usize>,
+    /// Column number (1-indexed, None if unknown)
+    pub column: Option<usize>,
+    /// Error message
+    pub message: String,
+}
+
+impl BuildError {
+    /// Create a new build error with file and message
+    pub fn new(file: impl Into<PathBuf>, message: impl Into<String>) -> Self {
+        Self {
+            file: file.into(),
+            line: None,
+            column: None,
+            message: message.into(),
+        }
+    }
+
+    /// Create a build error with line information
+    pub fn with_line(file: impl Into<PathBuf>, line: usize, message: impl Into<String>) -> Self {
+        Self {
+            file: file.into(),
+            line: Some(line),
+            column: None,
+            message: message.into(),
+        }
+    }
+
+    /// Create a build error with full location information
+    pub fn with_location(
+        file: impl Into<PathBuf>,
+        line: usize,
+        column: usize,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            file: file.into(),
+            line: Some(line),
+            column: Some(column),
+            message: message.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for BuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Error in {}", self.file.display())?;
+        if let Some(line) = self.line {
+            write!(f, ":{}", line)?;
+            if let Some(col) = self.column {
+                write!(f, ":{}", col)?;
+            }
+        }
+        write!(f, ": {}", self.message)
+    }
+}
+
+/// Tracks files with errors across build iterations for recovery detection
+#[derive(Debug, Default)]
+pub struct ErrorTracker {
+    /// Files that had errors in the previous build
+    files_with_errors: HashSet<PathBuf>,
+}
+
+impl ErrorTracker {
+    /// Create a new error tracker
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Update tracker with new build result, returns list of fixed files
+    pub fn update(&mut self, result: &BuildResult) -> Vec<PathBuf> {
+        let current_error_files: HashSet<PathBuf> = result
+            .build_errors
+            .iter()
+            .map(|e| e.file.clone())
+            .collect();
+
+        // Find files that had errors before but don't now
+        let fixed: Vec<PathBuf> = self
+            .files_with_errors
+            .difference(&current_error_files)
+            .cloned()
+            .collect();
+
+        // Update the tracked error files
+        self.files_with_errors = current_error_files;
+
+        fixed
+    }
+
+    /// Check if there are any tracked errors
+    pub fn has_errors(&self) -> bool {
+        !self.files_with_errors.is_empty()
+    }
+
+    /// Get the number of files with errors
+    pub fn error_count(&self) -> usize {
+        self.files_with_errors.len()
+    }
+}
+
 /// Options for watch mode
 #[derive(Debug, Clone)]
 pub struct WatchOptions {
@@ -72,8 +181,10 @@ pub struct BuildResult {
     pub files_processed: usize,
     /// Number of sprites rendered
     pub sprites_rendered: usize,
-    /// Number of errors encountered
+    /// Simple error messages (legacy field, prefer build_errors)
     pub errors: Vec<String>,
+    /// Detailed build errors with file/line information
+    pub build_errors: Vec<BuildError>,
     /// Number of warnings
     pub warnings: Vec<String>,
     /// Build duration
@@ -87,6 +198,7 @@ impl BuildResult {
             files_processed: 0,
             sprites_rendered: 0,
             errors: vec![],
+            build_errors: vec![],
             warnings: vec![],
             duration: Duration::ZERO,
         }
@@ -94,7 +206,17 @@ impl BuildResult {
 
     /// Check if build succeeded (no errors)
     pub fn success(&self) -> bool {
-        self.errors.is_empty()
+        self.errors.is_empty() && self.build_errors.is_empty()
+    }
+
+    /// Add a detailed build error
+    pub fn add_error(&mut self, error: BuildError) {
+        self.build_errors.push(error);
+    }
+
+    /// Total number of errors (both legacy and detailed)
+    pub fn error_count(&self) -> usize {
+        self.errors.len() + self.build_errors.len()
     }
 }
 
@@ -229,13 +351,17 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
         .watch(&options.src_dir, RecursiveMode::Recursive)
         .map_err(WatchError::WatchPath)?;
 
+    // Error tracker for detecting fixed files
+    let mut error_tracker = ErrorTracker::new();
+
     // Initial build
     if options.config.clear_screen {
         clear_screen();
     }
     println!("[{}] Building...", timestamp());
     let result = do_build(&options, simple_build);
-    print_build_result(&result);
+    print_build_result(&result, &[]);
+    error_tracker.update(&result);
     println!(
         "[{}] Watching {} for changes...",
         timestamp(),
@@ -271,7 +397,11 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
                     // Rebuild
                     println!("[{}] Building...", timestamp());
                     let result = do_build(&options, simple_build);
-                    print_build_result(&result);
+
+                    // Track fixed files before updating error tracker
+                    let fixed_files = error_tracker.update(&result);
+                    print_build_result(&result, &fixed_files);
+
                     println!(
                         "[{}] Watching {} for changes...",
                         timestamp(),
@@ -280,8 +410,9 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
                 }
             }
             Ok(Err(error)) => {
-                // Watch error (non-fatal)
+                // Watch error (non-fatal) - log but continue watching
                 eprintln!("[{}] Watch error: {:?}", timestamp(), error);
+                eprintln!("[{}] Continuing to watch...", timestamp());
             }
             Err(e) => {
                 return Err(WatchError::ChannelError(e.to_string()));
@@ -300,8 +431,15 @@ fn is_relevant_file(path: &Path) -> bool {
     }
 }
 
-/// Print build result to console
-fn print_build_result(result: &BuildResult) {
+/// Print build result to console with fixed file notifications
+fn print_build_result(result: &BuildResult, fixed_files: &[PathBuf]) {
+    // Report fixed files first (before showing new errors)
+    for fixed in fixed_files {
+        if let Some(name) = fixed.file_name() {
+            println!("[{}] Fixed: {}", timestamp(), name.to_string_lossy());
+        }
+    }
+
     if result.success() {
         println!(
             "[{}] Build complete ({}) - Files: {} | Sprites: {}",
@@ -311,19 +449,39 @@ fn print_build_result(result: &BuildResult) {
             result.sprites_rendered
         );
     } else {
+        let error_count = result.error_count();
         println!(
-            "[{}] Build failed ({}) - {} errors",
+            "[{}] Build failed ({}) - {} error{}",
             timestamp(),
             format_duration(result.duration),
-            result.errors.len()
+            error_count,
+            if error_count == 1 { "" } else { "s" }
         );
+
+        // Print detailed build errors with file/line info
+        for error in &result.build_errors {
+            if let Some(name) = error.file.file_name() {
+                eprint!("[{}] Error in {}:", timestamp(), name.to_string_lossy());
+                if let Some(line) = error.line {
+                    eprint!("\n          Line {}: ", line);
+                } else {
+                    eprint!(" ");
+                }
+                eprintln!("{}", error.message);
+            } else {
+                eprintln!("[{}] Error: {}", timestamp(), error);
+            }
+        }
+
+        // Print legacy simple errors
         for error in &result.errors {
-            eprintln!("  Error: {}", error);
+            eprintln!("[{}] Error: {}", timestamp(), error);
         }
     }
 
+    // Print warnings
     for warning in &result.warnings {
-        eprintln!("  Warning: {}", warning);
+        eprintln!("[{}] Warning: {}", timestamp(), warning);
     }
 }
 
@@ -438,5 +596,128 @@ mod tests {
         assert_eq!(result.files_processed, 5);
         assert_eq!(result.sprites_rendered, 10);
         assert!(result.duration > Duration::ZERO || result.duration == Duration::ZERO);
+    }
+
+    // Error recovery tests
+
+    #[test]
+    fn test_build_error_new() {
+        let error = BuildError::new("test.pxl", "Invalid syntax");
+        assert_eq!(error.file, PathBuf::from("test.pxl"));
+        assert_eq!(error.line, None);
+        assert_eq!(error.column, None);
+        assert_eq!(error.message, "Invalid syntax");
+    }
+
+    #[test]
+    fn test_build_error_with_line() {
+        let error = BuildError::with_line("test.pxl", 5, "Invalid color");
+        assert_eq!(error.file, PathBuf::from("test.pxl"));
+        assert_eq!(error.line, Some(5));
+        assert_eq!(error.column, None);
+        assert_eq!(error.message, "Invalid color");
+    }
+
+    #[test]
+    fn test_build_error_with_location() {
+        let error = BuildError::with_location("test.pxl", 5, 10, "Unexpected token");
+        assert_eq!(error.file, PathBuf::from("test.pxl"));
+        assert_eq!(error.line, Some(5));
+        assert_eq!(error.column, Some(10));
+        assert_eq!(error.message, "Unexpected token");
+    }
+
+    #[test]
+    fn test_build_error_display() {
+        let error = BuildError::with_line("sprites/broken.pxl", 5, "Invalid color format \"#GGG\"");
+        let display = format!("{}", error);
+        assert!(display.contains("sprites/broken.pxl"));
+        assert!(display.contains("5"));
+        assert!(display.contains("Invalid color format"));
+    }
+
+    #[test]
+    fn test_error_tracker_new() {
+        let tracker = ErrorTracker::new();
+        assert!(!tracker.has_errors());
+        assert_eq!(tracker.error_count(), 0);
+    }
+
+    #[test]
+    fn test_error_tracker_tracks_errors() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build has errors
+        let mut result = BuildResult::new();
+        result.add_error(BuildError::new("file1.pxl", "Error 1"));
+        result.add_error(BuildError::new("file2.pxl", "Error 2"));
+
+        let fixed = tracker.update(&result);
+        assert!(fixed.is_empty()); // No fixed files on first build
+        assert!(tracker.has_errors());
+        assert_eq!(tracker.error_count(), 2);
+    }
+
+    #[test]
+    fn test_error_tracker_detects_fixed_files() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build has errors in file1 and file2
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Error 1"));
+        result1.add_error(BuildError::new("file2.pxl", "Error 2"));
+        tracker.update(&result1);
+
+        // Second build: file1 is fixed, file2 still has error
+        let mut result2 = BuildResult::new();
+        result2.add_error(BuildError::new("file2.pxl", "Error 2"));
+        let fixed = tracker.update(&result2);
+
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0], PathBuf::from("file1.pxl"));
+        assert!(tracker.has_errors());
+        assert_eq!(tracker.error_count(), 1);
+    }
+
+    #[test]
+    fn test_error_tracker_all_fixed() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build has errors
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Error 1"));
+        tracker.update(&result1);
+
+        // Second build: all fixed
+        let result2 = BuildResult::new();
+        let fixed = tracker.update(&result2);
+
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0], PathBuf::from("file1.pxl"));
+        assert!(!tracker.has_errors());
+        assert_eq!(tracker.error_count(), 0);
+    }
+
+    #[test]
+    fn test_build_result_with_build_errors() {
+        let mut result = BuildResult::new();
+        assert!(result.success());
+        assert_eq!(result.error_count(), 0);
+
+        result.add_error(BuildError::new("test.pxl", "Error"));
+        assert!(!result.success());
+        assert_eq!(result.error_count(), 1);
+    }
+
+    #[test]
+    fn test_build_result_mixed_errors() {
+        let mut result = BuildResult::new();
+
+        // Add both legacy and detailed errors
+        result.errors.push("Legacy error".to_string());
+        result.add_error(BuildError::new("test.pxl", "Detailed error"));
+
+        assert!(!result.success());
+        assert_eq!(result.error_count(), 2);
     }
 }
