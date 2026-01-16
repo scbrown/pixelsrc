@@ -1,6 +1,7 @@
 //! Animation validation - validate animation references
 
-use crate::models::{Animation, Sprite};
+use crate::models::{Animation, FrameTag, Sprite};
+use std::collections::HashMap;
 
 /// A warning generated during animation validation
 #[derive(Debug, Clone, PartialEq)]
@@ -16,11 +17,52 @@ impl Warning {
     }
 }
 
+/// Validate frame tags against the animation's frame count.
+///
+/// Returns warnings for:
+/// - Tag with start > end (invalid range)
+/// - Tag with start or end beyond frame count bounds
+fn validate_frame_tags(
+    anim_name: &str,
+    tags: &HashMap<String, FrameTag>,
+    frame_count: usize,
+) -> Vec<Warning> {
+    let mut warnings = Vec::new();
+
+    for (tag_name, tag) in tags {
+        // Check start <= end
+        if tag.start > tag.end {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' has invalid range: start ({}) > end ({})",
+                anim_name, tag_name, tag.start, tag.end
+            )));
+        }
+
+        // Check bounds against frame count
+        if tag.start as usize >= frame_count {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' start ({}) is out of bounds (animation has {} frames)",
+                anim_name, tag_name, tag.start, frame_count
+            )));
+        }
+        if tag.end as usize >= frame_count {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' end ({}) is out of bounds (animation has {} frames)",
+                anim_name, tag_name, tag.end, frame_count
+            )));
+        }
+    }
+
+    warnings
+}
+
 /// Validate an animation against a set of sprites.
 ///
 /// Returns warnings for:
 /// - Animation with no frames (empty frames array)
 /// - Animation frames that reference unknown sprites
+/// - Frame tags with invalid ranges (start > end)
+/// - Frame tags with out-of-bounds indices
 ///
 /// # Examples
 ///
@@ -33,6 +75,7 @@ impl Warning {
 ///     frames: vec!["frame1".to_string(), "frame2".to_string()],
 ///     duration: None,
 ///     r#loop: None,
+///     tags: None,
 /// };
 /// let sprites = vec![/* sprites with names "frame1", "frame2" */];
 /// let warnings = validate_animation(&anim, &sprites);
@@ -62,6 +105,11 @@ pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> 
                 anim.name, frame
             )));
         }
+    }
+
+    // Validate frame tags if present
+    if let Some(ref tags) = anim.tags {
+        warnings.extend(validate_frame_tags(&anim.name, tags, anim.frames.len()));
     }
 
     warnings
@@ -97,6 +145,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         let sprites = vec![
@@ -117,6 +166,7 @@ mod tests {
             frames: vec!["on".to_string(), "off".to_string()],
             duration: Some(500),
             r#loop: Some(true),
+            tags: None,
         };
 
         // Only "on" sprite exists
@@ -138,6 +188,7 @@ mod tests {
             frames: vec![],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -161,6 +212,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -180,6 +232,7 @@ mod tests {
             frames: vec!["ghost1".to_string(), "ghost2".to_string()],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         // No matching sprites
@@ -198,6 +251,7 @@ mod tests {
             frames: vec!["frame1".to_string()],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -216,6 +270,7 @@ mod tests {
             frames: vec!["pose".to_string()],
             duration: None,
             r#loop: Some(false),
+            tags: None,
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -237,6 +292,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];
@@ -249,5 +305,228 @@ mod tests {
     fn test_warning_creation() {
         let warning = Warning::new("test message");
         assert_eq!(warning.message, "test message");
+    }
+
+    #[test]
+    fn test_animation_with_valid_tags_no_warnings() {
+        // Animation with valid frame tags should produce no warnings
+        let mut tags = HashMap::new();
+        tags.insert(
+            "idle".to_string(),
+            FrameTag {
+                start: 0,
+                end: 1,
+                r#loop: Some(true),
+                fps: None,
+            },
+        );
+        tags.insert(
+            "run".to_string(),
+            FrameTag {
+                start: 2,
+                end: 3,
+                r#loop: Some(true),
+                fps: Some(12),
+            },
+        );
+
+        let anim = Animation {
+            name: "player".to_string(),
+            frames: vec![
+                "idle1".to_string(),
+                "idle2".to_string(),
+                "run1".to_string(),
+                "run2".to_string(),
+            ],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![
+            make_sprite("idle1"),
+            make_sprite("idle2"),
+            make_sprite("run1"),
+            make_sprite("run2"),
+        ];
+
+        let warnings = validate_animation(&anim, &sprites);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_animation_tag_invalid_range() {
+        // Tag with start > end should warn
+        let mut tags = HashMap::new();
+        tags.insert(
+            "backwards".to_string(),
+            FrameTag {
+                start: 3,
+                end: 1,
+                r#loop: None,
+                fps: None,
+            },
+        );
+
+        let anim = Animation {
+            name: "test".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string(), "f3".to_string(), "f4".to_string()],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![
+            make_sprite("f1"),
+            make_sprite("f2"),
+            make_sprite("f3"),
+            make_sprite("f4"),
+        ];
+
+        let warnings = validate_animation(&anim, &sprites);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("backwards"));
+        assert!(warnings[0].message.contains("invalid range"));
+        assert!(warnings[0].message.contains("start (3) > end (1)"));
+    }
+
+    #[test]
+    fn test_animation_tag_out_of_bounds_start() {
+        // Tag with start beyond frame count should warn
+        let mut tags = HashMap::new();
+        tags.insert(
+            "oob".to_string(),
+            FrameTag {
+                start: 10,
+                end: 12,
+                r#loop: None,
+                fps: None,
+            },
+        );
+
+        let anim = Animation {
+            name: "test".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string()],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2")];
+
+        let warnings = validate_animation(&anim, &sprites);
+        // Should have warnings for both start and end being out of bounds
+        assert!(warnings.len() >= 1);
+        assert!(warnings.iter().any(|w| w.message.contains("start (10)")));
+        assert!(warnings.iter().any(|w| w.message.contains("out of bounds")));
+    }
+
+    #[test]
+    fn test_animation_tag_out_of_bounds_end() {
+        // Tag with end beyond frame count should warn
+        let mut tags = HashMap::new();
+        tags.insert(
+            "partial_oob".to_string(),
+            FrameTag {
+                start: 0,
+                end: 5,
+                r#loop: None,
+                fps: None,
+            },
+        );
+
+        let anim = Animation {
+            name: "test".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string(), "f3".to_string()],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
+
+        let warnings = validate_animation(&anim, &sprites);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("partial_oob"));
+        assert!(warnings[0].message.contains("end (5)"));
+        assert!(warnings[0].message.contains("out of bounds"));
+        assert!(warnings[0].message.contains("3 frames"));
+    }
+
+    #[test]
+    fn test_animation_single_frame_tag_valid() {
+        // Tag pointing to a single frame (start == end) should be valid
+        let mut tags = HashMap::new();
+        tags.insert(
+            "jump".to_string(),
+            FrameTag {
+                start: 2,
+                end: 2,
+                r#loop: Some(false),
+                fps: None,
+            },
+        );
+
+        let anim = Animation {
+            name: "test".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string(), "f3".to_string()],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
+
+        let warnings = validate_animation(&anim, &sprites);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_animation_multiple_tag_errors() {
+        // Multiple tags with various errors
+        let mut tags = HashMap::new();
+        tags.insert(
+            "valid".to_string(),
+            FrameTag {
+                start: 0,
+                end: 1,
+                r#loop: None,
+                fps: None,
+            },
+        );
+        tags.insert(
+            "backwards".to_string(),
+            FrameTag {
+                start: 2,
+                end: 0,
+                r#loop: None,
+                fps: None,
+            },
+        );
+        tags.insert(
+            "oob".to_string(),
+            FrameTag {
+                start: 5,
+                end: 10,
+                r#loop: None,
+                fps: None,
+            },
+        );
+
+        let anim = Animation {
+            name: "test".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string(), "f3".to_string()],
+            duration: None,
+            r#loop: None,
+            tags: Some(tags),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
+
+        let warnings = validate_animation(&anim, &sprites);
+        // Should have warnings for backwards range and out of bounds
+        assert!(warnings.len() >= 3);
+        assert!(warnings.iter().any(|w| w.message.contains("backwards")));
+        assert!(warnings.iter().any(|w| w.message.contains("oob")));
     }
 }

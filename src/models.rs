@@ -28,6 +28,24 @@ pub struct Sprite {
     pub grid: Vec<String>,
 }
 
+/// A frame tag marking a range of frames with a semantic name.
+///
+/// Used for game engine integration - mark frame ranges like "idle", "run", "jump"
+/// so game engines can reference animation states by name.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FrameTag {
+    /// Start frame index (0-based, inclusive)
+    pub start: u32,
+    /// End frame index (0-based, inclusive)
+    pub end: u32,
+    /// Whether this tag's frames should loop (overrides animation default)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub r#loop: Option<bool>,
+    /// Tag-specific FPS override
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub fps: Option<u32>,
+}
+
 /// An animation definition (Phase 3).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
@@ -37,6 +55,9 @@ pub struct Animation {
     pub duration: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub r#loop: Option<bool>,
+    /// Frame tags for game engine integration - maps tag name to frame range
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tags: Option<HashMap<String, FrameTag>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -434,10 +455,117 @@ mod tests {
             frames: vec!["a".to_string(), "b".to_string(), "c".to_string()],
             duration: Some(200),
             r#loop: Some(false),
+            tags: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"animation""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Animation(parsed_anim) => {
+                assert_eq!(anim, parsed_anim);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_with_tags_parse() {
+        // Animation with frame tags for game engine integration
+        let json = r#"{"type": "animation", "name": "player", "frames": ["idle1", "idle2", "run1", "run2", "run3", "run4", "jump", "fall"], "tags": {"idle": {"start": 0, "end": 1, "loop": true}, "run": {"start": 2, "end": 5, "loop": true}, "jump": {"start": 6, "end": 6, "loop": false}, "fall": {"start": 7, "end": 7}}}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "player");
+                assert_eq!(anim.frames.len(), 8);
+                let tags = anim.tags.expect("Expected tags");
+                assert_eq!(tags.len(), 4);
+
+                let idle = tags.get("idle").expect("Expected idle tag");
+                assert_eq!(idle.start, 0);
+                assert_eq!(idle.end, 1);
+                assert_eq!(idle.r#loop, Some(true));
+                assert!(idle.fps.is_none());
+
+                let run = tags.get("run").expect("Expected run tag");
+                assert_eq!(run.start, 2);
+                assert_eq!(run.end, 5);
+                assert_eq!(run.r#loop, Some(true));
+
+                let jump = tags.get("jump").expect("Expected jump tag");
+                assert_eq!(jump.start, 6);
+                assert_eq!(jump.end, 6);
+                assert_eq!(jump.r#loop, Some(false));
+
+                let fall = tags.get("fall").expect("Expected fall tag");
+                assert_eq!(fall.start, 7);
+                assert_eq!(fall.end, 7);
+                assert!(fall.r#loop.is_none()); // Not specified
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_with_tags_fps_override() {
+        // Frame tags can have per-tag FPS override
+        let json = r#"{"type": "animation", "name": "walk", "frames": ["f1", "f2", "f3", "f4"], "fps": 10, "tags": {"idle": {"start": 0, "end": 1, "fps": 4}, "run": {"start": 2, "end": 3, "fps": 12}}}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                let tags = anim.tags.expect("Expected tags");
+
+                let idle = tags.get("idle").expect("Expected idle tag");
+                assert_eq!(idle.fps, Some(4));
+
+                let run = tags.get("run").expect("Expected run tag");
+                assert_eq!(run.fps, Some(12));
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_with_tags_roundtrip() {
+        let mut tags = HashMap::new();
+        tags.insert(
+            "idle".to_string(),
+            FrameTag {
+                start: 0,
+                end: 1,
+                r#loop: Some(true),
+                fps: None,
+            },
+        );
+        tags.insert(
+            "run".to_string(),
+            FrameTag {
+                start: 2,
+                end: 5,
+                r#loop: Some(true),
+                fps: Some(12),
+            },
+        );
+
+        let anim = Animation {
+            name: "player".to_string(),
+            frames: vec![
+                "idle1".to_string(),
+                "idle2".to_string(),
+                "run1".to_string(),
+                "run2".to_string(),
+                "run3".to_string(),
+                "run4".to_string(),
+            ],
+            duration: Some(100),
+            r#loop: Some(true),
+            tags: Some(tags),
+        };
+
+        let obj = TtpObject::Animation(anim.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""tags""#));
+
         let parsed: TtpObject = serde_json::from_str(&json).unwrap();
         match parsed {
             TtpObject::Animation(parsed_anim) => {
