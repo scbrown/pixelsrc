@@ -5,6 +5,7 @@
 //! - Render sprites to PNG images
 //! - Support both lenient and strict error modes
 
+pub mod alias;
 pub mod analyze;
 pub mod animation;
 pub mod cli;
