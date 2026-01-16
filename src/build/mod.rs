@@ -26,12 +26,14 @@
 
 pub mod context;
 pub mod discovery;
+pub mod manifest;
 pub mod pipeline;
 pub mod result;
 pub mod target;
 
 pub use context::*;
 pub use discovery::*;
+pub use manifest::*;
 pub use pipeline::*;
 pub use result::*;
 pub use target::*;
