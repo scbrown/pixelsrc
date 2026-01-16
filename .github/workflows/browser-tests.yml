@@ -1,0 +1,185 @@
+name: Cross-Browser Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/book/**'
+      - 'wasm/**'
+      - '.github/workflows/browser-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/book/**'
+      - 'wasm/**'
+      - '.github/workflows/browser-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            wasm/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM module
+        run: npm run build
+        working-directory: wasm
+
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Build documentation
+        run: mdbook build
+        working-directory: docs/book
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install @playwright/test
+          npx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Create browser test
+        run: |
+          mkdir -p tests
+          cat > tests/browser-compatibility.spec.js << 'EOF'
+          const { test, expect } = require('@playwright/test');
+          const { spawn } = require('child_process');
+          const path = require('path');
+
+          let server;
+          const PORT = 3333;
+          const BASE_URL = `http://localhost:${PORT}`;
+
+          test.beforeAll(async () => {
+            // Start a simple HTTP server
+            server = spawn('npx', ['serve', '-p', PORT, 'docs/book/book'], {
+              stdio: 'pipe',
+              shell: true
+            });
+            // Wait for server to start
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          });
+
+          test.afterAll(async () => {
+            if (server) {
+              server.kill();
+            }
+          });
+
+          test('homepage loads successfully', async ({ page }) => {
+            await page.goto(BASE_URL);
+            await expect(page).toHaveTitle(/Pixelsrc/);
+          });
+
+          test('navigation works', async ({ page }) => {
+            await page.goto(BASE_URL);
+            // Check that sidebar navigation exists
+            const sidebar = page.locator('.sidebar');
+            await expect(sidebar).toBeVisible();
+          });
+
+          test('search functionality works', async ({ page }) => {
+            await page.goto(BASE_URL);
+            // Check search is available
+            const searchInput = page.locator('#searchbar');
+            await expect(searchInput).toBeVisible();
+          });
+
+          test('WebAssembly API available', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const wasmSupported = await page.evaluate(() => {
+              return typeof WebAssembly === 'object' &&
+                     typeof WebAssembly.instantiate === 'function';
+            });
+            expect(wasmSupported).toBe(true);
+          });
+
+          test('Blob API available', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const blobSupported = await page.evaluate(() => {
+              return typeof Blob !== 'undefined';
+            });
+            expect(blobSupported).toBe(true);
+          });
+
+          test('URL.createObjectURL available', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const urlSupported = await page.evaluate(() => {
+              return typeof URL !== 'undefined' &&
+                     typeof URL.createObjectURL === 'function';
+            });
+            expect(urlSupported).toBe(true);
+          });
+
+          test('CSS custom properties work', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const customPropsWork = await page.evaluate(() => {
+              const testEl = document.createElement('div');
+              testEl.style.setProperty('--test-prop', 'value');
+              return testEl.style.getPropertyValue('--test-prop') === 'value';
+            });
+            expect(customPropsWork).toBe(true);
+          });
+
+          test('pixelsrcDemo API loads', async ({ page }) => {
+            await page.goto(`${BASE_URL}/integrations/wasm.html`);
+            // Wait for WASM to potentially load
+            await page.waitForTimeout(2000);
+            const demoApiExists = await page.evaluate(() => {
+              return typeof window.pixelsrcDemo !== 'undefined';
+            });
+            expect(demoApiExists).toBe(true);
+          });
+
+          test('image-rendering CSS property supported', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const pixelatedSupported = await page.evaluate(() => {
+              const testEl = document.createElement('img');
+              testEl.style.imageRendering = 'pixelated';
+              // Check if the value was accepted (not empty after setting)
+              return testEl.style.imageRendering !== '';
+            });
+            expect(pixelatedSupported).toBe(true);
+          });
+          EOF
+
+      - name: Install serve
+        run: npm install serve
+
+      - name: Run browser tests
+        run: npx playwright test tests/browser-compatibility.spec.js --browser=${{ matrix.browser }}
+        env:
+          CI: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7

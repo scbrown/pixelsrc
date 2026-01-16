@@ -195,6 +195,88 @@ function render() {
 </script>
 ```
 
+## Browser Compatibility
+
+The WASM module requires a modern browser with WebAssembly support.
+
+### Supported Browsers
+
+| Browser | Minimum Version | Notes |
+|---------|-----------------|-------|
+| Chrome | 90+ | Full support |
+| Firefox | 88+ | Full support |
+| Safari | 14+ | Full support |
+| Edge | 90+ | Full support (Chromium-based) |
+
+### Required Features
+
+The WASM module relies on the following browser APIs:
+
+- **WebAssembly** - Core requirement for running the compiled Rust code
+- **ES6 Modules** - Dynamic import for loading the WASM module
+- **Blob API** - For creating image URLs from PNG bytes
+- **URL.createObjectURL** - For displaying rendered images
+- **Promises** - For async initialization
+
+### Feature Detection
+
+The documentation demos include built-in feature detection:
+
+```javascript
+// Check if WASM is supported
+if (typeof WebAssembly === 'object' &&
+    typeof WebAssembly.instantiate === 'function') {
+  // WASM is supported
+}
+
+// Using the pixelsrcDemo API (in documentation pages)
+const support = pixelsrcDemo.getBrowserSupport();
+if (support.isCompatible) {
+  // All required features available
+} else {
+  console.log('Missing:', support);
+}
+```
+
+### Fallback Behavior
+
+When running in an unsupported browser:
+
+- Demo containers display a helpful error message
+- The page remains functional (text content, navigation)
+- Static images are used where possible as fallbacks
+
+### Cross-Browser CSS
+
+The documentation uses cross-browser compatible CSS for pixel art rendering:
+
+```css
+/* Pixel-perfect image scaling */
+img {
+  image-rendering: -moz-crisp-edges;    /* Firefox */
+  image-rendering: -webkit-optimize-contrast; /* Safari */
+  image-rendering: pixelated;           /* Chrome, Edge */
+  image-rendering: crisp-edges;         /* Standard */
+}
+```
+
+### Testing Checklist
+
+When deploying WASM-based features, verify:
+
+- [ ] Chrome (latest and 2 versions back)
+- [ ] Firefox (latest and 2 versions back)
+- [ ] Safari (latest)
+- [ ] Edge (latest)
+- [ ] Mobile Safari (iOS 14+)
+- [ ] Chrome for Android (latest)
+
+### Known Issues
+
+- **Safari 13 and earlier**: No WebAssembly SIMD support (module loads but may be slower)
+- **IE11**: Not supported (no WebAssembly)
+- **Some corporate proxies**: May block `.wasm` file downloads
+
 ## Related
 
 - [Web Editor](web-editor.md) - Browser-based editor using WASM
