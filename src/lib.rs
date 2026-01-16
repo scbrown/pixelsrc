@@ -16,6 +16,7 @@ pub mod composition;
 pub mod config;
 pub mod diff;
 pub mod emoji;
+pub mod export;
 pub mod explain;
 pub mod fmt;
 pub mod gif;
