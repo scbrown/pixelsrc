@@ -238,10 +238,7 @@ impl Validator {
                     IssueType::UnknownType,
                     format!("Unknown type \"{}\"", type_str),
                 )
-                .with_suggestion(format!(
-                    "Valid types are: {}",
-                    valid_types.join(", ")
-                )),
+                .with_suggestion(format!("Valid types are: {}", valid_types.join(", "))),
             );
             return;
         }
@@ -964,12 +961,16 @@ mod tests {
         );
 
         // Check that suggestions are provided
-        let has_skin_suggestion = undefined_token_issues
-            .iter()
-            .any(|i| i.suggestion.as_ref().map_or(false, |s| s.contains("{skin}")));
-        let has_hair_suggestion = undefined_token_issues
-            .iter()
-            .any(|i| i.suggestion.as_ref().map_or(false, |s| s.contains("{hair}")));
+        let has_skin_suggestion = undefined_token_issues.iter().any(|i| {
+            i.suggestion
+                .as_ref()
+                .map_or(false, |s| s.contains("{skin}"))
+        });
+        let has_hair_suggestion = undefined_token_issues.iter().any(|i| {
+            i.suggestion
+                .as_ref()
+                .map_or(false, |s| s.contains("{hair}"))
+        });
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");

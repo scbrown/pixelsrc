@@ -210,7 +210,11 @@ impl Suggester {
 
         // Check for row length mismatches
         if !row_lengths.is_empty() {
-            let max_length = row_lengths.iter().map(|(len, _, _)| *len).max().unwrap_or(0);
+            let max_length = row_lengths
+                .iter()
+                .map(|(len, _, _)| *len)
+                .max()
+                .unwrap_or(0);
             if max_length > 0 {
                 // Find the most common token for padding (prefer {_} if present)
                 let pad_token = self.find_pad_token(&all_tokens_used, palette_tokens.as_ref());
@@ -621,7 +625,13 @@ mod tests {
 
         // First row (2 tokens) should be extended to match second row (4 tokens)
         match &row_completion[0].fix {
-            SuggestionFix::ExtendRow { row_index, tokens_to_add, pad_token, suggested, .. } => {
+            SuggestionFix::ExtendRow {
+                row_index,
+                tokens_to_add,
+                pad_token,
+                suggested,
+                ..
+            } => {
                 assert_eq!(*row_index, 0);
                 assert_eq!(*tokens_to_add, 2);
                 assert_eq!(pad_token, "{_}");

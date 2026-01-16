@@ -208,11 +208,7 @@ pub fn parse_simple_grid(input: &str) -> Vec<Vec<String>> {
     input
         .lines()
         .filter(|line| !line.trim().is_empty())
-        .map(|line| {
-            line.split_whitespace()
-                .map(|s| s.to_string())
-                .collect()
-        })
+        .map(|line| line.split_whitespace().map(|s| s.to_string()).collect())
         .collect()
 }
 
@@ -317,10 +313,7 @@ mod tests {
 
     #[test]
     fn test_extract_aliases_basic() {
-        let grid = vec![
-            "{_}{a}{a}{_}".to_string(),
-            "{_}{b}{b}{_}".to_string(),
-        ];
+        let grid = vec!["{_}{a}{a}{_}".to_string(), "{_}{b}{b}{_}".to_string()];
         let (aliases, transformed) = extract_aliases(&grid);
 
         // {_} should always map to '_'
@@ -378,7 +371,7 @@ mod tests {
         assert_eq!(formatted.len(), 2);
         // Second column should have padding to match {skin_highlight} width
         assert!(formatted[0].contains("  ")); // gap between columns
-        // All rows should align
+                                              // All rows should align
         let col1_start: Vec<_> = formatted.iter().map(|r| r.find("{_}")).collect();
         assert!(col1_start.iter().all(|&pos| pos == col1_start[0]));
     }

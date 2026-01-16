@@ -10,15 +10,13 @@ use std::process::ExitCode;
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::composition::render_composition;
 use crate::diff::{diff_files, format_diff};
-use crate::explain::{
-    explain_object, format_explanation, resolve_palette_colors, Explanation,
-};
-use crate::suggest::{format_suggestion, suggest, SuggestionFix, SuggestionType, Suggester};
-use crate::validate::{Severity, Validator};
 #[allow(unused_imports)]
 use crate::emoji::render_emoji_art;
+use crate::explain::{explain_object, format_explanation, resolve_palette_colors, Explanation};
 use crate::fmt::format_pixelsrc;
 use crate::prime::{get_primer, list_sections, PrimerSection};
+use crate::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
+use crate::validate::{Severity, Validator};
 use glob::glob;
 
 /// Check if a path has a valid Pixelsrc file extension (.pxl or .jsonl).
@@ -220,7 +218,7 @@ pub enum Commands {
         json: bool,
     },
 
-/// Explain sprites and other objects in human-readable format
+    /// Explain sprites and other objects in human-readable format
     Explain {
         /// Input file containing pixelsrc objects
         input: PathBuf,
@@ -324,7 +322,13 @@ pub fn run() -> ExitCode {
             recursive,
             format,
             output,
-        } => run_analyze(&files, dir.as_deref(), recursive, &format, output.as_deref()),
+        } => run_analyze(
+            &files,
+            dir.as_deref(),
+            recursive,
+            &format,
+            output.as_deref(),
+        ),
         Commands::Fmt {
             files,
             check,
@@ -337,7 +341,7 @@ pub fn run() -> ExitCode {
             strict,
             json,
         } => run_validate(&files, stdin, strict, json),
-Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
+        Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
         Commands::Diff {
             file_a,
             file_b,
@@ -633,8 +637,7 @@ fn run_render(
         sprites.retain(|s| s.name == name);
         if sprites.is_empty() {
             eprintln!("Error: No sprite named '{}' found in input", name);
-            let sprite_names: Vec<&str> =
-                sprites_by_name.keys().map(|s| s.as_str()).collect();
+            let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
                 eprintln!("{}", suggestion);
             }
@@ -1280,7 +1283,12 @@ fn run_analyze(
 
     for (i, path) in file_list.iter().enumerate() {
         if show_progress {
-            eprint!("\rAnalyzing file {}/{}: {}", i + 1, total_files, path.display());
+            eprint!(
+                "\rAnalyzing file {}/{}: {}",
+                i + 1,
+                total_files,
+                path.display()
+            );
         }
         if let Err(e) = report.analyze_file(path) {
             report.files_failed += 1;
@@ -1437,8 +1445,14 @@ fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> Exi
     }
 
     let issues = validator.into_issues();
-    let error_count = issues.iter().filter(|i| matches!(i.severity, Severity::Error)).count();
-    let warning_count = issues.iter().filter(|i| matches!(i.severity, Severity::Warning)).count();
+    let error_count = issues
+        .iter()
+        .filter(|i| matches!(i.severity, Severity::Error))
+        .count();
+    let warning_count = issues
+        .iter()
+        .filter(|i| matches!(i.severity, Severity::Warning))
+        .count();
 
     // Determine validity based on strict mode
     let has_failures = error_count > 0 || (strict && warning_count > 0);
@@ -1521,8 +1535,10 @@ fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> Exi
                 (e, 0) => println!("Found {} error{}.", e, if e == 1 { "" } else { "s" }),
                 (e, w) => println!(
                     "Found {} error{}, {} warning{}.",
-                    e, if e == 1 { "" } else { "s" },
-                    w, if w == 1 { "" } else { "s" }
+                    e,
+                    if e == 1 { "" } else { "s" },
+                    w,
+                    if w == 1 { "" } else { "s" }
                 ),
             }
 
@@ -1818,7 +1834,7 @@ fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool
                 println!("---");
                 println!();
             }
-println!(
+            println!(
                 "{}",
                 format_diff(name, diff, &file_a_display, &file_b_display)
             );
@@ -1837,7 +1853,10 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
         Some("token") => Some(SuggestionType::MissingToken),
         Some("row") => Some(SuggestionType::RowCompletion),
         Some(other) => {
-            eprintln!("Error: Unknown suggestion type '{}'. Use 'token' or 'row'.", other);
+            eprintln!(
+                "Error: Unknown suggestion type '{}'. Use 'token' or 'row'.",
+                other
+            );
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         None => None,
@@ -1881,7 +1900,11 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
 
     // Apply type filter if specified
     let suggestions: Vec<_> = if let Some(filter_type) = type_filter {
-        report.filter_by_type(filter_type).into_iter().cloned().collect()
+        report
+            .filter_by_type(filter_type)
+            .into_iter()
+            .cloned()
+            .collect()
     } else {
         report.suggestions.clone()
     };
@@ -1902,11 +1925,18 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
             println!("Analyzed {} sprite(s).", report.sprites_analyzed);
         } else {
             println!();
-            println!("Found {} suggestion(s) in {} sprite(s):", suggestions.len(), report.sprites_analyzed);
+            println!(
+                "Found {} suggestion(s) in {} sprite(s):",
+                suggestions.len(),
+                report.sprites_analyzed
+            );
             println!();
 
             for suggestion in &suggestions {
-                println!("Line {}: [{}] {}", suggestion.line, suggestion.suggestion_type, suggestion.sprite);
+                println!(
+                    "Line {}: [{}] {}",
+                    suggestion.line, suggestion.suggestion_type, suggestion.sprite
+                );
                 println!("  {}", suggestion.message);
 
                 // Show fix details
@@ -1914,11 +1944,28 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                     SuggestionFix::ReplaceToken { from, to } => {
                         println!("  Fix: Replace {} with {}", from, to);
                     }
-                    SuggestionFix::AddToPalette { token, suggested_color } => {
-                        println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
+                    SuggestionFix::AddToPalette {
+                        token,
+                        suggested_color,
+                    } => {
+                        println!(
+                            "  Fix: Add \"{}\": \"{}\" to palette",
+                            token, suggested_color
+                        );
                     }
-                    SuggestionFix::ExtendRow { row_index, suggested, tokens_to_add, pad_token, .. } => {
-                        println!("  Fix: Extend row {} by adding {} {} token(s)", row_index + 1, tokens_to_add, pad_token);
+                    SuggestionFix::ExtendRow {
+                        row_index,
+                        suggested,
+                        tokens_to_add,
+                        pad_token,
+                        ..
+                    } => {
+                        println!(
+                            "  Fix: Extend row {} by adding {} {} token(s)",
+                            row_index + 1,
+                            tokens_to_add,
+                            pad_token
+                        );
                         println!("  Suggested: \"{}\"", suggested);
                     }
                 }
@@ -1926,10 +1973,12 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
             }
 
             // Summary by type
-            let token_count = suggestions.iter()
+            let token_count = suggestions
+                .iter()
                 .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
                 .count();
-            let row_count = suggestions.iter()
+            let row_count = suggestions
+                .iter()
                 .filter(|s| s.suggestion_type == SuggestionType::RowCompletion)
                 .count();
 
