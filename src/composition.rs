@@ -2,8 +2,77 @@
 
 use crate::models::Composition;
 use image::{Rgba, RgbaImage};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+
+// ============================================================================
+// Blend Modes (ATF-10)
+// ============================================================================
+
+/// Blend modes for composition layers
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BlendMode {
+    /// Standard alpha compositing (source over destination)
+    #[default]
+    Normal,
+    /// Darkens underlying colors: result = base * blend
+    Multiply,
+    /// Lightens underlying colors: result = 1 - (1 - base) * (1 - blend)
+    Screen,
+    /// Combines multiply/screen based on base brightness
+    Overlay,
+    /// Additive blending: result = min(1, base + blend)
+    Add,
+    /// Subtractive blending: result = max(0, base - blend)
+    Subtract,
+    /// Color difference: result = abs(base - blend)
+    Difference,
+    /// Keeps darker color: result = min(base, blend)
+    Darken,
+    /// Keeps lighter color: result = max(base, blend)
+    Lighten,
+}
+
+impl BlendMode {
+    /// Parse a blend mode from string
+    pub fn from_str(s: &str) -> Option<BlendMode> {
+        match s.to_lowercase().as_str() {
+            "normal" => Some(BlendMode::Normal),
+            "multiply" => Some(BlendMode::Multiply),
+            "screen" => Some(BlendMode::Screen),
+            "overlay" => Some(BlendMode::Overlay),
+            "add" | "additive" => Some(BlendMode::Add),
+            "subtract" | "subtractive" => Some(BlendMode::Subtract),
+            "difference" => Some(BlendMode::Difference),
+            "darken" => Some(BlendMode::Darken),
+            "lighten" => Some(BlendMode::Lighten),
+            _ => None,
+        }
+    }
+
+    /// Apply blend mode to a single color channel (values are 0.0-1.0)
+    fn blend_channel(&self, base: f32, blend: f32) -> f32 {
+        match self {
+            BlendMode::Normal => blend,
+            BlendMode::Multiply => base * blend,
+            BlendMode::Screen => 1.0 - (1.0 - base) * (1.0 - blend),
+            BlendMode::Overlay => {
+                if base < 0.5 {
+                    2.0 * base * blend
+                } else {
+                    1.0 - 2.0 * (1.0 - base) * (1.0 - blend)
+                }
+            }
+            BlendMode::Add => (base + blend).min(1.0),
+            BlendMode::Subtract => (base - blend).max(0.0),
+            BlendMode::Difference => (base - blend).abs(),
+            BlendMode::Darken => base.min(blend),
+            BlendMode::Lighten => base.max(blend),
+        }
+    }
+}
 
 /// A warning generated during composition rendering
 #[derive(Debug, Clone, PartialEq)]
@@ -237,6 +306,14 @@ pub fn render_composition(
 
     // Render each layer (bottom to top)
     for layer in &comp.layers {
+        // Parse layer blend mode and opacity (ATF-10)
+        let blend_mode = layer
+            .blend
+            .as_ref()
+            .and_then(|s| BlendMode::from_str(s))
+            .unwrap_or(BlendMode::Normal);
+        let opacity = layer.opacity.unwrap_or(1.0);
+
         if let Some(ref map) = layer.map {
             // Validate map dimensions match expected grid (only when cell_size > [1,1])
             if cell_size[0] > 1 || cell_size[1] > 1 {
@@ -317,8 +394,8 @@ pub fn render_composition(
                     let x = (col_idx as u32) * cell_size[0];
                     let y = (row_idx as u32) * cell_size[1];
 
-                    // Blit sprite onto canvas (anchors top-left, overwrites adjacent cells)
-                    blit_sprite(&mut canvas, sprite_image, x, y);
+                    // Blit sprite onto canvas with blend mode and opacity (ATF-10)
+                    blit_sprite_blended(&mut canvas, sprite_image, x, y, blend_mode, opacity);
                 }
             }
         }
@@ -354,8 +431,28 @@ fn infer_size_from_layers(
 /// Blit a sprite onto the canvas at the given position.
 /// Uses alpha blending for transparent pixels.
 fn blit_sprite(canvas: &mut RgbaImage, sprite: &RgbaImage, x: u32, y: u32) {
+    blit_sprite_blended(canvas, sprite, x, y, BlendMode::Normal, 1.0);
+}
+
+/// Blit a sprite onto the canvas with blend mode and opacity.
+///
+/// # Arguments
+/// * `canvas` - The destination image
+/// * `sprite` - The sprite to blit
+/// * `x`, `y` - Position on canvas
+/// * `blend_mode` - How to blend colors (ATF-10)
+/// * `opacity` - Layer opacity (0.0-1.0)
+fn blit_sprite_blended(
+    canvas: &mut RgbaImage,
+    sprite: &RgbaImage,
+    x: u32,
+    y: u32,
+    blend_mode: BlendMode,
+    opacity: f64,
+) {
     let canvas_width = canvas.width();
     let canvas_height = canvas.height();
+    let opacity = opacity.clamp(0.0, 1.0) as f32;
 
     for (sy, row) in sprite.rows().enumerate() {
         let dest_y = y + sy as u32;
@@ -369,25 +466,68 @@ fn blit_sprite(canvas: &mut RgbaImage, sprite: &RgbaImage, x: u32, y: u32) {
                 break;
             }
 
-            // Alpha blend
             let src = pixel;
+            // Fully transparent source, skip
             if src[3] == 0 {
-                // Fully transparent, skip
                 continue;
-            } else if src[3] == 255 {
-                // Fully opaque, overwrite
-                canvas.put_pixel(dest_x, dest_y, *src);
-            } else {
-                // Partial transparency, blend
-                let dst = canvas.get_pixel(dest_x, dest_y);
-                let blended = alpha_blend(src, dst);
-                canvas.put_pixel(dest_x, dest_y, blended);
             }
+
+            // Apply layer opacity to source alpha
+            let src_alpha = (src[3] as f32 / 255.0) * opacity;
+            if src_alpha == 0.0 {
+                continue;
+            }
+
+            let dst = canvas.get_pixel(dest_x, dest_y);
+            let blended = blend_pixels(src, dst, blend_mode, src_alpha);
+            canvas.put_pixel(dest_x, dest_y, blended);
         }
     }
 }
 
-/// Alpha blend source over destination
+/// Blend source pixel over destination using the specified blend mode and opacity.
+fn blend_pixels(src: &Rgba<u8>, dst: &Rgba<u8>, mode: BlendMode, src_alpha: f32) -> Rgba<u8> {
+    let dst_alpha = dst[3] as f32 / 255.0;
+
+    // Normalize colors to 0.0-1.0
+    let src_r = src[0] as f32 / 255.0;
+    let src_g = src[1] as f32 / 255.0;
+    let src_b = src[2] as f32 / 255.0;
+
+    let dst_r = dst[0] as f32 / 255.0;
+    let dst_g = dst[1] as f32 / 255.0;
+    let dst_b = dst[2] as f32 / 255.0;
+
+    // Apply blend mode to get the blended color (before alpha compositing)
+    let blended_r = mode.blend_channel(dst_r, src_r);
+    let blended_g = mode.blend_channel(dst_g, src_g);
+    let blended_b = mode.blend_channel(dst_b, src_b);
+
+    // Now composite the blended color over destination using porter-duff "source over"
+    // out_alpha = src_alpha + dst_alpha * (1 - src_alpha)
+    let out_alpha = src_alpha + dst_alpha * (1.0 - src_alpha);
+
+    if out_alpha == 0.0 {
+        return Rgba([0, 0, 0, 0]);
+    }
+
+    // Composite each channel:
+    // out_color = (blended_color * src_alpha + dst_color * dst_alpha * (1 - src_alpha)) / out_alpha
+    let composite = |blended: f32, dst: f32| -> u8 {
+        let result = (blended * src_alpha + dst * dst_alpha * (1.0 - src_alpha)) / out_alpha;
+        (result.clamp(0.0, 1.0) * 255.0).round() as u8
+    };
+
+    Rgba([
+        composite(blended_r, dst_r),
+        composite(blended_g, dst_g),
+        composite(blended_b, dst_b),
+        (out_alpha * 255.0).round() as u8,
+    ])
+}
+
+/// Alpha blend source over destination (test helper)
+#[cfg(test)]
 fn alpha_blend(src: &Rgba<u8>, dst: &Rgba<u8>) -> Rgba<u8> {
     let src_a = src[3] as f32 / 255.0;
     let dst_a = dst[3] as f32 / 255.0;
@@ -453,6 +593,7 @@ mod tests {
                 name: Some("main".to_string()),
                 fill: None,
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -481,6 +622,7 @@ mod tests {
             name: None,
             fill: None,
             map: Some(vec!["ABC".to_string(), "DEF".to_string()]),
+                ..Default::default()
         }];
 
         let (width, height) = infer_size_from_layers(&layers, [1, 1]);
@@ -505,6 +647,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -526,6 +669,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -566,6 +710,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["XX".to_string(), "XX".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -600,11 +745,13 @@ mod tests {
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
             ],
         };
@@ -651,11 +798,13 @@ mod tests {
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), ".B".to_string()]),
+                ..Default::default()
                 },
             ],
         };
@@ -705,16 +854,19 @@ mod tests {
                     name: Some("layer1".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
+                ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("layer2".to_string()),
                     fill: None,
                     map: Some(vec!["GG".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("layer3".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
             ],
         };
@@ -764,11 +916,13 @@ mod tests {
                     name: Some("background".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
+                ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("empty".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), "..".to_string()]),
+                ..Default::default()
                 },
             ],
         };
@@ -806,6 +960,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -839,6 +994,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -873,7 +1029,7 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         // 4x4 sprite exceeds 2x2 cell
@@ -924,7 +1080,7 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         // 4x4 sprite exceeds 2x2 cell
@@ -981,7 +1137,7 @@ mod tests {
                         "BBB".to_string(),
                         "BBB".to_string(),
                     ]),
-                },
+                ..Default::default()},
                 // Second layer: big red sprite at (0,0)
                 CompositionLayer {
                     name: Some("foreground".to_string()),
@@ -991,7 +1147,7 @@ mod tests {
                         "...".to_string(),
                         "...".to_string(),
                     ]),
-                },
+                ..Default::default()},
             ],
         };
 
@@ -1047,6 +1203,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["X...".to_string(), "....".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1086,7 +1243,7 @@ mod tests {
                     "..".to_string(),
                     "..".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         // 2x4 sprite (width fits, height exceeds)
@@ -1126,7 +1283,7 @@ mod tests {
                     "..B.".to_string(),
                     "....".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         let mut big_a = RgbaImage::new(3, 3);
@@ -1192,6 +1349,7 @@ mod tests {
                     "..RG".to_string(),
                     "...R".to_string(),
                 ]),
+                ..Default::default()
             }],
         };
 
@@ -1243,7 +1401,7 @@ mod tests {
                     "....".to_string(),
                     "..AB".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         // 4x4 pixel tiles
@@ -1310,6 +1468,7 @@ mod tests {
                 name: Some("terrain".to_string()),
                 fill: None,
                 map: Some(vec!["GGW".to_string(), "GWW".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1371,7 +1530,7 @@ mod tests {
                     "...".to_string(),
                     "X.X".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         // 8x4 wide tile
@@ -1425,6 +1584,7 @@ mod tests {
                 fill: None,
                 // Map 2x2 cells = 8x8 pixels with cell_size 4x4
                 map: Some(vec!["H.".to_string(), "..".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1506,6 +1666,7 @@ mod tests {
                 // Layer map would infer 8x8 (2x2 cells * 4x4 cell_size)
                 // But base sprite is 16x20, so expected grid is 4x5
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1556,6 +1717,7 @@ mod tests {
                 fill: None,
                 // 3 cols x 2 rows = 24x16 with cell_size 8x8
                 map: Some(vec!["X.X".to_string(), ".X.".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1588,6 +1750,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["XX".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1626,6 +1789,7 @@ mod tests {
                 fill: None,
                 // Overlay at (0,0) only
                 map: Some(vec!["X.".to_string(), "..".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1722,6 +1886,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["HR".to_string(), "RH".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1773,7 +1938,7 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-            }],
+                ..Default::default()}],
         };
 
         let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
@@ -1799,6 +1964,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["....".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1831,6 +1997,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["....".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1868,6 +2035,7 @@ mod tests {
                 name: Some("terrain".to_string()),
                 fill: None,
                 map: Some(vec!["..".to_string(), "..".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1895,6 +2063,7 @@ mod tests {
                 name: Some("terrain".to_string()),
                 fill: None,
                 map: Some(vec!["...".to_string(), "...".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1929,6 +2098,7 @@ mod tests {
                 name: Some("layer1".to_string()),
                 fill: None,
                 map: Some(vec!["..".to_string(), "..".to_string(), "..".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1967,6 +2137,7 @@ mod tests {
                 name: None, // No name
                 fill: None,
                 map: Some(vec!["...".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -1994,6 +2165,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec![".".to_string()]), // Just 1 cell
+                ..Default::default()
             }],
         };
 
@@ -2022,6 +2194,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec![".".to_string()]),
+                ..Default::default()
             }],
         };
 
@@ -2079,5 +2252,333 @@ mod tests {
 
         let msg = format!("{}", err);
         assert!(msg.contains("unnamed layer"));
+    }
+
+    // ========================================================================
+    // Blend Mode Tests (ATF-10)
+    // ========================================================================
+
+    #[test]
+    fn test_blend_mode_from_str() {
+        assert_eq!(BlendMode::from_str("normal"), Some(BlendMode::Normal));
+        assert_eq!(BlendMode::from_str("multiply"), Some(BlendMode::Multiply));
+        assert_eq!(BlendMode::from_str("screen"), Some(BlendMode::Screen));
+        assert_eq!(BlendMode::from_str("overlay"), Some(BlendMode::Overlay));
+        assert_eq!(BlendMode::from_str("add"), Some(BlendMode::Add));
+        assert_eq!(BlendMode::from_str("additive"), Some(BlendMode::Add));
+        assert_eq!(BlendMode::from_str("subtract"), Some(BlendMode::Subtract));
+        assert_eq!(BlendMode::from_str("difference"), Some(BlendMode::Difference));
+        assert_eq!(BlendMode::from_str("darken"), Some(BlendMode::Darken));
+        assert_eq!(BlendMode::from_str("lighten"), Some(BlendMode::Lighten));
+        assert_eq!(BlendMode::from_str("NORMAL"), Some(BlendMode::Normal)); // case insensitive
+        assert_eq!(BlendMode::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn test_blend_mode_multiply() {
+        // Multiply: result = base * blend
+        let mode = BlendMode::Multiply;
+        // 0.5 * 0.5 = 0.25
+        assert!((mode.blend_channel(0.5, 0.5) - 0.25).abs() < 0.01);
+        // 1.0 * 0.5 = 0.5
+        assert!((mode.blend_channel(1.0, 0.5) - 0.5).abs() < 0.01);
+        // 0.0 * anything = 0.0
+        assert!((mode.blend_channel(0.0, 1.0) - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_screen() {
+        // Screen: result = 1 - (1 - base) * (1 - blend)
+        let mode = BlendMode::Screen;
+        // 1 - (1 - 0.5) * (1 - 0.5) = 1 - 0.25 = 0.75
+        assert!((mode.blend_channel(0.5, 0.5) - 0.75).abs() < 0.01);
+        // Screen with white = white
+        assert!((mode.blend_channel(0.5, 1.0) - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_add() {
+        // Add: result = min(1, base + blend)
+        let mode = BlendMode::Add;
+        assert!((mode.blend_channel(0.3, 0.4) - 0.7).abs() < 0.01);
+        // Clamped at 1.0
+        assert!((mode.blend_channel(0.8, 0.5) - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_subtract() {
+        // Subtract: result = max(0, base - blend)
+        let mode = BlendMode::Subtract;
+        assert!((mode.blend_channel(0.7, 0.3) - 0.4).abs() < 0.01);
+        // Clamped at 0.0
+        assert!((mode.blend_channel(0.3, 0.7) - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_difference() {
+        // Difference: result = abs(base - blend)
+        let mode = BlendMode::Difference;
+        assert!((mode.blend_channel(0.7, 0.3) - 0.4).abs() < 0.01);
+        assert!((mode.blend_channel(0.3, 0.7) - 0.4).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_darken() {
+        // Darken: result = min(base, blend)
+        let mode = BlendMode::Darken;
+        assert!((mode.blend_channel(0.7, 0.3) - 0.3).abs() < 0.01);
+        assert!((mode.blend_channel(0.3, 0.7) - 0.3).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_mode_lighten() {
+        // Lighten: result = max(base, blend)
+        let mode = BlendMode::Lighten;
+        assert!((mode.blend_channel(0.7, 0.3) - 0.7).abs() < 0.01);
+        assert!((mode.blend_channel(0.3, 0.7) - 0.7).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_blend_pixels_normal() {
+        // Normal blend mode should be standard alpha compositing
+        let src = Rgba([255, 0, 0, 255]); // Opaque red
+        let dst = Rgba([0, 0, 255, 255]); // Opaque blue
+        let result = blend_pixels(&src, &dst, BlendMode::Normal, 1.0);
+        // Opaque source completely replaces
+        assert_eq!(result, Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_blend_pixels_multiply() {
+        // Multiply should darken
+        let src = Rgba([255, 128, 0, 255]); // Orange
+        let dst = Rgba([255, 255, 255, 255]); // White
+        let result = blend_pixels(&src, &dst, BlendMode::Multiply, 1.0);
+        // Multiplying with white gives the original color
+        assert_eq!(result[0], 255); // R
+        assert_eq!(result[1], 128); // G (approximately)
+        assert_eq!(result[2], 0);   // B
+    }
+
+    #[test]
+    fn test_opacity_reduces_effect() {
+        // At 50% opacity, the source color should be half-strength
+        let src = Rgba([255, 0, 0, 255]); // Opaque red
+        let dst = Rgba([0, 0, 255, 255]); // Opaque blue
+        let result = blend_pixels(&src, &dst, BlendMode::Normal, 0.5);
+        // Should be a blend of red and blue
+        assert!(result[0] > 100 && result[0] < 200); // Some red
+        assert!(result[2] > 100 && result[2] < 200); // Some blue
+    }
+
+    #[test]
+    fn test_composition_with_multiply_blend() {
+        // Test multiply blend mode in a composition
+        let comp = Composition {
+            name: "multiply_test".to_string(),
+            base: None,
+            size: Some([2, 2]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                (".".to_string(), None), // transparent
+                ("W".to_string(), Some("white".to_string())),
+                ("S".to_string(), Some("shadow".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("background".to_string()),
+                    fill: None,
+                    map: Some(vec!["WW".to_string(), "WW".to_string()]),
+                    blend: None, // Normal
+                    opacity: None,
+                },
+                CompositionLayer {
+                    name: Some("shadow".to_string()),
+                    fill: None,
+                    map: Some(vec!["S.".to_string(), "..".to_string()]),
+                    blend: Some("multiply".to_string()),
+                    opacity: None,
+                },
+            ],
+        };
+
+        // White background
+        let mut white = RgbaImage::new(1, 1);
+        white.put_pixel(0, 0, Rgba([255, 255, 255, 255]));
+
+        // Gray shadow
+        let mut shadow = RgbaImage::new(1, 1);
+        shadow.put_pixel(0, 0, Rgba([128, 128, 128, 255]));
+
+        let sprites = HashMap::from([
+            ("white".to_string(), white),
+            ("shadow".to_string(), shadow),
+        ]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // (0,0) should be darkened (white * gray = gray)
+        let pixel = image.get_pixel(0, 0);
+        assert!(pixel[0] < 200); // Darkened red
+        assert!(pixel[1] < 200); // Darkened green
+        assert!(pixel[2] < 200); // Darkened blue
+        // (1,0) should still be white
+        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 255, 255, 255]));
+    }
+
+    #[test]
+    fn test_composition_with_opacity() {
+        // Test layer opacity
+        let comp = Composition {
+            name: "opacity_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                ("B".to_string(), Some("blue".to_string())),
+                ("R".to_string(), Some("red".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("base".to_string()),
+                    fill: None,
+                    map: Some(vec!["B".to_string()]),
+                    blend: None,
+                    opacity: None, // Full opacity
+                },
+                CompositionLayer {
+                    name: Some("overlay".to_string()),
+                    fill: None,
+                    map: Some(vec!["R".to_string()]),
+                    blend: None,
+                    opacity: Some(0.5), // 50% opacity
+                },
+            ],
+        };
+
+        let mut blue = RgbaImage::new(1, 1);
+        blue.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("blue".to_string(), blue), ("red".to_string(), red)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Should be a mix of red and blue (purple-ish)
+        let pixel = image.get_pixel(0, 0);
+        assert!(pixel[0] > 100); // Has red
+        assert!(pixel[2] > 100); // Has blue
+        assert!(pixel[0] < 255); // Not fully red
+        assert!(pixel[2] < 255); // Not fully blue
+    }
+
+    #[test]
+    fn test_composition_with_add_blend() {
+        // Test additive blend mode (good for glows)
+        let comp = Composition {
+            name: "add_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([
+                ("B".to_string(), Some("blue".to_string())),
+                ("R".to_string(), Some("red".to_string())),
+            ]),
+            layers: vec![
+                CompositionLayer {
+                    name: Some("base".to_string()),
+                    fill: None,
+                    map: Some(vec!["B".to_string()]),
+                    blend: None,
+                    opacity: None,
+                },
+                CompositionLayer {
+                    name: Some("glow".to_string()),
+                    fill: None,
+                    map: Some(vec!["R".to_string()]),
+                    blend: Some("add".to_string()),
+                    opacity: None,
+                },
+            ],
+        };
+
+        let mut blue = RgbaImage::new(1, 1);
+        blue.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("blue".to_string(), blue), ("red".to_string(), red)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Add mode: blue + red = magenta
+        let pixel = image.get_pixel(0, 0);
+        assert_eq!(pixel[0], 255); // Full red
+        assert_eq!(pixel[2], 255); // Full blue
+    }
+
+    #[test]
+    fn test_layer_default_blend_and_opacity() {
+        // Test that layers without blend/opacity work correctly (use defaults)
+        let comp = Composition {
+            name: "defaults_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([("R".to_string(), Some("red".to_string()))]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["R".to_string()]),
+                blend: None, // Default: normal
+                opacity: None, // Default: 1.0
+            }],
+        };
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("red".to_string(), red)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+
+        assert!(warnings.is_empty());
+        // Should be full red
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_unknown_blend_mode_uses_normal() {
+        // Unknown blend mode should fall back to normal
+        let comp = Composition {
+            name: "unknown_blend".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([("R".to_string(), Some("red".to_string()))]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["R".to_string()]),
+                blend: Some("invalid_blend_mode".to_string()),
+                opacity: None,
+            }],
+        };
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let sprites = HashMap::from([("red".to_string(), red)]);
+
+        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
+
+        // Should still work, falling back to normal blend
+        assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
     }
 }

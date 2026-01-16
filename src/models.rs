@@ -128,7 +128,7 @@ impl PaletteCycle {
 }
 
 /// A layer within a composition.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CompositionLayer {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub name: Option<String>,
@@ -136,6 +136,12 @@ pub struct CompositionLayer {
     pub fill: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub map: Option<Vec<String>>,
+    /// Blend mode for this layer (ATF-10). Default: "normal"
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub blend: Option<String>,
+    /// Layer opacity from 0.0 (transparent) to 1.0 (opaque). Default: 1.0
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub opacity: Option<f64>,
 }
 
 /// A composition that layers sprites onto a canvas.
@@ -369,7 +375,7 @@ mod tests {
                 name: Some("layer1".to_string()),
                 fill: None,
                 map: Some(vec!["A.".to_string(), ".A".to_string()]),
-            }],
+                ..Default::default()}],
         };
         let obj = TtpObject::Composition(comp.clone());
         let json = serde_json::to_string(&obj).unwrap();

@@ -486,6 +486,7 @@ mod tests {
                     name: Some("ground".to_string()),
                     fill: Some(".".to_string()),
                     map: None,
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("objects".to_string()),
@@ -495,6 +496,7 @@ mod tests {
                         "..H.".to_string(),
                         "....".to_string(),
                     ]),
+                    ..Default::default()
                 },
             ],
         };
