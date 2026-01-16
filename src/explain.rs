@@ -119,7 +119,10 @@ pub enum Explanation {
 }
 
 /// Analyze a sprite and produce an explanation
-pub fn explain_sprite(sprite: &Sprite, palette_colors: Option<&HashMap<String, String>>) -> SpriteExplanation {
+pub fn explain_sprite(
+    sprite: &Sprite,
+    palette_colors: Option<&HashMap<String, String>>,
+) -> SpriteExplanation {
     let mut token_counts: HashMap<String, usize> = HashMap::new();
     let mut total_cells = 0;
     let mut first_row_width: Option<usize> = None;
@@ -276,7 +279,10 @@ pub fn explain_variant(variant: &Variant) -> VariantExplanation {
 }
 
 /// Explain any TtpObject
-pub fn explain_object(obj: &TtpObject, palette_colors: Option<&HashMap<String, String>>) -> Explanation {
+pub fn explain_object(
+    obj: &TtpObject,
+    palette_colors: Option<&HashMap<String, String>>,
+) -> Explanation {
     match obj {
         TtpObject::Sprite(sprite) => Explanation::Sprite(explain_sprite(sprite, palette_colors)),
         TtpObject::Palette(palette) => {
@@ -304,15 +310,17 @@ pub fn describe_color(hex: &str) -> Option<String> {
 
     // Check for grayscale
     if r == g && g == b {
-        return Some(match r {
-            0 => "black",
-            255 => "white",
-            0..=63 => "dark gray",
-            64..=127 => "gray",
-            128..=191 => "light gray",
-            192..=254 => "very light gray",
-        }
-        .to_string());
+        return Some(
+            match r {
+                0 => "black",
+                255 => "white",
+                0..=63 => "dark gray",
+                64..=127 => "gray",
+                128..=191 => "light gray",
+                192..=254 => "very light gray",
+            }
+            .to_string(),
+        );
     }
 
     // Determine dominant color(s)
@@ -382,7 +390,10 @@ pub fn format_sprite_explanation(exp: &SpriteExplanation) -> String {
 
     // Header
     output.push_str(&format!("Sprite: {}\n", exp.name));
-    output.push_str(&format!("Size: {}x{} pixels ({} cells)\n", exp.width, exp.height, exp.total_cells));
+    output.push_str(&format!(
+        "Size: {}x{} pixels ({} cells)\n",
+        exp.width, exp.height, exp.total_cells
+    ));
     output.push_str(&format!("Palette: {}\n", exp.palette_ref));
     output.push('\n');
 
@@ -408,8 +419,14 @@ pub fn format_sprite_explanation(exp: &SpriteExplanation) -> String {
     // Structure info
     output.push_str("STRUCTURE\n");
     output.push_str("---------\n");
-    output.push_str(&format!("  Transparency: {:.1}% ({} cells)\n", exp.transparency_ratio, exp.transparent_count));
-    output.push_str(&format!("  Row consistency: {}\n", if exp.consistent_rows { "yes" } else { "no" }));
+    output.push_str(&format!(
+        "  Transparency: {:.1}% ({} cells)\n",
+        exp.transparency_ratio, exp.transparent_count
+    ));
+    output.push_str(&format!(
+        "  Row consistency: {}\n",
+        if exp.consistent_rows { "yes" } else { "no" }
+    ));
     output.push_str(&format!("  Unique tokens: {}\n", exp.tokens.len()));
 
     // Issues
@@ -440,7 +457,10 @@ pub fn format_palette_explanation(exp: &PaletteExplanation) -> String {
     output.push_str("--------------\n");
 
     for (token, hex, name) in &exp.colors {
-        let desc = name.as_ref().map(|n| format!(" ({})", n)).unwrap_or_default();
+        let desc = name
+            .as_ref()
+            .map(|n| format!(" ({})", n))
+            .unwrap_or_default();
         output.push_str(&format!("  {:12} => {}{}\n", token, hex, desc));
     }
 
@@ -454,7 +474,10 @@ pub fn format_animation_explanation(exp: &AnimationExplanation) -> String {
     output.push_str(&format!("Animation: {}\n", exp.name));
     output.push_str(&format!("Frames: {}\n", exp.frame_count));
     output.push_str(&format!("Duration: {}ms per frame\n", exp.duration_ms));
-    output.push_str(&format!("Loops: {}\n", if exp.loops { "yes" } else { "no" }));
+    output.push_str(&format!(
+        "Loops: {}\n",
+        if exp.loops { "yes" } else { "no" }
+    ));
     output.push('\n');
 
     output.push_str("FRAME SEQUENCE\n");
@@ -477,7 +500,10 @@ pub fn format_composition_explanation(exp: &CompositionExplanation) -> String {
     if let Some(size) = exp.size {
         output.push_str(&format!("Canvas size: {}x{}\n", size[0], size[1]));
     }
-    output.push_str(&format!("Cell size: {}x{}\n", exp.cell_size[0], exp.cell_size[1]));
+    output.push_str(&format!(
+        "Cell size: {}x{}\n",
+        exp.cell_size[0], exp.cell_size[1]
+    ));
     output.push_str(&format!("Sprite mappings: {}\n", exp.sprite_count));
     output.push_str(&format!("Layers: {}\n", exp.layer_count));
 

@@ -81,10 +81,8 @@ pub fn render_ansi_grid(
     let mut seen_tokens: HashMap<String, char> = HashMap::new();
 
     // Build reverse alias map: token_name -> alias_char
-    let reverse_aliases: HashMap<String, char> = aliases
-        .iter()
-        .map(|(c, name)| (name.clone(), *c))
-        .collect();
+    let reverse_aliases: HashMap<String, char> =
+        aliases.iter().map(|(c, name)| (name.clone(), *c)).collect();
 
     // Track which tokens we've seen for the legend
     let mut next_auto_alias = 'a';
@@ -116,7 +114,10 @@ pub fn render_ansi_grid(
                 seen_tokens.insert(token.clone(), c);
 
                 // Add to legend if we haven't seen this token
-                let hex_color = palette.get(token).cloned().unwrap_or_else(|| "???".to_string());
+                let hex_color = palette
+                    .get(token)
+                    .cloned()
+                    .unwrap_or_else(|| "???".to_string());
                 let name = token.trim_matches(|c| c == '{' || c == '}').to_string();
                 legend_entries.push((c, name, hex_color));
 
@@ -124,7 +125,10 @@ pub fn render_ansi_grid(
             };
 
             // Get the color for this token
-            let hex_color = palette.get(token).cloned().unwrap_or_else(|| "#808080".to_string());
+            let hex_color = palette
+                .get(token)
+                .cloned()
+                .unwrap_or_else(|| "#808080".to_string());
             let rgba = parse_color(&hex_color).unwrap_or(Rgba([128, 128, 128, 255]));
             let ansi_bg = color_to_ansi_bg(rgba);
 
@@ -240,7 +244,11 @@ pub fn render_coordinate_grid(grid: &[String], full_names: bool) -> String {
     // Data rows
     for (row_idx, tokens) in parsed_rows.iter().enumerate() {
         // Row number
-        output.push_str(&format!("{:>width$} \u{2502}", row_idx, width = row_num_width)); // │
+        output.push_str(&format!(
+            "{:>width$} \u{2502}",
+            row_idx,
+            width = row_num_width
+        )); // │
 
         for token in tokens {
             let display = if full_names {
