@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
+use crate::atlas::{pack_atlas, add_animation_to_atlas, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
 use crate::diff::{diff_files, format_diff};
 #[allow(unused_imports)]
@@ -119,6 +120,22 @@ pub enum Commands {
         /// Select a specific animation by name
         #[arg(long)]
         animation: Option<String>,
+
+        /// Output format: atlas, atlas-aseprite, atlas-godot, atlas-unity, atlas-libgdx
+        #[arg(long)]
+        format: Option<String>,
+
+        /// Maximum atlas size (e.g., "512x512", "1024x1024")
+        #[arg(long)]
+        max_size: Option<String>,
+
+        /// Padding between sprites in atlas (pixels)
+        #[arg(long, default_value = "0")]
+        padding: u32,
+
+        /// Force power-of-two dimensions for atlas
+        #[arg(long)]
+        power_of_two: bool,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -331,6 +348,10 @@ pub fn run() -> ExitCode {
             spritesheet,
             emoji,
             animation,
+            format,
+            max_size,
+            padding,
+            power_of_two,
         } => run_render(
             &input,
             output.as_deref(),
@@ -342,6 +363,10 @@ pub fn run() -> ExitCode {
             spritesheet,
             emoji,
             animation.as_deref(),
+            format.as_deref(),
+            max_size.as_deref(),
+            padding,
+            power_of_two,
         ),
         Commands::Import {
             input,
@@ -533,6 +558,10 @@ fn run_render(
     spritesheet_output: bool,
     _emoji_output: bool,
     animation_filter: Option<&str>,
+    format: Option<&str>,
+    max_size_arg: Option<&str>,
+    padding: u32,
+    power_of_two: bool,
 ) -> ExitCode {
     // Open input file
     let file = match File::open(input) {
@@ -648,6 +677,31 @@ fn run_render(
             gif_output,
             animation_filter,
         );
+    }
+
+    // Handle atlas format rendering (--format atlas)
+    if let Some(fmt) = format {
+        if fmt.starts_with("atlas") {
+            return run_atlas_render(
+                input,
+                output,
+                &sprites_by_name,
+                &animations_by_name,
+                &registry,
+                input_dir,
+                &mut include_visited,
+                &mut all_warnings,
+                strict,
+                scale,
+                fmt,
+                max_size_arg,
+                padding,
+                power_of_two,
+            );
+        } else {
+            eprintln!("Error: Unknown format '{}'. Supported: atlas, atlas-aseprite, atlas-godot, atlas-unity, atlas-libgdx", fmt);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
     }
 
     // Handle composition rendering if --composition is provided
@@ -1231,6 +1285,319 @@ fn run_animation_render(
     }
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Parse max-size argument (e.g., "512x512") into (width, height)
+fn parse_max_size(arg: Option<&str>) -> Result<(u32, u32), String> {
+    match arg {
+        None => Ok((4096, 4096)), // Default
+        Some(s) => {
+            let parts: Vec<&str> = s.split('x').collect();
+            if parts.len() != 2 {
+                return Err(format!("Invalid max-size format '{}'. Use WxH (e.g., 512x512)", s));
+            }
+            let w = parts[0].parse::<u32>().map_err(|_| format!("Invalid width in '{}'", s))?;
+            let h = parts[1].parse::<u32>().map_err(|_| format!("Invalid height in '{}'", s))?;
+            if w == 0 || h == 0 {
+                return Err("Width and height must be greater than 0".to_string());
+            }
+            Ok((w, h))
+        }
+    }
+}
+
+/// Execute atlas rendering
+#[allow(clippy::too_many_arguments)]
+fn run_atlas_render(
+    input: &std::path::Path,
+    output: Option<&std::path::Path>,
+    sprites: &std::collections::HashMap<String, Sprite>,
+    animations: &std::collections::HashMap<String, Animation>,
+    registry: &PaletteRegistry,
+    input_dir: &std::path::Path,
+    include_visited: &mut HashSet<PathBuf>,
+    all_warnings: &mut Vec<String>,
+    strict: bool,
+    scale: u8,
+    format: &str,
+    max_size_arg: Option<&str>,
+    padding: u32,
+    power_of_two: bool,
+) -> ExitCode {
+    // Parse max-size
+    let max_size = match parse_max_size(max_size_arg) {
+        Ok(size) => size,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    // Configure atlas packing
+    let config = AtlasConfig {
+        max_size,
+        padding,
+        power_of_two,
+    };
+
+    // Render all sprites to images
+    let mut sprite_inputs: Vec<SpriteInput> = Vec::new();
+
+    for sprite in sprites.values() {
+        // Resolve palette
+        let resolved = match &sprite.palette {
+            PaletteRef::Named(name) if is_include_ref(name) => {
+                let include_path = extract_include_path(name).unwrap();
+                match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                    Ok(palette) => ResolvedPalette {
+                        colors: palette.colors,
+                        source: PaletteSource::Named(format!("@include:{}", include_path)),
+                    },
+                    Err(e) => {
+                        if strict {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        continue;
+                    }
+                }
+            }
+            _ => match registry.resolve(sprite, strict) {
+                Ok(result) => {
+                    if let Some(warning) = result.warning {
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                        if strict {
+                            for w in all_warnings.iter() {
+                                eprintln!("Error: {}", w);
+                            }
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                    }
+                    result.palette
+                }
+                Err(e) => {
+                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            },
+        };
+
+        // Render sprite
+        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+
+        // Apply scaling if requested
+        let image = scale_image(image, scale);
+
+        // Collect render warnings
+        for warning in render_warnings {
+            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+        }
+
+        if strict && !all_warnings.is_empty() {
+            for w in all_warnings.iter() {
+                eprintln!("Error: {}", w);
+            }
+            return ExitCode::from(EXIT_ERROR);
+        }
+
+        sprite_inputs.push(SpriteInput {
+            name: sprite.name.clone(),
+            image,
+        });
+    }
+
+    if sprite_inputs.is_empty() {
+        eprintln!("Error: No sprites to pack into atlas");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Determine output base name
+    let base_name = if let Some(out_path) = output {
+        out_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("atlas")
+            .to_string()
+    } else {
+        input
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| format!("{}_atlas", s))
+            .unwrap_or_else(|| "atlas".to_string())
+    };
+
+    let output_dir = output
+        .and_then(|p| p.parent())
+        .unwrap_or_else(|| input.parent().unwrap_or(std::path::Path::new(".")));
+
+    // Pack sprites into atlas(es)
+    let result = pack_atlas(&sprite_inputs, &config, &base_name);
+
+    if result.atlases.is_empty() {
+        eprintln!("Error: Failed to pack sprites into atlas");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Save each atlas
+    for (image, mut metadata) in result.atlases {
+        // Add animation metadata
+        for anim in animations.values() {
+            let fps = 1000 / anim.duration_ms().max(1);
+            add_animation_to_atlas(&mut metadata, &anim.name, &anim.frames, fps);
+        }
+
+        // Determine file paths
+        let image_path = output_dir.join(&metadata.image);
+        let json_name = metadata.image.replace(".png", ".json");
+        let json_path = output_dir.join(&json_name);
+
+        // Save PNG
+        if let Err(e) = save_png(&image, &image_path) {
+            eprintln!("Error: Failed to save atlas '{}': {}", image_path.display(), e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+
+        // Generate JSON based on format variant
+        let json_content = match format {
+            "atlas" => serde_json::to_string_pretty(&metadata).unwrap(),
+            "atlas-aseprite" => generate_aseprite_json(&metadata),
+            "atlas-godot" => generate_godot_json(&metadata),
+            "atlas-unity" => generate_unity_json(&metadata),
+            "atlas-libgdx" => generate_libgdx_atlas(&metadata),
+            _ => serde_json::to_string_pretty(&metadata).unwrap(),
+        };
+
+        // Determine JSON file extension for libGDX
+        let final_json_path = if format == "atlas-libgdx" {
+            output_dir.join(metadata.image.replace(".png", ".atlas"))
+        } else {
+            json_path
+        };
+
+        // Save JSON/metadata
+        if let Err(e) = std::fs::write(&final_json_path, &json_content) {
+            eprintln!("Error: Failed to save metadata '{}': {}", final_json_path.display(), e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+
+        println!("Saved: {} + {}", image_path.display(), final_json_path.display());
+    }
+
+    // Print warnings
+    for warning in all_warnings.iter() {
+        eprintln!("Warning: {}", warning);
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Generate Aseprite-compatible JSON format
+fn generate_aseprite_json(metadata: &crate::atlas::AtlasMetadata) -> String {
+    let frames: serde_json::Map<String, serde_json::Value> = metadata
+        .frames
+        .iter()
+        .map(|(name, frame)| {
+            (
+                format!("{}.png", name),
+                serde_json::json!({
+                    "frame": {"x": frame.x, "y": frame.y, "w": frame.w, "h": frame.h},
+                    "rotated": false,
+                    "trimmed": false,
+                    "spriteSourceSize": {"x": 0, "y": 0, "w": frame.w, "h": frame.h},
+                    "sourceSize": {"w": frame.w, "h": frame.h}
+                }),
+            )
+        })
+        .collect();
+
+    let meta = serde_json::json!({
+        "app": "pixelsrc",
+        "version": "1.0",
+        "image": metadata.image,
+        "format": "RGBA8888",
+        "size": {"w": metadata.size[0], "h": metadata.size[1]},
+        "scale": "1"
+    });
+
+    serde_json::to_string_pretty(&serde_json::json!({
+        "frames": frames,
+        "meta": meta
+    }))
+    .unwrap()
+}
+
+/// Generate Godot-compatible JSON format
+fn generate_godot_json(metadata: &crate::atlas::AtlasMetadata) -> String {
+    let textures: Vec<serde_json::Value> = metadata
+        .frames
+        .iter()
+        .map(|(name, frame)| {
+            serde_json::json!({
+                "name": name,
+                "region": {"x": frame.x, "y": frame.y, "w": frame.w, "h": frame.h}
+            })
+        })
+        .collect();
+
+    serde_json::to_string_pretty(&serde_json::json!({
+        "textures": [{
+            "image": metadata.image,
+            "size": {"w": metadata.size[0], "h": metadata.size[1]},
+            "sprites": textures
+        }]
+    }))
+    .unwrap()
+}
+
+/// Generate Unity-compatible JSON format
+fn generate_unity_json(metadata: &crate::atlas::AtlasMetadata) -> String {
+    let sprites: Vec<serde_json::Value> = metadata
+        .frames
+        .iter()
+        .map(|(name, frame)| {
+            serde_json::json!({
+                "name": name,
+                "rect": {
+                    "x": frame.x,
+                    "y": metadata.size[1] - frame.y - frame.h, // Unity uses bottom-left origin
+                    "width": frame.w,
+                    "height": frame.h
+                },
+                "pivot": {"x": 0.5, "y": 0.5}
+            })
+        })
+        .collect();
+
+    serde_json::to_string_pretty(&serde_json::json!({
+        "texture": metadata.image,
+        "textureSize": {"width": metadata.size[0], "height": metadata.size[1]},
+        "sprites": sprites
+    }))
+    .unwrap()
+}
+
+/// Generate libGDX-compatible atlas format
+fn generate_libgdx_atlas(metadata: &crate::atlas::AtlasMetadata) -> String {
+    let mut lines = vec![
+        metadata.image.clone(),
+        format!("size: {},{}", metadata.size[0], metadata.size[1]),
+        "format: RGBA8888".to_string(),
+        "filter: Nearest,Nearest".to_string(),
+        "repeat: none".to_string(),
+    ];
+
+    for (name, frame) in &metadata.frames {
+        lines.push(name.clone());
+        lines.push("  rotate: false".to_string());
+        lines.push(format!("  xy: {}, {}", frame.x, frame.y));
+        lines.push(format!("  size: {}, {}", frame.w, frame.h));
+        lines.push(format!("  orig: {}, {}", frame.w, frame.h));
+        lines.push("  offset: 0, 0".to_string());
+        lines.push("  index: -1".to_string());
+    }
+
+    lines.join("\n")
 }
 
 /// Execute the import command
