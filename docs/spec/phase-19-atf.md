@@ -765,6 +765,162 @@ Negative values for `squash` produce stretch effect.
 
 ---
 
+## ATF-14: Secondary Motion
+
+**Type:** Animation Feature
+
+Animate attached elements (hair, capes, tails) that follow the parent animation with configurable delay.
+
+### Concept
+
+Secondary motion creates realistic follow-through for appendages. Each "chain" of segments follows the parent sprite's movement with a delay, creating natural-looking motion for hair, capes, scarves, and tails.
+
+### Animation Attachment
+
+```json
+{
+  "type": "animation",
+  "name": "hero_walk",
+  "frames": ["walk_1", "walk_2", "walk_3", "walk_4"],
+  "duration": 100,
+  "attachments": [
+    {
+      "name": "hair",
+      "anchor": [12, 4],
+      "chain": ["hair_1", "hair_2", "hair_3"],
+      "delay": 1,
+      "follow": "position"
+    },
+    {
+      "name": "cape",
+      "anchor": [8, 8],
+      "chain": ["cape_top", "cape_mid", "cape_bottom"],
+      "delay": 2,
+      "follow": "velocity"
+    }
+  ]
+}
+```
+
+### Attachment Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| name | Yes | - | Identifier for this attachment |
+| anchor | Yes | - | Attachment point `[x, y]` on parent sprite |
+| chain | Yes | - | Array of sprite names forming the chain |
+| delay | No | 1 | Frame delay between chain segments |
+| follow | No | "position" | Motion follow mode |
+| damping | No | 0.8 | Oscillation damping (0.0-1.0) |
+| stiffness | No | 0.5 | Spring stiffness (0.0-1.0) |
+
+### Follow Modes
+
+| Mode | Description |
+|------|-------------|
+| `"position"` | Chain follows parent position changes |
+| `"velocity"` | Chain reacts to parent velocity (more dynamic) |
+| `"rotation"` | Chain follows parent rotation |
+
+### Chain Behavior
+
+Each segment in the chain:
+1. Attaches to the previous segment (or anchor point for first segment)
+2. Delays by the specified number of frames
+3. Inherits dampened motion from the parent
+
+**Example with 3-segment hair and delay=1:**
+- Frame 0: Parent at position A, hair segments all at rest
+- Frame 1: Parent at B, hair_1 starts moving toward B, hair_2/3 at rest
+- Frame 2: Parent at C, hair_1 reaches B, hair_2 starts toward B
+- Frame 3: Parent at D, hair_1 at C, hair_2 at B, hair_3 starts toward B
+
+### Sprite Metadata for Chains
+
+Chain sprites can define their own attachment points for segment-to-segment connections:
+
+```json
+{
+  "type": "sprite",
+  "name": "hair_2",
+  "palette": "character",
+  "grid": ["..."],
+  "metadata": {
+    "attach_in": [4, 0],
+    "attach_out": [4, 8]
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `attach_in` | Where this segment connects to parent/previous segment |
+| `attach_out` | Where the next segment attaches to this one |
+
+### Render Order
+
+Attachments render in the order specified. Use negative z-index in metadata to render behind parent:
+
+```json
+{
+  "name": "cape",
+  "anchor": [8, 8],
+  "chain": ["cape_sprite"],
+  "z_index": -1
+}
+```
+
+### Procedural vs Keyframed
+
+Two approaches for secondary motion:
+
+**Procedural** (physics-based): Uses delay/damping/stiffness to simulate motion automatically.
+
+**Keyframed**: Explicitly define attachment positions per animation frame:
+
+```json
+{
+  "attachments": [
+    {
+      "name": "hair",
+      "anchor": [12, 4],
+      "chain": ["hair_1", "hair_2"],
+      "keyframes": {
+        "0": {"offset": [0, 0]},
+        "1": {"offset": [2, 1]},
+        "2": {"offset": [3, 2]},
+        "3": {"offset": [1, 1]}
+      }
+    }
+  ]
+}
+```
+
+Keyframes define offset from the base anchor position for frame-accurate control.
+
+### Rendering Output
+
+When rendering an animation with attachments:
+1. Render parent frame
+2. For each attachment, calculate segment positions based on mode
+3. Render chain segments at calculated positions
+4. Composite all layers respecting z_index
+
+### CLI Support
+
+```bash
+# Render animation with attachments
+pxl render hero.pxl --animation hero_walk -o hero_walk.gif
+
+# Preview specific attachment
+pxl show hero.pxl --animation hero_walk --attachment hair
+
+# Export with attachments as separate layers
+pxl render hero.pxl --animation hero_walk --layers -o hero_walk/
+```
+
+---
+
 ## Compatibility Matrix
 
 | Feature | Sprite | Animation | Composition | Palette | CLI |
@@ -780,6 +936,7 @@ Negative values for `squash` produce stretch effect.
 | Blend Modes | - | - | **Yes** | - | - |
 | Onion Skinning | - | - | - | - | **Yes** |
 | Squash & Stretch | transform | transform | - | - | - |
+| Secondary Motion | - | **Yes** | - | - | **Yes** |
 
 ---
 

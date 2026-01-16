@@ -341,6 +341,7 @@ mod tests {
             }]),
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
 
         let (frames, warnings) = generate_cycle_frames(&sprite, &palette, &anim);
@@ -374,6 +375,7 @@ mod tests {
             }]),
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         assert_eq!(get_cycle_duration(&anim1), 150);
 
@@ -389,6 +391,7 @@ mod tests {
             }]),
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         assert_eq!(get_cycle_duration(&anim2), 100);
 
@@ -401,6 +404,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         assert_eq!(get_cycle_duration(&anim3), 100);
     }

@@ -77,7 +77,7 @@ pub struct CollisionBox {
 
 /// Sprite metadata for game engine integration.
 ///
-/// Contains origin point and collision boxes for sprites.
+/// Contains origin point, collision boxes, and attachment points for sprites.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct SpriteMetadata {
     /// Sprite origin point `[x, y]` - used for positioning and rotation
@@ -86,6 +86,12 @@ pub struct SpriteMetadata {
     /// Collision boxes (hit, hurt, collide, trigger, etc.)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub boxes: Option<HashMap<String, CollisionBox>>,
+    /// Where this sprite connects to parent/previous segment in a chain `[x, y]`
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub attach_in: Option<[i32; 2]>,
+    /// Where the next segment attaches to this sprite `[x, y]`
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub attach_out: Option<[i32; 2]>,
 }
 
 /// Per-frame metadata for animations.
@@ -97,6 +103,97 @@ pub struct FrameMetadata {
     /// Use `null` value to disable a box for this frame
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub boxes: Option<HashMap<String, Option<CollisionBox>>>,
+}
+
+/// Motion follow mode for secondary motion attachments.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum FollowMode {
+    /// Chain follows parent position changes
+    #[default]
+    Position,
+    /// Chain reacts to parent velocity (more dynamic)
+    Velocity,
+    /// Chain follows parent rotation
+    Rotation,
+}
+
+/// Keyframe data for an attachment offset at a specific frame.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttachmentKeyframe {
+    /// Offset from the base anchor position `[x, y]`
+    pub offset: [i32; 2],
+}
+
+/// An animation attachment for secondary motion (hair, capes, tails).
+///
+/// Attachments follow the parent animation with configurable delay,
+/// creating natural-looking motion for appendages.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Attachment {
+    /// Identifier for this attachment
+    pub name: String,
+    /// Attachment point `[x, y]` on parent sprite
+    pub anchor: [i32; 2],
+    /// Array of sprite names forming the chain
+    pub chain: Vec<String>,
+    /// Frame delay between chain segments (default: 1)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub delay: Option<u32>,
+    /// Motion follow mode
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub follow: Option<FollowMode>,
+    /// Oscillation damping (0.0-1.0, default: 0.8)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub damping: Option<f32>,
+    /// Spring stiffness (0.0-1.0, default: 0.5)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub stiffness: Option<f32>,
+    /// Render order relative to parent (negative = behind)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub z_index: Option<i32>,
+    /// Keyframe data for explicit positioning per frame (keyed by frame number as string)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub keyframes: Option<HashMap<String, AttachmentKeyframe>>,
+}
+
+impl Attachment {
+    /// Default frame delay between chain segments.
+    pub const DEFAULT_DELAY: u32 = 1;
+    /// Default oscillation damping.
+    pub const DEFAULT_DAMPING: f32 = 0.8;
+    /// Default spring stiffness.
+    pub const DEFAULT_STIFFNESS: f32 = 0.5;
+
+    /// Returns the frame delay between chain segments.
+    pub fn delay(&self) -> u32 {
+        self.delay.unwrap_or(Self::DEFAULT_DELAY)
+    }
+
+    /// Returns the follow mode for this attachment.
+    pub fn follow_mode(&self) -> FollowMode {
+        self.follow.clone().unwrap_or_default()
+    }
+
+    /// Returns the damping factor.
+    pub fn damping(&self) -> f32 {
+        self.damping.unwrap_or(Self::DEFAULT_DAMPING)
+    }
+
+    /// Returns the stiffness factor.
+    pub fn stiffness(&self) -> f32 {
+        self.stiffness.unwrap_or(Self::DEFAULT_STIFFNESS)
+    }
+
+    /// Returns the z-index for render ordering (default: 0).
+    pub fn z_index(&self) -> i32 {
+        self.z_index.unwrap_or(0)
+    }
+
+    /// Returns whether this attachment uses keyframed motion.
+    pub fn is_keyframed(&self) -> bool {
+        self.keyframes.is_some()
+    }
 }
 
 /// An animation definition (Phase 3).
@@ -117,6 +214,9 @@ pub struct Animation {
     /// Per-frame metadata (collision boxes that vary per frame)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub frame_metadata: Option<Vec<FrameMetadata>>,
+    /// Attachments for secondary motion (hair, capes, tails)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub attachments: Option<Vec<Attachment>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -156,6 +256,19 @@ impl Animation {
     /// Returns the palette cycles, or an empty slice if none.
     pub fn palette_cycles(&self) -> &[PaletteCycle] {
         self.palette_cycle.as_deref().unwrap_or(&[])
+    }
+
+    /// Returns whether this animation has secondary motion attachments.
+    pub fn has_attachments(&self) -> bool {
+        self.attachments
+            .as_ref()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Returns the attachments, or an empty slice if none.
+    pub fn attachments(&self) -> &[Attachment] {
+        self.attachments.as_deref().unwrap_or(&[])
     }
 }
 
@@ -633,6 +746,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -718,6 +832,7 @@ mod tests {
             ]),
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -742,6 +857,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         assert!(!anim.has_palette_cycle());
         assert!(anim.palette_cycles().is_empty());
@@ -973,6 +1089,8 @@ mod tests {
                     },
                 ),
             ])),
+            attach_in: None,
+            attach_out: None,
         };
         let json = serde_json::to_string(&metadata).unwrap();
         let parsed: SpriteMetadata = serde_json::from_str(&json).unwrap();
@@ -1155,6 +1273,7 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
+            attachments: None,
         };
         let json = serde_json::to_string(&anim).unwrap();
         // Should not contain "frame_metadata" key when None
@@ -1177,5 +1296,316 @@ mod tests {
         assert_eq!(box_data, parsed);
         assert_eq!(parsed.x, -8);
         assert_eq!(parsed.y, -16);
+    }
+
+    // ========== Secondary Motion Tests (ATF-14) ==========
+
+    #[test]
+    fn test_follow_mode_parse() {
+        // Test parsing of follow modes
+        assert_eq!(
+            serde_json::from_str::<FollowMode>(r#""position""#).unwrap(),
+            FollowMode::Position
+        );
+        assert_eq!(
+            serde_json::from_str::<FollowMode>(r#""velocity""#).unwrap(),
+            FollowMode::Velocity
+        );
+        assert_eq!(
+            serde_json::from_str::<FollowMode>(r#""rotation""#).unwrap(),
+            FollowMode::Rotation
+        );
+    }
+
+    #[test]
+    fn test_follow_mode_default() {
+        // Default should be Position
+        assert_eq!(FollowMode::default(), FollowMode::Position);
+    }
+
+    #[test]
+    fn test_attachment_keyframe_roundtrip() {
+        let keyframe = AttachmentKeyframe { offset: [5, -3] };
+        let json = serde_json::to_string(&keyframe).unwrap();
+        let parsed: AttachmentKeyframe = serde_json::from_str(&json).unwrap();
+        assert_eq!(keyframe, parsed);
+    }
+
+    #[test]
+    fn test_attachment_basic_roundtrip() {
+        let attachment = Attachment {
+            name: "hair".to_string(),
+            anchor: [12, 4],
+            chain: vec!["hair_1".to_string(), "hair_2".to_string()],
+            delay: None,
+            follow: None,
+            damping: None,
+            stiffness: None,
+            z_index: None,
+            keyframes: None,
+        };
+        let json = serde_json::to_string(&attachment).unwrap();
+        let parsed: Attachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(attachment, parsed);
+    }
+
+    #[test]
+    fn test_attachment_with_all_fields() {
+        let attachment = Attachment {
+            name: "cape".to_string(),
+            anchor: [8, 8],
+            chain: vec![
+                "cape_top".to_string(),
+                "cape_mid".to_string(),
+                "cape_bottom".to_string(),
+            ],
+            delay: Some(2),
+            follow: Some(FollowMode::Velocity),
+            damping: Some(0.7),
+            stiffness: Some(0.4),
+            z_index: Some(-1),
+            keyframes: None,
+        };
+        let json = serde_json::to_string(&attachment).unwrap();
+        let parsed: Attachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(attachment, parsed);
+    }
+
+    #[test]
+    fn test_attachment_with_keyframes() {
+        let mut keyframes = HashMap::new();
+        keyframes.insert("0".to_string(), AttachmentKeyframe { offset: [0, 0] });
+        keyframes.insert("1".to_string(), AttachmentKeyframe { offset: [2, 1] });
+        keyframes.insert("2".to_string(), AttachmentKeyframe { offset: [3, 2] });
+
+        let attachment = Attachment {
+            name: "hair".to_string(),
+            anchor: [12, 4],
+            chain: vec!["hair_1".to_string()],
+            delay: None,
+            follow: None,
+            damping: None,
+            stiffness: None,
+            z_index: None,
+            keyframes: Some(keyframes),
+        };
+
+        let json = serde_json::to_string(&attachment).unwrap();
+        let parsed: Attachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(attachment, parsed);
+        assert!(parsed.is_keyframed());
+    }
+
+    #[test]
+    fn test_attachment_helper_methods() {
+        // Test default values
+        let attachment = Attachment {
+            name: "test".to_string(),
+            anchor: [0, 0],
+            chain: vec!["sprite".to_string()],
+            delay: None,
+            follow: None,
+            damping: None,
+            stiffness: None,
+            z_index: None,
+            keyframes: None,
+        };
+
+        assert_eq!(attachment.delay(), 1); // DEFAULT_DELAY
+        assert_eq!(attachment.follow_mode(), FollowMode::Position);
+        assert!((attachment.damping() - 0.8).abs() < 0.001); // DEFAULT_DAMPING
+        assert!((attachment.stiffness() - 0.5).abs() < 0.001); // DEFAULT_STIFFNESS
+        assert_eq!(attachment.z_index(), 0);
+        assert!(!attachment.is_keyframed());
+
+        // Test with custom values
+        let attachment_custom = Attachment {
+            name: "custom".to_string(),
+            anchor: [0, 0],
+            chain: vec!["sprite".to_string()],
+            delay: Some(3),
+            follow: Some(FollowMode::Velocity),
+            damping: Some(0.5),
+            stiffness: Some(0.9),
+            z_index: Some(-2),
+            keyframes: None,
+        };
+
+        assert_eq!(attachment_custom.delay(), 3);
+        assert_eq!(attachment_custom.follow_mode(), FollowMode::Velocity);
+        assert!((attachment_custom.damping() - 0.5).abs() < 0.001);
+        assert!((attachment_custom.stiffness() - 0.9).abs() < 0.001);
+        assert_eq!(attachment_custom.z_index(), -2);
+    }
+
+    #[test]
+    fn test_animation_with_attachments_parse() {
+        // Animation with attachments as specified in ATF-14
+        let json = r#"{
+            "type": "animation",
+            "name": "hero_walk",
+            "frames": ["walk_1", "walk_2", "walk_3", "walk_4"],
+            "duration": 100,
+            "attachments": [
+                {
+                    "name": "hair",
+                    "anchor": [12, 4],
+                    "chain": ["hair_1", "hair_2", "hair_3"],
+                    "delay": 1,
+                    "follow": "position"
+                },
+                {
+                    "name": "cape",
+                    "anchor": [8, 8],
+                    "chain": ["cape_top", "cape_mid", "cape_bottom"],
+                    "delay": 2,
+                    "follow": "velocity",
+                    "z_index": -1
+                }
+            ]
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "hero_walk");
+                assert!(anim.attachments.is_some());
+                let attachments = anim.attachments.unwrap();
+                assert_eq!(attachments.len(), 2);
+
+                // Hair attachment
+                let hair = &attachments[0];
+                assert_eq!(hair.name, "hair");
+                assert_eq!(hair.anchor, [12, 4]);
+                assert_eq!(hair.chain.len(), 3);
+                assert_eq!(hair.delay(), 1);
+                assert_eq!(hair.follow_mode(), FollowMode::Position);
+
+                // Cape attachment
+                let cape = &attachments[1];
+                assert_eq!(cape.name, "cape");
+                assert_eq!(cape.anchor, [8, 8]);
+                assert_eq!(cape.chain.len(), 3);
+                assert_eq!(cape.delay(), 2);
+                assert_eq!(cape.follow_mode(), FollowMode::Velocity);
+                assert_eq!(cape.z_index(), -1);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_attachments_roundtrip() {
+        let anim = Animation {
+            name: "test_anim".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string()],
+            duration: Some(100),
+            r#loop: Some(true),
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: None,
+            attachments: Some(vec![Attachment {
+                name: "tail".to_string(),
+                anchor: [4, 8],
+                chain: vec!["tail_1".to_string(), "tail_2".to_string()],
+                delay: Some(1),
+                follow: Some(FollowMode::Position),
+                damping: Some(0.8),
+                stiffness: Some(0.5),
+                z_index: Some(1),
+                keyframes: None,
+            }]),
+        };
+        let obj = TtpObject::Animation(anim.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains("attachments"));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Animation(parsed_anim) => {
+                assert_eq!(anim, parsed_anim);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_without_attachments_roundtrip() {
+        // Animation without attachments should serialize without the field
+        let anim = Animation {
+            name: "simple".to_string(),
+            frames: vec!["f1".to_string()],
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: None,
+            attachments: None,
+        };
+        let json = serde_json::to_string(&anim).unwrap();
+        // Should not contain "attachments" key when None
+        assert!(!json.contains("attachments"));
+        let parsed: Animation = serde_json::from_str(&json).unwrap();
+        assert_eq!(anim, parsed);
+    }
+
+    #[test]
+    fn test_sprite_metadata_with_attach_points() {
+        // Chain sprite with attachment points as specified in ATF-14
+        let json = r#"{
+            "type": "sprite",
+            "name": "hair_2",
+            "palette": "character",
+            "grid": ["{x}"],
+            "metadata": {
+                "attach_in": [4, 0],
+                "attach_out": [4, 8]
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Sprite(sprite) => {
+                assert_eq!(sprite.name, "hair_2");
+                assert!(sprite.metadata.is_some());
+                let meta = sprite.metadata.unwrap();
+                assert_eq!(meta.attach_in, Some([4, 0]));
+                assert_eq!(meta.attach_out, Some([4, 8]));
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_metadata_attach_points_roundtrip() {
+        let metadata = SpriteMetadata {
+            origin: Some([8, 8]),
+            boxes: None,
+            attach_in: Some([4, 0]),
+            attach_out: Some([4, 8]),
+        };
+        let json = serde_json::to_string(&metadata).unwrap();
+        let parsed: SpriteMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(metadata, parsed);
+    }
+
+    #[test]
+    fn test_attachment_keyframed_parse() {
+        // Attachment with explicit keyframes
+        let json = r#"{
+            "name": "hair",
+            "anchor": [12, 4],
+            "chain": ["hair_1", "hair_2"],
+            "keyframes": {
+                "0": {"offset": [0, 0]},
+                "1": {"offset": [2, 1]},
+                "2": {"offset": [3, 2]},
+                "3": {"offset": [1, 1]}
+            }
+        }"#;
+        let attachment: Attachment = serde_json::from_str(json).unwrap();
+        assert_eq!(attachment.name, "hair");
+        assert!(attachment.is_keyframed());
+        let keyframes = attachment.keyframes.unwrap();
+        assert_eq!(keyframes.len(), 4);
+        assert_eq!(keyframes.get("0").unwrap().offset, [0, 0]);
+        assert_eq!(keyframes.get("2").unwrap().offset, [3, 2]);
     }
 }
