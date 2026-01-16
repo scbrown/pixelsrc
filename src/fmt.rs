@@ -426,6 +426,7 @@ mod tests {
             duration: Some(100),
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
         let formatted = format_animation(&anim);
         assert!(!formatted.contains('\n'));

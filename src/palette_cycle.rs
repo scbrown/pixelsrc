@@ -338,6 +338,7 @@ mod tests {
                 tokens: vec!["{w1}".to_string(), "{w2}".to_string()],
                 duration: Some(150),
             }]),
+            tags: None,
         };
 
         let (frames, warnings) = generate_cycle_frames(&sprite, &palette, &anim);
@@ -369,6 +370,7 @@ mod tests {
                 tokens: vec!["{a}".to_string()],
                 duration: Some(150),
             }]),
+            tags: None,
         };
         assert_eq!(get_cycle_duration(&anim1), 150);
 
@@ -382,6 +384,7 @@ mod tests {
                 tokens: vec!["{a}".to_string()],
                 duration: None,
             }]),
+            tags: None,
         };
         assert_eq!(get_cycle_duration(&anim2), 100);
 
@@ -392,6 +395,7 @@ mod tests {
             duration: Some(100),
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
         assert_eq!(get_cycle_duration(&anim3), 100);
     }

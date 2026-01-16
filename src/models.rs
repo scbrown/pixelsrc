@@ -42,6 +42,21 @@ pub struct PaletteCycle {
     pub duration: Option<u32>,
 }
 
+/// A frame tag for game engine integration - identifies named ranges of frames.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FrameTag {
+    /// Start frame index (0-based, inclusive)
+    pub start: u32,
+    /// End frame index (0-based, inclusive)
+    pub end: u32,
+    /// Whether this tag's frames should loop (overrides animation default)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub r#loop: Option<bool>,
+    /// Tag-specific FPS override
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub fps: Option<u32>,
+}
+
 /// An animation definition (Phase 3).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
@@ -54,6 +69,9 @@ pub struct Animation {
     /// Palette cycles for color animation effects (water, fire, energy, etc.)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub palette_cycle: Option<Vec<PaletteCycle>>,
+    /// Frame tags for game engine integration - maps tag name to frame range
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tags: Option<HashMap<String, FrameTag>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -478,6 +496,7 @@ mod tests {
             duration: Some(200),
             r#loop: Some(false),
             palette_cycle: None,
+            tags: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -561,6 +580,7 @@ mod tests {
                     duration: Some(150),
                 },
             ]),
+            tags: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -583,6 +603,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
         assert!(!anim.has_palette_cycle());
         assert!(anim.palette_cycles().is_empty());

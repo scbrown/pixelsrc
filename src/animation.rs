@@ -1,6 +1,7 @@
 //! Animation validation - validate animation references
 
-use crate::models::{Animation, Sprite};
+use crate::models::{Animation, FrameTag, Sprite};
+use std::collections::HashMap;
 
 /// A warning generated during animation validation
 #[derive(Debug, Clone, PartialEq)]
@@ -16,11 +17,52 @@ impl Warning {
     }
 }
 
+/// Validate frame tags against the animation's frame count.
+///
+/// Returns warnings for:
+/// - Tag with start > end (invalid range)
+/// - Tag with start or end beyond frame count bounds
+fn validate_frame_tags(
+    anim_name: &str,
+    tags: &HashMap<String, FrameTag>,
+    frame_count: usize,
+) -> Vec<Warning> {
+    let mut warnings = Vec::new();
+
+    for (tag_name, tag) in tags {
+        // Check start <= end
+        if tag.start > tag.end {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' has invalid range: start ({}) > end ({})",
+                anim_name, tag_name, tag.start, tag.end
+            )));
+        }
+
+        // Check bounds against frame count
+        if tag.start as usize >= frame_count {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' start ({}) is out of bounds (animation has {} frames)",
+                anim_name, tag_name, tag.start, frame_count
+            )));
+        }
+        if tag.end as usize >= frame_count {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' tag '{}' end ({}) is out of bounds (animation has {} frames)",
+                anim_name, tag_name, tag.end, frame_count
+            )));
+        }
+    }
+
+    warnings
+}
+
 /// Validate an animation against a set of sprites.
 ///
 /// Returns warnings for:
 /// - Animation with no frames (empty frames array)
 /// - Animation frames that reference unknown sprites
+/// - Frame tags with invalid ranges (start > end)
+/// - Frame tags with out-of-bounds indices
 ///
 /// # Examples
 ///
@@ -64,6 +106,11 @@ pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> 
         }
     }
 
+    // Validate frame tags if present
+    if let Some(tags) = &anim.tags {
+        warnings.extend(validate_frame_tags(&anim.name, tags, anim.frames.len()));
+    }
+
     warnings
 }
 
@@ -98,6 +145,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites = vec![
@@ -119,6 +167,7 @@ mod tests {
             duration: Some(500),
             r#loop: Some(true),
             palette_cycle: None,
+            tags: None,
         };
 
         // Only "on" sprite exists
@@ -141,6 +190,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -165,6 +215,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -185,6 +236,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         // No matching sprites
@@ -204,6 +256,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -223,6 +276,7 @@ mod tests {
             duration: None,
             r#loop: Some(false),
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -245,6 +299,7 @@ mod tests {
             duration: None,
             r#loop: None,
             palette_cycle: None,
+            tags: None,
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];
