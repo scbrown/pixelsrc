@@ -7,7 +7,7 @@
 //! # Supported Formats
 //!
 //! - **JSON** (BST-6): Generic JSON format with frame positions, animations, and metadata
-//! - **Godot** (BST-12): Godot engine .tres resource files (future)
+//! - **Godot** (BST-12): Godot engine .tres resource files
 //! - **Unity** (BST-13): Unity sprite metadata (future)
 //! - **libGDX** (BST-14): libGDX TextureAtlas format (future)
 //!
@@ -22,8 +22,10 @@
 //! exporter.export(&metadata, "output.json", &ExportOptions::default())?;
 //! ```
 
+pub mod godot;
 pub mod json;
 
+pub use godot::*;
 pub use json::*;
 
 use std::path::Path;
