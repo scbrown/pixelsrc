@@ -26,6 +26,7 @@ pub mod registry;
 pub mod renderer;
 pub mod spritesheet;
 pub mod suggest;
+pub mod terminal;
 pub mod tokenizer;
 pub mod validate;
 
