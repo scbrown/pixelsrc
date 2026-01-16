@@ -137,6 +137,11 @@ atlas_format = "unity"
 enabled = true
 atlas_format = "json"     # Generic JSON + PNG
 
+[export.strips]
+enabled = true            # Export animations as individual strip files
+naming = "{name}_strip"   # e.g., "idle" -> "idle_strip.png"
+layout = "horizontal"     # horizontal | vertical | grid
+
 # Validation settings
 [validate]
 strict = true
@@ -196,6 +201,7 @@ pxl init --preset <preset>
 | `minimal` | Single sprite, basic render | `src/pxl/sprites/`, minimal `pxl.toml` |
 | `artist` | Static art workflow | Palettes, sprites, variants structure |
 | `animator` | Animation workflow | Sprites, animations, justfile with GIF recipes |
+| `mod` | Character modding (RoA, FNF) | Animation strips, naming conventions, scale |
 | `game` | Full game asset pipeline | Full structure, atlases, multi-export |
 
 ### Generated Files
@@ -480,6 +486,7 @@ Single source, multiple engine outputs.
 
 | Format | Output | Use Case |
 |--------|--------|----------|
+| `strips` | Individual PNGs | Mods (Rivals), simple engines |
 | `generic` | JSON + PNG | Engine-agnostic, custom loaders |
 | `godot` | `.tres` resources | Godot 4.x |
 | `unity` | `.asset` + meta | Unity |
