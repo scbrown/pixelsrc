@@ -352,6 +352,20 @@ pub enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Initialize a new pixelsrc project
+    Init {
+        /// Project directory (default: current directory)
+        path: Option<PathBuf>,
+
+        /// Project name (default: directory name)
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Preset template: minimal, artist, animator, game
+        #[arg(long, default_value = "minimal")]
+        preset: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -476,6 +490,11 @@ pub fn run() -> ExitCode {
             onion_fade,
             output.as_deref(),
         ),
+        Commands::Init {
+            path,
+            name,
+            preset,
+        } => run_init(path.as_deref(), name.as_deref(), &preset),
     }
 }
 
@@ -2958,6 +2977,62 @@ fn run_show(
     println!("{}", legend);
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Run the init command
+fn run_init(path: Option<&Path>, name: Option<&str>, preset: &str) -> ExitCode {
+    use crate::init::{init_project, InitError};
+
+    // Determine project path
+    let project_path = match path {
+        Some(p) => p.to_path_buf(),
+        None => std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+    };
+
+    // Determine project name
+    let project_name = name
+        .map(|n| n.to_string())
+        .or_else(|| {
+            project_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+        })
+        .unwrap_or_else(|| "my-project".to_string());
+
+    // Run initialization
+    match init_project(&project_path, &project_name, preset) {
+        Ok(()) => {
+            println!("Created pixelsrc project '{}' at {}", project_name, project_path.display());
+            println!();
+            println!("Project structure:");
+            println!("  {}/", project_path.display());
+            println!("  ├── pxl.toml");
+            println!("  ├── .gitignore");
+            println!("  ├── src/pxl/");
+            println!("  │   ├── palettes/main.pxl");
+            println!("  │   └── sprites/example.pxl");
+            println!("  └── build/");
+            println!();
+            println!("Next steps:");
+            println!("  cd {}", project_path.display());
+            println!("  pxl render src/pxl/sprites/example.pxl");
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Err(InitError::DirectoryExists(dir)) => {
+            eprintln!("Error: Directory '{}' already exists and is not empty", dir);
+            eprintln!("Use an empty directory or specify a different path");
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(InitError::UnknownPreset(preset)) => {
+            eprintln!("Error: Unknown preset '{}'", preset);
+            eprintln!("Available presets: minimal, artist, animator, game");
+            ExitCode::from(EXIT_ERROR)
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
 }
 
 #[cfg(test)]
