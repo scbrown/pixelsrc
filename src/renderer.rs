@@ -366,9 +366,11 @@ mod tests {
         // From minimal_dot.jsonl
         let sprite = Sprite {
             name: "dot".to_string(),
+            source: None,
             size: None,
-            palette: PaletteRef::Inline(HashMap::new()),
+            palette: Some(PaletteRef::Inline(HashMap::new())),
             grid: vec!["{x}".to_string()],
+            transform: None,
             metadata: None,
         };
 
@@ -390,8 +392,7 @@ mod tests {
         // From simple_heart.jsonl
         let sprite = Sprite {
             name: "heart".to_string(),
-            size: None,
-            palette: PaletteRef::Inline(HashMap::new()),
+            palette: Some(PaletteRef::Inline(HashMap::new())),
             grid: vec![
                 "{_}{r}{r}{_}{r}{r}{_}".to_string(),
                 "{r}{p}{r}{r}{p}{r}{r}".to_string(),
@@ -400,7 +401,7 @@ mod tests {
                 "{_}{_}{r}{r}{r}{_}{_}".to_string(),
                 "{_}{_}{_}{r}{_}{_}{_}".to_string(),
             ],
-            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{r}", "#FF0000"), ("{p}", "#FF6B6B")]);

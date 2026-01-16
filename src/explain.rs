@@ -218,8 +218,9 @@ pub fn explain_sprite(
 
     // Determine palette reference
     let palette_ref = match &sprite.palette {
-        PaletteRef::Named(name) => name.clone(),
-        PaletteRef::Inline(_) => "inline".to_string(),
+        Some(PaletteRef::Named(name)) => name.clone(),
+        Some(PaletteRef::Inline(_)) => "inline".to_string(),
+        None => "none".to_string(),
     };
 
     SpriteExplanation {
@@ -593,9 +594,10 @@ fn format_particle_explanation(p: &ParticleExplanation) -> String {
 
 /// Resolve palette colors from a sprite's palette reference
 pub fn resolve_palette_colors(
-    palette_ref: &PaletteRef,
+    palette_ref: Option<&PaletteRef>,
     known_palettes: &HashMap<String, HashMap<String, String>>,
 ) -> Option<HashMap<String, String>> {
+    let palette_ref = palette_ref?;
     match palette_ref {
         PaletteRef::Named(name) => {
             // Check for built-in palette

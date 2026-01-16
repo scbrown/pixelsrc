@@ -102,16 +102,18 @@ fn format_sprite(sprite: &Sprite) -> String {
         s.push_str(&format!(r#", "size": [{}, {}]"#, w, h));
     }
 
-    // Palette reference
-    s.push_str(r#", "palette": "#);
-    match &sprite.palette {
-        PaletteRef::Named(name) => {
-            s.push('"');
-            s.push_str(&escape_json_string(name));
-            s.push('"');
-        }
-        PaletteRef::Inline(colors) => {
-            s.push_str(&format_inline_palette(colors));
+    // Palette reference (if present)
+    if let Some(palette_ref) = &sprite.palette {
+        s.push_str(r#", "palette": "#);
+        match palette_ref {
+            PaletteRef::Named(name) => {
+                s.push('"');
+                s.push_str(&escape_json_string(name));
+                s.push('"');
+            }
+            PaletteRef::Inline(colors) => {
+                s.push_str(&format_inline_palette(colors));
+            }
         }
     }
 

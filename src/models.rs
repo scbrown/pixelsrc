@@ -1,7 +1,43 @@
 //! Data models for Pixelsrc objects (palettes, sprites, etc.)
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
+
+/// A transform specification that can be either a simple string or a detailed object.
+///
+/// Transforms modify sprites at render time without changing the source definition.
+/// They're applied via the `transform` array on sprites, variants, animations, and
+/// composition layers.
+///
+/// # String Syntax
+///
+/// Simple transforms can be specified as strings:
+/// - `"mirror-h"` - Mirror horizontally
+/// - `"rotate:90"` - Rotate 90 degrees
+/// - `"tile:3x3"` - Tile to 3x3 grid
+///
+/// # Object Syntax
+///
+/// Complex transforms use object syntax with an `op` field:
+/// ```json
+/// {"op": "sel-out", "fallback": "{outline}"}
+/// {"op": "dither", "pattern": "checker", "tokens": ["{dark}", "{light}"]}
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TransformSpec {
+    /// Simple string transform (e.g., "mirror-h", "rotate:90")
+    String(String),
+    /// Object transform with operation name and parameters
+    Object {
+        /// Transform operation name (e.g., "sel-out", "dither", "rotate")
+        op: String,
+        /// Additional parameters for the transform operation
+        #[serde(flatten)]
+        params: HashMap<String, Value>,
+    },
+}
 
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -19,16 +55,58 @@ pub enum PaletteRef {
 }
 
 /// A sprite definition.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+///
+/// Sprites can be defined with full data (palette + grid) or derived from
+/// another sprite using `source` with optional transforms.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Sprite {
     pub name: String,
+    /// Reference to a source sprite (for derived sprites with transforms)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
-    pub palette: PaletteRef,
+    /// Palette reference - required for base sprites, optional for derived sprites
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub palette: Option<PaletteRef>,
+    /// Grid data - required for base sprites, optional for derived sprites
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub grid: Vec<String>,
+    /// Transforms to apply to the sprite at render time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
     /// Sprite metadata for game engine integration (origin, collision boxes)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<SpriteMetadata>,
+}
+
+impl Sprite {
+    /// Create a new sprite with the given name, palette, and grid.
+    /// All optional fields (source, size, transform, metadata) default to None.
+    pub fn new(name: impl Into<String>, palette: PaletteRef, grid: Vec<String>) -> Self {
+        Sprite {
+            name: name.into(),
+            source: None,
+            size: None,
+            palette: Some(palette),
+            grid,
+            transform: None,
+            metadata: None,
+        }
+    }
+
+    /// Create a derived sprite that references a source sprite.
+    pub fn derived(name: impl Into<String>, source: impl Into<String>) -> Self {
+        Sprite {
+            name: name.into(),
+            source: Some(source.into()),
+            size: None,
+            palette: None,
+            grid: vec![],
+            transform: None,
+            metadata: None,
+        }
+    }
 }
 
 /// A palette cycle definition for animating colors without changing frames.
@@ -197,7 +275,7 @@ impl Attachment {
 }
 
 /// An animation definition (Phase 3).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
     pub name: String,
     pub frames: Vec<String>,
@@ -217,6 +295,9 @@ pub struct Animation {
     /// Attachments for secondary motion (hair, capes, tails)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub attachments: Option<Vec<Attachment>>,
+    /// Transforms to apply to each frame of the animation
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -224,16 +305,51 @@ pub struct Animation {
 /// Variants allow creating color variations of sprites without duplicating
 /// the grid data. The variant copies the base sprite's grid and applies
 /// palette overrides.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Variant {
     pub name: String,
     pub base: String,
     pub palette: HashMap<String, String>,
+    /// Transforms to apply to the variant at render time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
+}
+
+impl Variant {
+    /// Create a new variant with the given name, base sprite, and palette overrides.
+    pub fn new(
+        name: impl Into<String>,
+        base: impl Into<String>,
+        palette: HashMap<String, String>,
+    ) -> Self {
+        Variant {
+            name: name.into(),
+            base: base.into(),
+            palette,
+            transform: None,
+        }
+    }
 }
 
 impl Animation {
     /// Default duration per frame in milliseconds.
     pub const DEFAULT_DURATION_MS: u32 = 100;
+
+    /// Create a new animation with the given name and frames.
+    /// All optional fields default to None.
+    pub fn new(name: impl Into<String>, frames: Vec<String>) -> Self {
+        Animation {
+            name: name.into(),
+            frames,
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: None,
+            attachments: None,
+            transform: None,
+        }
+    }
 
     /// Returns the duration per frame in milliseconds (default: 100ms).
     pub fn duration_ms(&self) -> u32 {
@@ -300,6 +416,9 @@ pub struct CompositionLayer {
     /// Layer opacity from 0.0 (transparent) to 1.0 (opaque). Default: 1.0
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub opacity: Option<f64>,
+    /// Transforms to apply to this layer at render time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
 }
 
 /// A composition that layers sprites onto a canvas.
@@ -1607,5 +1726,137 @@ mod tests {
         assert_eq!(keyframes.len(), 4);
         assert_eq!(keyframes.get("0").unwrap().offset, [0, 0]);
         assert_eq!(keyframes.get("2").unwrap().offset, [3, 2]);
+    }
+
+    // =========================================================================
+    // TransformSpec Tests (TRF-7)
+    // =========================================================================
+
+    #[test]
+    fn test_transform_spec_string_variant() {
+        // Simple string transforms like "mirror-h"
+        let json = r#""mirror-h""#;
+        let spec: TransformSpec = serde_json::from_str(json).unwrap();
+        assert!(matches!(spec, TransformSpec::String(s) if s == "mirror-h"));
+
+        // String with parameter like "rotate:90"
+        let json = r#""rotate:90""#;
+        let spec: TransformSpec = serde_json::from_str(json).unwrap();
+        assert!(matches!(spec, TransformSpec::String(s) if s == "rotate:90"));
+    }
+
+    #[test]
+    fn test_transform_spec_object_variant() {
+        // Object syntax with op and params
+        let json = r#"{"op": "sel-out", "fallback": "{outline}"}"#;
+        let spec: TransformSpec = serde_json::from_str(json).unwrap();
+        match spec {
+            TransformSpec::Object { op, params } => {
+                assert_eq!(op, "sel-out");
+                assert_eq!(params.get("fallback").unwrap(), "{outline}");
+            }
+            _ => panic!("Expected Object variant"),
+        }
+    }
+
+    #[test]
+    fn test_transform_spec_complex_object() {
+        // Complex object with multiple parameters
+        let json = r#"{"op": "dither", "pattern": "checker", "tokens": ["{dark}", "{light}"], "threshold": 0.5}"#;
+        let spec: TransformSpec = serde_json::from_str(json).unwrap();
+        match spec {
+            TransformSpec::Object { op, params } => {
+                assert_eq!(op, "dither");
+                assert_eq!(params.get("pattern").unwrap(), "checker");
+                assert_eq!(params.get("threshold").unwrap(), 0.5);
+                // tokens should be an array
+                let tokens = params.get("tokens").unwrap().as_array().unwrap();
+                assert_eq!(tokens.len(), 2);
+            }
+            _ => panic!("Expected Object variant"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_with_transform_array() {
+        // Sprite with transform field
+        let json = r#"{
+            "name": "hero_mirrored",
+            "source": "hero",
+            "transform": ["mirror-h", {"op": "rotate", "degrees": 90}]
+        }"#;
+        let sprite: Sprite = serde_json::from_str(json).unwrap();
+        assert_eq!(sprite.name, "hero_mirrored");
+        assert_eq!(sprite.source.as_deref(), Some("hero"));
+        assert!(sprite.palette.is_none());
+
+        let transforms = sprite.transform.unwrap();
+        assert_eq!(transforms.len(), 2);
+        assert!(matches!(&transforms[0], TransformSpec::String(s) if s == "mirror-h"));
+        assert!(matches!(&transforms[1], TransformSpec::Object { op, .. } if op == "rotate"));
+    }
+
+    #[test]
+    fn test_sprite_with_source_no_palette() {
+        // Derived sprite with source but no palette/grid
+        let json = r#"{
+            "name": "hero_red",
+            "source": "hero"
+        }"#;
+        let sprite: Sprite = serde_json::from_str(json).unwrap();
+        assert_eq!(sprite.name, "hero_red");
+        assert_eq!(sprite.source.as_deref(), Some("hero"));
+        assert!(sprite.palette.is_none());
+        assert!(sprite.grid.is_empty());
+    }
+
+    #[test]
+    fn test_animation_with_transform() {
+        // Animation with transform field
+        let json = r#"{
+            "name": "walk_mirrored",
+            "frames": ["walk_1", "walk_2", "walk_3"],
+            "transform": ["mirror-h"]
+        }"#;
+        let anim: Animation = serde_json::from_str(json).unwrap();
+        assert_eq!(anim.name, "walk_mirrored");
+        assert_eq!(anim.frames.len(), 3);
+
+        let transforms = anim.transform.unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(&transforms[0], TransformSpec::String(s) if s == "mirror-h"));
+    }
+
+    #[test]
+    fn test_variant_with_transform() {
+        // Variant with transform field
+        let json = r##"{"name": "hero_ghost", "base": "hero", "palette": {"{skin}": "#AAAAFF"}, "transform": [{"op": "dither", "pattern": "checker", "tokens": ["{skin}", "{_}"], "threshold": 0.5}]}"##;
+        let variant: Variant = serde_json::from_str(json).unwrap();
+        assert_eq!(variant.name, "hero_ghost");
+        assert_eq!(variant.base, "hero");
+
+        let transforms = variant.transform.unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(&transforms[0], TransformSpec::Object { op, .. } if op == "dither"));
+    }
+
+    #[test]
+    fn test_transform_spec_roundtrip() {
+        // String variant roundtrip
+        let spec = TransformSpec::String("mirror-h".to_string());
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: TransformSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(spec, parsed);
+
+        // Object variant roundtrip
+        let mut params = HashMap::new();
+        params.insert("degrees".to_string(), serde_json::json!(90));
+        let spec = TransformSpec::Object {
+            op: "rotate".to_string(),
+            params,
+        };
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: TransformSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(spec, parsed);
     }
 }

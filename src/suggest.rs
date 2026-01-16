@@ -187,7 +187,7 @@ impl Suggester {
         self.report.sprites_analyzed += 1;
 
         // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette);
+        let palette_tokens = self.get_palette_tokens(sprite.palette.as_ref());
 
         // Analyze grid
         let mut all_tokens_used: HashSet<String> = HashSet::new();
@@ -345,7 +345,8 @@ impl Suggester {
     }
 
     /// Get tokens defined in a palette reference
-    fn get_palette_tokens(&self, palette_ref: &PaletteRef) -> Option<HashSet<String>> {
+    fn get_palette_tokens(&self, palette_ref: Option<&PaletteRef>) -> Option<HashSet<String>> {
+        let palette_ref = palette_ref?;
         match palette_ref {
             PaletteRef::Named(name) => {
                 // Check for @include: syntax

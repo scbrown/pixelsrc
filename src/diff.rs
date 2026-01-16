@@ -87,12 +87,13 @@ impl DiffContext {
     /// Resolve a palette reference to its color map
     fn resolve_palette(
         &self,
-        palette_ref: &PaletteRef,
+        palette_ref: Option<&PaletteRef>,
         palettes: &HashMap<String, HashMap<String, String>>,
     ) -> HashMap<String, String> {
         match palette_ref {
-            PaletteRef::Named(name) => palettes.get(name).cloned().unwrap_or_default(),
-            PaletteRef::Inline(colors) => colors.clone(),
+            Some(PaletteRef::Named(name)) => palettes.get(name).cloned().unwrap_or_default(),
+            Some(PaletteRef::Inline(colors)) => colors.clone(),
+            None => HashMap::new(),
         }
     }
 }
@@ -397,8 +398,8 @@ pub fn diff_files(path_a: &Path, path_b: &Path) -> Result<Vec<(String, SpriteDif
         match (sprites_a.get(&name), sprites_b.get(&name)) {
             (Some(sprite_a), Some(sprite_b)) => {
                 // Both files have this sprite - compare them
-                let palette_a = ctx.resolve_palette(&sprite_a.palette, &ctx.palettes_a);
-                let palette_b = ctx.resolve_palette(&sprite_b.palette, &ctx.palettes_b);
+                let palette_a = ctx.resolve_palette(sprite_a.palette.as_ref(), &ctx.palettes_a);
+                let palette_b = ctx.resolve_palette(sprite_b.palette.as_ref(), &ctx.palettes_b);
                 let diff = diff_sprites(sprite_a, sprite_b, &palette_a, &palette_b);
                 diffs.push((name, diff));
             }

@@ -879,7 +879,7 @@ fn run_render(
         for sprite in &sprites {
             // Resolve palette - handle @include: syntax specially
             let resolved = match &sprite.palette {
-                PaletteRef::Named(name) if is_include_ref(name) => {
+                Some(PaletteRef::Named(name)) if is_include_ref(name) => {
                     // Handle @include:path syntax
                     let include_path = extract_include_path(name).unwrap();
                     match resolve_include_with_detection(
@@ -1136,7 +1136,7 @@ fn render_composition_to_image(
 
         // Resolve palette for the sprite
         let resolved = match &sprite.palette {
-            PaletteRef::Named(name) if is_include_ref(name) => {
+            Some(PaletteRef::Named(name)) if is_include_ref(name) => {
                 let include_path = extract_include_path(name).unwrap();
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
@@ -1300,7 +1300,7 @@ fn run_animation_render(
 
         // Resolve base palette
         let resolved = match &sprite.palette {
-            PaletteRef::Named(name) if is_include_ref(name) => {
+            Some(PaletteRef::Named(name)) if is_include_ref(name) => {
                 let include_path = extract_include_path(name).unwrap();
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
@@ -1373,7 +1373,7 @@ fn run_animation_render(
 
             // Resolve palette
             let resolved = match &sprite.palette {
-                PaletteRef::Named(name) if is_include_ref(name) => {
+                Some(PaletteRef::Named(name)) if is_include_ref(name) => {
                     let include_path = extract_include_path(name).unwrap();
                     match resolve_include_with_detection(include_path, input_dir, include_visited) {
                         Ok(palette) => ResolvedPalette {
@@ -1555,7 +1555,7 @@ fn run_atlas_render(
     for sprite in sprites.values() {
         // Resolve palette
         let resolved = match &sprite.palette {
-            PaletteRef::Named(name) if is_include_ref(name) => {
+            Some(PaletteRef::Named(name)) if is_include_ref(name) => {
                 let include_path = extract_include_path(name).unwrap();
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
@@ -2273,7 +2273,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
     for obj in objects_to_explain {
         // Resolve palette colors for sprites
         let palette_colors = match obj {
-            TtpObject::Sprite(sprite) => resolve_palette_colors(&sprite.palette, &known_palettes),
+            TtpObject::Sprite(sprite) => resolve_palette_colors(sprite.palette.as_ref(), &known_palettes),
             _ => None,
         };
 

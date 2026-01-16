@@ -351,7 +351,7 @@ impl Validator {
         }
 
         // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
+        let palette_tokens = self.get_palette_tokens(sprite.palette.as_ref(), line_number, name);
 
         // Validate grid rows
         let mut first_row_count: Option<usize> = None;
@@ -434,10 +434,15 @@ impl Validator {
     /// Get tokens defined in a palette reference
     fn get_palette_tokens(
         &mut self,
-        palette_ref: &PaletteRef,
+        palette_ref: Option<&PaletteRef>,
         line_number: usize,
         sprite_name: &str,
     ) -> Option<HashSet<String>> {
+        let Some(palette_ref) = palette_ref else {
+            // No palette specified - this may be a derived sprite with source
+            return None;
+        };
+
         match palette_ref {
             PaletteRef::Named(name) => {
                 // Check for @include: syntax

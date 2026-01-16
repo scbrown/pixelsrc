@@ -114,10 +114,14 @@ impl PaletteRegistry {
 
     /// Resolve a sprite's palette reference in strict mode.
     ///
-    /// Returns an error if a named palette is not found.
+    /// Returns an error if a named palette is not found or if palette is not specified.
     /// Handles @name syntax for built-in palettes.
     pub fn resolve_strict(&self, sprite: &Sprite) -> Result<ResolvedPalette, PaletteError> {
-        match &sprite.palette {
+        let palette_ref = sprite.palette.as_ref().ok_or_else(|| {
+            PaletteError::NotFound(format!("sprite '{}' has no palette", sprite.name))
+        })?;
+
+        match palette_ref {
             PaletteRef::Named(name) => {
                 // Check for built-in palette reference (@name syntax)
                 if let Some(builtin_name) = name.strip_prefix('@') {
@@ -147,11 +151,25 @@ impl PaletteRegistry {
 
     /// Resolve a sprite's palette reference in lenient mode.
     ///
-    /// Always returns a palette. If a named palette is not found, returns
-    /// an empty fallback palette with a warning.
+    /// Always returns a palette. If a named palette is not found or palette is
+    /// not specified, returns an empty fallback palette with a warning.
     /// Handles @name syntax for built-in palettes.
     pub fn resolve_lenient(&self, sprite: &Sprite) -> LenientResult {
-        match &sprite.palette {
+        let Some(palette_ref) = &sprite.palette else {
+            // No palette specified - return fallback
+            return LenientResult {
+                palette: ResolvedPalette {
+                    colors: HashMap::new(),
+                    source: PaletteSource::Fallback,
+                },
+                warning: Some(PaletteWarning::not_found(&format!(
+                    "sprite '{}' has no palette",
+                    sprite.name
+                ))),
+            };
+        };
+
+        match palette_ref {
             PaletteRef::Named(name) => {
                 // Check for built-in palette reference (@name syntax)
                 if let Some(builtin_name) = name.strip_prefix('@') {
