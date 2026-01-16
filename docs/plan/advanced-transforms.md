@@ -1,4 +1,15 @@
-# Advanced Transforms & Animation Features
+---
+phase: 19
+title: Advanced Transforms & Animation Features
+---
+
+# Phase 19: Advanced Transforms & Animation Features
+
+**Status:** Not Started
+
+**Depends on:** Phase 18 (Sprite Transforms - core transform system required)
+
+---
 
 Advanced features for power users. See [personas](../personas.md) for user context.
 
@@ -773,3 +784,502 @@ Motion follows curved paths instead of linear interpolation.
 4. **Particle randomness:** How to handle seeded randomness for reproducible particle effects?
 
 5. **Blend mode support in CLI:** Should `pxl render` support blend modes, or compositions-only?
+
+---
+
+## Task Dependency Diagram
+
+```
+                      ADVANCED TRANSFORMS TASK FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+PREREQUISITE
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Phase 18 Complete (TRF-12)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 1 (Documentation First)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            ATF-1                                    │    │
+│  │               Documentation & Format Spec                           │    │
+│  │               - Spec all new attributes                             │    │
+│  │               - Update format.md                                    │    │
+│  │               - Create examples                                     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 2 (High Priority - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐ │
+│  │    ATF-2      │  │    ATF-3      │  │    ATF-4      │  │    ATF-5      │ │
+│  │  Color Ramps  │  │   Palette     │  │  Frame Tags   │  │    Atlas      │ │
+│  │  (Palette)    │  │   Cycling     │  │  (Animation)  │  │   Export      │ │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 3 (Game Dev Features - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────┐  ┌─────────────────────────────────┐   │
+│  │            ATF-6                │  │            ATF-7                │   │
+│  │         Nine-Slice              │  │       Hit/Hurt Boxes            │   │
+│  │         (Sprite)                │  │        (Metadata)               │   │
+│  └─────────────────────────────────┘  └─────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 4 (Pixel Art Polish - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐ │
+│  │    ATF-8      │  │    ATF-9      │  │   ATF-10      │  │   ATF-11      │ │
+│  │  Dithering    │  │  Selective    │  │    Blend      │  │    Onion      │ │
+│  │  Patterns     │  │   Outline     │  │    Modes      │  │   Skinning    │ │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 5 (Motion Designer - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐ │
+│  │   ATF-12      │  │   ATF-13      │  │   ATF-14      │  │   ATF-15      │ │
+│  │   Squash &    │  │  Sub-pixel    │  │  Secondary    │  │  Arc Motion   │ │
+│  │   Stretch     │  │  Animation    │  │   Motion      │  │    Paths      │ │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 6 (Advanced Systems)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                           ATF-16                                    │    │
+│  │                      Particle Systems                               │    │
+│  │                      (New type: particle)                           │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 7 (Testing)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                           ATF-17                                    │    │
+│  │                    Comprehensive Test Suite                         │    │
+│  │                    (all features)                                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+PARALLELIZATION SUMMARY:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Wave 1: ATF-1 (docs first)                    (1 task)                     │
+│  Wave 2: ATF-2 + ATF-3 + ATF-4 + ATF-5         (4 tasks in parallel)        │
+│  Wave 3: ATF-6 + ATF-7                         (2 tasks in parallel)        │
+│  Wave 4: ATF-8 + ATF-9 + ATF-10 + ATF-11       (4 tasks in parallel)        │
+│  Wave 5: ATF-12 + ATF-13 + ATF-14 + ATF-15     (4 tasks in parallel)        │
+│  Wave 6: ATF-16                                (1 task)                     │
+│  Wave 7: ATF-17                                (1 task)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CRITICAL PATH: ATF-1 → ATF-2 → ... → ATF-16 → ATF-17
+
+BEADS CREATION ORDER:
+  1. ATF-1 (dep: TRF-12 - Phase 18 complete)
+  2. ATF-2 through ATF-16 (dep: ATF-1)
+  3. ATF-17 (dep: ATF-2 through ATF-16)
+```
+
+---
+
+## Tasks
+
+### Task ATF-1: Documentation & Format Spec
+
+**Wave:** 1 (FIRST - docs before implementation)
+
+Write comprehensive format specification for all Phase 19 features before implementation begins.
+
+**Deliverables:**
+- Update `docs/spec/format.md` with:
+  - `palette.ramps` attribute syntax
+  - `animation.palette_cycle` attribute syntax
+  - `animation.tags` attribute syntax
+  - `sprite.nine_slice` attribute syntax
+  - `composition.layer.blend` and `opacity` attributes
+  - `metadata.boxes` for hit/hurt regions
+  - `animation.attachments` for secondary motion
+  - `particle` type specification
+- Create example files demonstrating each feature
+- Update `src/prime.rs` with new feature documentation
+
+**Verification:**
+```bash
+grep "palette_cycle" docs/spec/format.md
+grep "nine_slice" docs/spec/format.md
+./target/release/pxl prime | grep -i "advanced"
+```
+
+**Dependencies:** Task TRF-12 (Phase 18 complete)
+
+---
+
+### Task ATF-2: Color Ramps
+
+**Wave:** 2 (parallel with ATF-3, ATF-4, ATF-5)
+
+Implement automatic color ramp generation with hue-shifted shadows/highlights.
+
+**Deliverables:**
+- Add `ramps` attribute to Palette in `src/models.rs`
+- Implement ramp generation with configurable shifts
+- Generate tokens: `{name_2}`, `{name_1}`, `{name}`, `{name+1}`, `{name+2}`
+
+**Verification:**
+```bash
+./target/release/pxl render examples/color_ramps.pxl -o output.png
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-3: Palette Cycling
+
+**Wave:** 2 (parallel with ATF-2, ATF-4, ATF-5)
+
+Implement palette color rotation for water/fire/energy effects.
+
+**Deliverables:**
+- Add `palette_cycle` attribute to Animation in `src/models.rs`
+- Support single and multiple cycles
+- Implement color rotation during render
+
+**Verification:**
+```bash
+./target/release/pxl render examples/waterfall.pxl -o waterfall.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-4: Frame Tags
+
+**Wave:** 2 (parallel with ATF-2, ATF-3, ATF-5)
+
+Implement semantic frame range markers for game engine integration.
+
+**Deliverables:**
+- Add `tags` attribute to Animation in `src/models.rs`
+- Support per-tag FPS and loop settings
+- Include tags in atlas export metadata
+
+**Verification:**
+```bash
+./target/release/pxl render examples/player.pxl --format atlas -o player
+cat player.json | jq '.tags'
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-5: Atlas Export
+
+**Wave:** 2 (parallel with ATF-2, ATF-3, ATF-4)
+
+Implement sprite atlas packing with coordinate metadata.
+
+**Deliverables:**
+- Add `--format atlas` to CLI render command
+- Implement rectangle packing algorithm
+- Support options: `--max-size`, `--padding`, `--power-of-two`
+- Support format variants: `atlas-aseprite`, `atlas-godot`, `atlas-unity`
+
+**Verification:**
+```bash
+./target/release/pxl render game.pxl --format atlas -o game_atlas
+ls game_atlas.png game_atlas.json
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-6: Nine-Slice
+
+**Wave:** 3 (parallel with ATF-7)
+
+Implement scalable sprite slicing for UI elements.
+
+**Deliverables:**
+- Add `nine_slice` attribute to Sprite in `src/models.rs`
+- Implement nine-slice rendering at arbitrary sizes
+- Support `--nine-slice WxH` CLI option
+
+**Verification:**
+```bash
+./target/release/pxl render button.pxl --nine-slice 64x32 -o button_wide.png
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-7: Hit/Hurt Boxes
+
+**Wave:** 3 (parallel with ATF-6)
+
+Implement collision region metadata for sprites and animations.
+
+**Deliverables:**
+- Add `metadata.boxes` to Sprite in `src/models.rs`
+- Add `frame_metadata` to Animation for per-frame boxes
+- Include box data in atlas export
+
+**Verification:**
+```bash
+./target/release/pxl render attack.pxl --format atlas -o attack
+cat attack.json | jq '.frames[0].boxes'
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-8: Dithering Patterns
+
+**Wave:** 4 (parallel with ATF-9, ATF-10, ATF-11)
+
+Implement dither transform operations with various patterns.
+
+**Deliverables:**
+- Add `dither` transform operation
+- Implement patterns: checker, ordered-2x2, ordered-4x4, diagonal, noise
+- Add `dither-gradient` for directional gradients
+
+**Verification:**
+```bash
+./target/release/pxl transform sprite.pxl --dither checker -o dithered.pxl
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-9: Selective Outline
+
+**Wave:** 4 (parallel with ATF-8, ATF-10, ATF-11)
+
+Implement color-aware outline generation (sel-out).
+
+**Deliverables:**
+- Add `sel-out` transform operation
+- Implement neighbor color detection
+- Support explicit color mapping
+
+**Verification:**
+```bash
+./target/release/pxl transform sprite.pxl --sel-out -o outlined.pxl
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-10: Blend Modes
+
+**Wave:** 4 (parallel with ATF-8, ATF-9, ATF-11)
+
+Implement layer blending for compositions.
+
+**Deliverables:**
+- Add `blend` and `opacity` attributes to CompositionLayer
+- Implement modes: normal, multiply, screen, overlay, add, subtract
+
+**Verification:**
+```bash
+./target/release/pxl render composition.pxl -o output.png
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-11: Onion Skinning
+
+**Wave:** 4 (parallel with ATF-8, ATF-9, ATF-10)
+
+Implement animation preview with frame ghosts.
+
+**Deliverables:**
+- Add `--onion N` flag to `pxl show` command
+- Render previous/next frames as transparent overlays
+- Support `--onion-opacity` and `--onion-prev-color`/`--onion-next-color`
+
+**Verification:**
+```bash
+./target/release/pxl show walk_cycle.pxl --onion 2
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-12: Squash & Stretch
+
+**Wave:** 5 (parallel with ATF-13, ATF-14, ATF-15)
+
+Implement scale-based deformation for impact effects.
+
+**Deliverables:**
+- Add `scale` transform operation with x/y parameters
+- Support keyframe-based squash/stretch animations
+- Handle pixel interpolation options
+
+**Verification:**
+```bash
+./target/release/pxl render bounce.pxl -o bounce.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-13: Sub-pixel Animation
+
+**Wave:** 5 (parallel with ATF-12, ATF-14, ATF-15)
+
+Implement apparent motion smaller than 1 pixel via color blending.
+
+**Deliverables:**
+- Add `subpixel-x` and `subpixel-y` transform properties
+- Implement color interpolation at sub-pixel boundaries
+
+**Verification:**
+```bash
+./target/release/pxl render smooth_motion.pxl -o smooth.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-14: Secondary Motion
+
+**Wave:** 5 (parallel with ATF-12, ATF-13, ATF-15)
+
+Implement attached elements with delayed/dampened motion.
+
+**Deliverables:**
+- Add `attachments` attribute to Animation
+- Implement delay and damping physics
+- Support spring-based overshoot
+
+**Verification:**
+```bash
+./target/release/pxl render run_with_cape.pxl -o cape.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-15: Arc Motion Paths
+
+**Wave:** 5 (parallel with ATF-12, ATF-13, ATF-14)
+
+Implement curved motion interpolation using bezier paths.
+
+**Deliverables:**
+- Add `interpolation: bezier` keyframe option
+- Add `path: arc` for automatic curve fitting
+- Support explicit control points
+
+**Verification:**
+```bash
+./target/release/pxl render throw_arc.pxl -o throw.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-16: Particle Systems
+
+**Wave:** 6
+
+Implement particle emitters for effects like sparks, dust, rain.
+
+**Deliverables:**
+- Add new `particle` type to format
+- Implement emitter with rate, lifetime, velocity, gravity
+- Support fade, rotation, and random seed
+
+**Verification:**
+```bash
+./target/release/pxl render sparkle.pxl -o sparkle.gif
+```
+
+**Dependencies:** Task ATF-1
+
+---
+
+### Task ATF-17: Test Suite
+
+**Wave:** 7
+
+Comprehensive tests for all Phase 19 features.
+
+**Deliverables:**
+- Unit tests for each new feature
+- Integration tests for CLI commands
+- Test fixtures for all new format attributes
+- Round-trip tests
+
+**Verification:**
+```bash
+cargo test advanced
+cargo test --test cli_integration atlas
+cargo test --test cli_integration particle
+```
+
+**Dependencies:** Tasks ATF-2 through ATF-16
+
+---
+
+## Verification Summary
+
+```bash
+# 1. All existing tests pass
+cargo test
+
+# 2. New feature tests pass
+cargo test advanced
+cargo test palette_cycle
+cargo test nine_slice
+cargo test particle
+
+# 3. CLI commands work
+./target/release/pxl render examples/waterfall.pxl -o waterfall.gif
+./target/release/pxl render game.pxl --format atlas -o atlas
+./target/release/pxl show walk.pxl --onion 2
+
+# 4. Documentation updated
+./target/release/pxl prime | grep -i palette_cycle
+grep "particle" docs/spec/format.md
+```
+
+---
+
+## Success Criteria
+
+1. All high-priority features work (color ramps, palette cycling, frame tags, atlas export)
+2. Game dev features work (nine-slice, hit boxes)
+3. Pixel art polish features work (dithering, sel-out, blend modes, onion skinning)
+4. Motion designer features work (squash/stretch, sub-pixel, secondary motion, arc paths)
+5. Particle systems work
+6. All tests pass
+7. Documentation complete and accurate

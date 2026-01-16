@@ -1,13 +1,13 @@
 ---
-phase: 17
+phase: 18
 title: Sprite Transforms
 ---
 
-# Phase 17: Sprite Transforms
+# Phase 18: Sprite Transforms
 
 **Status:** Not Started
 
-**Depends on:** Phase 0 (Core CLI exists)
+**Depends on:** Phase 17 (Colored Grid Display - for `pxl show` visualization)
 
 ---
 
