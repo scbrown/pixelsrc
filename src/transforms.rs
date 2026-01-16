@@ -7,6 +7,158 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 
+// ============================================================================
+// Dither Patterns (ATF-8)
+// ============================================================================
+
+/// Built-in dither pattern types
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DitherPattern {
+    /// 2x2 checkerboard pattern
+    Checker,
+    /// 2x2 Bayer ordered dither (4 threshold levels)
+    Ordered2x2,
+    /// 4x4 Bayer ordered dither (16 threshold levels)
+    Ordered4x4,
+    /// 8x8 Bayer ordered dither (64 threshold levels)
+    Ordered8x8,
+    /// Diagonal line pattern
+    Diagonal,
+    /// Horizontal line pattern
+    Horizontal,
+    /// Vertical line pattern
+    Vertical,
+    /// Random noise dither (seeded)
+    Noise,
+}
+
+impl DitherPattern {
+    /// Parse a pattern name string into a DitherPattern
+    pub fn from_str(s: &str) -> Option<DitherPattern> {
+        match s.to_lowercase().as_str() {
+            "checker" | "checkerboard" => Some(DitherPattern::Checker),
+            "ordered-2x2" | "ordered2x2" | "bayer-2x2" | "bayer2x2" => Some(DitherPattern::Ordered2x2),
+            "ordered-4x4" | "ordered4x4" | "bayer-4x4" | "bayer4x4" => Some(DitherPattern::Ordered4x4),
+            "ordered-8x8" | "ordered8x8" | "bayer-8x8" | "bayer8x8" => Some(DitherPattern::Ordered8x8),
+            "diagonal" => Some(DitherPattern::Diagonal),
+            "horizontal" => Some(DitherPattern::Horizontal),
+            "vertical" => Some(DitherPattern::Vertical),
+            "noise" | "random" => Some(DitherPattern::Noise),
+            _ => None,
+        }
+    }
+
+    /// Get the threshold value at a given position (0.0 to 1.0)
+    ///
+    /// For noise pattern, uses a simple hash-based pseudo-random function with the seed.
+    pub fn threshold_at(&self, x: u32, y: u32, seed: u64) -> f64 {
+        match self {
+            DitherPattern::Checker => {
+                // 2x2 checkerboard: alternating 0 and 1
+                if (x + y) % 2 == 0 { 0.25 } else { 0.75 }
+            }
+            DitherPattern::Ordered2x2 => {
+                // 2x2 Bayer matrix:
+                // | 0 2 |   normalized: | 0.0  0.5  |
+                // | 3 1 |               | 0.75 0.25 |
+                const BAYER_2X2: [[f64; 2]; 2] = [
+                    [0.0 / 4.0, 2.0 / 4.0],
+                    [3.0 / 4.0, 1.0 / 4.0],
+                ];
+                let px = (x % 2) as usize;
+                let py = (y % 2) as usize;
+                BAYER_2X2[py][px]
+            }
+            DitherPattern::Ordered4x4 => {
+                // 4x4 Bayer matrix
+                const BAYER_4X4: [[f64; 4]; 4] = [
+                    [ 0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0],
+                    [12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0],
+                    [ 3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0],
+                    [15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0],
+                ];
+                let px = (x % 4) as usize;
+                let py = (y % 4) as usize;
+                BAYER_4X4[py][px]
+            }
+            DitherPattern::Ordered8x8 => {
+                // 8x8 Bayer matrix
+                const BAYER_8X8: [[f64; 8]; 8] = [
+                    [ 0.0/64.0, 32.0/64.0,  8.0/64.0, 40.0/64.0,  2.0/64.0, 34.0/64.0, 10.0/64.0, 42.0/64.0],
+                    [48.0/64.0, 16.0/64.0, 56.0/64.0, 24.0/64.0, 50.0/64.0, 18.0/64.0, 58.0/64.0, 26.0/64.0],
+                    [12.0/64.0, 44.0/64.0,  4.0/64.0, 36.0/64.0, 14.0/64.0, 46.0/64.0,  6.0/64.0, 38.0/64.0],
+                    [60.0/64.0, 28.0/64.0, 52.0/64.0, 20.0/64.0, 62.0/64.0, 30.0/64.0, 54.0/64.0, 22.0/64.0],
+                    [ 3.0/64.0, 35.0/64.0, 11.0/64.0, 43.0/64.0,  1.0/64.0, 33.0/64.0,  9.0/64.0, 41.0/64.0],
+                    [51.0/64.0, 19.0/64.0, 59.0/64.0, 27.0/64.0, 49.0/64.0, 17.0/64.0, 57.0/64.0, 25.0/64.0],
+                    [15.0/64.0, 47.0/64.0,  7.0/64.0, 39.0/64.0, 13.0/64.0, 45.0/64.0,  5.0/64.0, 37.0/64.0],
+                    [63.0/64.0, 31.0/64.0, 55.0/64.0, 23.0/64.0, 61.0/64.0, 29.0/64.0, 53.0/64.0, 21.0/64.0],
+                ];
+                let px = (x % 8) as usize;
+                let py = (y % 8) as usize;
+                BAYER_8X8[py][px]
+            }
+            DitherPattern::Diagonal => {
+                // Diagonal lines: threshold based on (x + y) mod pattern_size
+                let pattern_size = 4;
+                let pos = (x + y) % pattern_size;
+                pos as f64 / pattern_size as f64
+            }
+            DitherPattern::Horizontal => {
+                // Horizontal lines: threshold based on y mod pattern_size
+                let pattern_size = 4;
+                let pos = y % pattern_size;
+                pos as f64 / pattern_size as f64
+            }
+            DitherPattern::Vertical => {
+                // Vertical lines: threshold based on x mod pattern_size
+                let pattern_size = 4;
+                let pos = x % pattern_size;
+                pos as f64 / pattern_size as f64
+            }
+            DitherPattern::Noise => {
+                // Simple hash-based pseudo-random noise
+                // Uses a variation of splitmix64 for quick hashing
+                let mut hash = seed;
+                hash ^= (x as u64).wrapping_mul(0x9E3779B97F4A7C15);
+                hash ^= (y as u64).wrapping_mul(0xBF58476D1CE4E5B9);
+                hash = hash.wrapping_mul(0x94D049BB133111EB);
+                hash ^= hash >> 30;
+                // Convert to 0.0-1.0 range
+                (hash as f64) / (u64::MAX as f64)
+            }
+        }
+    }
+
+    /// Determine if a pixel should use the "dark" token (false) or "light" token (true)
+    /// based on position and threshold
+    pub fn should_use_light(&self, x: u32, y: u32, threshold: f64, seed: u64) -> bool {
+        self.threshold_at(x, y, seed) >= threshold
+    }
+}
+
+/// Direction for gradient dithering
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GradientDirection {
+    /// Top to bottom
+    Vertical,
+    /// Left to right
+    Horizontal,
+    /// Center outward (circular)
+    Radial,
+}
+
+impl GradientDirection {
+    /// Parse a direction string
+    pub fn from_str(s: &str) -> Option<GradientDirection> {
+        match s.to_lowercase().as_str() {
+            "vertical" | "v" => Some(GradientDirection::Vertical),
+            "horizontal" | "h" => Some(GradientDirection::Horizontal),
+            "radial" | "r" => Some(GradientDirection::Radial),
+            _ => None,
+        }
+    }
+}
+
 /// Errors that can occur during transform parsing or application
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransformError {
@@ -123,6 +275,30 @@ pub enum Transform {
     Hold {
         frame: usize,
         count: usize,
+    },
+
+    // Dithering (ATF-8)
+    /// Apply dither pattern to blend between two tokens
+    Dither {
+        /// Dither pattern to use
+        pattern: DitherPattern,
+        /// Two-element array: [dark_token, light_token]
+        tokens: (String, String),
+        /// Blend threshold (0.0-1.0), default 0.5
+        threshold: f64,
+        /// Random seed for noise pattern
+        seed: u64,
+    },
+    /// Apply dithered gradient across the sprite
+    DitherGradient {
+        /// Gradient direction
+        direction: GradientDirection,
+        /// Starting token (at gradient start)
+        from: String,
+        /// Ending token (at gradient end)
+        to: String,
+        /// Dither pattern to use
+        pattern: DitherPattern,
     },
 }
 
@@ -248,6 +424,27 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
             })?;
             let (frame, count) = parse_hold_params(hold_params)?;
             Ok(Transform::Hold { frame, count })
+        }
+
+        // Dithering (ATF-8)
+        // String syntax: dither:pattern:dark_token,light_token[:threshold]
+        // Example: dither:checker:{dark},{light}:0.5
+        "dither" => {
+            let dither_params = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "dither".to_string(),
+                param: "pattern:dark_token,light_token".to_string(),
+            })?;
+            parse_dither_str(dither_params)
+        }
+
+        // String syntax: dither-gradient:direction:from_token,to_token[:pattern]
+        // Example: dither-gradient:vertical:{sky_light},{sky_dark}:ordered-4x4
+        "dither-gradient" | "dithergradient" => {
+            let gradient_params = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "dither-gradient".to_string(),
+                param: "direction:from_token,to_token".to_string(),
+            })?;
+            parse_dither_gradient_str(gradient_params)
         }
 
         _ => Err(TransformError::UnknownOperation(op.to_string())),
@@ -376,6 +573,115 @@ fn parse_transform_object(
                     param: "count".to_string(),
                 })?;
             Ok(Transform::Hold { frame, count })
+        }
+
+        // Dithering (ATF-8)
+        "dither" => {
+            let pattern_str = params
+                .get("pattern")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "dither".to_string(),
+                    param: "pattern".to_string(),
+                })?;
+            let pattern = DitherPattern::from_str(pattern_str).ok_or_else(|| {
+                TransformError::InvalidParameter {
+                    op: "dither".to_string(),
+                    message: format!("unknown dither pattern: {}", pattern_str),
+                }
+            })?;
+
+            let tokens_arr = params
+                .get("tokens")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "dither".to_string(),
+                    param: "tokens".to_string(),
+                })?;
+            if tokens_arr.len() != 2 {
+                return Err(TransformError::InvalidParameter {
+                    op: "dither".to_string(),
+                    message: format!("tokens must have exactly 2 elements, got {}", tokens_arr.len()),
+                });
+            }
+            let dark_token = tokens_arr[0]
+                .as_str()
+                .ok_or_else(|| TransformError::InvalidParameter {
+                    op: "dither".to_string(),
+                    message: "first token must be a string".to_string(),
+                })?
+                .to_string();
+            let light_token = tokens_arr[1]
+                .as_str()
+                .ok_or_else(|| TransformError::InvalidParameter {
+                    op: "dither".to_string(),
+                    message: "second token must be a string".to_string(),
+                })?
+                .to_string();
+
+            let threshold = params
+                .get("threshold")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.5);
+            let seed = params
+                .get("seed")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+
+            Ok(Transform::Dither {
+                pattern,
+                tokens: (dark_token, light_token),
+                threshold,
+                seed,
+            })
+        }
+
+        "dither-gradient" | "dithergradient" => {
+            let direction_str = params
+                .get("direction")
+                .and_then(|v| v.as_str())
+                .unwrap_or("vertical");
+            let direction = GradientDirection::from_str(direction_str).ok_or_else(|| {
+                TransformError::InvalidParameter {
+                    op: "dither-gradient".to_string(),
+                    message: format!("unknown direction: {}", direction_str),
+                }
+            })?;
+
+            let from = params
+                .get("from")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "dither-gradient".to_string(),
+                    param: "from".to_string(),
+                })?
+                .to_string();
+            let to = params
+                .get("to")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "dither-gradient".to_string(),
+                    param: "to".to_string(),
+                })?
+                .to_string();
+
+            let pattern_str = params
+                .get("pattern")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ordered-4x4");
+            let pattern = DitherPattern::from_str(pattern_str).ok_or_else(|| {
+                TransformError::InvalidParameter {
+                    op: "dither-gradient".to_string(),
+                    message: format!("unknown dither pattern: {}", pattern_str),
+                }
+            })?;
+
+            Ok(Transform::DitherGradient {
+                direction,
+                from,
+                to,
+                pattern,
+            })
         }
 
         _ => Err(TransformError::UnknownOperation(op.to_string())),
@@ -529,6 +835,164 @@ fn parse_hold_params(s: &str) -> Result<(usize, usize), TransformError> {
             message: format!("cannot parse '{}' as count", parts[1]),
         })?;
     Ok((frame, count))
+}
+
+/// Parse dither from string syntax: pattern:dark_token,light_token[:threshold[:seed]]
+/// Example: "checker:{dark},{light}:0.5"
+fn parse_dither_str(s: &str) -> Result<Transform, TransformError> {
+    // Split by colon, but be careful with tokens that contain colons (they shouldn't, but...)
+    let parts: Vec<&str> = s.splitn(4, ':').collect();
+    if parts.is_empty() {
+        return Err(TransformError::MissingParameter {
+            op: "dither".to_string(),
+            param: "pattern".to_string(),
+        });
+    }
+
+    // First part is pattern
+    let pattern = DitherPattern::from_str(parts[0]).ok_or_else(|| {
+        TransformError::InvalidParameter {
+            op: "dither".to_string(),
+            message: format!("unknown dither pattern: {}", parts[0]),
+        }
+    })?;
+
+    // Second part should be tokens: dark,light
+    if parts.len() < 2 {
+        return Err(TransformError::MissingParameter {
+            op: "dither".to_string(),
+            param: "tokens (dark,light)".to_string(),
+        });
+    }
+    let tokens_str = parts[1];
+    // Find the comma that separates the two tokens
+    // Tokens might be like {dark},{light} so we need to handle braces
+    let (dark_token, light_token) = parse_token_pair(tokens_str).ok_or_else(|| {
+        TransformError::InvalidParameter {
+            op: "dither".to_string(),
+            message: format!("expected 'dark_token,light_token', got '{}'", tokens_str),
+        }
+    })?;
+
+    // Third part (optional) is threshold
+    let threshold = if parts.len() >= 3 {
+        parts[2]
+            .trim()
+            .parse::<f64>()
+            .map_err(|_| TransformError::InvalidParameter {
+                op: "dither".to_string(),
+                message: format!("cannot parse '{}' as threshold", parts[2]),
+            })?
+    } else {
+        0.5
+    };
+
+    // Fourth part (optional) is seed
+    let seed = if parts.len() >= 4 {
+        parts[3]
+            .trim()
+            .parse::<u64>()
+            .map_err(|_| TransformError::InvalidParameter {
+                op: "dither".to_string(),
+                message: format!("cannot parse '{}' as seed", parts[3]),
+            })?
+    } else {
+        0
+    };
+
+    Ok(Transform::Dither {
+        pattern,
+        tokens: (dark_token, light_token),
+        threshold,
+        seed,
+    })
+}
+
+/// Parse dither-gradient from string: direction:from_token,to_token[:pattern]
+/// Example: "vertical:{sky_light},{sky_dark}:ordered-4x4"
+fn parse_dither_gradient_str(s: &str) -> Result<Transform, TransformError> {
+    let parts: Vec<&str> = s.splitn(4, ':').collect();
+    if parts.is_empty() {
+        return Err(TransformError::MissingParameter {
+            op: "dither-gradient".to_string(),
+            param: "direction".to_string(),
+        });
+    }
+
+    // First part is direction
+    let direction = GradientDirection::from_str(parts[0]).ok_or_else(|| {
+        TransformError::InvalidParameter {
+            op: "dither-gradient".to_string(),
+            message: format!("unknown direction: {} (expected vertical, horizontal, or radial)", parts[0]),
+        }
+    })?;
+
+    // Second part should be tokens: from,to
+    if parts.len() < 2 {
+        return Err(TransformError::MissingParameter {
+            op: "dither-gradient".to_string(),
+            param: "tokens (from,to)".to_string(),
+        });
+    }
+    let tokens_str = parts[1];
+    let (from, to) = parse_token_pair(tokens_str).ok_or_else(|| {
+        TransformError::InvalidParameter {
+            op: "dither-gradient".to_string(),
+            message: format!("expected 'from_token,to_token', got '{}'", tokens_str),
+        }
+    })?;
+
+    // Third part (optional) is pattern
+    let pattern = if parts.len() >= 3 {
+        DitherPattern::from_str(parts[2]).ok_or_else(|| {
+            TransformError::InvalidParameter {
+                op: "dither-gradient".to_string(),
+                message: format!("unknown dither pattern: {}", parts[2]),
+            }
+        })?
+    } else {
+        DitherPattern::Ordered4x4 // Default pattern
+    };
+
+    Ok(Transform::DitherGradient {
+        direction,
+        from,
+        to,
+        pattern,
+    })
+}
+
+/// Parse a token pair like "{dark},{light}" or "dark,light"
+/// Handles braces correctly for tokens like {token_name}
+fn parse_token_pair(s: &str) -> Option<(String, String)> {
+    let s = s.trim();
+
+    // Find the comma that separates the two tokens
+    // We need to handle braces: {foo},{bar} should split on the comma between them
+    let mut depth: i32 = 0;
+    let mut split_pos = None;
+
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                split_pos = Some(i);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    let pos = split_pos?;
+    let first = s[..pos].trim().to_string();
+    let second = s[pos + 1..].trim().to_string();
+
+    if first.is_empty() || second.is_empty() {
+        return None;
+    }
+
+    Some((first, second))
 }
 
 fn get_u16_param(
@@ -1279,5 +1743,281 @@ mod tests {
 
         let result = apply_pingpong(&frames, true);
         assert_eq!(result, vec!["frame1", "frame2", "frame3", "frame2"]);
+    }
+
+    // ========================================================================
+    // Dithering Tests (ATF-8)
+    // ========================================================================
+
+    #[test]
+    fn test_dither_pattern_from_str() {
+        assert_eq!(DitherPattern::from_str("checker"), Some(DitherPattern::Checker));
+        assert_eq!(DitherPattern::from_str("checkerboard"), Some(DitherPattern::Checker));
+        assert_eq!(DitherPattern::from_str("ordered-2x2"), Some(DitherPattern::Ordered2x2));
+        assert_eq!(DitherPattern::from_str("ordered-4x4"), Some(DitherPattern::Ordered4x4));
+        assert_eq!(DitherPattern::from_str("ordered-8x8"), Some(DitherPattern::Ordered8x8));
+        assert_eq!(DitherPattern::from_str("bayer-4x4"), Some(DitherPattern::Ordered4x4));
+        assert_eq!(DitherPattern::from_str("diagonal"), Some(DitherPattern::Diagonal));
+        assert_eq!(DitherPattern::from_str("horizontal"), Some(DitherPattern::Horizontal));
+        assert_eq!(DitherPattern::from_str("vertical"), Some(DitherPattern::Vertical));
+        assert_eq!(DitherPattern::from_str("noise"), Some(DitherPattern::Noise));
+        assert_eq!(DitherPattern::from_str("random"), Some(DitherPattern::Noise));
+        assert_eq!(DitherPattern::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn test_dither_pattern_checker_threshold() {
+        let pattern = DitherPattern::Checker;
+        // Checker pattern: (0,0) = 0.25, (0,1) = 0.75, (1,0) = 0.75, (1,1) = 0.25
+        assert_eq!(pattern.threshold_at(0, 0, 0), 0.25);
+        assert_eq!(pattern.threshold_at(1, 0, 0), 0.75);
+        assert_eq!(pattern.threshold_at(0, 1, 0), 0.75);
+        assert_eq!(pattern.threshold_at(1, 1, 0), 0.25);
+        // Pattern repeats
+        assert_eq!(pattern.threshold_at(2, 2, 0), 0.25);
+        assert_eq!(pattern.threshold_at(3, 3, 0), 0.25);
+    }
+
+    #[test]
+    fn test_dither_pattern_ordered_2x2() {
+        let pattern = DitherPattern::Ordered2x2;
+        // 2x2 Bayer: [[0, 2], [3, 1]] normalized by /4
+        assert_eq!(pattern.threshold_at(0, 0, 0), 0.0);
+        assert_eq!(pattern.threshold_at(1, 0, 0), 0.5);
+        assert_eq!(pattern.threshold_at(0, 1, 0), 0.75);
+        assert_eq!(pattern.threshold_at(1, 1, 0), 0.25);
+    }
+
+    #[test]
+    fn test_dither_pattern_should_use_light() {
+        let pattern = DitherPattern::Checker;
+        // At threshold 0.5: (0,0)=0.25 < 0.5 -> false (dark), (0,1)=0.75 >= 0.5 -> true (light)
+        assert!(!pattern.should_use_light(0, 0, 0.5, 0));
+        assert!(pattern.should_use_light(0, 1, 0.5, 0));
+    }
+
+    #[test]
+    fn test_dither_pattern_noise_seeded() {
+        let pattern = DitherPattern::Noise;
+        // Same position + seed should give same result
+        let t1 = pattern.threshold_at(5, 10, 42);
+        let t2 = pattern.threshold_at(5, 10, 42);
+        assert_eq!(t1, t2);
+
+        // Different seed should give different result (very unlikely to be same)
+        let t3 = pattern.threshold_at(5, 10, 123);
+        assert_ne!(t1, t3);
+    }
+
+    #[test]
+    fn test_gradient_direction_from_str() {
+        assert_eq!(GradientDirection::from_str("vertical"), Some(GradientDirection::Vertical));
+        assert_eq!(GradientDirection::from_str("v"), Some(GradientDirection::Vertical));
+        assert_eq!(GradientDirection::from_str("horizontal"), Some(GradientDirection::Horizontal));
+        assert_eq!(GradientDirection::from_str("h"), Some(GradientDirection::Horizontal));
+        assert_eq!(GradientDirection::from_str("radial"), Some(GradientDirection::Radial));
+        assert_eq!(GradientDirection::from_str("r"), Some(GradientDirection::Radial));
+        assert_eq!(GradientDirection::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn test_parse_dither_str_basic() {
+        let result = parse_transform_str("dither:checker:{dark},{light}").unwrap();
+        assert_eq!(
+            result,
+            Transform::Dither {
+                pattern: DitherPattern::Checker,
+                tokens: ("{dark}".to_string(), "{light}".to_string()),
+                threshold: 0.5,
+                seed: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_str_with_threshold() {
+        let result = parse_transform_str("dither:ordered-4x4:{a},{b}:0.3").unwrap();
+        assert_eq!(
+            result,
+            Transform::Dither {
+                pattern: DitherPattern::Ordered4x4,
+                tokens: ("{a}".to_string(), "{b}".to_string()),
+                threshold: 0.3,
+                seed: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_str_with_seed() {
+        let result = parse_transform_str("dither:noise:{a},{b}:0.5:42").unwrap();
+        assert_eq!(
+            result,
+            Transform::Dither {
+                pattern: DitherPattern::Noise,
+                tokens: ("{a}".to_string(), "{b}".to_string()),
+                threshold: 0.5,
+                seed: 42,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_str_missing_tokens() {
+        assert!(parse_transform_str("dither:checker").is_err());
+    }
+
+    #[test]
+    fn test_parse_dither_str_invalid_pattern() {
+        assert!(parse_transform_str("dither:invalid:{a},{b}").is_err());
+    }
+
+    #[test]
+    fn test_parse_dither_gradient_str_basic() {
+        let result = parse_transform_str("dither-gradient:vertical:{sky_light},{sky_dark}").unwrap();
+        assert_eq!(
+            result,
+            Transform::DitherGradient {
+                direction: GradientDirection::Vertical,
+                from: "{sky_light}".to_string(),
+                to: "{sky_dark}".to_string(),
+                pattern: DitherPattern::Ordered4x4, // default
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_gradient_str_with_pattern() {
+        let result = parse_transform_str("dither-gradient:horizontal:{a},{b}:checker").unwrap();
+        assert_eq!(
+            result,
+            Transform::DitherGradient {
+                direction: GradientDirection::Horizontal,
+                from: "{a}".to_string(),
+                to: "{b}".to_string(),
+                pattern: DitherPattern::Checker,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_value_object() {
+        let value = serde_json::json!({
+            "op": "dither",
+            "pattern": "checker",
+            "tokens": ["{dark}", "{light}"],
+            "threshold": 0.5
+        });
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::Dither {
+                pattern: DitherPattern::Checker,
+                tokens: ("{dark}".to_string(), "{light}".to_string()),
+                threshold: 0.5,
+                seed: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_value_object_with_seed() {
+        let value = serde_json::json!({
+            "op": "dither",
+            "pattern": "noise",
+            "tokens": ["{a}", "{b}"],
+            "seed": 12345
+        });
+        let result = parse_transform_value(&value).unwrap();
+        match result {
+            Transform::Dither { seed, .. } => assert_eq!(seed, 12345),
+            _ => panic!("expected Dither transform"),
+        }
+    }
+
+    #[test]
+    fn test_parse_dither_value_object_missing_tokens() {
+        let value = serde_json::json!({
+            "op": "dither",
+            "pattern": "checker"
+        });
+        assert!(parse_transform_value(&value).is_err());
+    }
+
+    #[test]
+    fn test_parse_dither_value_object_wrong_tokens_count() {
+        let value = serde_json::json!({
+            "op": "dither",
+            "pattern": "checker",
+            "tokens": ["{only_one}"]
+        });
+        assert!(parse_transform_value(&value).is_err());
+    }
+
+    #[test]
+    fn test_parse_dither_gradient_value_object() {
+        let value = serde_json::json!({
+            "op": "dither-gradient",
+            "direction": "vertical",
+            "from": "{sky_light}",
+            "to": "{sky_dark}",
+            "pattern": "ordered-4x4"
+        });
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::DitherGradient {
+                direction: GradientDirection::Vertical,
+                from: "{sky_light}".to_string(),
+                to: "{sky_dark}".to_string(),
+                pattern: DitherPattern::Ordered4x4,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_dither_gradient_value_object_defaults() {
+        // Test default direction and pattern
+        let value = serde_json::json!({
+            "op": "dither-gradient",
+            "from": "{a}",
+            "to": "{b}"
+        });
+        let result = parse_transform_value(&value).unwrap();
+        match result {
+            Transform::DitherGradient { direction, pattern, .. } => {
+                assert_eq!(direction, GradientDirection::Vertical);
+                assert_eq!(pattern, DitherPattern::Ordered4x4);
+            }
+            _ => panic!("expected DitherGradient transform"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_pair() {
+        // Basic tokens
+        assert_eq!(
+            parse_token_pair("{dark},{light}"),
+            Some(("{dark}".to_string(), "{light}".to_string()))
+        );
+
+        // Tokens without braces
+        assert_eq!(
+            parse_token_pair("dark,light"),
+            Some(("dark".to_string(), "light".to_string()))
+        );
+
+        // With spaces
+        assert_eq!(
+            parse_token_pair("  {a} , {b}  "),
+            Some(("{a}".to_string(), "{b}".to_string()))
+        );
+
+        // Empty input
+        assert_eq!(parse_token_pair(""), None);
+
+        // Missing second token
+        assert_eq!(parse_token_pair("{a},"), None);
+
+        // Missing first token
+        assert_eq!(parse_token_pair(",{b}"), None);
     }
 }
