@@ -263,6 +263,13 @@ pub enum Transform {
         y: i32,
         token: Option<String>,
     },
+    SelOut {
+        /// Fallback token for outline pixels that can't determine neighbor color
+        fallback: Option<String>,
+        /// Explicit mapping from fill token to outline token
+        /// Key "*" is used as default fallback
+        mapping: Option<HashMap<String, String>>,
+    },
 
     // Animation (only valid for Animation type)
     Pingpong {
@@ -408,6 +415,14 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
             })?;
             let (x, y, token) = parse_shadow_params(shadow_params)?;
             Ok(Transform::Shadow { x, y, token })
+        }
+        "sel-out" | "selout" => {
+            // String syntax: "sel-out" or "sel-out:{fallback_token}"
+            let fallback = params.map(|p| p.trim().to_string());
+            Ok(Transform::SelOut {
+                fallback,
+                mapping: None,
+            })
         }
 
         // Animation
@@ -565,6 +580,20 @@ fn parse_transform_object(
                 .and_then(|v| v.as_str())
                 .map(String::from);
             Ok(Transform::Shadow { x, y, token })
+        }
+        "sel-out" | "selout" => {
+            let fallback = params
+                .get("fallback")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            let mapping = params.get("mapping").and_then(|v| {
+                v.as_object().map(|obj| {
+                    obj.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+            });
+            Ok(Transform::SelOut { fallback, mapping })
         }
 
         // Animation
@@ -1279,6 +1308,190 @@ pub fn is_animation_transform(transform: &Transform) -> bool {
     )
 }
 
+// ============================================================================
+// Grid Transform Application Functions
+// ============================================================================
+
+/// The transparent token used in grids
+const TRANSPARENT_TOKEN: &str = "{_}";
+
+/// Apply selective outline (sel-out) transform to a grid.
+///
+/// Selective outline varies the outline color based on adjacent fill pixels,
+/// creating softer edges. For each outline pixel (a pixel adjacent to both
+/// opaque and transparent pixels), the transform picks a color based on the
+/// most common neighboring fill color.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `fallback` - Optional fallback token for pixels where neighbor can't be determined
+/// * `mapping` - Optional explicit mapping from fill token to outline token.
+///               Key "*" serves as the default fallback.
+///
+/// # Returns
+/// A new grid with outline pixels recolored based on neighbors
+///
+/// # Algorithm
+/// 1. Parse each row into tokens
+/// 2. For each pixel, check if it's an "outline" pixel:
+///    - An outline pixel is opaque (not {_}) and adjacent to at least one {_}
+/// 3. For outline pixels, find the most common non-transparent neighbor
+/// 4. Map that neighbor to an outline color using the mapping or by
+///    appending "_dark" to the token name
+pub fn apply_selout(
+    grid: &[String],
+    fallback: Option<&str>,
+    mapping: Option<&HashMap<String, String>>,
+) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() {
+        return Vec::new();
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let height = parsed.len();
+    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if width == 0 {
+        return grid.to_vec();
+    }
+
+    // Helper to get token at position (with bounds checking)
+    let get_token = |x: i32, y: i32| -> Option<&String> {
+        if x < 0 || y < 0 || x >= width as i32 || y >= height as i32 {
+            return None;
+        }
+        parsed
+            .get(y as usize)
+            .and_then(|row| row.get(x as usize))
+    };
+
+    // Helper to check if a token is transparent
+    let is_transparent = |token: &str| -> bool { token == TRANSPARENT_TOKEN };
+
+    // Helper to check if a position is an outline pixel
+    // (opaque pixel adjacent to at least one transparent {_} pixel)
+    // Note: out-of-bounds does NOT count as transparent - only explicit {_} does
+    let is_outline_pixel = |x: i32, y: i32| -> bool {
+        let token = match get_token(x, y) {
+            Some(t) => t,
+            None => return false,
+        };
+
+        // Must be opaque
+        if is_transparent(token) {
+            return false;
+        }
+
+        // Check 4-connected neighbors for explicit {_} transparency
+        let neighbors = [(0, -1), (0, 1), (-1, 0), (1, 0)];
+        for (dx, dy) in neighbors {
+            if let Some(t) = get_token(x + dx, y + dy) {
+                if is_transparent(t) {
+                    return true;
+                }
+            }
+            // Out of bounds does NOT count as transparent
+        }
+        false
+    };
+
+    // Helper to find the most common non-transparent neighbor
+    // This determines what fill color the outline pixel should base its outline on
+    let get_dominant_neighbor = |x: i32, y: i32| -> Option<String> {
+        let mut counts: HashMap<String, usize> = HashMap::new();
+
+        // Check 8-connected neighbors (including diagonals)
+        let neighbors = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
+
+        for (dx, dy) in neighbors {
+            if let Some(token) = get_token(x + dx, y + dy) {
+                if !is_transparent(token) {
+                    *counts.entry(token.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Find most common opaque neighbor
+        // Don't filter out current token - the outline pixel should transform
+        // based on the dominant fill color in its neighborhood
+        counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(token, _)| token)
+    };
+
+    // Helper to map a fill token to its outline color
+    // Priority: explicit mapping > wildcard mapping > auto-dark suffix
+    // Fallback is only used when NO dominant neighbor is found (not here)
+    let get_outline_token = |fill_token: &str| -> String {
+        // First check explicit mapping
+        if let Some(map) = mapping {
+            if let Some(outline) = map.get(fill_token) {
+                return outline.clone();
+            }
+            // Check wildcard
+            if let Some(default) = map.get("*") {
+                return default.clone();
+            }
+        }
+
+        // Auto-generate: append _dark to token name
+        // {skin} -> {skin_dark}
+        if fill_token.starts_with('{') && fill_token.ends_with('}') {
+            let inner = &fill_token[1..fill_token.len() - 1];
+            format!("{{{}_dark}}", inner)
+        } else {
+            fill_token.to_string()
+        }
+    };
+
+    // Transform the grid
+    let mut result: Vec<String> = Vec::with_capacity(height);
+
+    for (y, row) in parsed.iter().enumerate() {
+        let mut new_row = String::new();
+        for (x, token) in row.iter().enumerate() {
+            if is_outline_pixel(x as i32, y as i32) {
+                // Find dominant neighbor and map to outline color
+                if let Some(neighbor) = get_dominant_neighbor(x as i32, y as i32) {
+                    new_row.push_str(&get_outline_token(&neighbor));
+                } else {
+                    // No non-self neighbor found, use fallback or keep original
+                    if let Some(fb) = fallback {
+                        new_row.push_str(fb);
+                    } else if let Some(map) = mapping {
+                        if let Some(default) = map.get("*") {
+                            new_row.push_str(default);
+                        } else {
+                            new_row.push_str(token);
+                        }
+                    } else {
+                        new_row.push_str(token);
+                    }
+                }
+            } else {
+                new_row.push_str(token);
+            }
+        }
+        result.push(new_row);
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1909,6 +2122,43 @@ mod tests {
         );
     }
 
+    // ========================================================================
+    // Selective Outline (sel-out) Tests (ATF-9)
+    // ========================================================================
+
+    #[test]
+    fn test_parse_selout_string() {
+        assert_eq!(
+            parse_transform_str("sel-out").unwrap(),
+            Transform::SelOut {
+                fallback: None,
+                mapping: None
+            }
+        );
+        assert_eq!(
+            parse_transform_str("selout").unwrap(),
+            Transform::SelOut {
+                fallback: None,
+                mapping: None
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_selout_with_fallback() {
+        assert_eq!(
+            parse_transform_str("sel-out:{outline}").unwrap(),
+            Transform::SelOut {
+                fallback: Some("{outline}".to_string()),
+                mapping: None
+            }
+        );
+    }
+
+    // ========================================================================
+    // More Dithering Tests (ATF-8 continued)
+    // ========================================================================
+
     #[test]
     fn test_parse_dither_str_with_threshold() {
         let result = parse_transform_str("dither:ordered-4x4:{a},{b}:0.3").unwrap();
@@ -1993,6 +2243,45 @@ mod tests {
             }
         );
     }
+
+    // More sel-out tests (ATF-9 continued)
+
+    #[test]
+    fn test_parse_selout_object() {
+        let value = serde_json::json!({"op": "sel-out", "fallback": "{border}"});
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::SelOut {
+                fallback: Some("{border}".to_string()),
+                mapping: None
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_selout_object_with_mapping() {
+        let value = serde_json::json!({
+            "op": "sel-out",
+            "mapping": {
+                "{skin}": "{skin_dark}",
+                "{hair}": "{hair_dark}",
+                "*": "{outline}"
+            }
+        });
+        let result = parse_transform_value(&value).unwrap();
+        match result {
+            Transform::SelOut { fallback, mapping } => {
+                assert!(fallback.is_none());
+                let map = mapping.unwrap();
+                assert_eq!(map.get("{skin}"), Some(&"{skin_dark}".to_string()));
+                assert_eq!(map.get("{hair}"), Some(&"{hair_dark}".to_string()));
+                assert_eq!(map.get("*"), Some(&"{outline}".to_string()));
+            }
+            _ => panic!("Expected SelOut transform"),
+        }
+    }
+
+    // More dither value tests (ATF-8 continued)
 
     #[test]
     fn test_parse_dither_value_object_with_seed() {
@@ -2187,5 +2476,156 @@ mod tests {
             parse_transform_value(&value).unwrap(),
             Transform::Subpixel { x: 0.5, y: 0.0 }
         );
+=======
+    fn test_apply_selout_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_selout(&grid, None, None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_selout_no_outline_pixels() {
+        // All pixels are interior (no adjacent transparency)
+        let grid = vec![
+            "{a}{a}{a}".to_string(),
+            "{a}{a}{a}".to_string(),
+            "{a}{a}{a}".to_string(),
+        ];
+        let result = apply_selout(&grid, None, None);
+        assert_eq!(result, grid);
+    }
+
+    #[test]
+    fn test_apply_selout_single_pixel() {
+        // Single pixel with no transparent neighbors is NOT an outline pixel
+        // (edges of image don't count as transparent)
+        let grid = vec!["{a}".to_string()];
+        let result = apply_selout(&grid, Some("{outline}"), None);
+        // Not an outline pixel, so it stays unchanged
+        assert_eq!(result, vec!["{a}".to_string()]);
+    }
+
+    #[test]
+    fn test_apply_selout_single_pixel_with_transparent() {
+        // Single pixel surrounded by transparent IS an outline pixel
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{a}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let result = apply_selout(&grid, Some("{outline}"), None);
+        // The center pixel is an outline pixel with no opaque neighbors
+        // So it uses fallback
+        assert_eq!(result[1], "{_}{outline}{_}");
+    }
+
+    #[test]
+    fn test_apply_selout_basic() {
+        // A simple 3x3 grid with transparent corners
+        // The edge pixels should become outlined based on interior
+        let grid = vec![
+            "{_}{skin}{_}".to_string(),
+            "{skin}{skin}{skin}".to_string(),
+            "{_}{skin}{_}".to_string(),
+        ];
+
+        let result = apply_selout(&grid, Some("{outline}"), None);
+
+        // Corner transparent pixels stay transparent
+        // Edge skin pixels (adjacent to {_}) get transformed
+        // Center skin pixel stays {skin} (not adjacent to {_})
+        assert_eq!(result[0], "{_}{skin_dark}{_}");
+        assert_eq!(result[1], "{skin_dark}{skin}{skin_dark}");
+        assert_eq!(result[2], "{_}{skin_dark}{_}");
+    }
+
+    #[test]
+    fn test_apply_selout_with_mapping() {
+        let grid = vec![
+            "{_}{skin}{_}".to_string(),
+            "{skin}{skin}{skin}".to_string(),
+            "{_}{skin}{_}".to_string(),
+        ];
+
+        let mut mapping = HashMap::new();
+        mapping.insert("{skin}".to_string(), "{skin_shadow}".to_string());
+
+        let result = apply_selout(&grid, None, Some(&mapping));
+
+        // Outline pixels adjacent to {skin} interior should use mapped value
+        assert_eq!(result[0], "{_}{skin_shadow}{_}");
+        assert_eq!(result[1], "{skin_shadow}{skin}{skin_shadow}");
+        assert_eq!(result[2], "{_}{skin_shadow}{_}");
+    }
+
+    #[test]
+    fn test_apply_selout_with_wildcard() {
+        let grid = vec![
+            "{_}{a}{_}".to_string(),
+            "{a}{b}{a}".to_string(),
+            "{_}{a}{_}".to_string(),
+        ];
+
+        let mut mapping = HashMap::new();
+        mapping.insert("*".to_string(), "{dark}".to_string());
+
+        let result = apply_selout(&grid, None, Some(&mapping));
+
+        // All outline pixels should use wildcard
+        assert_eq!(result[0], "{_}{dark}{_}");
+        assert_eq!(result[1], "{dark}{b}{dark}");
+        assert_eq!(result[2], "{_}{dark}{_}");
+    }
+
+    #[test]
+    fn test_apply_selout_mixed_colors() {
+        // Test with different colors to verify dominant neighbor selection
+        // Create a grid where the outline pixels have a clear dominant neighbor
+        let grid = vec![
+            "{_}{skin}{skin}{_}".to_string(),
+            "{skin}{skin}{skin}{skin}".to_string(),
+            "{skin}{skin}{skin}{skin}".to_string(),
+            "{hair}{hair}{hair}{hair}".to_string(),
+            "{_}{hair}{hair}{_}".to_string(),
+        ];
+
+        let mut mapping = HashMap::new();
+        mapping.insert("{skin}".to_string(), "{skin_dark}".to_string());
+        mapping.insert("{hair}".to_string(), "{hair_dark}".to_string());
+
+        let result = apply_selout(&grid, None, Some(&mapping));
+
+        // Top row: skin pixels adjacent to {_} should become skin_dark
+        // (dominant neighbor is {skin} from surrounding pixels)
+        assert_eq!(result[0], "{_}{skin_dark}{skin_dark}{_}");
+
+        // Bottom row: hair pixels adjacent to {_} should become hair_dark
+        // (dominant neighbor is {hair} from surrounding pixels - row 3 and 4)
+        assert_eq!(result[4], "{_}{hair_dark}{hair_dark}{_}");
+    }
+
+    #[test]
+    fn test_apply_selout_auto_dark_suffix() {
+        // Without mapping or fallback, should auto-generate {token_dark}
+        let grid = vec![
+            "{_}{x}{_}".to_string(),
+            "{x}{x}{x}".to_string(),
+            "{_}{x}{_}".to_string(),
+        ];
+
+        let result = apply_selout(&grid, None, None);
+
+        assert_eq!(result[0], "{_}{x_dark}{_}");
+        assert_eq!(result[1], "{x_dark}{x}{x_dark}");
+        assert_eq!(result[2], "{_}{x_dark}{_}");
+    }
+
+    #[test]
+    fn test_is_not_animation_transform_selout() {
+        assert!(!is_animation_transform(&Transform::SelOut {
+            fallback: None,
+            mapping: None
+        }));
+>>>>>>> dde5afe (Add selective outline (sel-out) transform for color-aware outlines (ATF-9))
     }
 }
