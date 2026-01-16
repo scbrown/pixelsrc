@@ -12,6 +12,7 @@ pub mod atlas;
 pub mod cli;
 pub mod color;
 pub mod composition;
+pub mod config;
 pub mod diff;
 pub mod emoji;
 pub mod explain;
