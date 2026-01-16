@@ -9,6 +9,7 @@ pub mod alias;
 pub mod analyze;
 pub mod animation;
 pub mod atlas;
+pub mod build;
 pub mod cli;
 pub mod color;
 pub mod composition;
