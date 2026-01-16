@@ -395,6 +395,7 @@ mod tests {
             size: Some([4, 2]),
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{_}{a}{a}{_}".to_string(), "{a}{a}{a}{a}".to_string()],
+            metadata: None,
         };
         let formatted = format_sprite(&sprite);
         // Should have grid rows on separate lines
@@ -411,6 +412,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{x}".to_string()],
+            metadata: None,
         };
         let formatted = format_sprite(&sprite);
         // Single row should stay on one line
@@ -427,6 +429,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
         let formatted = format_animation(&anim);
         assert!(!formatted.contains('\n'));
