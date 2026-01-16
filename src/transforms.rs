@@ -270,6 +270,14 @@ pub enum Transform {
         /// Key "*" is used as default fallback
         mapping: Option<HashMap<String, String>>,
     },
+    /// Scale transform for squash & stretch effects
+    /// Scales the grid by the given X and Y factors
+    Scale {
+        /// Horizontal scale factor (1.0 = no change, 2.0 = double width)
+        x: f32,
+        /// Vertical scale factor (1.0 = no change, 0.5 = half height)
+        y: f32,
+    },
 
     // Animation (only valid for Animation type)
     Pingpong {
@@ -423,6 +431,15 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
                 fallback,
                 mapping: None,
             })
+        }
+        "scale" => {
+            // String syntax: "scale:X,Y" e.g., "scale:1.2,0.8"
+            let scale_params = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "scale".to_string(),
+                param: "X,Y".to_string(),
+            })?;
+            let (x, y) = parse_scale_params(scale_params)?;
+            Ok(Transform::Scale { x, y })
         }
 
         // Animation
@@ -594,6 +611,34 @@ fn parse_transform_object(
                 })
             });
             Ok(Transform::SelOut { fallback, mapping })
+        }
+        "scale" => {
+            let x = params
+                .get("x")
+                .and_then(|v| v.as_f64())
+                .map(|v| v as f32)
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "scale".to_string(),
+                    param: "x".to_string(),
+                })?;
+            let y = params
+                .get("y")
+                .and_then(|v| v.as_f64())
+                .map(|v| v as f32)
+                .ok_or_else(|| TransformError::MissingParameter {
+                    op: "scale".to_string(),
+                    param: "y".to_string(),
+                })?;
+
+            // Validate scale factors are positive
+            if x <= 0.0 || y <= 0.0 {
+                return Err(TransformError::InvalidParameter {
+                    op: "scale".to_string(),
+                    message: "scale factors must be positive".to_string(),
+                });
+            }
+
+            Ok(Transform::Scale { x, y })
         }
 
         // Animation
@@ -882,6 +927,40 @@ fn parse_shadow_params(s: &str) -> Result<(i32, i32, Option<String>), TransformE
         None
     };
     Ok((x, y, token))
+}
+
+fn parse_scale_params(s: &str) -> Result<(f32, f32), TransformError> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 2 {
+        return Err(TransformError::InvalidParameter {
+            op: "scale".to_string(),
+            message: format!("expected 'X,Y', got '{}'", s),
+        });
+    }
+    let x = parts[0]
+        .trim()
+        .parse::<f32>()
+        .map_err(|_| TransformError::InvalidParameter {
+            op: "scale".to_string(),
+            message: format!("cannot parse '{}' as X scale factor", parts[0]),
+        })?;
+    let y = parts[1]
+        .trim()
+        .parse::<f32>()
+        .map_err(|_| TransformError::InvalidParameter {
+            op: "scale".to_string(),
+            message: format!("cannot parse '{}' as Y scale factor", parts[1]),
+        })?;
+
+    // Validate scale factors are positive
+    if x <= 0.0 || y <= 0.0 {
+        return Err(TransformError::InvalidParameter {
+            op: "scale".to_string(),
+            message: "scale factors must be positive".to_string(),
+        });
+    }
+
+    Ok((x, y))
 }
 
 fn parse_hold_params(s: &str) -> Result<(usize, usize), TransformError> {
@@ -1486,6 +1565,79 @@ pub fn apply_selout(
                 new_row.push_str(token);
             }
         }
+        result.push(new_row);
+    }
+
+    result
+}
+
+/// Apply scale transform to a grid.
+///
+/// Scales the grid by the given X and Y factors using nearest-neighbor
+/// interpolation, which preserves the crisp pixel art look.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `scale_x` - Horizontal scale factor (1.0 = no change)
+/// * `scale_y` - Vertical scale factor (1.0 = no change)
+///
+/// # Returns
+/// A new grid scaled by the given factors
+///
+/// # Algorithm
+/// Uses nearest-neighbor scaling:
+/// - For each pixel in the output, finds the corresponding pixel in the input
+/// - Works for both scaling up (duplication) and down (sampling)
+pub fn apply_scale(grid: &[String], scale_x: f32, scale_y: f32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() || scale_x <= 0.0 || scale_y <= 0.0 {
+        return Vec::new();
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let src_height = parsed.len();
+    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if src_width == 0 {
+        return grid.to_vec();
+    }
+
+    // Calculate new dimensions
+    let dst_width = ((src_width as f32) * scale_x).round() as usize;
+    let dst_height = ((src_height as f32) * scale_y).round() as usize;
+
+    if dst_width == 0 || dst_height == 0 {
+        return Vec::new();
+    }
+
+    // Build the scaled grid using nearest-neighbor sampling
+    let mut result: Vec<String> = Vec::with_capacity(dst_height);
+
+    for dst_y in 0..dst_height {
+        let mut new_row = String::new();
+
+        // Find source Y coordinate
+        let src_y = ((dst_y as f32) / scale_y).floor() as usize;
+        let src_y = src_y.min(src_height - 1);
+
+        let src_row = &parsed[src_y];
+
+        for dst_x in 0..dst_width {
+            // Find source X coordinate
+            let src_x = ((dst_x as f32) / scale_x).floor() as usize;
+            let src_x = src_x.min(src_row.len().saturating_sub(1));
+
+            if src_x < src_row.len() {
+                new_row.push_str(&src_row[src_x]);
+            } else {
+                // Pad with transparent if source row is shorter
+                new_row.push_str(TRANSPARENT_TOKEN);
+            }
+        }
+
         result.push(new_row);
     }
 
@@ -2476,7 +2628,13 @@ mod tests {
             parse_transform_value(&value).unwrap(),
             Transform::Subpixel { x: 0.5, y: 0.0 }
         );
-=======
+    }
+
+    // ========================================================================
+    // Apply Selout Tests (ATF-9 continued)
+    // ========================================================================
+
+    #[test]
     fn test_apply_selout_empty_grid() {
         let grid: Vec<String> = vec![];
         let result = apply_selout(&grid, None, None);
@@ -2626,6 +2784,170 @@ mod tests {
             fallback: None,
             mapping: None
         }));
->>>>>>> dde5afe (Add selective outline (sel-out) transform for color-aware outlines (ATF-9))
+    }
+
+    // ========================================================================
+    // Scale Transform Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_scale_string() {
+        assert_eq!(
+            parse_transform_str("scale:2.0,1.5").unwrap(),
+            Transform::Scale { x: 2.0, y: 1.5 }
+        );
+        assert_eq!(
+            parse_transform_str("scale:0.5,0.5").unwrap(),
+            Transform::Scale { x: 0.5, y: 0.5 }
+        );
+    }
+
+    #[test]
+    fn test_parse_scale_string_invalid() {
+        // Missing parameters
+        assert!(parse_transform_str("scale").is_err());
+
+        // Invalid format
+        assert!(parse_transform_str("scale:2.0").is_err());
+
+        // Non-numeric
+        assert!(parse_transform_str("scale:abc,def").is_err());
+
+        // Negative/zero values
+        assert!(parse_transform_str("scale:-1.0,1.0").is_err());
+        assert!(parse_transform_str("scale:1.0,0").is_err());
+    }
+
+    #[test]
+    fn test_parse_scale_object() {
+        let value = serde_json::json!({"op": "scale", "x": 2.0, "y": 1.5});
+        assert_eq!(
+            parse_transform_value(&value).unwrap(),
+            Transform::Scale { x: 2.0, y: 1.5 }
+        );
+    }
+
+    #[test]
+    fn test_parse_scale_object_missing_params() {
+        // Missing x
+        let value = serde_json::json!({"op": "scale", "y": 1.5});
+        assert!(parse_transform_value(&value).is_err());
+
+        // Missing y
+        let value = serde_json::json!({"op": "scale", "x": 2.0});
+        assert!(parse_transform_value(&value).is_err());
+    }
+
+    #[test]
+    fn test_apply_scale_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_scale(&grid, 2.0, 2.0);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_scale_identity() {
+        // Scale by 1.0 should return same dimensions
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_scale(&grid, 1.0, 1.0);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{a}{b}");
+        assert_eq!(result[1], "{c}{d}");
+    }
+
+    #[test]
+    fn test_apply_scale_double_horizontal() {
+        // Scale 2x horizontally
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_scale(&grid, 2.0, 1.0);
+        assert_eq!(result.len(), 2);
+        // Each column is duplicated
+        assert_eq!(result[0], "{a}{a}{b}{b}");
+        assert_eq!(result[1], "{c}{c}{d}{d}");
+    }
+
+    #[test]
+    fn test_apply_scale_double_vertical() {
+        // Scale 2x vertically
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_scale(&grid, 1.0, 2.0);
+        assert_eq!(result.len(), 4);
+        // Each row is duplicated
+        assert_eq!(result[0], "{a}{b}");
+        assert_eq!(result[1], "{a}{b}");
+        assert_eq!(result[2], "{c}{d}");
+        assert_eq!(result[3], "{c}{d}");
+    }
+
+    #[test]
+    fn test_apply_scale_double_both() {
+        // Scale 2x in both directions
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_scale(&grid, 2.0, 2.0);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], "{a}{a}{b}{b}");
+        assert_eq!(result[1], "{a}{a}{b}{b}");
+        assert_eq!(result[2], "{c}{c}{d}{d}");
+        assert_eq!(result[3], "{c}{c}{d}{d}");
+    }
+
+    #[test]
+    fn test_apply_scale_half() {
+        // Scale down by half
+        let grid = vec![
+            "{a}{b}{c}{d}".to_string(),
+            "{e}{f}{g}{h}".to_string(),
+            "{i}{j}{k}{l}".to_string(),
+            "{m}{n}{o}{p}".to_string(),
+        ];
+        let result = apply_scale(&grid, 0.5, 0.5);
+        assert_eq!(result.len(), 2);
+        // Should sample every other pixel
+        assert_eq!(result[0], "{a}{c}");
+        assert_eq!(result[1], "{i}{k}");
+    }
+
+    #[test]
+    fn test_apply_scale_squash() {
+        // Squash effect: wider horizontally, shorter vertically
+        let grid = vec![
+            "{_}{x}{_}".to_string(),
+            "{x}{x}{x}".to_string(),
+            "{_}{x}{_}".to_string(),
+        ];
+        let result = apply_scale(&grid, 1.5, 0.5);
+        // Original: 3x3, Result: 5x2 (rounded)
+        assert_eq!(result.len(), 2);
+        assert!(result[0].contains("{x}") || result[0].contains("{_}"));
+    }
+
+    #[test]
+    fn test_apply_scale_stretch() {
+        // Stretch effect: narrower horizontally, taller vertically
+        let grid = vec![
+            "{_}{x}{_}".to_string(),
+            "{x}{x}{x}".to_string(),
+            "{_}{x}{_}".to_string(),
+        ];
+        let result = apply_scale(&grid, 0.67, 1.5);
+        // Original: 3x3, Result: 2x5 (rounded)
+        assert_eq!(result.len(), 5);
+    }
+
+    #[test]
+    fn test_is_not_animation_transform_scale() {
+        assert!(!is_animation_transform(&Transform::Scale { x: 2.0, y: 2.0 }));
     }
 }
