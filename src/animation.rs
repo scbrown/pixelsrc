@@ -111,6 +111,18 @@ pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> 
         warnings.extend(validate_frame_tags(&anim.name, tags, anim.frames.len()));
     }
 
+    // Validate frame_metadata length matches frames
+    if let Some(frame_meta) = &anim.frame_metadata {
+        if frame_meta.len() != anim.frames.len() {
+            warnings.push(Warning::new(format!(
+                "Animation '{}' has {} frames but {} frame_metadata entries",
+                anim.name,
+                anim.frames.len(),
+                frame_meta.len()
+            )));
+        }
+    }
+
     warnings
 }
 
@@ -129,6 +141,7 @@ mod tests {
                 "#00000000".to_string(),
             )])),
             grid: vec!["{_}".to_string()],
+            metadata: None,
         }
     }
 
@@ -146,6 +159,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites = vec![
@@ -168,6 +182,7 @@ mod tests {
             r#loop: Some(true),
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         // Only "on" sprite exists
@@ -191,6 +206,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -216,6 +232,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -237,6 +254,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         // No matching sprites
@@ -257,6 +275,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -277,6 +296,7 @@ mod tests {
             r#loop: Some(false),
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -300,6 +320,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];
@@ -312,5 +333,52 @@ mod tests {
     fn test_warning_creation() {
         let warning = Warning::new("test message");
         assert_eq!(warning.message, "test message");
+    }
+
+    #[test]
+    fn test_animation_frame_metadata_length_mismatch() {
+        // Animation with frame_metadata length not matching frames count
+        use crate::models::FrameMetadata;
+
+        let anim = Animation {
+            name: "attack".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string(), "f3".to_string()],
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: Some(vec![
+                FrameMetadata::default(), // Only 2 entries for 3 frames
+                FrameMetadata::default(),
+            ]),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
+        let warnings = validate_animation(&anim, &sprites);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("3 frames"));
+        assert!(warnings[0].message.contains("2 frame_metadata"));
+    }
+
+    #[test]
+    fn test_animation_frame_metadata_length_matches() {
+        // Animation with frame_metadata length matching frames count
+        use crate::models::FrameMetadata;
+
+        let anim = Animation {
+            name: "attack".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string()],
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: Some(vec![FrameMetadata::default(), FrameMetadata::default()]),
+        };
+
+        let sprites = vec![make_sprite("f1"), make_sprite("f2")];
+        let warnings = validate_animation(&anim, &sprites);
+
+        assert!(warnings.is_empty());
     }
 }

@@ -27,6 +27,15 @@ impl Default for AtlasConfig {
     }
 }
 
+/// A collision box in atlas export format
+#[derive(Debug, Clone, Serialize)]
+pub struct AtlasBox {
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+}
+
 /// A sprite's position and size within an atlas
 #[derive(Debug, Clone, Serialize)]
 pub struct AtlasFrame {
@@ -34,6 +43,12 @@ pub struct AtlasFrame {
     pub y: u32,
     pub w: u32,
     pub h: u32,
+    /// Sprite origin point (for positioning/rotation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<[i32; 2]>,
+    /// Collision boxes (hit, hurt, collide, trigger, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boxes: Option<HashMap<String, AtlasBox>>,
 }
 
 /// Animation metadata for atlas export
@@ -76,6 +91,10 @@ pub struct AtlasResult {
 pub struct SpriteInput {
     pub name: String,
     pub image: RgbaImage,
+    /// Optional origin point for this sprite
+    pub origin: Option<[i32; 2]>,
+    /// Optional collision boxes for this sprite
+    pub boxes: Option<HashMap<String, AtlasBox>>,
 }
 
 /// A shelf in the shelf packing algorithm
@@ -145,6 +164,8 @@ pub fn pack_atlas(
                             y: pos.1,
                             w: sprite_w,
                             h: sprite_h,
+                            origin: sprite.origin,
+                            boxes: sprite.boxes.clone(),
                         },
                     ),
                 );
@@ -189,6 +210,8 @@ pub fn pack_atlas(
                             y: pos.1,
                             w: sprite_w,
                             h: sprite_h,
+                            origin: sprite.origin,
+                            boxes: sprite.boxes.clone(),
                         },
                     ),
                 );
@@ -349,6 +372,8 @@ mod tests {
         SpriteInput {
             name: name.to_string(),
             image: RgbaImage::from_pixel(width, height, color),
+            origin: None,
+            boxes: None,
         }
     }
 
@@ -568,6 +593,8 @@ mod tests {
                         y: 0,
                         w: 16,
                         h: 16,
+                        origin: None,
+                        boxes: None,
                     },
                 ),
                 (
@@ -577,6 +604,8 @@ mod tests {
                         y: 0,
                         w: 16,
                         h: 16,
+                        origin: None,
+                        boxes: None,
                     },
                 ),
             ]),
@@ -592,6 +621,9 @@ mod tests {
 
         // Should not include empty animations
         assert!(!json.contains("\"animations\""));
+        // Should not include None origin/boxes
+        assert!(!json.contains("\"origin\""));
+        assert!(!json.contains("\"boxes\""));
     }
 
     #[test]
@@ -614,5 +646,109 @@ mod tests {
         let anim = &metadata.animations["walk"];
         assert_eq!(anim.frames, vec!["walk_1", "walk_2"]);
         assert_eq!(anim.fps, 10);
+    }
+
+    #[test]
+    fn test_sprite_input_with_metadata() {
+        // Test that sprite metadata (origin and boxes) is preserved in atlas packing
+        let red = Rgba([255, 0, 0, 255]);
+        let sprite = SpriteInput {
+            name: "player".to_string(),
+            image: RgbaImage::from_pixel(32, 32, red),
+            origin: Some([16, 32]),
+            boxes: Some(HashMap::from([
+                (
+                    "hurt".to_string(),
+                    AtlasBox {
+                        x: 4,
+                        y: 0,
+                        w: 24,
+                        h: 32,
+                    },
+                ),
+                (
+                    "hit".to_string(),
+                    AtlasBox {
+                        x: 20,
+                        y: 8,
+                        w: 20,
+                        h: 16,
+                    },
+                ),
+            ])),
+        };
+
+        let result = pack_atlas(&[sprite], &AtlasConfig::default(), "test");
+
+        assert_eq!(result.atlases.len(), 1);
+        let (_, metadata) = &result.atlases[0];
+
+        let frame = &metadata.frames["player"];
+        assert_eq!(frame.w, 32);
+        assert_eq!(frame.h, 32);
+        assert_eq!(frame.origin, Some([16, 32]));
+
+        let boxes = frame.boxes.as_ref().unwrap();
+        assert_eq!(boxes.len(), 2);
+        assert!(boxes.contains_key("hurt"));
+        assert!(boxes.contains_key("hit"));
+
+        let hurt_box = &boxes["hurt"];
+        assert_eq!(hurt_box.x, 4);
+        assert_eq!(hurt_box.y, 0);
+        assert_eq!(hurt_box.w, 24);
+        assert_eq!(hurt_box.h, 32);
+    }
+
+    #[test]
+    fn test_atlas_frame_metadata_serialization() {
+        // Test that metadata is correctly serialized in atlas JSON
+        let metadata = AtlasMetadata {
+            image: "test.png".to_string(),
+            size: [32, 32],
+            frames: HashMap::from([(
+                "player_attack".to_string(),
+                AtlasFrame {
+                    x: 0,
+                    y: 0,
+                    w: 32,
+                    h: 32,
+                    origin: Some([16, 32]),
+                    boxes: Some(HashMap::from([
+                        (
+                            "hurt".to_string(),
+                            AtlasBox {
+                                x: 4,
+                                y: 0,
+                                w: 24,
+                                h: 32,
+                            },
+                        ),
+                        (
+                            "hit".to_string(),
+                            AtlasBox {
+                                x: 20,
+                                y: 8,
+                                w: 20,
+                                h: 16,
+                            },
+                        ),
+                    ])),
+                },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let json = serde_json::to_string_pretty(&metadata).unwrap();
+
+        // Check that origin is included
+        assert!(json.contains("\"origin\""));
+        // JSON pretty-print puts spaces after commas in arrays
+        assert!(json.contains("16") && json.contains("32"));
+
+        // Check that boxes are included
+        assert!(json.contains("\"boxes\""));
+        assert!(json.contains("\"hurt\""));
+        assert!(json.contains("\"hit\""));
     }
 }

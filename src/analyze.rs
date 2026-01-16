@@ -991,6 +991,7 @@ mod tests {
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
             grid: grid.into_iter().map(|s| s.to_string()).collect(),
+            metadata: None,
         }
     }
 

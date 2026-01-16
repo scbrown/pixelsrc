@@ -115,7 +115,6 @@ Defines a sequence of sprites as an animation.
 
 ---
 
-<<<<<<< Updated upstream
 ### Variant
 
 Defines a color variation of an existing sprite.
@@ -153,29 +152,16 @@ Defines a color variation of an existing sprite.
 ### Composition
 
 Composes multiple sprites onto a canvas using a character-based map.
-=======
-### Composition
-
-Combines multiple sprites into a single image using a character map.
->>>>>>> Stashed changes
 
 ```json
 {
   "type": "composition",
   "name": "string (required)",
-<<<<<<< Updated upstream
   "base": "string (optional)",
   "size": [width, height] (optional),
   "cell_size": [width, height] (optional, default [1, 1]),
   "sprites": { "char": "sprite_name" | null, ... } (required),
   "layers": [ { "name": "...", "map": [...] }, ... ] (required)
-=======
-  "size": [width, height] (optional),
-  "cell_size": [cell_width, cell_height] (optional, default [1, 1]),
-  "base": "string (optional)",
-  "sprites": {".": null, "H": "hero", ...} (required),
-  "layers": [{...}, ...] (required)
->>>>>>> Stashed changes
 }
 ```
 
@@ -184,7 +170,6 @@ Combines multiple sprites into a single image using a character map.
 |-------|----------|---------|-------------|
 | type | Yes | - | Must be `"composition"` |
 | name | Yes | - | Unique identifier |
-<<<<<<< Updated upstream
 | base | No | - | Base sprite to render first (background) |
 | size | No | Inferred | Canvas size `[width, height]` in pixels |
 | cell_size | No | `[1, 1]` | Size of each map character in pixels |
@@ -209,6 +194,7 @@ The `cell_size` field enables tiling - composing large images from smaller sprit
 - `cell_size: [1, 1]` (default) - each map character = 1 pixel position
 - `cell_size: [8, 8]` - each map character = 8×8 pixel region
 - `cell_size: [32, 32]` - each map character = 32×32 pixel tile
+- `cell_size: [4, 8]` - custom cells for text/UI composition
 
 Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
 
@@ -237,57 +223,13 @@ Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
   "layers": [
     {"name": "characters", "map": ["..H..", "...E."]}
   ]}
-=======
-| size | No | Inferred | `[width, height]` of output canvas |
-| cell_size | No | `[1, 1]` | Pixels per character in layer maps |
-| base | No | - | Base sprite/composition to draw first |
-| sprites | Yes | - | Map of characters to sprite names (null = empty) |
-| layers | Yes | - | Array of layer objects |
-
-**Layer Object:**
-```json
-{
-  "name": "string (optional)",
-  "fill": "char (optional)",
-  "map": ["row1", "row2", ...] (optional)
-}
 ```
 
-**Cell Size:**
-- `cell_size: [1, 1]` (default) — pixel-perfect placement, each map char = 1 pixel
-- `cell_size: [16, 16]` — tile-based, each map char = 16×16 area
-- `cell_size: [4, 8]` — custom cells for text/UI composition
-
-Sprites are placed at position `(col * cell_size[0], row * cell_size[1])`.
-
-**Size Inference:**
-1. If `size` is provided, use it
-2. If `base` is provided, inherit from base
-3. Otherwise, infer from layer maps and cell_size
-
-**Example (pixel-perfect):**
-```jsonl
-{"type": "composition", "name": "scene", "size": [64, 64],
-  "sprites": {".": null, "H": "hero", "T": "tree"},
-  "layers": [{"map": ["........", "..H.....", "T......T"]}]
-}
-```
-
-**Example (tiled):**
-```jsonl
-{"type": "composition", "name": "tilemap", "size": [64, 64], "cell_size": [16, 16],
-  "sprites": {"G": "grass", "W": "water", "T": "tree"},
-  "layers": [{"map": ["GGGG", "GWWG", "GTGG", "GGGG"]}]
-}
-```
-
-**Example (text banner with cell_size):**
+**Example (Text Banner):**
 ```jsonl
 {"type": "composition", "name": "banner", "size": [20, 8], "cell_size": [4, 8],
   "sprites": {"{": "bracket_l", "p": "letter_p", "x": "letter_x", "l": "letter_l", "}": "bracket_r"},
-  "layers": [{"map": ["{pxl}"]}]
-}
->>>>>>> Stashed changes
+  "layers": [{"map": ["{pxl}"]}]}
 ```
 
 ---

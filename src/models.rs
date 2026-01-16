@@ -26,6 +26,9 @@ pub struct Sprite {
     pub size: Option<[u32; 2]>,
     pub palette: PaletteRef,
     pub grid: Vec<String>,
+    /// Sprite metadata for game engine integration (origin, collision boxes)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub metadata: Option<SpriteMetadata>,
 }
 
 /// A palette cycle definition for animating colors without changing frames.
@@ -57,6 +60,45 @@ pub struct FrameTag {
     pub fps: Option<u32>,
 }
 
+/// A collision box (hit/hurt/collide/trigger region).
+///
+/// Used for game engine integration to define collision regions on sprites.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollisionBox {
+    /// Box X position relative to sprite origin
+    pub x: i32,
+    /// Box Y position relative to sprite origin
+    pub y: i32,
+    /// Box width in pixels
+    pub w: u32,
+    /// Box height in pixels
+    pub h: u32,
+}
+
+/// Sprite metadata for game engine integration.
+///
+/// Contains origin point and collision boxes for sprites.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct SpriteMetadata {
+    /// Sprite origin point `[x, y]` - used for positioning and rotation
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub origin: Option<[i32; 2]>,
+    /// Collision boxes (hit, hurt, collide, trigger, etc.)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub boxes: Option<HashMap<String, CollisionBox>>,
+}
+
+/// Per-frame metadata for animations.
+///
+/// Allows defining frame-specific collision boxes that change during animation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct FrameMetadata {
+    /// Per-frame collision boxes (can override or nullify sprite-level boxes)
+    /// Use `null` value to disable a box for this frame
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub boxes: Option<HashMap<String, Option<CollisionBox>>>,
+}
+
 /// An animation definition (Phase 3).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
@@ -72,6 +114,9 @@ pub struct Animation {
     /// Frame tags for game engine integration - maps tag name to frame range
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub tags: Option<HashMap<String, FrameTag>>,
+    /// Per-frame metadata (collision boxes that vary per frame)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub frame_metadata: Option<Vec<FrameMetadata>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -295,6 +340,7 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{x}".to_string()],
+            metadata: None,
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -311,6 +357,7 @@ mod tests {
                 "{on}{off}{on}{off}".to_string(),
                 "{off}{on}{off}{on}".to_string(),
             ],
+            metadata: None,
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -336,6 +383,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{a}{b}".to_string()],
+            metadata: None,
         });
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"sprite""#));
@@ -584,6 +632,7 @@ mod tests {
             r#loop: Some(false),
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -668,6 +717,7 @@ mod tests {
                 },
             ]),
             tags: None,
+            frame_metadata: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -691,6 +741,7 @@ mod tests {
             r#loop: None,
             palette_cycle: None,
             tags: None,
+            frame_metadata: None,
         };
         assert!(!anim.has_palette_cycle());
         assert!(anim.palette_cycles().is_empty());
@@ -767,7 +818,7 @@ mod tests {
         }
     }
 
-    // ========================================================================
+// ========================================================================
     // Particle System Tests (ATF-16)
     // ========================================================================
 
@@ -883,6 +934,89 @@ mod tests {
         }
     }
 
+    // ========== Hit/Hurt Boxes Tests (ATF-7) ==========
+
+    #[test]
+    fn test_collision_box_roundtrip() {
+        let box_data = CollisionBox {
+            x: 4,
+            y: 0,
+            w: 24,
+            h: 32,
+        };
+        let json = serde_json::to_string(&box_data).unwrap();
+        let parsed: CollisionBox = serde_json::from_str(&json).unwrap();
+        assert_eq!(box_data, parsed);
+    }
+
+    #[test]
+    fn test_sprite_metadata_roundtrip() {
+        let metadata = SpriteMetadata {
+            origin: Some([16, 32]),
+            boxes: Some(HashMap::from([
+                (
+                    "hurt".to_string(),
+                    CollisionBox {
+                        x: 4,
+                        y: 0,
+                        w: 24,
+                        h: 32,
+                    },
+                ),
+                (
+                    "hit".to_string(),
+                    CollisionBox {
+                        x: 20,
+                        y: 8,
+                        w: 20,
+                        h: 16,
+                    },
+                ),
+            ])),
+        };
+        let json = serde_json::to_string(&metadata).unwrap();
+        let parsed: SpriteMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(metadata, parsed);
+    }
+
+    #[test]
+    fn test_sprite_with_metadata_parse() {
+        // Sprite with metadata as specified in ATF-7
+        let json = r#"{
+            "type": "sprite",
+            "name": "player_attack",
+            "palette": "characters",
+            "grid": ["{x}"],
+            "metadata": {
+                "origin": [16, 32],
+                "boxes": {
+                    "hurt": {"x": 4, "y": 0, "w": 24, "h": 32},
+                    "hit": {"x": 20, "y": 8, "w": 20, "h": 16}
+                }
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Sprite(sprite) => {
+                assert_eq!(sprite.name, "player_attack");
+                assert!(sprite.metadata.is_some());
+                let meta = sprite.metadata.unwrap();
+                assert_eq!(meta.origin, Some([16, 32]));
+                assert!(meta.boxes.is_some());
+                let boxes = meta.boxes.unwrap();
+                assert_eq!(boxes.len(), 2);
+                assert!(boxes.contains_key("hurt"));
+                assert!(boxes.contains_key("hit"));
+                let hurt_box = &boxes["hurt"];
+                assert_eq!(hurt_box.x, 4);
+                assert_eq!(hurt_box.y, 0);
+                assert_eq!(hurt_box.w, 24);
+                assert_eq!(hurt_box.h, 32);
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
     #[test]
     fn test_velocity_range_default() {
         let vel = VelocityRange::default();
@@ -900,5 +1034,148 @@ mod tests {
         assert!(emitter.fade.is_none());
         assert!(emitter.rotation.is_none());
         assert!(emitter.seed.is_none());
+    }
+
+    #[test]
+    fn test_sprite_metadata_origin_only() {
+        // Sprite with only origin, no boxes
+        let json = r#"{
+            "type": "sprite",
+            "name": "centered_sprite",
+            "palette": "default",
+            "grid": ["{x}"],
+            "metadata": {
+                "origin": [8, 16]
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Sprite(sprite) => {
+                let meta = sprite.metadata.unwrap();
+                assert_eq!(meta.origin, Some([8, 16]));
+                assert!(meta.boxes.is_none());
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_metadata_boxes_only() {
+        // Sprite with only boxes, no origin
+        let json = r#"{
+            "type": "sprite",
+            "name": "collider",
+            "palette": "default",
+            "grid": ["{x}"],
+            "metadata": {
+                "boxes": {
+                    "collide": {"x": 0, "y": 0, "w": 16, "h": 16}
+                }
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Sprite(sprite) => {
+                let meta = sprite.metadata.unwrap();
+                assert!(meta.origin.is_none());
+                assert!(meta.boxes.is_some());
+                assert!(meta.boxes.unwrap().contains_key("collide"));
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_animation_frame_metadata_parse() {
+        // Animation with per-frame metadata as specified in ATF-7
+        let json = r#"{
+            "type": "animation",
+            "name": "attack",
+            "frames": ["f1", "f2", "f3"],
+            "frame_metadata": [
+                {"boxes": {"hit": null}},
+                {"boxes": {"hit": {"x": 20, "y": 8, "w": 20, "h": 16}}},
+                {"boxes": {"hit": {"x": 24, "y": 4, "w": 24, "h": 20}}}
+            ]
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "attack");
+                assert_eq!(anim.frames.len(), 3);
+                assert!(anim.frame_metadata.is_some());
+                let frame_meta = anim.frame_metadata.unwrap();
+                assert_eq!(frame_meta.len(), 3);
+
+                // Frame 0: hit box is null (disabled)
+                let f0_boxes = frame_meta[0].boxes.as_ref().unwrap();
+                assert!(f0_boxes.get("hit").unwrap().is_none());
+
+                // Frame 1: hit box is active
+                let f1_boxes = frame_meta[1].boxes.as_ref().unwrap();
+                let f1_hit = f1_boxes.get("hit").unwrap().as_ref().unwrap();
+                assert_eq!(f1_hit.x, 20);
+                assert_eq!(f1_hit.y, 8);
+
+                // Frame 2: hit box is active with different values
+                let f2_boxes = frame_meta[2].boxes.as_ref().unwrap();
+                let f2_hit = f2_boxes.get("hit").unwrap().as_ref().unwrap();
+                assert_eq!(f2_hit.x, 24);
+                assert_eq!(f2_hit.w, 24);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_without_metadata_roundtrip() {
+        // Sprite without metadata should serialize without metadata field
+        let sprite = Sprite {
+            name: "simple".to_string(),
+            size: None,
+            palette: PaletteRef::Named("default".to_string()),
+            grid: vec!["{x}".to_string()],
+            metadata: None,
+        };
+        let json = serde_json::to_string(&sprite).unwrap();
+        // Should not contain "metadata" key when None
+        assert!(!json.contains("metadata"));
+        let parsed: Sprite = serde_json::from_str(&json).unwrap();
+        assert_eq!(sprite, parsed);
+    }
+
+    #[test]
+    fn test_animation_without_frame_metadata_roundtrip() {
+        // Animation without frame_metadata should serialize without the field
+        let anim = Animation {
+            name: "simple".to_string(),
+            frames: vec!["f1".to_string()],
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+            tags: None,
+            frame_metadata: None,
+        };
+        let json = serde_json::to_string(&anim).unwrap();
+        // Should not contain "frame_metadata" key when None
+        assert!(!json.contains("frame_metadata"));
+        let parsed: Animation = serde_json::from_str(&json).unwrap();
+        assert_eq!(anim, parsed);
+    }
+
+    #[test]
+    fn test_collision_box_negative_coordinates() {
+        // Collision boxes can have negative x,y for positions relative to origin
+        let box_data = CollisionBox {
+            x: -8,
+            y: -16,
+            w: 16,
+            h: 32,
+        };
+        let json = serde_json::to_string(&box_data).unwrap();
+        let parsed: CollisionBox = serde_json::from_str(&json).unwrap();
+        assert_eq!(box_data, parsed);
+        assert_eq!(parsed.x, -8);
+        assert_eq!(parsed.y, -16);
     }
 }

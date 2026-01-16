@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
-use crate::atlas::{pack_atlas, add_animation_to_atlas, AtlasConfig, SpriteInput};
+use crate::atlas::{pack_atlas, add_animation_to_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
 use crate::diff::{diff_files, format_diff};
 #[allow(unused_imports)]
@@ -1489,9 +1489,34 @@ fn run_atlas_render(
             return ExitCode::from(EXIT_ERROR);
         }
 
+        // Extract metadata for atlas export
+        let (origin, boxes) = if let Some(ref meta) = sprite.metadata {
+            let origin = meta.origin;
+            let boxes = meta.boxes.as_ref().map(|b| {
+                b.iter()
+                    .map(|(name, cb)| {
+                        (
+                            name.clone(),
+                            AtlasBox {
+                                x: cb.x,
+                                y: cb.y,
+                                w: cb.w,
+                                h: cb.h,
+                            },
+                        )
+                    })
+                    .collect()
+            });
+            (origin, boxes)
+        } else {
+            (None, None)
+        };
+
         sprite_inputs.push(SpriteInput {
             name: sprite.name.clone(),
             image,
+            origin,
+            boxes,
         });
     }
 

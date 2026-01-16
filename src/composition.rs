@@ -1844,6 +1844,7 @@ mod tests {
                 ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
             ])),
             grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
+            metadata: None,
         };
 
         let variant = Variant {

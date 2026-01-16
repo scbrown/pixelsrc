@@ -500,6 +500,7 @@ mod tests {
                 "{on}{off}{on}{off}".to_string(),
                 "{off}{on}{off}{on}".to_string(),
             ],
+            metadata: None,
         }
     }
 
@@ -512,6 +513,7 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{x}".to_string()],
+            metadata: None,
         }
     }
 
@@ -521,6 +523,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("nonexistent".to_string()),
             grid: vec!["{x}{x}".to_string()],
+            metadata: None,
         }
     }
 
@@ -716,6 +719,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("@gameboy".to_string()),
             grid: vec!["{lightest}{dark}".to_string()],
+            metadata: None,
         }
     }
 
@@ -725,6 +729,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("@nonexistent".to_string()),
             grid: vec!["{x}{x}".to_string()],
+            metadata: None,
         }
     }
 
@@ -745,6 +750,7 @@ mod tests {
                 "{_}{skin}{skin}{_}".to_string(),
                 "{_}{skin}{skin}{_}".to_string(),
             ],
+            metadata: None,
         }
     }
 
@@ -886,6 +892,7 @@ mod tests {
                 size: None,
                 palette: PaletteRef::Named(format!("@{}", name)),
                 grid: vec!["{_}".to_string()],
+                metadata: None,
             };
             let result = registry.resolve_strict(&sprite);
             assert!(
