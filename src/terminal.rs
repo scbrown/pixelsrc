@@ -275,6 +275,73 @@ pub fn render_coordinate_grid(grid: &[String], full_names: bool) -> String {
     output
 }
 
+/// Render an RGBA image to ANSI terminal output.
+///
+/// Each pixel is rendered as a "▀" (upper half block) character with
+/// foreground and background colors set to display two rows of pixels
+/// per line of text.
+///
+/// # Arguments
+///
+/// * `image` - The RGBA image to render
+///
+/// # Returns
+///
+/// A string with ANSI escape sequences for colored terminal display.
+pub fn render_image_ansi(image: &image::RgbaImage) -> String {
+    use image::Rgba;
+
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+
+    if width == 0 || height == 0 {
+        return String::new();
+    }
+
+    let mut output = String::new();
+
+    // Process two rows at a time using half-block characters
+    for y in (0..height).step_by(2) {
+        for x in 0..width {
+            let top_pixel = *image.get_pixel(x as u32, y as u32);
+            let bottom_pixel = if y + 1 < height {
+                *image.get_pixel(x as u32, (y + 1) as u32)
+            } else {
+                Rgba([0, 0, 0, 0]) // Transparent for odd height images
+            };
+
+            // Use upper half block (▀) with foreground = top pixel, background = bottom pixel
+            if top_pixel[3] == 0 && bottom_pixel[3] == 0 {
+                // Both transparent - use dark gray
+                output.push_str("\x1b[48;5;236m\x1b[38;5;236m▀");
+            } else if top_pixel[3] == 0 {
+                // Top transparent, bottom visible
+                output.push_str(&format!(
+                    "\x1b[48;2;{};{};{}m\x1b[38;5;236m▀",
+                    bottom_pixel[0], bottom_pixel[1], bottom_pixel[2]
+                ));
+            } else if bottom_pixel[3] == 0 {
+                // Top visible, bottom transparent
+                output.push_str(&format!(
+                    "\x1b[48;5;236m\x1b[38;2;{};{};{}m▀",
+                    top_pixel[0], top_pixel[1], top_pixel[2]
+                ));
+            } else {
+                // Both visible
+                output.push_str(&format!(
+                    "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m▀",
+                    bottom_pixel[0], bottom_pixel[1], bottom_pixel[2],
+                    top_pixel[0], top_pixel[1], top_pixel[2]
+                ));
+            }
+        }
+        output.push_str(ANSI_RESET);
+        output.push('\n');
+    }
+
+    output
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -389,5 +456,42 @@ mod tests {
 
         // Underscore should be preserved
         assert!(output.contains(" _"));
+    }
+
+    #[test]
+    fn test_render_image_ansi_empty() {
+        use image::RgbaImage;
+
+        let image = RgbaImage::new(0, 0);
+        let output = render_image_ansi(&image);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_render_image_ansi_simple() {
+        use image::RgbaImage;
+
+        // 2x2 red image
+        let image = RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255]));
+        let output = render_image_ansi(&image);
+
+        // Should contain ANSI escape sequences
+        assert!(output.contains("\x1b["));
+        // Should contain the half block character
+        assert!(output.contains("▀"));
+        // Should end with reset and newline
+        assert!(output.contains(ANSI_RESET));
+    }
+
+    #[test]
+    fn test_render_image_ansi_transparent() {
+        use image::RgbaImage;
+
+        // 2x2 transparent image
+        let image = RgbaImage::from_pixel(2, 2, Rgba([0, 0, 0, 0]));
+        let output = render_image_ansi(&image);
+
+        // Should use 256-color gray for transparent
+        assert!(output.contains("\x1b[48;5;236m"));
     }
 }

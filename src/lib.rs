@@ -22,6 +22,7 @@ pub mod import;
 pub mod include;
 pub mod models;
 pub mod motion;
+pub mod onion;
 pub mod output;
 pub mod palette_cycle;
 pub mod palettes;

@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
@@ -319,6 +319,38 @@ pub enum Commands {
         /// Sprite name (if file contains multiple sprites)
         #[arg(long)]
         sprite: Option<String>,
+
+        /// Animation name to show with onion skinning
+        #[arg(long)]
+        animation: Option<String>,
+
+        /// Frame index to display (for animations)
+        #[arg(long, default_value = "0")]
+        frame: usize,
+
+        /// Number of frames before/after to show as onion skin
+        #[arg(long)]
+        onion: Option<u32>,
+
+        /// Ghost frame opacity (0.0-1.0, default: 0.3)
+        #[arg(long, default_value = "0.3")]
+        onion_opacity: f32,
+
+        /// Tint color for previous frames (default: #0000FF blue)
+        #[arg(long, default_value = "#0000FF")]
+        onion_prev_color: String,
+
+        /// Tint color for next frames (default: #00FF00 green)
+        #[arg(long, default_value = "#00FF00")]
+        onion_next_color: String,
+
+        /// Decrease opacity for frames farther from current
+        #[arg(long)]
+        onion_fade: bool,
+
+        /// Output file (PNG) for onion skin preview
+        #[arg(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -421,7 +453,29 @@ pub fn run() -> ExitCode {
             sprite,
             full,
         } => run_grid(&input, sprite.as_deref(), full),
-        Commands::Show { file, sprite } => run_show(&file, sprite.as_deref()),
+        Commands::Show {
+            file,
+            sprite,
+            animation,
+            frame,
+            onion,
+            onion_opacity,
+            onion_prev_color,
+            onion_next_color,
+            onion_fade,
+            output,
+        } => run_show(
+            &file,
+            sprite.as_deref(),
+            animation.as_deref(),
+            frame,
+            onion,
+            onion_opacity,
+            &onion_prev_color,
+            &onion_next_color,
+            onion_fade,
+            output.as_deref(),
+        ),
     }
 }
 
@@ -2674,10 +2728,23 @@ fn run_grid(input: &PathBuf, sprite_filter: Option<&str>, full_names: bool) -> E
 }
 
 /// Execute the show command - display sprite with colored terminal output
-fn run_show(file: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
+fn run_show(
+    file: &PathBuf,
+    sprite_filter: Option<&str>,
+    animation_filter: Option<&str>,
+    frame_index: usize,
+    onion_count: Option<u32>,
+    onion_opacity: f32,
+    onion_prev_color: &str,
+    onion_next_color: &str,
+    onion_fade: bool,
+    output: Option<&Path>,
+) -> ExitCode {
     use std::collections::HashMap;
-    use crate::models::{TtpObject, Sprite};
+    use crate::models::{TtpObject, Sprite, Animation};
     use crate::registry::PaletteRegistry;
+    use crate::renderer::render_sprite;
+    use crate::onion::{render_onion_skin, parse_hex_color, OnionConfig};
 
     // Open input file
     let input_file = match File::open(file) {
@@ -2692,8 +2759,9 @@ fn run_show(file: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
     let reader = BufReader::new(input_file);
     let parse_result = parse_stream(reader);
 
-    // Collect sprites and palettes
+    // Collect sprites, animations, and palettes
     let mut sprites_by_name: HashMap<String, Sprite> = HashMap::new();
+    let mut animations_by_name: HashMap<String, Animation> = HashMap::new();
     let mut registry = PaletteRegistry::new();
 
     for obj in parse_result.objects {
@@ -2704,10 +2772,134 @@ fn run_show(file: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
             TtpObject::Sprite(sprite) => {
                 sprites_by_name.insert(sprite.name.clone(), sprite);
             }
+            TtpObject::Animation(animation) => {
+                animations_by_name.insert(animation.name.clone(), animation);
+            }
             _ => {}
         }
     }
 
+    // Handle onion skinning mode (animation + --onion flag)
+    if let Some(onion) = onion_count {
+        let animation = if let Some(name) = animation_filter {
+            match animations_by_name.get(name) {
+                Some(a) => a,
+                None => {
+                    eprintln!("Error: No animation named '{}' found in input", name);
+                    let anim_names: Vec<&str> =
+                        animations_by_name.keys().map(|s| s.as_str()).collect();
+                    if let Some(suggestion) = format_suggestion(&suggest(name, &anim_names, 3)) {
+                        eprintln!("{}", suggestion);
+                    }
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
+        } else {
+            // Use the first animation found
+            match animations_by_name.values().next() {
+                Some(a) => a,
+                None => {
+                    eprintln!("Error: No animations found in input file (--onion requires an animation)");
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
+        };
+
+        if animation.frames.is_empty() {
+            eprintln!("Error: Animation '{}' has no frames", animation.name);
+            return ExitCode::from(EXIT_ERROR);
+        }
+
+        // Parse tint colors
+        let prev_color = match parse_hex_color(onion_prev_color) {
+            Some(c) => c,
+            None => {
+                eprintln!("Error: Invalid color for --onion-prev-color: {}", onion_prev_color);
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        };
+
+        let next_color = match parse_hex_color(onion_next_color) {
+            Some(c) => c,
+            None => {
+                eprintln!("Error: Invalid color for --onion-next-color: {}", onion_next_color);
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        };
+
+        // Render all frames to images
+        let mut frame_images = Vec::new();
+        for frame_name in &animation.frames {
+            let sprite = match sprites_by_name.get(frame_name) {
+                Some(s) => s,
+                None => {
+                    eprintln!("Error: Animation frame '{}' not found in sprites", frame_name);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            };
+
+            let resolved_palette = match registry.resolve(sprite, false) {
+                Ok(result) => result.palette.colors,
+                Err(e) => {
+                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            };
+
+            let (image, _warnings) = render_sprite(sprite, &resolved_palette);
+            frame_images.push(image);
+        }
+
+        // Create onion skin config
+        let config = OnionConfig {
+            count: onion,
+            opacity: onion_opacity.clamp(0.0, 1.0),
+            prev_color,
+            next_color,
+            fade: onion_fade,
+        };
+
+        // Render with onion skinning
+        let frame_idx = frame_index.min(frame_images.len().saturating_sub(1));
+        let result = render_onion_skin(&frame_images, frame_idx, &config);
+
+        // Output to file or terminal
+        if let Some(output_path) = output {
+            if let Err(e) = result.save(output_path) {
+                eprintln!("Error: Failed to save image: {}", e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+            println!(
+                "Onion skin preview saved: {} (frame {}/{}, {} ghost frames)",
+                output_path.display(),
+                frame_idx + 1,
+                animation.frames.len(),
+                onion
+            );
+        } else {
+            // Render to terminal using ANSI
+            println!(
+                "Animation: {} (frame {}/{}, {} ghost frames)",
+                animation.name,
+                frame_idx + 1,
+                animation.frames.len(),
+                onion
+            );
+            println!();
+
+            // Convert image to terminal output
+            use crate::terminal::render_image_ansi;
+            let ansi_output = render_image_ansi(&result);
+            print!("{}", ansi_output);
+
+            println!();
+            println!("Legend: Previous frames = blue tint, Next frames = green tint");
+        }
+
+        return ExitCode::from(EXIT_SUCCESS);
+    }
+
+    // Standard sprite display mode (no onion skinning)
     if sprites_by_name.is_empty() {
         eprintln!("Error: No sprites found in input file");
         return ExitCode::from(EXIT_ERROR);
