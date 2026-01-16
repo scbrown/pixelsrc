@@ -97,6 +97,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         let sprites = vec![
@@ -117,6 +118,7 @@ mod tests {
             frames: vec!["on".to_string(), "off".to_string()],
             duration: Some(500),
             r#loop: Some(true),
+            palette_cycle: None,
         };
 
         // Only "on" sprite exists
@@ -138,6 +140,7 @@ mod tests {
             frames: vec![],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -161,6 +164,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -180,6 +184,7 @@ mod tests {
             frames: vec!["ghost1".to_string(), "ghost2".to_string()],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         // No matching sprites
@@ -198,6 +203,7 @@ mod tests {
             frames: vec!["frame1".to_string()],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -216,6 +222,7 @@ mod tests {
             frames: vec!["pose".to_string()],
             duration: None,
             r#loop: Some(false),
+            palette_cycle: None,
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -237,6 +244,7 @@ mod tests {
             ],
             duration: None,
             r#loop: None,
+            palette_cycle: None,
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];

@@ -28,6 +28,20 @@ pub struct Sprite {
     pub grid: Vec<String>,
 }
 
+/// A palette cycle definition for animating colors without changing frames.
+///
+/// Palette cycling rotates colors through a set of tokens, creating animated
+/// effects like shimmering water, flickering fire, or pulsing energy without
+/// needing multiple sprite frames.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PaletteCycle {
+    /// Tokens whose colors will be cycled (e.g., ["{water1}", "{water2}", "{water3}"])
+    pub tokens: Vec<String>,
+    /// Duration per cycle step in milliseconds (default: animation duration)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub duration: Option<u32>,
+}
+
 /// An animation definition (Phase 3).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
@@ -37,6 +51,9 @@ pub struct Animation {
     pub duration: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub r#loop: Option<bool>,
+    /// Palette cycles for color animation effects (water, fire, energy, etc.)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub palette_cycle: Option<Vec<PaletteCycle>>,
 }
 
 /// A variant is a palette-only modification of a base sprite.
@@ -63,6 +80,32 @@ impl Animation {
     /// Returns whether the animation should loop (default: true).
     pub fn loops(&self) -> bool {
         self.r#loop.unwrap_or(true)
+    }
+
+    /// Returns whether this animation uses palette cycling.
+    pub fn has_palette_cycle(&self) -> bool {
+        self.palette_cycle
+            .as_ref()
+            .map(|cycles| !cycles.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Returns the palette cycles, or an empty slice if none.
+    pub fn palette_cycles(&self) -> &[PaletteCycle] {
+        self.palette_cycle.as_deref().unwrap_or(&[])
+    }
+}
+
+impl PaletteCycle {
+    /// Returns the duration per cycle step in milliseconds.
+    /// Falls back to the provided default (typically animation duration).
+    pub fn duration_ms(&self, default: u32) -> u32 {
+        self.duration.unwrap_or(default)
+    }
+
+    /// Returns the number of cycle steps (= number of tokens).
+    pub fn cycle_length(&self) -> usize {
+        self.tokens.len()
     }
 }
 
@@ -434,6 +477,7 @@ mod tests {
             frames: vec!["a".to_string(), "b".to_string(), "c".to_string()],
             duration: Some(200),
             r#loop: Some(false),
+            palette_cycle: None,
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -445,6 +489,103 @@ mod tests {
             }
             _ => panic!("Expected animation"),
         }
+    }
+
+    #[test]
+    fn test_animation_with_palette_cycle() {
+        // Animation with palette cycling for water effect
+        let json = r#"{"type": "animation", "name": "water", "frames": ["water_tile"], "duration": 100, "palette_cycle": [{"tokens": ["{w1}", "{w2}", "{w3}"], "duration": 150}]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "water");
+                assert!(anim.has_palette_cycle());
+                let cycles = anim.palette_cycles();
+                assert_eq!(cycles.len(), 1);
+                assert_eq!(cycles[0].tokens, vec!["{w1}", "{w2}", "{w3}"]);
+                assert_eq!(cycles[0].duration, Some(150));
+                assert_eq!(cycles[0].duration_ms(100), 150);
+                assert_eq!(cycles[0].cycle_length(), 3);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_palette_cycle_default_duration() {
+        // Palette cycle without explicit duration uses animation duration
+        let json = r#"{"type": "animation", "name": "fire", "frames": ["flame"], "duration": 80, "palette_cycle": [{"tokens": ["{f1}", "{f2}"]}]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                let cycles = anim.palette_cycles();
+                assert_eq!(cycles.len(), 1);
+                assert!(cycles[0].duration.is_none());
+                // Should use animation duration as fallback
+                assert_eq!(cycles[0].duration_ms(anim.duration_ms()), 80);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_multiple_palette_cycles() {
+        // Animation with multiple independent cycles
+        let json = r#"{"type": "animation", "name": "scene", "frames": ["scene_frame"], "palette_cycle": [{"tokens": ["{water1}", "{water2}"], "duration": 200}, {"tokens": ["{fire1}", "{fire2}", "{fire3}"], "duration": 100}]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                let cycles = anim.palette_cycles();
+                assert_eq!(cycles.len(), 2);
+                // Water cycle
+                assert_eq!(cycles[0].tokens.len(), 2);
+                assert_eq!(cycles[0].duration, Some(200));
+                // Fire cycle
+                assert_eq!(cycles[1].tokens.len(), 3);
+                assert_eq!(cycles[1].duration, Some(100));
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_palette_cycle_roundtrip() {
+        let anim = Animation {
+            name: "cycle_test".to_string(),
+            frames: vec!["sprite".to_string()],
+            duration: Some(100),
+            r#loop: Some(true),
+            palette_cycle: Some(vec![
+                PaletteCycle {
+                    tokens: vec!["{a}".to_string(), "{b}".to_string()],
+                    duration: Some(150),
+                },
+            ]),
+        };
+        let obj = TtpObject::Animation(anim.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains("palette_cycle"));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Animation(parsed_anim) => {
+                assert_eq!(anim, parsed_anim);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_no_palette_cycle() {
+        // Animation without palette_cycle should have has_palette_cycle() return false
+        let anim = Animation {
+            name: "normal".to_string(),
+            frames: vec!["f1".to_string()],
+            duration: None,
+            r#loop: None,
+            palette_cycle: None,
+        };
+        assert!(!anim.has_palette_cycle());
+        assert!(anim.palette_cycles().is_empty());
     }
 
     #[test]

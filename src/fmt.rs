@@ -425,6 +425,7 @@ mod tests {
             frames: vec!["f1".to_string(), "f2".to_string()],
             duration: Some(100),
             r#loop: None,
+            palette_cycle: None,
         };
         let formatted = format_animation(&anim);
         assert!(!formatted.contains('\n'));

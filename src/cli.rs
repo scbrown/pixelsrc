@@ -53,6 +53,7 @@ use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
+use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
 use crate::palettes;
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
@@ -1157,15 +1158,23 @@ fn run_animation_render(
         all_warnings.push(warning_msg);
     }
 
-    // Render each frame
-    let mut frame_images = Vec::new();
-    for frame_name in &animation.frames {
+    // Check if this is a palette-cycle animation
+    // Palette cycling is used when animation has palette_cycle defined
+    let (frame_images, frame_duration) = if animation.has_palette_cycle() && animation.frames.len() == 1 {
+        // Palette cycle mode: generate frames by rotating colors
+        let frame_name = &animation.frames[0];
         let sprite = match sprites.get(frame_name) {
             Some(s) => s,
-            None => continue, // Skip missing sprites (warned above)
+            None => {
+                eprintln!(
+                    "Error: Animation '{}' references missing sprite '{}'",
+                    animation.name, frame_name
+                );
+                return ExitCode::from(EXIT_ERROR);
+            }
         };
 
-        // Resolve palette
+        // Resolve base palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
                 let include_path = extract_include_path(name).unwrap();
@@ -1207,15 +1216,12 @@ fn run_animation_render(
             },
         };
 
-        // Render sprite
-        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+        // Generate palette-cycled frames
+        let (frames, cycle_warnings) = generate_cycle_frames(sprite, &resolved.colors, animation);
 
-        // Apply scaling if requested
-        let image = scale_image(image, scale);
-
-        // Collect render warnings
-        for warning in render_warnings {
-            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+        // Collect warnings
+        for warning in cycle_warnings {
+            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning));
         }
 
         if strict && !all_warnings.is_empty() {
@@ -1225,8 +1231,87 @@ fn run_animation_render(
             return ExitCode::from(EXIT_ERROR);
         }
 
-        frame_images.push(image);
-    }
+        // Apply scaling to all frames
+        let scaled_frames: Vec<_> = frames.into_iter().map(|f| scale_image(f, scale)).collect();
+
+        // Use cycle duration for GIF timing
+        let duration = get_cycle_duration(animation);
+
+        (scaled_frames, duration)
+    } else {
+        // Traditional frame-based animation
+        let mut frame_images = Vec::new();
+        for frame_name in &animation.frames {
+            let sprite = match sprites.get(frame_name) {
+                Some(s) => s,
+                None => continue, // Skip missing sprites (warned above)
+            };
+
+            // Resolve palette
+            let resolved = match &sprite.palette {
+                PaletteRef::Named(name) if is_include_ref(name) => {
+                    let include_path = extract_include_path(name).unwrap();
+                    match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                        Ok(palette) => ResolvedPalette {
+                            colors: palette.colors,
+                            source: PaletteSource::Named(format!("@include:{}", include_path)),
+                        },
+                        Err(e) => {
+                            if strict {
+                                eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                            all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                            ResolvedPalette {
+                                colors: std::collections::HashMap::new(),
+                                source: PaletteSource::Fallback,
+                            }
+                        }
+                    }
+                }
+                _ => match registry.resolve(sprite, strict) {
+                    Ok(result) => {
+                        if let Some(warning) = result.warning {
+                            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                            if strict {
+                                for warning in all_warnings.iter() {
+                                    eprintln!("Error: {}", warning);
+                                }
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                        }
+                        result.palette
+                    }
+                    Err(e) => {
+                        eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                },
+            };
+
+            // Render sprite
+            let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+
+            // Apply scaling if requested
+            let image = scale_image(image, scale);
+
+            // Collect render warnings
+            for warning in render_warnings {
+                all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+            }
+
+            if strict && !all_warnings.is_empty() {
+                for warning in all_warnings.iter() {
+                    eprintln!("Error: {}", warning);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+
+            frame_images.push(image);
+        }
+
+        (frame_images, animation.duration_ms())
+    };
 
     if frame_images.is_empty() {
         eprintln!(
@@ -1253,7 +1338,7 @@ fn run_animation_render(
     if gif_output {
         if let Err(e) = render_gif(
             &frame_images,
-            animation.duration_ms(),
+            frame_duration,
             animation.loops(),
             &output_path,
         ) {
