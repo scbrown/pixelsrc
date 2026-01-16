@@ -22,3 +22,4 @@ enable = true
 
 [output.linkcheck]
 warning-policy = "warn"
+optional = true

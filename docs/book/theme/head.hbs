@@ -1,0 +1,10 @@
+{{!-- Custom head content for WASM demo support --}}
+
+{{!-- Preload WASM assets for better performance --}}
+<link rel="modulepreload" href="{{path_to_root}}wasm-assets/pixelsrc_wasm.js">
+<link rel="preload" href="{{path_to_root}}wasm-assets/pixelsrc_wasm_bg.wasm" as="fetch" crossorigin>
+
+{{!-- Configure WASM path for the demo script --}}
+<script>
+  window.pixelsrcWasmPath = '{{path_to_root}}wasm-assets/pixelsrc_wasm.js';
+</script>
