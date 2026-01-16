@@ -473,7 +473,10 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
                     old_color,
                     new_color,
                 } => {
-                    output.push(format!("  ~ {} color: {} → {}", token, old_color, new_color));
+                    output.push(format!(
+                        "  ~ {} color: {} → {}",
+                        token, old_color, new_color
+                    ));
                 }
             }
         }

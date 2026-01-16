@@ -48,7 +48,11 @@ impl fmt::Display for TransformError {
                 write!(f, "missing required parameter for {}: {}", op, param)
             }
             TransformError::InvalidRotation(degrees) => {
-                write!(f, "invalid rotation degrees: {} (must be 90, 180, or 270)", degrees)
+                write!(
+                    f,
+                    "invalid rotation degrees: {} (must be 90, 180, or 270)",
+                    degrees
+                )
             }
             TransformError::InvalidTileDimensions(dims) => {
                 write!(f, "invalid tile dimensions: {}", dims)
@@ -74,23 +78,52 @@ pub enum Transform {
     // Geometric
     MirrorH,
     MirrorV,
-    Rotate { degrees: u16 }, // 90, 180, 270
+    Rotate {
+        degrees: u16,
+    }, // 90, 180, 270
 
     // Expansion
-    Tile { w: u32, h: u32 },
-    Pad { size: u32 },
-    Crop { x: u32, y: u32, w: u32, h: u32 },
+    Tile {
+        w: u32,
+        h: u32,
+    },
+    Pad {
+        size: u32,
+    },
+    Crop {
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+    },
 
     // Effects
-    Outline { token: Option<String>, width: u32 },
-    Shift { x: i32, y: i32 },
-    Shadow { x: i32, y: i32, token: Option<String> },
+    Outline {
+        token: Option<String>,
+        width: u32,
+    },
+    Shift {
+        x: i32,
+        y: i32,
+    },
+    Shadow {
+        x: i32,
+        y: i32,
+        token: Option<String>,
+    },
 
     // Animation (only valid for Animation type)
-    Pingpong { exclude_ends: bool },
+    Pingpong {
+        exclude_ends: bool,
+    },
     Reverse,
-    FrameOffset { offset: i32 },
-    Hold { frame: usize, count: usize },
+    FrameOffset {
+        offset: i32,
+    },
+    Hold {
+        frame: usize,
+        count: usize,
+    },
 }
 
 /// Parse transform from string syntax: "mirror-h", "rotate:90", "tile:3x2"
@@ -189,7 +222,9 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
 
         // Animation
         "pingpong" => {
-            let exclude_ends = params.map(|p| p == "true" || p == "exclude_ends").unwrap_or(false);
+            let exclude_ends = params
+                .map(|p| p == "true" || p == "exclude_ends")
+                .unwrap_or(false);
             Ok(Transform::Pingpong { exclude_ends })
         }
         "reverse" => Ok(Transform::Reverse),
@@ -284,7 +319,10 @@ fn parse_transform_object(
 
         // Effects
         "outline" => {
-            let token = params.get("token").and_then(|v| v.as_str()).map(String::from);
+            let token = params
+                .get("token")
+                .and_then(|v| v.as_str())
+                .map(String::from);
             let width = params
                 .get("width")
                 .and_then(|v| v.as_u64())
@@ -300,7 +338,10 @@ fn parse_transform_object(
         "shadow" => {
             let x = get_i32_param(params, "x", "shadow")?;
             let y = get_i32_param(params, "y", "shadow")?;
-            let token = params.get("token").and_then(|v| v.as_str()).map(String::from);
+            let token = params
+                .get("token")
+                .and_then(|v| v.as_str())
+                .map(String::from);
             Ok(Transform::Shadow { x, y, token })
         }
 
@@ -418,13 +459,14 @@ fn parse_outline_params(s: &str) -> Result<(Option<String>, u32), TransformError
         }
         2 => {
             let token = Some(parts[0].trim().to_string());
-            let width = parts[1]
-                .trim()
-                .parse::<u32>()
-                .map_err(|_| TransformError::InvalidParameter {
-                    op: "outline".to_string(),
-                    message: format!("cannot parse '{}' as width", parts[1]),
-                })?;
+            let width =
+                parts[1]
+                    .trim()
+                    .parse::<u32>()
+                    .map_err(|_| TransformError::InvalidParameter {
+                        op: "outline".to_string(),
+                        message: format!("cannot parse '{}' as width", parts[1]),
+                    })?;
             Ok((token, width))
         }
         _ => Err(TransformError::InvalidParameter {
@@ -705,7 +747,10 @@ mod tests {
     #[test]
     fn test_parse_mirror_h() {
         assert_eq!(parse_transform_str("mirror-h").unwrap(), Transform::MirrorH);
-        assert_eq!(parse_transform_str("symmetry-h").unwrap(), Transform::MirrorH);
+        assert_eq!(
+            parse_transform_str("symmetry-h").unwrap(),
+            Transform::MirrorH
+        );
         assert_eq!(parse_transform_str("flip-h").unwrap(), Transform::MirrorH);
         assert_eq!(parse_transform_str("MIRROR-H").unwrap(), Transform::MirrorH);
     }
@@ -713,7 +758,10 @@ mod tests {
     #[test]
     fn test_parse_mirror_v() {
         assert_eq!(parse_transform_str("mirror-v").unwrap(), Transform::MirrorV);
-        assert_eq!(parse_transform_str("symmetry-v").unwrap(), Transform::MirrorV);
+        assert_eq!(
+            parse_transform_str("symmetry-v").unwrap(),
+            Transform::MirrorV
+        );
         assert_eq!(parse_transform_str("flip-v").unwrap(), Transform::MirrorV);
     }
 
@@ -758,19 +806,35 @@ mod tests {
 
     #[test]
     fn test_parse_pad() {
-        assert_eq!(parse_transform_str("pad:4").unwrap(), Transform::Pad { size: 4 });
-        assert_eq!(parse_transform_str("pad:0").unwrap(), Transform::Pad { size: 0 });
+        assert_eq!(
+            parse_transform_str("pad:4").unwrap(),
+            Transform::Pad { size: 4 }
+        );
+        assert_eq!(
+            parse_transform_str("pad:0").unwrap(),
+            Transform::Pad { size: 0 }
+        );
     }
 
     #[test]
     fn test_parse_crop() {
         assert_eq!(
             parse_transform_str("crop:0,0,8,8").unwrap(),
-            Transform::Crop { x: 0, y: 0, w: 8, h: 8 }
+            Transform::Crop {
+                x: 0,
+                y: 0,
+                w: 8,
+                h: 8
+            }
         );
         assert_eq!(
             parse_transform_str("crop:4, 4, 16, 16").unwrap(),
-            Transform::Crop { x: 4, y: 4, w: 16, h: 16 }
+            Transform::Crop {
+                x: 4,
+                y: 4,
+                w: 16,
+                h: 16
+            }
         );
     }
 
@@ -778,15 +842,24 @@ mod tests {
     fn test_parse_outline() {
         assert_eq!(
             parse_transform_str("outline").unwrap(),
-            Transform::Outline { token: None, width: 1 }
+            Transform::Outline {
+                token: None,
+                width: 1
+            }
         );
         assert_eq!(
             parse_transform_str("outline:{border}").unwrap(),
-            Transform::Outline { token: Some("{border}".to_string()), width: 1 }
+            Transform::Outline {
+                token: Some("{border}".to_string()),
+                width: 1
+            }
         );
         assert_eq!(
             parse_transform_str("outline:{border},2").unwrap(),
-            Transform::Outline { token: Some("{border}".to_string()), width: 2 }
+            Transform::Outline {
+                token: Some("{border}".to_string()),
+                width: 2
+            }
         );
     }
 
@@ -806,11 +879,19 @@ mod tests {
     fn test_parse_shadow() {
         assert_eq!(
             parse_transform_str("shadow:1,1").unwrap(),
-            Transform::Shadow { x: 1, y: 1, token: None }
+            Transform::Shadow {
+                x: 1,
+                y: 1,
+                token: None
+            }
         );
         assert_eq!(
             parse_transform_str("shadow:2,2,{shadow}").unwrap(),
-            Transform::Shadow { x: 2, y: 2, token: Some("{shadow}".to_string()) }
+            Transform::Shadow {
+                x: 2,
+                y: 2,
+                token: Some("{shadow}".to_string())
+            }
         );
     }
 
@@ -818,7 +899,9 @@ mod tests {
     fn test_parse_pingpong() {
         assert_eq!(
             parse_transform_str("pingpong").unwrap(),
-            Transform::Pingpong { exclude_ends: false }
+            Transform::Pingpong {
+                exclude_ends: false
+            }
         );
         assert_eq!(
             parse_transform_str("pingpong:true").unwrap(),
@@ -884,7 +967,10 @@ mod tests {
         let value = serde_json::json!({"op": "outline", "token": "{border}", "width": 2});
         assert_eq!(
             parse_transform_value(&value).unwrap(),
-            Transform::Outline { token: Some("{border}".to_string()), width: 2 }
+            Transform::Outline {
+                token: Some("{border}".to_string()),
+                width: 2
+            }
         );
 
         let value = serde_json::json!({"op": "rotate", "degrees": 180});
@@ -1085,7 +1171,9 @@ mod tests {
     #[test]
     fn test_apply_animation_transform_pingpong() {
         let frames = vec!["A", "B", "C"];
-        let transform = Transform::Pingpong { exclude_ends: false };
+        let transform = Transform::Pingpong {
+            exclude_ends: false,
+        };
         let result = apply_animation_transform(&transform, &frames).unwrap();
         assert_eq!(result, vec!["A", "B", "C", "C", "B", "A"]);
     }
@@ -1124,20 +1212,39 @@ mod tests {
 
     #[test]
     fn test_is_animation_transform() {
-        assert!(is_animation_transform(&Transform::Pingpong { exclude_ends: false }));
+        assert!(is_animation_transform(&Transform::Pingpong {
+            exclude_ends: false
+        }));
         assert!(is_animation_transform(&Transform::Reverse));
-        assert!(is_animation_transform(&Transform::FrameOffset { offset: 1 }));
-        assert!(is_animation_transform(&Transform::Hold { frame: 0, count: 2 }));
+        assert!(is_animation_transform(&Transform::FrameOffset {
+            offset: 1
+        }));
+        assert!(is_animation_transform(&Transform::Hold {
+            frame: 0,
+            count: 2
+        }));
 
         assert!(!is_animation_transform(&Transform::MirrorH));
         assert!(!is_animation_transform(&Transform::MirrorV));
         assert!(!is_animation_transform(&Transform::Rotate { degrees: 90 }));
         assert!(!is_animation_transform(&Transform::Tile { w: 2, h: 2 }));
         assert!(!is_animation_transform(&Transform::Pad { size: 4 }));
-        assert!(!is_animation_transform(&Transform::Crop { x: 0, y: 0, w: 8, h: 8 }));
-        assert!(!is_animation_transform(&Transform::Outline { token: None, width: 1 }));
+        assert!(!is_animation_transform(&Transform::Crop {
+            x: 0,
+            y: 0,
+            w: 8,
+            h: 8
+        }));
+        assert!(!is_animation_transform(&Transform::Outline {
+            token: None,
+            width: 1
+        }));
         assert!(!is_animation_transform(&Transform::Shift { x: 1, y: 1 }));
-        assert!(!is_animation_transform(&Transform::Shadow { x: 1, y: 1, token: None }));
+        assert!(!is_animation_transform(&Transform::Shadow {
+            x: 1,
+            y: 1,
+            token: None
+        }));
     }
 
     #[test]
@@ -1161,7 +1268,11 @@ mod tests {
     #[test]
     fn test_animation_transforms_with_strings() {
         // Test with actual String type (not &str)
-        let frames: Vec<String> = vec!["frame1".to_string(), "frame2".to_string(), "frame3".to_string()];
+        let frames: Vec<String> = vec![
+            "frame1".to_string(),
+            "frame2".to_string(),
+            "frame3".to_string(),
+        ];
 
         let result = apply_reverse(&frames);
         assert_eq!(result, vec!["frame3", "frame2", "frame1"]);

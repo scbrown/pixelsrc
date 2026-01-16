@@ -394,10 +394,7 @@ mod tests {
             name: "test".to_string(),
             size: Some([4, 2]),
             palette: PaletteRef::Named("colors".to_string()),
-            grid: vec![
-                "{_}{a}{a}{_}".to_string(),
-                "{a}{a}{a}{a}".to_string(),
-            ],
+            grid: vec!["{_}{a}{a}{_}".to_string(), "{a}{a}{a}{a}".to_string()],
         };
         let formatted = format_sprite(&sprite);
         // Should have grid rows on separate lines
@@ -458,10 +455,7 @@ mod tests {
         // Should parse the formatted output successfully
         let reader = Cursor::new(&formatted);
         let deserializer = serde_json::Deserializer::from_reader(reader);
-        let objects: Vec<TtpObject> = deserializer
-            .into_iter()
-            .filter_map(|r| r.ok())
-            .collect();
+        let objects: Vec<TtpObject> = deserializer.into_iter().filter_map(|r| r.ok()).collect();
 
         assert_eq!(objects.len(), 2);
     }
