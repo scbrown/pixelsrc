@@ -267,6 +267,16 @@ pub enum Commands {
         #[arg(long)]
         only: Option<String>,
     },
+
+    /// Expand grid with column-aligned spacing for readability
+    Inline {
+        /// Input file containing sprite definitions
+        input: PathBuf,
+
+        /// Sprite name (if file contains multiple)
+        #[arg(long)]
+        sprite: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -354,6 +364,7 @@ pub fn run() -> ExitCode {
             json,
             only,
         } => run_suggest(&files, stdin, json, only.as_deref()),
+        Commands::Inline { input, sprite } => run_inline(&input, sprite.as_deref()),
     }
 }
 
@@ -1993,6 +2004,83 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                 }
                 println!("{}", parts.join(", "));
             }
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute the inline command
+fn run_inline(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
+    use crate::alias::{format_columns, parse_grid_row};
+    use crate::models::TtpObject;
+
+    // Open input file
+    let file = match File::open(input) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    // Parse JSONL stream
+    let reader = BufReader::new(file);
+    let parse_result = parse_stream(reader);
+
+    // Collect sprites
+    let mut sprites: Vec<_> = parse_result
+        .objects
+        .into_iter()
+        .filter_map(|obj| match obj {
+            TtpObject::Sprite(s) => Some(s),
+            _ => None,
+        })
+        .collect();
+
+    if sprites.is_empty() {
+        eprintln!("Error: No sprites found in input file");
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    // Filter by sprite name if specified
+    if let Some(name) = sprite_filter {
+        // Collect names for suggestion before filtering
+        let sprite_names: Vec<String> = sprites.iter().map(|s| s.name.clone()).collect();
+        sprites.retain(|s| s.name == name);
+        if sprites.is_empty() {
+            eprintln!("Error: No sprite named '{}' found in input", name);
+            let name_refs: Vec<&str> = sprite_names.iter().map(|s| s.as_str()).collect();
+            if let Some(suggestion) = format_suggestion(&suggest(name, &name_refs, 3)) {
+                eprintln!("{}", suggestion);
+            }
+            return ExitCode::from(EXIT_ERROR);
+        }
+    }
+
+    // Process each sprite
+    for (i, sprite) in sprites.iter().enumerate() {
+        if i > 0 {
+            println!(); // Blank line between sprites
+        }
+
+        if sprites.len() > 1 {
+            println!("# {}", sprite.name);
+        }
+
+        // Convert grid rows to tokenized vectors
+        let rows: Vec<Vec<String>> = sprite
+            .grid
+            .iter()
+            .map(|row| parse_grid_row(row))
+            .collect();
+
+        // Format with column alignment
+        let formatted = format_columns(rows);
+
+        // Output each row
+        for row in formatted {
+            println!("{}", row);
         }
     }
 
