@@ -1,12 +1,13 @@
-//! Color parsing utilities for hex color strings
+//! Color parsing utilities for CSS color strings
 //!
 //! Supports the following formats:
-//! - `#RGB` - 3-digit hex, expands to `#RRGGBB`
-//! - `#RGBA` - 4-digit hex, expands to `#RRGGBBAA`
-//! - `#RRGGBB` - 6-digit hex, fully opaque (alpha = 255)
-//! - `#RRGGBBAA` - 8-digit hex, with explicit alpha
+//! - Hex: `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`
+//! - Functional: `rgb()`, `rgba()`, `hsl()`, `hsla()`, `hwb()`, `oklch()`
+//! - Named: `red`, `blue`, `transparent`, etc.
 
 use image::Rgba;
+use lightningcss::traits::Parse;
+use lightningcss::values::color::CssColor;
 use std::fmt;
 
 /// Error type for color parsing failures
@@ -46,53 +47,68 @@ impl<T: std::fmt::Display> From<lightningcss::error::Error<T>> for ColorError {
     }
 }
 
-/// Parse a hex color string into an RGBA color.
+/// Parse a CSS color string into an RGBA color.
 ///
 /// # Supported Formats
 ///
+/// ## Hex Colors
 /// - `#RGB` - 3-digit hex, each digit is doubled (e.g., `#F00` -> red)
 /// - `#RGBA` - 4-digit hex, each digit is doubled (e.g., `#F00F` -> red, opaque)
 /// - `#RRGGBB` - 6-digit hex, alpha defaults to 255 (opaque)
 /// - `#RRGGBBAA` - 8-digit hex, explicit alpha channel
+///
+/// ## Functional Notation
+/// - `rgb(255, 0, 0)` or `rgb(100%, 0%, 0%)`
+/// - `rgba(255, 0, 0, 0.5)` or `rgba(255 0 0 / 50%)`
+/// - `hsl(0, 100%, 50%)` or `hsl(0deg 100% 50%)`
+/// - `hsla(0, 100%, 50%, 0.5)`
+/// - `hwb(0 0% 0%)` - hue, whiteness, blackness
+/// - `oklch(0.628 0.258 29.23)` - OKLCH color space
+///
+/// ## Named Colors
+/// - CSS named colors: `red`, `blue`, `green`, `transparent`, etc.
 ///
 /// # Examples
 ///
 /// ```
 /// use pixelsrc::color::parse_color;
 ///
-/// // Short form red
+/// // Hex colors
 /// let red = parse_color("#F00").unwrap();
 /// assert_eq!(red, image::Rgba([255, 0, 0, 255]));
 ///
-/// // Long form red
-/// let red = parse_color("#FF0000").unwrap();
-/// assert_eq!(red, image::Rgba([255, 0, 0, 255]));
+/// // RGB functional
+/// let green = parse_color("rgb(0, 255, 0)").unwrap();
+/// assert_eq!(green, image::Rgba([0, 255, 0, 255]));
 ///
-/// // Red with 50% alpha
-/// let red_alpha = parse_color("#FF000080").unwrap();
-/// assert_eq!(red_alpha, image::Rgba([255, 0, 0, 128]));
+/// // Named colors
+/// let blue = parse_color("blue").unwrap();
+/// assert_eq!(blue, image::Rgba([0, 0, 255, 255]));
 ///
-/// // Short form with alpha
-/// let red_alpha = parse_color("#F00F").unwrap();
-/// assert_eq!(red_alpha, image::Rgba([255, 0, 0, 255]));
+/// // HSL
+/// let red_hsl = parse_color("hsl(0, 100%, 50%)").unwrap();
+/// assert_eq!(red_hsl, image::Rgba([255, 0, 0, 255]));
 /// ```
 ///
 /// # Errors
 ///
-/// Returns `ColorError` if the input is invalid:
-/// - Empty string
-/// - Missing '#' prefix
-/// - Invalid length (not 3, 4, 6, or 8 hex chars)
-/// - Non-hex characters
+/// Returns `ColorError` if the input is invalid or unparseable.
 pub fn parse_color(s: &str) -> Result<Rgba<u8>, ColorError> {
     if s.is_empty() {
         return Err(ColorError::Empty);
     }
 
-    if !s.starts_with('#') {
-        return Err(ColorError::MissingHash);
+    // Fast path for hex colors - use our optimized parser
+    if s.starts_with('#') {
+        return parse_hex_color(s);
     }
 
+    // Use lightningcss for all other CSS color formats
+    parse_css_color(s)
+}
+
+/// Parse a hex color string (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)
+fn parse_hex_color(s: &str) -> Result<Rgba<u8>, ColorError> {
     let hex = &s[1..];
     let len = hex.len();
 
@@ -137,6 +153,42 @@ pub fn parse_color(s: &str) -> Result<Rgba<u8>, ColorError> {
             Ok(Rgba([r, g, b, a]))
         }
         _ => Err(ColorError::InvalidLength(len)),
+    }
+}
+
+/// Parse a CSS color using lightningcss (rgb, hsl, hwb, oklch, named colors)
+fn parse_css_color(s: &str) -> Result<Rgba<u8>, ColorError> {
+    let css_color = CssColor::parse_string(s)
+        .map_err(|e| ColorError::CssParse(e.to_string()))?;
+    css_color_to_rgba(css_color)
+}
+
+/// Convert a lightningcss CssColor to RGBA
+fn css_color_to_rgba(color: CssColor) -> Result<Rgba<u8>, ColorError> {
+    use lightningcss::values::color::FloatColor;
+
+    // Convert to sRGB color space first, then extract RGBA
+    let rgb_color = color
+        .to_rgb()
+        .map_err(|_| ColorError::CssParse("cannot convert color to RGB".to_string()))?;
+
+    // Extract RGBA from the converted color
+    match rgb_color {
+        CssColor::RGBA(rgba) => Ok(Rgba([rgba.red, rgba.green, rgba.blue, rgba.alpha])),
+        CssColor::Float(float_color) => {
+            // Handle Float colors (when components have 'none' values)
+            match float_color.as_ref() {
+                FloatColor::RGB(rgb) => {
+                    let r = (rgb.r * 255.0).round() as u8;
+                    let g = (rgb.g * 255.0).round() as u8;
+                    let b = (rgb.b * 255.0).round() as u8;
+                    let a = (rgb.alpha * 255.0).round() as u8;
+                    Ok(Rgba([r, g, b, a]))
+                }
+                _ => Err(ColorError::CssParse("unexpected float color format".to_string())),
+            }
+        }
+        _ => Err(ColorError::CssParse("color conversion did not produce RGB".to_string())),
     }
 }
 
@@ -216,9 +268,11 @@ mod tests {
     }
 
     #[test]
-    fn test_error_missing_hash() {
-        assert_eq!(parse_color("FF0000"), Err(ColorError::MissingHash));
-        assert_eq!(parse_color("F00"), Err(ColorError::MissingHash));
+    fn test_error_invalid_format() {
+        // These are not valid hex (no #) and not valid CSS color names
+        assert!(parse_color("FF0000").is_err());
+        assert!(parse_color("F00").is_err());
+        assert!(parse_color("notacolor").is_err());
     }
 
     #[test]
@@ -271,5 +325,108 @@ mod tests {
         let err3 = ColorError::CssParse("different".to_string());
         assert_eq!(err1, err2);
         assert_ne!(err1, err3);
+    }
+
+    // CSS Color Format Tests (CSS-3)
+
+    #[test]
+    fn test_parse_rgb_functional() {
+        // rgb() with integer values
+        assert_eq!(parse_color("rgb(255, 0, 0)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgb(0, 255, 0)").unwrap(), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("rgb(0, 0, 255)").unwrap(), Rgba([0, 0, 255, 255]));
+
+        // rgb() with percentage values
+        assert_eq!(parse_color("rgb(100%, 0%, 0%)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgb(0%, 100%, 0%)").unwrap(), Rgba([0, 255, 0, 255]));
+
+        // Modern space-separated syntax
+        assert_eq!(parse_color("rgb(255 0 0)").unwrap(), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_parse_rgba_functional() {
+        // rgba() with alpha
+        assert_eq!(parse_color("rgba(255, 0, 0, 1)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgba(255, 0, 0, 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("rgba(255, 0, 0, 0)").unwrap(), Rgba([255, 0, 0, 0]));
+
+        // Modern syntax with /
+        assert_eq!(parse_color("rgb(255 0 0 / 50%)").unwrap(), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("rgb(255 0 0 / 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
+    }
+
+    #[test]
+    fn test_parse_hsl_functional() {
+        // hsl() - pure red is 0deg, 100% saturation, 50% lightness
+        assert_eq!(parse_color("hsl(0, 100%, 50%)").unwrap(), Rgba([255, 0, 0, 255]));
+        // Pure green is 120deg
+        assert_eq!(parse_color("hsl(120, 100%, 50%)").unwrap(), Rgba([0, 255, 0, 255]));
+        // Pure blue is 240deg
+        assert_eq!(parse_color("hsl(240, 100%, 50%)").unwrap(), Rgba([0, 0, 255, 255]));
+
+        // Modern syntax with deg
+        assert_eq!(parse_color("hsl(0deg 100% 50%)").unwrap(), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_parse_hsla_functional() {
+        // hsla() with alpha
+        assert_eq!(parse_color("hsla(0, 100%, 50%, 1)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("hsla(0, 100%, 50%, 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
+
+        // Modern syntax
+        assert_eq!(parse_color("hsl(0 100% 50% / 50%)").unwrap(), Rgba([255, 0, 0, 128]));
+    }
+
+    #[test]
+    fn test_parse_hwb_functional() {
+        // hwb(hue, whiteness, blackness)
+        // Pure red: 0deg, 0% white, 0% black
+        assert_eq!(parse_color("hwb(0 0% 0%)").unwrap(), Rgba([255, 0, 0, 255]));
+        // Pure green: 120deg
+        assert_eq!(parse_color("hwb(120 0% 0%)").unwrap(), Rgba([0, 255, 0, 255]));
+        // Pure blue: 240deg
+        assert_eq!(parse_color("hwb(240 0% 0%)").unwrap(), Rgba([0, 0, 255, 255]));
+        // White: any hue, 100% white
+        assert_eq!(parse_color("hwb(0 100% 0%)").unwrap(), Rgba([255, 255, 255, 255]));
+        // Black: any hue, 100% black
+        assert_eq!(parse_color("hwb(0 0% 100%)").unwrap(), Rgba([0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_parse_oklch_functional() {
+        // oklch(lightness, chroma, hue)
+        // Note: oklch values may have slight rounding differences
+        let red = parse_color("oklch(0.628 0.258 29.23)").unwrap();
+        // Should be close to red - allow some tolerance for color space conversion
+        assert!(red.0[0] > 250); // R close to 255
+        assert!(red.0[1] < 10);  // G close to 0
+        assert!(red.0[2] < 10);  // B close to 0
+    }
+
+    #[test]
+    fn test_parse_named_colors() {
+        // Basic named colors
+        assert_eq!(parse_color("red").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("green").unwrap(), Rgba([0, 128, 0, 255])); // CSS green is #008000
+        assert_eq!(parse_color("blue").unwrap(), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("white").unwrap(), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("black").unwrap(), Rgba([0, 0, 0, 255]));
+
+        // Transparent
+        assert_eq!(parse_color("transparent").unwrap(), Rgba([0, 0, 0, 0]));
+
+        // Extended named colors
+        assert_eq!(parse_color("coral").unwrap(), Rgba([255, 127, 80, 255]));
+        assert_eq!(parse_color("hotpink").unwrap(), Rgba([255, 105, 180, 255]));
+        assert_eq!(parse_color("steelblue").unwrap(), Rgba([70, 130, 180, 255]));
+    }
+
+    #[test]
+    fn test_named_colors_case_insensitive() {
+        assert_eq!(parse_color("Red").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("RED").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("HotPink").unwrap(), Rgba([255, 105, 180, 255]));
     }
 }
