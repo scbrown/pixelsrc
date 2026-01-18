@@ -2,6 +2,7 @@
 //!
 //! Provides LSP support for .pxl files in editors like VS Code, Neovim, etc.
 
+use crate::motion::{ease, parse_timing_function, Interpolation, StepPosition};
 use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
 use crate::variables::VariableRegistry;
@@ -27,6 +28,15 @@ struct GridInfo {
     expected_width: usize,
     /// Name of the sprite
     sprite_name: String,
+}
+
+/// Information about a timing function at cursor position
+#[derive(Debug, Clone)]
+struct TimingFunctionInfo {
+    /// Raw timing function string from JSON
+    function_str: String,
+    /// Parsed interpolation
+    interpolation: Interpolation,
 }
 
 /// The Pixelsrc Language Server
@@ -509,6 +519,174 @@ impl PixelsrcLanguageServer {
 
         false
     }
+
+    /// Render an ASCII visualization of an easing curve
+    ///
+    /// Creates a simple ASCII graph showing the easing function's shape.
+    fn render_easing_curve(interpolation: &Interpolation, width: usize, height: usize) -> String {
+        let mut grid = vec![vec![' '; width]; height];
+
+        // Sample the easing function
+        let samples: Vec<f64> = (0..=width)
+            .map(|i| {
+                let t = i as f64 / width as f64;
+                ease(t, interpolation)
+            })
+            .collect();
+
+        // Find min/max for scaling (handle overshoot)
+        let min_val = samples.iter().cloned().fold(f64::INFINITY, f64::min).min(0.0);
+        let max_val = samples.iter().cloned().fold(f64::NEG_INFINITY, f64::max).max(1.0);
+        let range = max_val - min_val;
+
+        // Plot the curve
+        for (x, &value) in samples.iter().enumerate().take(width) {
+            // Scale value to grid height
+            let normalized = if range > 0.0 {
+                (value - min_val) / range
+            } else {
+                0.5
+            };
+            let y = ((1.0 - normalized) * (height - 1) as f64).round() as usize;
+            let y = y.min(height - 1);
+            if x < width {
+                grid[y][x] = '█';
+            }
+        }
+
+        // Build the output with axis labels
+        let mut output = String::new();
+
+        // Top label (1.0 or max)
+        let top_label = if max_val > 1.0 {
+            format!("{:.1}", max_val)
+        } else {
+            "1.0".to_string()
+        };
+        output.push_str(&format!("{:>4}│", top_label));
+        output.push_str(&grid[0].iter().collect::<String>());
+        output.push('\n');
+
+        // Middle rows
+        for row in grid.iter().skip(1).take(height - 2) {
+            output.push_str("    │");
+            output.push_str(&row.iter().collect::<String>());
+            output.push('\n');
+        }
+
+        // Bottom row with 0.0 label
+        let bottom_label = if min_val < 0.0 {
+            format!("{:.1}", min_val)
+        } else {
+            "0.0".to_string()
+        };
+        output.push_str(&format!("{:>4}│", bottom_label));
+        output.push_str(&grid[height - 1].iter().collect::<String>());
+        output.push('\n');
+
+        // X-axis
+        output.push_str("    └");
+        output.push_str(&"─".repeat(width));
+        output.push('\n');
+        output.push_str("     0");
+        output.push_str(&" ".repeat(width - 3));
+        output.push_str("→ 1");
+
+        output
+    }
+
+    /// Get a human-readable description of an interpolation type
+    fn describe_interpolation(interpolation: &Interpolation) -> &'static str {
+        match interpolation {
+            Interpolation::Linear => "Constant speed (no easing)",
+            Interpolation::EaseIn => "Slow start, fast end (acceleration)",
+            Interpolation::EaseOut => "Fast start, slow end (deceleration)",
+            Interpolation::EaseInOut => "Smooth S-curve (slow start and end)",
+            Interpolation::Bounce => "Overshoot and settle back",
+            Interpolation::Elastic => "Spring-like oscillation",
+            Interpolation::Bezier { .. } => "Custom cubic bezier curve",
+            Interpolation::Steps { .. } => "Discrete step function",
+        }
+    }
+
+    /// Get the CSS-canonical form of an interpolation
+    fn interpolation_to_css(interpolation: &Interpolation) -> String {
+        match interpolation {
+            Interpolation::Linear => "linear".to_string(),
+            Interpolation::EaseIn => "ease-in".to_string(),
+            Interpolation::EaseOut => "ease-out".to_string(),
+            Interpolation::EaseInOut => "ease-in-out".to_string(),
+            Interpolation::Bounce => "bounce".to_string(),
+            Interpolation::Elastic => "elastic".to_string(),
+            Interpolation::Bezier { p1, p2 } => {
+                format!("cubic-bezier({}, {}, {}, {})", p1.0, p1.1, p2.0, p2.1)
+            }
+            Interpolation::Steps { count, position } => match position {
+                StepPosition::JumpEnd => {
+                    if *count == 1 {
+                        "step-end".to_string()
+                    } else {
+                        format!("steps({})", count)
+                    }
+                }
+                StepPosition::JumpStart => {
+                    if *count == 1 {
+                        "step-start".to_string()
+                    } else {
+                        format!("steps({}, jump-start)", count)
+                    }
+                }
+                _ => format!("steps({}, {})", count, position),
+            },
+        }
+    }
+
+    /// Parse timing function context from a JSON line at cursor position
+    ///
+    /// Returns TimingFunctionInfo if the cursor is within a timing_function value.
+    fn parse_timing_function_context(line: &str, char_pos: u32) -> Option<TimingFunctionInfo> {
+        // Parse the JSON line
+        let obj: Value = serde_json::from_str(line).ok()?;
+        let obj = obj.as_object()?;
+
+        // Check if this is an animation type
+        let obj_type = obj.get("type")?.as_str()?;
+        if obj_type != "animation" {
+            return None;
+        }
+
+        // Look for timing_function field
+        let timing_str = obj.get("timing_function")?.as_str()?;
+
+        // Find the timing_function key position in the raw JSON
+        let key_pos = line.find("\"timing_function\"")?;
+
+        // Find the colon after the key
+        let after_key = &line[key_pos..];
+        let colon_offset = after_key.find(':')?;
+
+        // Find the opening quote of the value
+        let after_colon = &after_key[colon_offset..];
+        let quote_offset = after_colon.find('"')?;
+        let value_start = key_pos + colon_offset + quote_offset + 1;
+
+        // Find the closing quote
+        let value_end = value_start + timing_str.len();
+
+        // Check if cursor is within the value
+        let char_pos = char_pos as usize;
+        if char_pos < value_start || char_pos > value_end {
+            return None;
+        }
+
+        // Parse the timing function
+        let interpolation = parse_timing_function(timing_str).ok()?;
+
+        Some(TimingFunctionInfo {
+            function_str: timing_str.to_string(),
+            interpolation,
+        })
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -712,6 +890,30 @@ impl LanguageServer for PixelsrcLanguageServer {
                     range: None,
                 }));
             }
+        }
+
+        // Try to parse timing function context at the cursor position
+        if let Some(timing_info) = Self::parse_timing_function_context(line, pos.character) {
+            // Render the ASCII easing curve (25 chars wide, 8 rows tall)
+            let curve = Self::render_easing_curve(&timing_info.interpolation, 25, 8);
+            let description = Self::describe_interpolation(&timing_info.interpolation);
+            let css_form = Self::interpolation_to_css(&timing_info.interpolation);
+
+            let hover_text = format!(
+                "**Timing Function**: `{}`\n\n\
+                 **Type**: {}\n\n\
+                 **CSS**: `{}`\n\n\
+                 ```\n{}\n```",
+                timing_info.function_str, description, css_form, curve,
+            );
+
+            return Ok(Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: hover_text,
+                }),
+                range: None,
+            }));
         }
 
         Ok(None)
@@ -1328,6 +1530,48 @@ also not json"##;
         ));
     }
 
+    // === Timing Function Visualization Tests ===
+
+    #[test]
+    fn test_parse_timing_function_context_ease_in() {
+        let line = r#"{"type": "animation", "name": "bounce", "timing_function": "ease-in", "frames": []}"#;
+        // Find position within "ease-in" value
+        let value_start = line.find("\"ease-in\"").unwrap() + 1;
+        let info = PixelsrcLanguageServer::parse_timing_function_context(line, value_start as u32);
+
+        assert!(info.is_some());
+        let info = info.unwrap();
+        assert_eq!(info.function_str, "ease-in");
+        assert!(matches!(info.interpolation, Interpolation::EaseIn));
+    }
+
+    #[test]
+    fn test_parse_timing_function_context_cubic_bezier() {
+        let line = r#"{"type": "animation", "name": "custom", "timing_function": "cubic-bezier(0.25, 0.1, 0.25, 1.0)", "frames": []}"#;
+        let value_start = line.find("\"cubic-bezier").unwrap() + 1;
+        let info = PixelsrcLanguageServer::parse_timing_function_context(line, value_start as u32);
+
+        assert!(info.is_some());
+        let info = info.unwrap();
+        assert_eq!(info.function_str, "cubic-bezier(0.25, 0.1, 0.25, 1.0)");
+        assert!(matches!(info.interpolation, Interpolation::Bezier { .. }));
+    }
+
+    #[test]
+    fn test_parse_timing_function_context_steps() {
+        let line = r#"{"type": "animation", "name": "step", "timing_function": "steps(4, jump-end)", "frames": []}"#;
+        let value_start = line.find("\"steps").unwrap() + 1;
+        let info = PixelsrcLanguageServer::parse_timing_function_context(line, value_start as u32);
+
+        assert!(info.is_some());
+        let info = info.unwrap();
+        assert_eq!(info.function_str, "steps(4, jump-end)");
+        assert!(matches!(
+            info.interpolation,
+            Interpolation::Steps { count: 4, .. }
+        ));
+    }
+
     #[test]
     fn test_is_css_variable_completion_context_after_var_dashes() {
         let line = r#""{body}": "var(--"#;
@@ -1373,5 +1617,163 @@ also not json"##;
             line,
             line.len() as u32
         ));
+    }
+
+    #[test]
+    fn test_parse_timing_function_context_not_animation() {
+        let line = r#"{"type": "sprite", "name": "test", "timing_function": "ease"}"#;
+        let info = PixelsrcLanguageServer::parse_timing_function_context(line, 50);
+        assert!(info.is_none());
+    }
+
+    #[test]
+    fn test_parse_timing_function_context_cursor_outside_value() {
+        let line = r#"{"type": "animation", "name": "test", "timing_function": "ease", "frames": []}"#;
+        // Position in "name" field, not timing_function
+        let info = PixelsrcLanguageServer::parse_timing_function_context(line, 20);
+        assert!(info.is_none());
+    }
+
+    #[test]
+    fn test_render_easing_curve_linear() {
+        let curve = PixelsrcLanguageServer::render_easing_curve(&Interpolation::Linear, 10, 5);
+        // Linear should produce a diagonal line
+        assert!(curve.contains("█"));
+        assert!(curve.contains("1.0"));
+        assert!(curve.contains("0.0"));
+        assert!(curve.contains("→ 1"));
+    }
+
+    #[test]
+    fn test_render_easing_curve_ease_in() {
+        let curve = PixelsrcLanguageServer::render_easing_curve(&Interpolation::EaseIn, 10, 5);
+        // Ease-in starts slow, should have more blocks in lower rows initially
+        assert!(curve.contains("█"));
+    }
+
+    #[test]
+    fn test_render_easing_curve_steps() {
+        let curve = PixelsrcLanguageServer::render_easing_curve(
+            &Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd,
+            },
+            20,
+            6,
+        );
+        // Steps should produce a staircase pattern
+        assert!(curve.contains("█"));
+    }
+
+    #[test]
+    fn test_describe_interpolation_all_types() {
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::Linear),
+            "Constant speed (no easing)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::EaseIn),
+            "Slow start, fast end (acceleration)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::EaseOut),
+            "Fast start, slow end (deceleration)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::EaseInOut),
+            "Smooth S-curve (slow start and end)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::Bounce),
+            "Overshoot and settle back"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::Elastic),
+            "Spring-like oscillation"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::Bezier {
+                p1: (0.0, 0.0),
+                p2: (1.0, 1.0)
+            }),
+            "Custom cubic bezier curve"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::describe_interpolation(&Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd
+            }),
+            "Discrete step function"
+        );
+    }
+
+    #[test]
+    fn test_interpolation_to_css_named() {
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Linear),
+            "linear"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseIn),
+            "ease-in"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseOut),
+            "ease-out"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseInOut),
+            "ease-in-out"
+        );
+    }
+
+    #[test]
+    fn test_interpolation_to_css_bezier() {
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Bezier {
+                p1: (0.25, 0.1),
+                p2: (0.25, 1.0)
+            }),
+            "cubic-bezier(0.25, 0.1, 0.25, 1)"
+        );
+    }
+
+    #[test]
+    fn test_interpolation_to_css_steps() {
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpEnd
+            }),
+            "step-end"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpStart
+            }),
+            "step-start"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd
+            }),
+            "steps(4)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpStart
+            }),
+            "steps(4, jump-start)"
+        );
+        assert_eq!(
+            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpBoth
+            }),
+            "steps(4, jump-both)"
+        );
     }
 }
