@@ -1644,6 +1644,249 @@ pub fn apply_scale(grid: &[String], scale_x: f32, scale_y: f32) -> Vec<String> {
     result
 }
 
+/// Apply outline transform to a grid.
+///
+/// Adds an outline of the specified token around all opaque (non-transparent)
+/// pixels. The outline is placed on transparent pixels adjacent to opaque ones.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `token` - The token to use for the outline (defaults to `{outline}` if None)
+/// * `width` - The outline width in pixels (default 1)
+///
+/// # Returns
+/// A new grid with outline added around opaque pixels
+///
+/// # Algorithm
+/// 1. Parse each row into tokens
+/// 2. For each transparent pixel, check if any opaque pixel exists within `width` distance
+/// 3. If so, replace the transparent pixel with the outline token
+pub fn apply_outline(grid: &[String], token: Option<&str>, width: u32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() || width == 0 {
+        return grid.to_vec();
+    }
+
+    let outline_token = token.unwrap_or("{outline}");
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let height = parsed.len();
+    let width_pixels = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if width_pixels == 0 {
+        return grid.to_vec();
+    }
+
+    // Helper to check if a token is transparent
+    let is_transparent = |token: &str| -> bool { token == TRANSPARENT_TOKEN };
+
+    // Helper to get token at position (with bounds checking)
+    let get_token = |x: i32, y: i32| -> Option<&String> {
+        if x < 0 || y < 0 || x >= width_pixels as i32 || y >= height as i32 {
+            return None;
+        }
+        parsed
+            .get(y as usize)
+            .and_then(|row| row.get(x as usize))
+    };
+
+    // Check if any opaque pixel exists within `width` distance of position
+    // Uses Chebyshev distance (max of |dx|, |dy|) to include diagonals
+    let has_opaque_neighbor = |x: i32, y: i32, outline_width: u32| -> bool {
+        let w = outline_width as i32;
+        for dy in -w..=w {
+            for dx in -w..=w {
+                if dx == 0 && dy == 0 {
+                    continue;
+                }
+                // Chebyshev distance: max of |dx| and |dy|
+                // This includes diagonal neighbors at distance 1
+                if dx.abs().max(dy.abs()) > w {
+                    continue;
+                }
+                if let Some(t) = get_token(x + dx, y + dy) {
+                    if !is_transparent(t) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    };
+
+    // Transform the grid
+    let mut result: Vec<String> = Vec::with_capacity(height);
+
+    for (y, row) in parsed.iter().enumerate() {
+        let mut new_row = String::new();
+        for (x, tok) in row.iter().enumerate() {
+            if is_transparent(tok) && has_opaque_neighbor(x as i32, y as i32, width) {
+                new_row.push_str(outline_token);
+            } else {
+                new_row.push_str(tok);
+            }
+        }
+        result.push(new_row);
+    }
+
+    result
+}
+
+/// Apply shift transform to a grid.
+///
+/// Shifts all pixels in the grid by the specified x and y offsets.
+/// Pixels that shift outside the bounds are lost, and empty space
+/// is filled with transparent tokens.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `x` - Horizontal shift (positive = right, negative = left)
+/// * `y` - Vertical shift (positive = down, negative = up)
+///
+/// # Returns
+/// A new grid with content shifted by the specified amounts
+pub fn apply_shift(grid: &[String], x: i32, y: i32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() {
+        return Vec::new();
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let height = parsed.len();
+    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if width == 0 {
+        return grid.to_vec();
+    }
+
+    // Helper to get token at position (with bounds checking)
+    let get_token = |px: i32, py: i32| -> Option<&String> {
+        if px < 0 || py < 0 || px >= width as i32 || py >= height as i32 {
+            return None;
+        }
+        parsed
+            .get(py as usize)
+            .and_then(|row| row.get(px as usize))
+    };
+
+    // Build shifted grid
+    let mut result: Vec<String> = Vec::with_capacity(height);
+
+    for dst_y in 0..height {
+        let mut new_row = String::new();
+        let src_y = dst_y as i32 - y;
+
+        for dst_x in 0..width {
+            let src_x = dst_x as i32 - x;
+
+            if let Some(token) = get_token(src_x, src_y) {
+                new_row.push_str(token);
+            } else {
+                new_row.push_str(TRANSPARENT_TOKEN);
+            }
+        }
+        result.push(new_row);
+    }
+
+    result
+}
+
+/// Apply shadow transform to a grid.
+///
+/// Creates a drop shadow effect by painting a copy of the opaque pixels
+/// at the specified offset, then overlaying the original on top.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `x` - Horizontal shadow offset (positive = right, negative = left)
+/// * `y` - Vertical shadow offset (positive = down, negative = up)
+/// * `token` - The token to use for the shadow (defaults to `{shadow}` if None)
+///
+/// # Returns
+/// A new grid with shadow effect applied
+///
+/// # Algorithm
+/// 1. Create a shadow layer: shift opaque pixels by (x, y) and paint with shadow token
+/// 2. Composite original on top of shadow layer
+pub fn apply_shadow(grid: &[String], x: i32, y: i32, token: Option<&str>) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() {
+        return Vec::new();
+    }
+
+    let shadow_token = token.unwrap_or("{shadow}");
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let height = parsed.len();
+    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if width == 0 {
+        return grid.to_vec();
+    }
+
+    // Helper to check if a token is transparent
+    let is_transparent = |tok: &str| -> bool { tok == TRANSPARENT_TOKEN };
+
+    // Helper to get token at position (with bounds checking)
+    let get_token = |px: i32, py: i32| -> Option<&String> {
+        if px < 0 || py < 0 || px >= width as i32 || py >= height as i32 {
+            return None;
+        }
+        parsed
+            .get(py as usize)
+            .and_then(|row| row.get(px as usize))
+    };
+
+    // Build the result grid
+    // For each position, check:
+    // 1. If original pixel is opaque -> use original
+    // 2. Else if shadow source pixel (at offset) is opaque -> use shadow token
+    // 3. Else -> use transparent
+    let mut result: Vec<String> = Vec::with_capacity(height);
+
+    for dst_y in 0..height {
+        let mut new_row = String::new();
+
+        for dst_x in 0..width {
+            // Check original pixel
+            if let Some(orig_token) = get_token(dst_x as i32, dst_y as i32) {
+                if !is_transparent(orig_token) {
+                    // Original is opaque, keep it
+                    new_row.push_str(orig_token);
+                    continue;
+                }
+            }
+
+            // Check shadow source (original position minus offset = where shadow comes from)
+            let shadow_src_x = dst_x as i32 - x;
+            let shadow_src_y = dst_y as i32 - y;
+
+            if let Some(src_token) = get_token(shadow_src_x, shadow_src_y) {
+                if !is_transparent(src_token) {
+                    // Shadow source is opaque, paint shadow
+                    new_row.push_str(shadow_token);
+                    continue;
+                }
+            }
+
+            // Both transparent, keep transparent
+            new_row.push_str(TRANSPARENT_TOKEN);
+        }
+        result.push(new_row);
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2949,5 +3192,240 @@ mod tests {
     #[test]
     fn test_is_not_animation_transform_scale() {
         assert!(!is_animation_transform(&Transform::Scale { x: 2.0, y: 2.0 }));
+    }
+
+    // ============================================================================
+    // Effect Transform Tests (TRF-4)
+    // ============================================================================
+
+    #[test]
+    fn test_apply_outline_basic() {
+        // Simple 3x3 grid with center pixel opaque
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{x}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let result = apply_outline(&grid, None, 1);
+        // All surrounding transparent pixels should become outline
+        assert_eq!(result[0], "{outline}{outline}{outline}");
+        assert_eq!(result[1], "{outline}{x}{outline}");
+        assert_eq!(result[2], "{outline}{outline}{outline}");
+    }
+
+    #[test]
+    fn test_apply_outline_custom_token() {
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{x}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let result = apply_outline(&grid, Some("{border}"), 1);
+        assert_eq!(result[0], "{border}{border}{border}");
+        assert_eq!(result[1], "{border}{x}{border}");
+        assert_eq!(result[2], "{border}{border}{border}");
+    }
+
+    #[test]
+    fn test_apply_outline_width_2() {
+        // 5x5 grid with center pixel
+        let grid = vec![
+            "{_}{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}{_}".to_string(),
+            "{_}{_}{x}{_}{_}".to_string(),
+            "{_}{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}{_}".to_string(),
+        ];
+        let result = apply_outline(&grid, None, 2);
+        // With width 2, outline should extend further (Manhattan distance <= 2)
+        // Row 0: positions within distance 2 from center (2,2)
+        // (2,0) is dist 2, so should be outlined
+        assert!(result[0].contains("{outline}"));
+        assert_eq!(result[2], "{outline}{outline}{x}{outline}{outline}");
+    }
+
+    #[test]
+    fn test_apply_outline_preserves_opaque() {
+        // Multiple opaque pixels
+        let grid = vec![
+            "{_}{a}{_}".to_string(),
+            "{b}{c}{d}".to_string(),
+            "{_}{e}{_}".to_string(),
+        ];
+        let result = apply_outline(&grid, None, 1);
+        // Corners should get outlined, center pixels preserved
+        assert_eq!(result[0], "{outline}{a}{outline}");
+        assert_eq!(result[1], "{b}{c}{d}");
+        assert_eq!(result[2], "{outline}{e}{outline}");
+    }
+
+    #[test]
+    fn test_apply_outline_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_outline(&grid, None, 1);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_outline_width_zero() {
+        let grid = vec![
+            "{_}{x}{_}".to_string(),
+        ];
+        let result = apply_outline(&grid, None, 0);
+        // Width 0 should return unchanged
+        assert_eq!(result[0], "{_}{x}{_}");
+    }
+
+    #[test]
+    fn test_apply_shift_right() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let result = apply_shift(&grid, 1, 0);
+        // Shift right by 1: left column becomes transparent
+        assert_eq!(result[0], "{_}{a}{b}");
+        assert_eq!(result[1], "{_}{d}{e}");
+    }
+
+    #[test]
+    fn test_apply_shift_left() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let result = apply_shift(&grid, -1, 0);
+        // Shift left by 1: right column becomes transparent
+        assert_eq!(result[0], "{b}{c}{_}");
+        assert_eq!(result[1], "{e}{f}{_}");
+    }
+
+    #[test]
+    fn test_apply_shift_down() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+            "{e}{f}".to_string(),
+        ];
+        let result = apply_shift(&grid, 0, 1);
+        // Shift down by 1: top row becomes transparent
+        assert_eq!(result[0], "{_}{_}");
+        assert_eq!(result[1], "{a}{b}");
+        assert_eq!(result[2], "{c}{d}");
+    }
+
+    #[test]
+    fn test_apply_shift_up() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+            "{e}{f}".to_string(),
+        ];
+        let result = apply_shift(&grid, 0, -1);
+        // Shift up by 1: bottom row becomes transparent
+        assert_eq!(result[0], "{c}{d}");
+        assert_eq!(result[1], "{e}{f}");
+        assert_eq!(result[2], "{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_shift_diagonal() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let result = apply_shift(&grid, 1, 1);
+        // Shift right 1, down 1
+        assert_eq!(result[0], "{_}{_}{_}");
+        assert_eq!(result[1], "{_}{a}{b}");
+        assert_eq!(result[2], "{_}{d}{e}");
+    }
+
+    #[test]
+    fn test_apply_shift_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_shift(&grid, 1, 1);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_shadow_basic() {
+        // Small sprite, shadow offset (1,1)
+        let grid = vec![
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{x}{x}{_}".to_string(),
+            "{_}{x}{x}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+        ];
+        let result = apply_shadow(&grid, 1, 1, None);
+        // Original pixels preserved
+        assert!(result[1].contains("{x}"));
+        assert!(result[2].contains("{x}"));
+        // Shadow should appear at offset
+        assert!(result[2].contains("{shadow}") || result[3].contains("{shadow}"));
+    }
+
+    #[test]
+    fn test_apply_shadow_custom_token() {
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{x}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let result = apply_shadow(&grid, 1, 1, Some("{dark}"));
+        // Shadow at (2,2) should be {dark}
+        assert_eq!(result[2], "{_}{_}{dark}");
+    }
+
+    #[test]
+    fn test_apply_shadow_negative_offset() {
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{x}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let result = apply_shadow(&grid, -1, -1, None);
+        // Shadow should appear at (0,0)
+        assert_eq!(result[0], "{shadow}{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_shadow_overlapping() {
+        // Shadow overlaps with original - original should win
+        let grid = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{a}{b}".to_string(),
+            "{_}{c}{d}".to_string(),
+        ];
+        let result = apply_shadow(&grid, 1, 0, None);
+        // Rightmost pixels would be shadowed but original is there
+        assert_eq!(result[1], "{_}{a}{b}"); // {b} preserved, not shadowed
+        assert_eq!(result[2], "{_}{c}{d}"); // {d} preserved, not shadowed
+        // But check for shadow where original is transparent
+        // At (0,1) we're transparent, shadow from (-1,1) - which is out of bounds - no shadow
+        // But {a} at (1,1) casts shadow to (2,1) which has {b} - preserved
+    }
+
+    #[test]
+    fn test_apply_shadow_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_shadow(&grid, 1, 1, None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_shadow_preserves_original() {
+        // Ensure original opaque pixels are never replaced by shadow
+        let grid = vec![
+            "{a}{_}".to_string(),
+            "{_}{b}".to_string(),
+        ];
+        let result = apply_shadow(&grid, 1, 1, None);
+        // {a} at (0,0) - original preserved
+        // {b} at (1,1) - original preserved
+        // Shadow of {a} would be at (1,1) but {b} is there
+        assert!(result[0].starts_with("{a}"));
+        assert!(result[1].ends_with("{b}"));
     }
 }
