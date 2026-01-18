@@ -1887,6 +1887,135 @@ pub fn apply_shadow(grid: &[String], x: i32, y: i32, token: Option<&str>) -> Vec
     result
 }
 
+/// Apply horizontal mirror (flip left-to-right) to a grid.
+///
+/// Each row is reversed, so the leftmost column becomes the rightmost.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+///
+/// # Returns
+/// A new grid with rows reversed horizontally
+pub fn apply_mirror_horizontal(grid: &[String]) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() {
+        return Vec::new();
+    }
+
+    // Parse grid into 2D token array and reverse each row
+    grid.iter()
+        .map(|row| {
+            let tokens = tokenize(row).0;
+            let reversed: Vec<&str> = tokens.iter().rev().map(|s| s.as_str()).collect();
+            reversed.concat()
+        })
+        .collect()
+}
+
+/// Apply vertical mirror (flip top-to-bottom) to a grid.
+///
+/// The row order is reversed, so the top row becomes the bottom.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+///
+/// # Returns
+/// A new grid with rows in reversed order
+pub fn apply_mirror_vertical(grid: &[String]) -> Vec<String> {
+    grid.iter().rev().cloned().collect()
+}
+
+/// Apply rotation to a grid.
+///
+/// Rotates the grid clockwise by the specified degrees (90, 180, or 270).
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `degrees` - The rotation angle (must be 90, 180, or 270)
+///
+/// # Returns
+/// A new rotated grid, or the original grid if degrees is not 90, 180, or 270
+pub fn apply_rotate(grid: &[String], degrees: u16) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() {
+        return Vec::new();
+    }
+
+    match degrees {
+        180 => {
+            // 180 degrees: reverse rows and reverse within each row
+            // This is equivalent to mirror_h + mirror_v
+            apply_mirror_horizontal(&apply_mirror_vertical(grid))
+        }
+        90 => {
+            // 90 degrees clockwise: columns become rows (bottom to top)
+            // Original (0,0) goes to (0, h-1)
+            // Original (x,y) goes to (h-1-y, x)
+            let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+            let height = parsed.len();
+            let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+            if width == 0 {
+                return Vec::new();
+            }
+
+            // New dimensions: width becomes height, height becomes width
+            let mut result: Vec<String> = Vec::with_capacity(width);
+
+            for x in 0..width {
+                let mut new_row = String::new();
+                // Read from bottom to top for this column
+                for y in (0..height).rev() {
+                    if let Some(token) = parsed[y].get(x) {
+                        new_row.push_str(token);
+                    } else {
+                        new_row.push_str(TRANSPARENT_TOKEN);
+                    }
+                }
+                result.push(new_row);
+            }
+
+            result
+        }
+        270 => {
+            // 270 degrees clockwise (= 90 CCW): columns become rows (top to bottom)
+            // Original (x,y) goes to (y, w-1-x)
+            let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+            let height = parsed.len();
+            let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+            if width == 0 {
+                return Vec::new();
+            }
+
+            // New dimensions: width becomes height, height becomes width
+            let mut result: Vec<String> = Vec::with_capacity(width);
+
+            // Iterate columns right to left
+            for x in (0..width).rev() {
+                let mut new_row = String::new();
+                // Read from top to bottom for this column
+                for y in 0..height {
+                    if let Some(token) = parsed[y].get(x) {
+                        new_row.push_str(token);
+                    } else {
+                        new_row.push_str(TRANSPARENT_TOKEN);
+                    }
+                }
+                result.push(new_row);
+            }
+
+            result
+        }
+        _ => {
+            // For 0 or invalid degrees, return unchanged
+            grid.to_vec()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3427,5 +3556,245 @@ mod tests {
         // Shadow of {a} would be at (1,1) but {b} is there
         assert!(result[0].starts_with("{a}"));
         assert!(result[1].ends_with("{b}"));
+    }
+
+    // ========================================================================
+    // Geometric Transform Tests
+    // ========================================================================
+
+    #[test]
+    fn test_apply_mirror_horizontal_basic() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let result = apply_mirror_horizontal(&grid);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{c}{b}{a}");
+        assert_eq!(result[1], "{f}{e}{d}");
+    }
+
+    #[test]
+    fn test_apply_mirror_horizontal_empty() {
+        let grid: Vec<String> = vec![];
+        let result = apply_mirror_horizontal(&grid);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_mirror_horizontal_single_row() {
+        let grid = vec!["{1}{2}{3}{4}".to_string()];
+        let result = apply_mirror_horizontal(&grid);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "{4}{3}{2}{1}");
+    }
+
+    #[test]
+    fn test_apply_mirror_horizontal_single_column() {
+        let grid = vec![
+            "{a}".to_string(),
+            "{b}".to_string(),
+            "{c}".to_string(),
+        ];
+        let result = apply_mirror_horizontal(&grid);
+        assert_eq!(result.len(), 3);
+        // Single column should be unchanged
+        assert_eq!(result[0], "{a}");
+        assert_eq!(result[1], "{b}");
+        assert_eq!(result[2], "{c}");
+    }
+
+    #[test]
+    fn test_apply_mirror_vertical_basic() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+            "{e}{f}".to_string(),
+        ];
+        let result = apply_mirror_vertical(&grid);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "{e}{f}");
+        assert_eq!(result[1], "{c}{d}");
+        assert_eq!(result[2], "{a}{b}");
+    }
+
+    #[test]
+    fn test_apply_mirror_vertical_empty() {
+        let grid: Vec<String> = vec![];
+        let result = apply_mirror_vertical(&grid);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_mirror_vertical_single_row() {
+        let grid = vec!["{x}{y}{z}".to_string()];
+        let result = apply_mirror_vertical(&grid);
+        assert_eq!(result.len(), 1);
+        // Single row should be unchanged
+        assert_eq!(result[0], "{x}{y}{z}");
+    }
+
+    #[test]
+    fn test_apply_rotate_90_square() {
+        // 2x2 grid rotated 90 degrees clockwise
+        // Original:    Rotated 90:
+        // a b          c a
+        // c d          d b
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 90);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{c}{a}");
+        assert_eq!(result[1], "{d}{b}");
+    }
+
+    #[test]
+    fn test_apply_rotate_90_rectangular() {
+        // 2x3 grid (2 columns, 3 rows) rotated 90 degrees clockwise
+        // Original:    Rotated 90 (3 columns, 2 rows):
+        // a b          e c a
+        // c d          f d b
+        // e f
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+            "{e}{f}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 90);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{e}{c}{a}");
+        assert_eq!(result[1], "{f}{d}{b}");
+    }
+
+    #[test]
+    fn test_apply_rotate_180() {
+        // 180 degree rotation (same as mirror_h + mirror_v)
+        // Original:    Rotated 180:
+        // a b c        i h g
+        // d e f        f e d
+        // g h i        c b a
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 180);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "{i}{h}{g}");
+        assert_eq!(result[1], "{f}{e}{d}");
+        assert_eq!(result[2], "{c}{b}{a}");
+    }
+
+    #[test]
+    fn test_apply_rotate_270() {
+        // 270 degrees clockwise (= 90 counter-clockwise)
+        // Original:    Rotated 270:
+        // a b          b d
+        // c d          a c
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 270);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{b}{d}");
+        assert_eq!(result[1], "{a}{c}");
+    }
+
+    #[test]
+    fn test_apply_rotate_270_rectangular() {
+        // 3x2 grid (3 columns, 2 rows) rotated 270 degrees clockwise
+        // Original:    Rotated 270 (2 columns, 3 rows):
+        // a b c        c f
+        // d e f        b e
+        //              a d
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 270);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "{c}{f}");
+        assert_eq!(result[1], "{b}{e}");
+        assert_eq!(result[2], "{a}{d}");
+    }
+
+    #[test]
+    fn test_apply_rotate_empty() {
+        let grid: Vec<String> = vec![];
+        let result = apply_rotate(&grid, 90);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_rotate_invalid_degrees() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        // 0 degrees should return unchanged
+        let result = apply_rotate(&grid, 0);
+        assert_eq!(result, grid);
+
+        // 45 degrees (invalid) should return unchanged
+        let result = apply_rotate(&grid, 45);
+        assert_eq!(result, grid);
+    }
+
+    #[test]
+    fn test_rotate_90_then_90_equals_180() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+        ];
+        let rotated_twice = apply_rotate(&apply_rotate(&grid, 90), 90);
+        let rotated_180 = apply_rotate(&grid, 180);
+        assert_eq!(rotated_twice, rotated_180);
+    }
+
+    #[test]
+    fn test_rotate_four_times_identity() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let rotated = apply_rotate(&apply_rotate(&apply_rotate(&apply_rotate(&grid, 90), 90), 90), 90);
+        assert_eq!(rotated, grid);
+    }
+
+    #[test]
+    fn test_mirror_h_twice_identity() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let mirrored = apply_mirror_horizontal(&apply_mirror_horizontal(&grid));
+        assert_eq!(mirrored, grid);
+    }
+
+    #[test]
+    fn test_mirror_v_twice_identity() {
+        let grid = vec![
+            "{a}{b}".to_string(),
+            "{c}{d}".to_string(),
+            "{e}{f}".to_string(),
+        ];
+        let mirrored = apply_mirror_vertical(&apply_mirror_vertical(&grid));
+        assert_eq!(mirrored, grid);
+    }
+
+    #[test]
+    fn test_rotate_with_transparent() {
+        // Test that transparent tokens are handled correctly during rotation
+        let grid = vec![
+            "{a}{_}".to_string(),
+            "{_}{b}".to_string(),
+        ];
+        let result = apply_rotate(&grid, 90);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{_}{a}");
+        assert_eq!(result[1], "{b}{_}");
     }
 }
