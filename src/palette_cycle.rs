@@ -4,7 +4,7 @@
 //! rotate through a set of palette tokens, creating effects like shimmering
 //! water, flickering fire, or pulsing energy without needing multiple sprite frames.
 
-use crate::models::{Animation, PaletteCycle, Sprite};
+use crate::models::{Animation, Duration, PaletteCycle, Sprite};
 use crate::renderer::render_sprite;
 use image::RgbaImage;
 use std::collections::HashMap;
@@ -334,7 +334,7 @@ mod tests {
         let anim = Animation {
             name: "water_cycle".to_string(),
             frames: vec!["water".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: Some(true),
             palette_cycle: Some(vec![PaletteCycle {
                 tokens: vec!["{w1}".to_string(), "{w2}".to_string()],
@@ -369,7 +369,7 @@ mod tests {
         let anim1 = Animation {
             name: "test".to_string(),
             frames: vec!["f".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: None,
             palette_cycle: Some(vec![PaletteCycle {
                 tokens: vec!["{a}".to_string()],
@@ -386,7 +386,7 @@ mod tests {
         let anim2 = Animation {
             name: "test".to_string(),
             frames: vec!["f".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: None,
             palette_cycle: Some(vec![PaletteCycle {
                 tokens: vec!["{a}".to_string()],
@@ -403,7 +403,7 @@ mod tests {
         let anim3 = Animation {
             name: "test".to_string(),
             frames: vec!["f".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: None,
             palette_cycle: None,
             tags: None,

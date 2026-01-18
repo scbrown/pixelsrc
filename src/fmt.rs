@@ -6,8 +6,8 @@
 //! - Keeping palettes, animations, and variants as single-line JSON
 
 use crate::models::{
-    Animation, Composition, CompositionLayer, Palette, PaletteRef, Particle, Sprite, TtpObject,
-    Variant,
+    Animation, Composition, CompositionLayer, Duration, Palette, PaletteRef, Particle, Sprite,
+    TtpObject, Variant,
 };
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -308,7 +308,7 @@ fn format_animation(anim: &Animation) -> String {
     s.push(']');
 
     // Duration (if specified)
-    if let Some(duration) = anim.duration {
+    if let Some(ref duration) = anim.duration {
         s.push_str(&format!(r#", "duration": {}"#, duration));
     }
 
@@ -474,7 +474,7 @@ mod tests {
         let anim = Animation {
             name: "walk".to_string(),
             frames: vec!["f1".to_string(), "f2".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: None,
             palette_cycle: None,
             tags: None,

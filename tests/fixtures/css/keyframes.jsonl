@@ -1,0 +1,5 @@
+{"type": "palette", "name": "test_palette", "tokens": {"{bg}": "#000000", "{fg}": "#ffffff", "{accent}": "#ff0000"}}
+{"type": "sprite", "name": "frame_a", "palette": "test_palette", "grid": ["{fg} . .", ". {fg} .", ". . {fg}"]}
+{"type": "sprite", "name": "frame_b", "palette": "test_palette", "grid": [". . {accent}", ". {accent} .", "{accent} . ."]}
+{"type": "animation", "name": "css_keyframe_test", "keyframes": {"0%": {"sprite": "frame_a", "opacity": 1.0}, "50%": {"sprite": "frame_b", "opacity": 0.5, "offset": [1, 0]}, "100%": {"sprite": "frame_a", "opacity": 1.0}}, "duration": "500ms", "timing_function": "ease-in-out"}
+{"type": "animation", "name": "simple_fade", "keyframes": {"from": {"sprite": "frame_a", "opacity": 0.0}, "to": {"sprite": "frame_a", "opacity": 1.0}}, "duration": "1s"}

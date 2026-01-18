@@ -1,6 +1,6 @@
 //! Animation validation - validate animation references
 
-use crate::models::{Animation, FrameTag, Sprite};
+use crate::models::{Animation, Duration, FrameTag, Sprite};
 use std::collections::HashMap;
 
 /// A warning generated during animation validation
@@ -181,7 +181,7 @@ mod tests {
         let anim = Animation {
             name: "blink".to_string(),
             frames: vec!["on".to_string(), "off".to_string()],
-            duration: Some(500),
+            duration: Some(Duration::Milliseconds(500)),
             r#loop: Some(true),
             palette_cycle: None,
             tags: None,

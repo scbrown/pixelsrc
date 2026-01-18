@@ -1,0 +1,4 @@
+{"type": "palette", "name": "demo", "tokens": {"{bg}": "#1a1a2e", "{fg}": "#eee"}}
+{"type": "sprite", "name": "walk_1", "palette": "demo", "grid": ["{fg} . . .", ". {fg} . .", ". . {fg} .", ". . . {fg}"]}
+{"type": "sprite", "name": "walk_2", "palette": "demo", "grid": [". . . {fg}", ". . {fg} .", ". {fg} . .", "{fg} . . ."]}
+{"type": "animation", "name": "fade_walk", "keyframes": {"0%": {"sprite": "walk_1", "opacity": 0.0}, "50%": {"sprite": "walk_2", "opacity": 1.0}, "100%": {"sprite": "walk_1", "opacity": 0.0}}, "duration": "500ms", "timing_function": "ease-in-out"}

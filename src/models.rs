@@ -85,6 +85,122 @@ impl From<String> for VarOr<f64> {
     }
 }
 
+/// A duration value that can be either a raw millisecond number or a CSS time string.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::models::Duration;
+///
+/// // Can be deserialized from either format
+/// let ms: Duration = serde_json::from_str("100").unwrap();
+/// let css: Duration = serde_json::from_str("\"500ms\"").unwrap();
+///
+/// assert_eq!(ms.as_milliseconds(), Some(100));
+/// assert_eq!(css.as_milliseconds(), Some(500));
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Duration {
+    /// Raw milliseconds (backwards compatible)
+    Milliseconds(u32),
+    /// CSS time string (e.g., "500ms", "1s", "0.5s")
+    CssString(String),
+}
+
+impl Duration {
+    /// Parse the duration and return milliseconds.
+    ///
+    /// Returns `None` if the CSS string cannot be parsed.
+    pub fn as_milliseconds(&self) -> Option<u32> {
+        match self {
+            Duration::Milliseconds(ms) => Some(*ms),
+            Duration::CssString(s) => parse_css_duration(s),
+        }
+    }
+}
+
+impl Default for Duration {
+    fn default() -> Self {
+        Duration::Milliseconds(100)
+    }
+}
+
+impl std::fmt::Display for Duration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Duration::Milliseconds(ms) => write!(f, "{}", ms),
+            Duration::CssString(s) => write!(f, "\"{}\"", s),
+        }
+    }
+}
+
+impl From<u32> for Duration {
+    fn from(ms: u32) -> Self {
+        Duration::Milliseconds(ms)
+    }
+}
+
+impl From<&str> for Duration {
+    fn from(s: &str) -> Self {
+        Duration::CssString(s.to_string())
+    }
+}
+
+/// Parse a CSS duration string into milliseconds.
+///
+/// Supports:
+/// - `<number>ms` - milliseconds (e.g., "500ms")
+/// - `<number>s` - seconds (e.g., "1.5s")
+fn parse_css_duration(s: &str) -> Option<u32> {
+    let s = s.trim().to_lowercase();
+
+    if let Some(ms_str) = s.strip_suffix("ms") {
+        ms_str.trim().parse::<f64>().ok().map(|v| v as u32)
+    } else if let Some(s_str) = s.strip_suffix('s') {
+        s_str
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .map(|v| (v * 1000.0) as u32)
+    } else {
+        // Try parsing as raw number (assume milliseconds)
+        s.parse::<f64>().ok().map(|v| v as u32)
+    }
+}
+
+/// A CSS-style keyframe defining properties at a specific point in an animation.
+///
+/// Used with percentage keys (e.g., "0%", "50%", "100%") or "from"/"to" aliases.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::models::CssKeyframe;
+///
+/// // Keyframe with sprite and opacity
+/// let kf: CssKeyframe = serde_json::from_str(r#"{
+///     "sprite": "walk_1",
+///     "opacity": 1.0
+/// }"#).unwrap();
+/// assert_eq!(kf.sprite, Some("walk_1".to_string()));
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct CssKeyframe {
+    /// Sprite to display at this keyframe
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub sprite: Option<String>,
+    /// CSS transform string (e.g., "rotate(45deg) scale(2)")
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<String>,
+    /// Opacity at this keyframe (0.0 to 1.0)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub opacity: Option<f64>,
+    /// Position offset at this keyframe `[x, y]`
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub offset: Option<[i32; 2]>,
+}
+
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
@@ -313,20 +429,53 @@ impl Attachment {
 }
 
 /// An animation definition (Phase 3).
+///
+/// Supports two formats:
+/// - **Frame array format** (legacy): `frames: ["sprite1", "sprite2", ...]`
+/// - **CSS keyframes format** (CSS-13): `keyframes: {"0%": {...}, "100%": {...}}`
+///
+/// The `frames` and `keyframes` fields are mutually exclusive.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
     pub name: String,
-    /// Frame sprite names (mutually exclusive with `source`)
+    /// Frame sprite names (mutually exclusive with `source` and `keyframes`)
     #[serde(default)]
     pub frames: Vec<String>,
+    /// CSS-style percentage-based keyframes (mutually exclusive with `frames`)
+    ///
+    /// Keys are percentages ("0%", "50%", "100%") or aliases ("from" = "0%", "to" = "100%").
+    /// Each keyframe can specify sprite, transform, opacity, and offset.
+    ///
+    /// # Example
+    /// ```json
+    /// {
+    ///   "type": "animation",
+    ///   "name": "fade_walk",
+    ///   "keyframes": {
+    ///     "0%": { "sprite": "walk_1", "opacity": 0.0 },
+    ///     "50%": { "sprite": "walk_2", "opacity": 1.0 },
+    ///     "100%": { "sprite": "walk_1", "opacity": 0.0 }
+    ///   },
+    ///   "duration": "500ms",
+    ///   "timing_function": "ease-in-out"
+    /// }
+    /// ```
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub keyframes: Option<HashMap<String, CssKeyframe>>,
     /// Reference to another animation by name (mutually exclusive with `frames`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
     /// Transforms to apply when resolving this animation
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub transform: Option<Vec<TransformSpec>>,
+    /// Duration per frame (for frames format) or total animation duration (for keyframes format).
+    /// Accepts both raw milliseconds (100) and CSS time strings ("500ms", "1s").
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub duration: Option<u32>,
+    pub duration: Option<Duration>,
+    /// CSS timing function for keyframes interpolation (e.g., "linear", "ease", "ease-in-out",
+    /// "cubic-bezier(0.25, 0.1, 0.25, 1.0)", "steps(4, jump-end)")
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub timing_function: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub r#loop: Option<bool>,
     /// Palette cycles for color animation effects (water, fire, energy, etc.)
@@ -362,14 +511,35 @@ impl Animation {
     /// Default duration per frame in milliseconds.
     pub const DEFAULT_DURATION_MS: u32 = 100;
 
-    /// Returns the duration per frame in milliseconds (default: 100ms).
+    /// Returns the duration in milliseconds (default: 100ms).
+    ///
+    /// For frame-based animations, this is the duration per frame.
+    /// For CSS keyframe animations, this is the total animation duration.
     pub fn duration_ms(&self) -> u32 {
-        self.duration.unwrap_or(Self::DEFAULT_DURATION_MS)
+        self.duration
+            .as_ref()
+            .and_then(|d| d.as_milliseconds())
+            .unwrap_or(Self::DEFAULT_DURATION_MS)
     }
 
     /// Returns whether the animation should loop (default: true).
     pub fn loops(&self) -> bool {
         self.r#loop.unwrap_or(true)
+    }
+
+    /// Returns whether this animation uses CSS-style keyframes.
+    pub fn is_css_keyframes(&self) -> bool {
+        self.keyframes.is_some() && !self.keyframes.as_ref().unwrap().is_empty()
+    }
+
+    /// Returns whether this animation uses frame array format.
+    pub fn is_frame_based(&self) -> bool {
+        !self.frames.is_empty()
+    }
+
+    /// Returns the CSS keyframes, or None if using frame-based format.
+    pub fn css_keyframes(&self) -> Option<&HashMap<String, CssKeyframe>> {
+        self.keyframes.as_ref()
     }
 
     /// Returns whether this animation uses palette cycling.
@@ -396,6 +566,50 @@ impl Animation {
     /// Returns the attachments, or an empty slice if none.
     pub fn attachments(&self) -> &[Attachment] {
         self.attachments.as_deref().unwrap_or(&[])
+    }
+
+    /// Parse the keyframe percentage key to a normalized value (0.0 to 1.0).
+    ///
+    /// Supports:
+    /// - Percentage strings: "0%", "50%", "100%"
+    /// - Aliases: "from" (= 0%), "to" (= 100%)
+    ///
+    /// Returns `None` if the key cannot be parsed.
+    pub fn parse_keyframe_percent(key: &str) -> Option<f64> {
+        let key = key.trim().to_lowercase();
+
+        match key.as_str() {
+            "from" => Some(0.0),
+            "to" => Some(1.0),
+            _ => {
+                if let Some(pct_str) = key.strip_suffix('%') {
+                    pct_str
+                        .trim()
+                        .parse::<f64>()
+                        .ok()
+                        .map(|v| (v / 100.0).clamp(0.0, 1.0))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Returns the sorted keyframe entries as (normalized_percent, keyframe) pairs.
+    ///
+    /// The keyframes are sorted by their percentage value from 0.0 to 1.0.
+    pub fn sorted_keyframes(&self) -> Vec<(f64, &CssKeyframe)> {
+        let Some(keyframes) = &self.keyframes else {
+            return vec![];
+        };
+
+        let mut entries: Vec<_> = keyframes
+            .iter()
+            .filter_map(|(key, kf)| Self::parse_keyframe_percent(key).map(|pct| (pct, kf)))
+            .collect();
+
+        entries.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        entries
     }
 }
 
@@ -815,7 +1029,7 @@ mod tests {
             TtpObject::Animation(anim) => {
                 assert_eq!(anim.name, "blink_anim");
                 assert_eq!(anim.frames, vec!["on", "off"]);
-                assert_eq!(anim.duration, Some(500));
+                assert_eq!(anim.duration, Some(Duration::Milliseconds(500)));
                 assert_eq!(anim.r#loop, Some(true));
                 // Helper methods should return specified values
                 assert_eq!(anim.duration_ms(), 500);
@@ -874,7 +1088,7 @@ mod tests {
         let anim = Animation {
             name: "test_anim".to_string(),
             frames: vec!["a".to_string(), "b".to_string(), "c".to_string()],
-            duration: Some(200),
+            duration: Some(Duration::Milliseconds(200)),
             r#loop: Some(false),
             palette_cycle: None,
             tags: None,
@@ -956,7 +1170,7 @@ mod tests {
         let anim = Animation {
             name: "cycle_test".to_string(),
             frames: vec!["sprite".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: Some(true),
             palette_cycle: Some(vec![
                 PaletteCycle {
@@ -1636,7 +1850,7 @@ mod tests {
         let anim = Animation {
             name: "test_anim".to_string(),
             frames: vec!["f1".to_string(), "f2".to_string()],
-            duration: Some(100),
+            duration: Some(Duration::Milliseconds(100)),
             r#loop: Some(true),
             palette_cycle: None,
             tags: None,
@@ -1747,5 +1961,290 @@ mod tests {
         assert_eq!(keyframes.len(), 4);
         assert_eq!(keyframes.get("0").unwrap().offset, [0, 0]);
         assert_eq!(keyframes.get("2").unwrap().offset, [3, 2]);
+    }
+
+    // ========================================================================
+    // Duration Tests (CSS-13)
+    // ========================================================================
+
+    #[test]
+    fn test_duration_milliseconds_parse() {
+        let dur: Duration = serde_json::from_str("100").unwrap();
+        assert_eq!(dur, Duration::Milliseconds(100));
+        assert_eq!(dur.as_milliseconds(), Some(100));
+    }
+
+    #[test]
+    fn test_duration_css_string_ms() {
+        let dur: Duration = serde_json::from_str(r#""500ms""#).unwrap();
+        assert!(matches!(dur, Duration::CssString(_)));
+        assert_eq!(dur.as_milliseconds(), Some(500));
+    }
+
+    #[test]
+    fn test_duration_css_string_seconds() {
+        let dur: Duration = serde_json::from_str(r#""1.5s""#).unwrap();
+        assert!(matches!(dur, Duration::CssString(_)));
+        assert_eq!(dur.as_milliseconds(), Some(1500));
+    }
+
+    #[test]
+    fn test_duration_display() {
+        assert_eq!(format!("{}", Duration::Milliseconds(100)), "100");
+        assert_eq!(format!("{}", Duration::CssString("500ms".to_string())), "\"500ms\"");
+    }
+
+    #[test]
+    fn test_duration_default() {
+        let dur = Duration::default();
+        assert_eq!(dur, Duration::Milliseconds(100));
+    }
+
+    #[test]
+    fn test_duration_from_u32() {
+        let dur: Duration = 250u32.into();
+        assert_eq!(dur, Duration::Milliseconds(250));
+    }
+
+    #[test]
+    fn test_duration_from_str() {
+        let dur: Duration = "1s".into();
+        assert_eq!(dur, Duration::CssString("1s".to_string()));
+        assert_eq!(dur.as_milliseconds(), Some(1000));
+    }
+
+    // ========================================================================
+    // CSS Keyframe Tests (CSS-13)
+    // ========================================================================
+
+    #[test]
+    fn test_css_keyframe_parse_basic() {
+        let kf: CssKeyframe = serde_json::from_str(r#"{"sprite": "walk_1"}"#).unwrap();
+        assert_eq!(kf.sprite, Some("walk_1".to_string()));
+        assert!(kf.transform.is_none());
+        assert!(kf.opacity.is_none());
+        assert!(kf.offset.is_none());
+    }
+
+    #[test]
+    fn test_css_keyframe_parse_full() {
+        let json = r#"{
+            "sprite": "walk_1",
+            "transform": "rotate(45deg) scale(2)",
+            "opacity": 0.5,
+            "offset": [10, -5]
+        }"#;
+        let kf: CssKeyframe = serde_json::from_str(json).unwrap();
+        assert_eq!(kf.sprite, Some("walk_1".to_string()));
+        assert_eq!(kf.transform, Some("rotate(45deg) scale(2)".to_string()));
+        assert_eq!(kf.opacity, Some(0.5));
+        assert_eq!(kf.offset, Some([10, -5]));
+    }
+
+    #[test]
+    fn test_css_keyframe_roundtrip() {
+        let kf = CssKeyframe {
+            sprite: Some("test".to_string()),
+            transform: Some("scale(2)".to_string()),
+            opacity: Some(0.8),
+            offset: Some([5, 10]),
+        };
+        let json = serde_json::to_string(&kf).unwrap();
+        let parsed: CssKeyframe = serde_json::from_str(&json).unwrap();
+        assert_eq!(kf, parsed);
+    }
+
+    // ========================================================================
+    // Animation CSS Keyframes Tests (CSS-13)
+    // ========================================================================
+
+    #[test]
+    fn test_animation_css_keyframes_parse() {
+        let json = r#"{
+            "type": "animation",
+            "name": "fade_walk",
+            "keyframes": {
+                "0%": {"sprite": "walk_1", "opacity": 0.0},
+                "50%": {"sprite": "walk_2", "opacity": 1.0},
+                "100%": {"sprite": "walk_1", "opacity": 0.0}
+            },
+            "duration": "500ms",
+            "timing_function": "ease-in-out"
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert_eq!(anim.name, "fade_walk");
+                assert!(anim.is_css_keyframes());
+                assert!(!anim.is_frame_based());
+
+                let keyframes = anim.css_keyframes().unwrap();
+                assert_eq!(keyframes.len(), 3);
+
+                let kf_0 = keyframes.get("0%").unwrap();
+                assert_eq!(kf_0.sprite, Some("walk_1".to_string()));
+                assert_eq!(kf_0.opacity, Some(0.0));
+
+                let kf_50 = keyframes.get("50%").unwrap();
+                assert_eq!(kf_50.sprite, Some("walk_2".to_string()));
+                assert_eq!(kf_50.opacity, Some(1.0));
+
+                assert_eq!(anim.duration_ms(), 500);
+                assert_eq!(anim.timing_function, Some("ease-in-out".to_string()));
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_css_keyframes_from_to_aliases() {
+        let json = r#"{
+            "type": "animation",
+            "name": "fade",
+            "keyframes": {
+                "from": {"opacity": 0.0},
+                "to": {"opacity": 1.0}
+            },
+            "duration": "1s"
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                assert!(anim.is_css_keyframes());
+                let keyframes = anim.css_keyframes().unwrap();
+                assert!(keyframes.contains_key("from"));
+                assert!(keyframes.contains_key("to"));
+                assert_eq!(anim.duration_ms(), 1000);
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_parse_keyframe_percent() {
+        // Percentage strings
+        assert_eq!(Animation::parse_keyframe_percent("0%"), Some(0.0));
+        assert_eq!(Animation::parse_keyframe_percent("50%"), Some(0.5));
+        assert_eq!(Animation::parse_keyframe_percent("100%"), Some(1.0));
+        assert_eq!(Animation::parse_keyframe_percent("25%"), Some(0.25));
+
+        // Aliases
+        assert_eq!(Animation::parse_keyframe_percent("from"), Some(0.0));
+        assert_eq!(Animation::parse_keyframe_percent("to"), Some(1.0));
+
+        // Case insensitive
+        assert_eq!(Animation::parse_keyframe_percent("FROM"), Some(0.0));
+        assert_eq!(Animation::parse_keyframe_percent("TO"), Some(1.0));
+
+        // Invalid
+        assert_eq!(Animation::parse_keyframe_percent("invalid"), None);
+        assert_eq!(Animation::parse_keyframe_percent("50"), None);
+    }
+
+    #[test]
+    fn test_animation_sorted_keyframes() {
+        let anim = Animation {
+            name: "test".to_string(),
+            keyframes: Some(HashMap::from([
+                ("100%".to_string(), CssKeyframe { sprite: Some("c".to_string()), ..Default::default() }),
+                ("0%".to_string(), CssKeyframe { sprite: Some("a".to_string()), ..Default::default() }),
+                ("50%".to_string(), CssKeyframe { sprite: Some("b".to_string()), ..Default::default() }),
+            ])),
+            ..Default::default()
+        };
+
+        let sorted = anim.sorted_keyframes();
+        assert_eq!(sorted.len(), 3);
+        assert_eq!(sorted[0].0, 0.0);
+        assert_eq!(sorted[0].1.sprite, Some("a".to_string()));
+        assert_eq!(sorted[1].0, 0.5);
+        assert_eq!(sorted[1].1.sprite, Some("b".to_string()));
+        assert_eq!(sorted[2].0, 1.0);
+        assert_eq!(sorted[2].1.sprite, Some("c".to_string()));
+    }
+
+    #[test]
+    fn test_animation_css_keyframes_with_transforms() {
+        let json = r#"{
+            "type": "animation",
+            "name": "spin",
+            "keyframes": {
+                "0%": {"sprite": "star", "transform": "rotate(0deg)"},
+                "100%": {"sprite": "star", "transform": "rotate(360deg)"}
+            },
+            "duration": 1000,
+            "timing_function": "linear"
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Animation(anim) => {
+                let keyframes = anim.css_keyframes().unwrap();
+                assert_eq!(keyframes.get("0%").unwrap().transform, Some("rotate(0deg)".to_string()));
+                assert_eq!(keyframes.get("100%").unwrap().transform, Some("rotate(360deg)".to_string()));
+                assert_eq!(anim.timing_function, Some("linear".to_string()));
+            }
+            _ => panic!("Expected animation"),
+        }
+    }
+
+    #[test]
+    fn test_animation_frame_vs_keyframe() {
+        // Frame-based animation
+        let frame_anim = Animation {
+            name: "frames".to_string(),
+            frames: vec!["f1".to_string(), "f2".to_string()],
+            ..Default::default()
+        };
+        assert!(frame_anim.is_frame_based());
+        assert!(!frame_anim.is_css_keyframes());
+
+        // CSS keyframe animation
+        let keyframe_anim = Animation {
+            name: "keyframes".to_string(),
+            keyframes: Some(HashMap::from([
+                ("0%".to_string(), CssKeyframe::default()),
+                ("100%".to_string(), CssKeyframe::default()),
+            ])),
+            ..Default::default()
+        };
+        assert!(!keyframe_anim.is_frame_based());
+        assert!(keyframe_anim.is_css_keyframes());
+    }
+
+    #[test]
+    fn test_animation_css_keyframes_roundtrip() {
+        let anim = Animation {
+            name: "test_kf".to_string(),
+            keyframes: Some(HashMap::from([
+                ("0%".to_string(), CssKeyframe {
+                    sprite: Some("start".to_string()),
+                    opacity: Some(0.0),
+                    ..Default::default()
+                }),
+                ("100%".to_string(), CssKeyframe {
+                    sprite: Some("end".to_string()),
+                    opacity: Some(1.0),
+                    ..Default::default()
+                }),
+            ])),
+            duration: Some(Duration::CssString("500ms".to_string())),
+            timing_function: Some("ease".to_string()),
+            ..Default::default()
+        };
+
+        let obj = TtpObject::Animation(anim.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains("keyframes"));
+        assert!(json.contains("timing_function"));
+
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Animation(parsed_anim) => {
+                assert_eq!(anim.name, parsed_anim.name);
+                assert_eq!(anim.timing_function, parsed_anim.timing_function);
+                assert!(parsed_anim.is_css_keyframes());
+            }
+            _ => panic!("Expected animation"),
+        }
     }
 }
