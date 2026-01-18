@@ -19,7 +19,7 @@
 //! reporter.report(ProgressEvent::BuildCompleted { success: true, duration_ms: 1500 });
 //! ```
 
-use std::io::Write;
+use std::io::{self, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -566,6 +566,425 @@ fn escape_json(s: &str) -> String {
         }
     }
     result
+}
+
+/// Live progress reporter with visual progress bar and ETA.
+///
+/// Provides an interactive terminal progress display including:
+/// - Visual progress bar with percentage
+/// - ETA (estimated time of arrival) calculation
+/// - Live statistics (current/total, rate)
+/// - Currently building target name
+///
+/// Falls back to simple console output if the terminal doesn't support
+/// cursor movement (e.g., non-TTY environments).
+pub struct LiveProgress {
+    /// Whether we're outputting to a TTY
+    is_tty: bool,
+    /// Whether to use colors
+    use_colors: bool,
+    /// Whether to show verbose output
+    verbose: bool,
+    /// Total number of targets
+    total: AtomicUsize,
+    /// Number of completed targets
+    completed: AtomicUsize,
+    /// Number of succeeded targets
+    succeeded: AtomicUsize,
+    /// Number of skipped targets
+    skipped: AtomicUsize,
+    /// Number of failed targets
+    failed: AtomicUsize,
+    /// Start time
+    start_time: Mutex<Option<Instant>>,
+    /// Current target being built
+    current_target: Mutex<Option<String>>,
+    /// Width of the progress bar (in characters)
+    bar_width: usize,
+    /// Last time we updated the display
+    last_update: Mutex<Option<Instant>>,
+    /// Minimum time between display updates (to avoid flickering)
+    update_interval: Duration,
+}
+
+impl std::fmt::Debug for LiveProgress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LiveProgress")
+            .field("is_tty", &self.is_tty)
+            .field("use_colors", &self.use_colors)
+            .field("verbose", &self.verbose)
+            .field("total", &self.total)
+            .field("completed", &self.completed)
+            .finish()
+    }
+}
+
+impl LiveProgress {
+    /// Create a new live progress reporter.
+    pub fn new() -> Self {
+        Self {
+            is_tty: atty::is(atty::Stream::Stderr),
+            use_colors: true,
+            verbose: false,
+            total: AtomicUsize::new(0),
+            completed: AtomicUsize::new(0),
+            succeeded: AtomicUsize::new(0),
+            skipped: AtomicUsize::new(0),
+            failed: AtomicUsize::new(0),
+            start_time: Mutex::new(None),
+            current_target: Mutex::new(None),
+            bar_width: 30,
+            last_update: Mutex::new(None),
+            update_interval: Duration::from_millis(100),
+        }
+    }
+
+    /// Set the progress bar width.
+    pub fn with_bar_width(mut self, width: usize) -> Self {
+        self.bar_width = width;
+        self
+    }
+
+    /// Set verbose mode.
+    pub fn with_verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
+        self
+    }
+
+    /// Set whether to use colors.
+    pub fn with_colors(mut self, use_colors: bool) -> Self {
+        self.use_colors = use_colors;
+        self
+    }
+
+    /// Override TTY detection (for testing).
+    pub fn with_tty(mut self, is_tty: bool) -> Self {
+        self.is_tty = is_tty;
+        self
+    }
+
+    /// Get elapsed time since build started.
+    fn elapsed(&self) -> Duration {
+        self.start_time
+            .lock()
+            .ok()
+            .and_then(|t| t.as_ref().map(|i| i.elapsed()))
+            .unwrap_or(Duration::ZERO)
+    }
+
+    /// Calculate ETA based on current progress.
+    fn eta(&self) -> Option<Duration> {
+        let completed = self.completed.load(Ordering::SeqCst);
+        let total = self.total.load(Ordering::SeqCst);
+        let elapsed = self.elapsed();
+
+        if completed == 0 || total == 0 || completed >= total {
+            return None;
+        }
+
+        let remaining = total - completed;
+        let time_per_target = elapsed.as_secs_f64() / completed as f64;
+        let eta_secs = time_per_target * remaining as f64;
+
+        Some(Duration::from_secs_f64(eta_secs))
+    }
+
+    /// Calculate targets per second rate.
+    fn rate(&self) -> f64 {
+        let completed = self.completed.load(Ordering::SeqCst);
+        let elapsed = self.elapsed().as_secs_f64();
+        if elapsed > 0.0 {
+            completed as f64 / elapsed
+        } else {
+            0.0
+        }
+    }
+
+    /// Format a duration for display.
+    fn format_eta(duration: Duration) -> String {
+        let secs = duration.as_secs();
+        if secs < 60 {
+            format!("{}s", secs)
+        } else {
+            let mins = secs / 60;
+            let remaining_secs = secs % 60;
+            format!("{}m {}s", mins, remaining_secs)
+        }
+    }
+
+    /// Format a colored string.
+    fn color(&self, text: &str, color: &str) -> String {
+        if self.use_colors && self.is_tty {
+            format!("{}{}\x1b[0m", color, text)
+        } else {
+            text.to_string()
+        }
+    }
+
+    fn green(&self, text: &str) -> String {
+        self.color(text, "\x1b[32m")
+    }
+
+    fn yellow(&self, text: &str) -> String {
+        self.color(text, "\x1b[33m")
+    }
+
+    fn red(&self, text: &str) -> String {
+        self.color(text, "\x1b[31m")
+    }
+
+    fn cyan(&self, text: &str) -> String {
+        self.color(text, "\x1b[36m")
+    }
+
+    fn bold(&self, text: &str) -> String {
+        self.color(text, "\x1b[1m")
+    }
+
+    fn dim(&self, text: &str) -> String {
+        self.color(text, "\x1b[2m")
+    }
+
+    /// Build the progress bar string.
+    fn build_progress_bar(&self, percentage: f64) -> String {
+        let filled = (percentage / 100.0 * self.bar_width as f64).round() as usize;
+        let empty = self.bar_width.saturating_sub(filled);
+
+        let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
+        if self.use_colors && self.is_tty {
+            format!("\x1b[32m{}\x1b[0m", bar)
+        } else {
+            bar
+        }
+    }
+
+    /// Render the live progress line.
+    fn render_progress(&self) -> String {
+        let completed = self.completed.load(Ordering::SeqCst);
+        let total = self.total.load(Ordering::SeqCst);
+        let percentage = if total > 0 {
+            (completed as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let bar = self.build_progress_bar(percentage);
+        let rate = self.rate();
+
+        let current = self.current_target.lock().ok().and_then(|t| t.clone());
+        let target_display = current
+            .map(|t| {
+                // Truncate long target names
+                if t.len() > 25 {
+                    format!("{}...", &t[..22])
+                } else {
+                    t
+                }
+            })
+            .unwrap_or_default();
+
+        let eta_str = self
+            .eta()
+            .map(|eta| format!(" ETA: {}", Self::format_eta(eta)))
+            .unwrap_or_default();
+
+        format!(
+            "{} [{}/{}] {:.1}% {} ({:.1}/s){}{}",
+            self.cyan("[build]"),
+            completed,
+            total,
+            percentage,
+            bar,
+            rate,
+            eta_str,
+            if target_display.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", self.dim(&target_display))
+            }
+        )
+    }
+
+    /// Check if enough time has passed since last update.
+    fn should_update(&self) -> bool {
+        let mut last = self.last_update.lock().unwrap();
+        match *last {
+            Some(t) if t.elapsed() < self.update_interval => false,
+            _ => {
+                *last = Some(Instant::now());
+                true
+            }
+        }
+    }
+
+    /// Clear the current line and write new content (for TTY).
+    fn update_line(&self, content: &str) {
+        if self.is_tty {
+            // Move to beginning of line and clear
+            eprint!("\r\x1b[K{}", content);
+            let _ = io::stderr().flush();
+        }
+    }
+
+    /// Finalize the progress display (move to new line).
+    fn finalize(&self) {
+        if self.is_tty {
+            eprintln!();
+        }
+    }
+}
+
+impl Default for LiveProgress {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ProgressReporter for LiveProgress {
+    fn report(&self, event: ProgressEvent) {
+        match event {
+            ProgressEvent::BuildStarted { total_targets } => {
+                self.total.store(total_targets, Ordering::SeqCst);
+                self.completed.store(0, Ordering::SeqCst);
+                self.succeeded.store(0, Ordering::SeqCst);
+                self.skipped.store(0, Ordering::SeqCst);
+                self.failed.store(0, Ordering::SeqCst);
+                *self.start_time.lock().unwrap() = Some(Instant::now());
+                *self.current_target.lock().unwrap() = None;
+                *self.last_update.lock().unwrap() = None;
+
+                if total_targets > 0 {
+                    if self.is_tty {
+                        // Initial progress line
+                        self.update_line(&self.render_progress());
+                    } else {
+                        eprintln!(
+                            "{} Building {} target{}...",
+                            self.cyan("[build]"),
+                            total_targets,
+                            if total_targets == 1 { "" } else { "s" }
+                        );
+                    }
+                }
+            }
+            ProgressEvent::TargetStarted { target_id } => {
+                *self.current_target.lock().unwrap() = Some(target_id);
+                if self.is_tty && self.should_update() {
+                    self.update_line(&self.render_progress());
+                }
+            }
+            ProgressEvent::TargetCompleted { target_id, status, duration_ms } => {
+                self.completed.fetch_add(1, Ordering::SeqCst);
+                match &status {
+                    TargetStatus::Success => {
+                        self.succeeded.fetch_add(1, Ordering::SeqCst);
+                    }
+                    TargetStatus::Skipped => {
+                        self.skipped.fetch_add(1, Ordering::SeqCst);
+                    }
+                    TargetStatus::Failed(_) => {
+                        self.failed.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+
+                if self.is_tty {
+                    // For failures, print the error on its own line
+                    if let TargetStatus::Failed(err) = &status {
+                        self.finalize();
+                        eprintln!(
+                            "{} {} {} - {}",
+                            self.red("[fail]"),
+                            target_id,
+                            self.red("FAILED"),
+                            err
+                        );
+                    }
+                    // Update progress bar
+                    let is_complete =
+                        self.completed.load(Ordering::SeqCst) >= self.total.load(Ordering::SeqCst);
+                    if self.should_update() || is_complete {
+                        self.update_line(&self.render_progress());
+                    }
+                } else {
+                    // Non-TTY: print each completion
+                    let status_str = match &status {
+                        TargetStatus::Success => self.green("ok"),
+                        TargetStatus::Skipped => self.yellow("skipped"),
+                        TargetStatus::Failed(_) => self.red("FAILED"),
+                    };
+                    let duration_str = format_duration(duration_ms);
+                    eprintln!(
+                        "{} [{}/{}] {} {} ({})",
+                        self.cyan("[build]"),
+                        self.completed.load(Ordering::SeqCst),
+                        self.total.load(Ordering::SeqCst),
+                        status_str,
+                        target_id,
+                        duration_str
+                    );
+                    if let TargetStatus::Failed(err) = status {
+                        eprintln!("        {}", self.red(&err));
+                    }
+                }
+            }
+            ProgressEvent::BuildCompleted { success, duration_ms, succeeded, skipped, failed } => {
+                self.finalize();
+
+                let duration_str = format_duration(duration_ms);
+                let total = succeeded + skipped + failed;
+
+                if success {
+                    eprintln!(
+                        "{} {} {} built, {} skipped in {}",
+                        self.green("[done]"),
+                        self.bold(&format!("{}", total)),
+                        if total == 1 { "target" } else { "targets" },
+                        skipped,
+                        duration_str
+                    );
+                } else {
+                    eprintln!(
+                        "{} Build failed: {} succeeded, {} skipped, {} {} in {}",
+                        self.red("[error]"),
+                        succeeded,
+                        skipped,
+                        failed,
+                        if failed == 1 { "failure" } else { "failures" },
+                        duration_str
+                    );
+                }
+            }
+            ProgressEvent::Warning { target_id, message } => {
+                if self.is_tty {
+                    self.finalize();
+                }
+                let prefix = target_id.map(|id| format!("{}: ", id)).unwrap_or_default();
+                eprintln!("{} {}{}", self.yellow("[warn]"), prefix, message);
+                if self.is_tty {
+                    self.update_line(&self.render_progress());
+                }
+            }
+            ProgressEvent::Error { target_id, message } => {
+                if self.is_tty {
+                    self.finalize();
+                }
+                let prefix = target_id.map(|id| format!("{}: ", id)).unwrap_or_default();
+                eprintln!("{} {}{}", self.red("[error]"), prefix, message);
+                if self.is_tty {
+                    self.update_line(&self.render_progress());
+                }
+            }
+        }
+    }
+
+    fn is_verbose(&self) -> bool {
+        self.verbose
+    }
+}
+
+/// Check if stderr is connected to a TTY (interactive terminal).
+pub fn is_tty() -> bool {
+    atty::is(atty::Stream::Stderr)
 }
 
 #[cfg(test)]
