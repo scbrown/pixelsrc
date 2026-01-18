@@ -35,6 +35,7 @@ notify-debouncer-mini = "0.4"
 tempfile = "3"
 wasm-bindgen-test = "0.3"
 serial_test = "3.0"
+sha2 = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Enable js feature for getrandom to support WASM (required by lightningcss -> ahash -> getrandom)
