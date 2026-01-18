@@ -63,7 +63,7 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 ///         ("{x}".to_string(), "#FF0000".to_string()),
 ///     ])),
 ///     grid: vec!["{x}".to_string()],
-///     metadata: None,
+///     metadata: None, ..Default::default()
 /// };
 ///
 /// let palette: HashMap<String, String> = HashMap::from([
@@ -369,7 +369,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -400,7 +400,7 @@ mod tests {
                 "{_}{_}{r}{r}{r}{_}{_}".to_string(),
                 "{_}{_}{_}{r}{_}{_}{_}".to_string(),
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{r}", "#FF0000"), ("{p}", "#FF6B6B")]);
@@ -433,7 +433,7 @@ mod tests {
                 "{_}{x}{x}{_}".to_string(),
                 "{x}{_}{_}{x}".to_string(),
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#0000FF")]);
@@ -462,7 +462,7 @@ mod tests {
                 "{x}{x}".to_string(),       // Only 2 tokens, expects 4
                 "{x}{x}{x}{x}".to_string(), // Full row
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -499,7 +499,7 @@ mod tests {
                 "{x}{x}{x}{x}{x}".to_string(), // 5 tokens, expects 2
                 "{x}{x}".to_string(),          // Full row
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -529,7 +529,7 @@ mod tests {
                 "{x}{y}{x}".to_string(), // {y} is unknown
                 "{x}{x}{x}".to_string(),
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -558,7 +558,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[]);
@@ -581,7 +581,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[("{x}", "not-a-color")]);
@@ -606,7 +606,7 @@ mod tests {
                 "{a}{b}{c}".to_string(),
                 "{d}{e}".to_string(), // Shorter row - width should still be 3
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[
@@ -635,7 +635,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}{x}{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let palette = make_palette(&[]); // {x} is not defined
@@ -915,6 +915,7 @@ mod tests {
             name: "ghost".to_string(),
             base: "nonexistent".to_string(),
             palette: HashMap::new(),
+            ..Default::default()
         };
         sprite_registry.register_variant(ghost);
 

@@ -18,14 +18,48 @@ pub enum PaletteRef {
     Inline(HashMap<String, String>),
 }
 
-/// A sprite definition.
+impl Default for PaletteRef {
+    fn default() -> Self {
+        PaletteRef::Named(String::new())
+    }
+}
+
+/// Transform specification - can be string or object in JSON.
+///
+/// Supports both simple string syntax (`"mirror-h"`, `"rotate:90"`) and
+/// object syntax for complex parameters (`{"op": "tile", "w": 3, "h": 2}`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TransformSpec {
+    /// String syntax: "mirror-h", "rotate:90", "tile:3x2"
+    String(String),
+    /// Object syntax: {"op": "tile", "w": 3, "h": 2}
+    Object {
+        op: String,
+        #[serde(flatten)]
+        params: HashMap<String, serde_json::Value>,
+    },
+}
+
+/// A sprite definition.
+///
+/// A sprite can either have a `grid` directly, or reference another sprite via `source`
+/// with optional transforms applied. The `grid` and `source` fields are mutually exclusive.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Sprite {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
     pub palette: PaletteRef,
+    /// The grid data (mutually exclusive with `source`)
+    #[serde(default)]
     pub grid: Vec<String>,
+    /// Reference to another sprite by name (mutually exclusive with `grid`)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub source: Option<String>,
+    /// Transforms to apply when resolving this sprite
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
     /// Sprite metadata for game engine integration (origin, collision boxes)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<SpriteMetadata>,
@@ -197,10 +231,18 @@ impl Attachment {
 }
 
 /// An animation definition (Phase 3).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Animation {
     pub name: String,
+    /// Frame sprite names (mutually exclusive with `source`)
+    #[serde(default)]
     pub frames: Vec<String>,
+    /// Reference to another animation by name (mutually exclusive with `frames`)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub source: Option<String>,
+    /// Transforms to apply when resolving this animation
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub duration: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -224,11 +266,14 @@ pub struct Animation {
 /// Variants allow creating color variations of sprites without duplicating
 /// the grid data. The variant copies the base sprite's grid and applies
 /// palette overrides.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Variant {
     pub name: String,
     pub base: String,
     pub palette: HashMap<String, String>,
+    /// Transforms to apply when resolving this variant
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
 }
 
 impl Animation {
@@ -294,6 +339,9 @@ pub struct CompositionLayer {
     pub fill: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub map: Option<Vec<String>>,
+    /// Transforms to apply to this layer
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<Vec<TransformSpec>>,
     /// Blend mode for this layer (ATF-10). Default: "normal"
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub blend: Option<String>,
@@ -453,7 +501,7 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -470,7 +518,7 @@ mod tests {
                 "{on}{off}{on}{off}".to_string(),
                 "{off}{on}{off}{on}".to_string(),
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -496,7 +544,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{a}{b}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         });
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"sprite""#));
@@ -747,6 +795,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -833,6 +882,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -858,6 +908,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         assert!(!anim.has_palette_cycle());
         assert!(anim.palette_cycles().is_empty());
@@ -906,6 +957,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ]),
+            ..Default::default()
         };
         let obj = TtpObject::Variant(variant.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -1253,7 +1305,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("default".to_string()),
             grid: vec!["{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         // Should not contain "metadata" key when None
@@ -1274,6 +1326,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&anim).unwrap();
         // Should not contain "frame_metadata" key when None
@@ -1514,6 +1567,7 @@ mod tests {
                 z_index: Some(1),
                 keyframes: None,
             }]),
+            ..Default::default()
         };
         let obj = TtpObject::Animation(anim.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -1539,6 +1593,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&anim).unwrap();
         // Should not contain "attachments" key when None

@@ -508,7 +508,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(palette),
             grid: grid.into_iter().map(String::from).collect(),
-            metadata: None,
+            metadata: None, ..Default::default()
         }
     }
 
@@ -609,14 +609,14 @@ mod tests {
             size: Some([8, 8]),
             palette: PaletteRef::Inline(palette.clone()),
             grid: vec!["{a}".to_string(); 8],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let sprite_b = Sprite {
             name: "test".to_string(),
             size: Some([16, 16]),
             palette: PaletteRef::Inline(palette.clone()),
             grid: vec!["{a}".to_string(); 16],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
@@ -652,7 +652,7 @@ mod tests {
             size: Some([16, 8]),
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         assert_eq!(get_sprite_dimensions(&sprite), (16, 8));
     }
@@ -668,7 +668,7 @@ mod tests {
                 "{a}{b}{c}{d}".to_string(),
                 "{a}{b}{c}{d}".to_string(),
             ],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         assert_eq!(get_sprite_dimensions(&sprite), (4, 3));
     }

@@ -323,6 +323,7 @@ mod tests {
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{w1}{w2}".to_string()],
             metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[
@@ -342,6 +343,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
 
         let (frames, warnings) = generate_cycle_frames(&sprite, &palette, &anim);
@@ -376,6 +378,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         assert_eq!(get_cycle_duration(&anim1), 150);
 
@@ -392,6 +395,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         assert_eq!(get_cycle_duration(&anim2), 100);
 
@@ -405,6 +409,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         assert_eq!(get_cycle_duration(&anim3), 100);
     }

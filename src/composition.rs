@@ -1844,7 +1844,7 @@ mod tests {
                 ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
             ])),
             grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let variant = Variant {
@@ -1853,6 +1853,7 @@ mod tests {
             palette: HashMap::from([
                 ("{skin}".to_string(), "#FF0000".to_string()), // Red skin
             ]),
+            ..Default::default()
         };
 
         // Build registries and resolve
@@ -2391,14 +2392,14 @@ mod tests {
                     fill: None,
                     map: Some(vec!["WW".to_string(), "WW".to_string()]),
                     blend: None, // Normal
-                    opacity: None,
+                    opacity: None, transform: None,
                 },
                 CompositionLayer {
                     name: Some("shadow".to_string()),
                     fill: None,
                     map: Some(vec!["S.".to_string(), "..".to_string()]),
                     blend: Some("multiply".to_string()),
-                    opacity: None,
+                    opacity: None, transform: None,
                 },
             ],
         };
@@ -2447,6 +2448,7 @@ mod tests {
                     map: Some(vec!["B".to_string()]),
                     blend: None,
                     opacity: None, // Full opacity
+                    transform: None,
                 },
                 CompositionLayer {
                     name: Some("overlay".to_string()),
@@ -2454,6 +2456,7 @@ mod tests {
                     map: Some(vec!["R".to_string()]),
                     blend: None,
                     opacity: Some(0.5), // 50% opacity
+                    transform: None,
                 },
             ],
         };
@@ -2495,14 +2498,14 @@ mod tests {
                     fill: None,
                     map: Some(vec!["B".to_string()]),
                     blend: None,
-                    opacity: None,
+                    opacity: None, transform: None,
                 },
                 CompositionLayer {
                     name: Some("glow".to_string()),
                     fill: None,
                     map: Some(vec!["R".to_string()]),
                     blend: Some("add".to_string()),
-                    opacity: None,
+                    opacity: None, transform: None,
                 },
             ],
         };
@@ -2539,6 +2542,7 @@ mod tests {
                 map: Some(vec!["R".to_string()]),
                 blend: None, // Default: normal
                 opacity: None, // Default: 1.0
+                transform: None,
             }],
         };
 
@@ -2568,7 +2572,7 @@ mod tests {
                 fill: None,
                 map: Some(vec!["R".to_string()]),
                 blend: Some("invalid_blend_mode".to_string()),
-                opacity: None,
+                opacity: None, transform: None,
             }],
         };
 

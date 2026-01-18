@@ -642,7 +642,7 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{_}{x}".to_string(), "{x}{_}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let colors = HashMap::from([
@@ -669,7 +669,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("test".to_string()),
             grid: vec!["{a}{b}{c}".to_string(), "{a}{b}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
 
         let exp = explain_sprite(&sprite, None);

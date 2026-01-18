@@ -444,7 +444,7 @@ mod tests {
             size: Some([4, 2]),
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{_}{a}{a}{_}".to_string(), "{a}{a}{a}{a}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let formatted = format_sprite(&sprite);
         // Should have grid rows on separate lines
@@ -461,7 +461,7 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{x}".to_string()],
-            metadata: None,
+            metadata: None, ..Default::default()
         };
         let formatted = format_sprite(&sprite);
         // Single row should stay on one line
@@ -480,6 +480,7 @@ mod tests {
             tags: None,
             frame_metadata: None,
             attachments: None,
+            ..Default::default()
         };
         let formatted = format_animation(&anim);
         assert!(!formatted.contains('\n'));
@@ -493,6 +494,7 @@ mod tests {
             name: "hero_red".to_string(),
             base: "hero".to_string(),
             palette: HashMap::from([("{skin}".to_string(), "#FF0000".to_string())]),
+            ..Default::default()
         };
         let formatted = format_variant(&variant);
         assert!(!formatted.contains('\n'));
