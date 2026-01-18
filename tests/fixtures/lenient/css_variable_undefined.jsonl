@@ -1,0 +1,2 @@
+{"type": "palette", "name": "undefined_var", "colors": {"{_}": "transparent", "{valid}": "#00FF00", "{undefined}": "var(--nonexistent)"}}
+{"type": "sprite", "name": "undef_test", "palette": "undefined_var", "grid": ["{valid}{undefined}", "{undefined}{valid}"]}

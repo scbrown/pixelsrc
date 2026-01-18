@@ -1,0 +1,2 @@
+{"type": "palette", "name": "circular", "colors": {"--a": "var(--b)", "--b": "var(--a)", "{_}": "transparent", "{valid}": "#00FF00", "{circular}": "var(--a)"}}
+{"type": "sprite", "name": "circular_test", "palette": "circular", "grid": ["{valid}{circular}", "{circular}{valid}"]}

@@ -22,6 +22,7 @@
 
 - [Overview](format/overview.md)
 - [Palette](format/palette.md)
+- [CSS Variables](format/css-variables.md)
 - [Sprite](format/sprite.md)
 - [Animation](format/animation.md)
 - [Variant](format/variant.md)

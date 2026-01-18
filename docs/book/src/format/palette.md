@@ -58,6 +58,31 @@ Palettes accept colors in these hexadecimal formats:
 | `#RRGGBB` | `#FF0000` | Fully opaque |
 | `#RRGGBBAA` | `#FF000080` | With alpha channel |
 
+In addition to hex, all CSS color formats are supported: `rgb()`, `hsl()`, `hwb()`, named colors, and more. See [Color Formats](../reference/colors.md) for details.
+
+## CSS Variables
+
+Define reusable values with CSS custom properties:
+
+```json
+{"type": "palette", "name": "themed", "colors": {
+  "--primary": "#4169E1",
+  "--accent": "#FFD700",
+  "{_}": "transparent",
+  "{main}": "var(--primary)",
+  "{highlight}": "var(--accent)",
+  "{fallback}": "var(--missing, #FF6666)"
+}}
+```
+
+Key features:
+- **Define variables**: Use `--name` prefix for variable definitions
+- **Reference variables**: Use `var(--name)` to reference
+- **Fallback values**: Use `var(--name, fallback)` for undefined variables
+- **Forward references**: Variables can reference others defined later
+
+See [CSS Variables](css-variables.md) for complete documentation including theming patterns, nested references, and error handling.
+
 ## Reserved Tokens
 
 - `{_}` - Conventional token for transparency (not enforced, but widely used)

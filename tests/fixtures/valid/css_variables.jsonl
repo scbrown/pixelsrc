@@ -1,0 +1,2 @@
+{"type": "palette", "name": "themed", "colors": {"--primary": "#4169E1", "--accent": "#FFD700", "{_}": "transparent", "{main}": "var(--primary)", "{highlight}": "var(--accent)", "{fallback}": "var(--missing, #FF6666)"}}
+{"type": "sprite", "name": "var_test", "palette": "themed", "grid": ["{main}{highlight}{fallback}", "{highlight}{main}{_}", "{fallback}{_}{main}"]}

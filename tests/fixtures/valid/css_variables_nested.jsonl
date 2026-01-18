@@ -1,0 +1,2 @@
+{"type": "palette", "name": "nested", "colors": {"--base": "#FF0000", "--level1": "var(--base)", "--level2": "var(--level1)", "{_}": "transparent", "{color}": "var(--level2)"}}
+{"type": "sprite", "name": "nested_test", "palette": "nested", "grid": ["{color}"]}

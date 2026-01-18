@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::models::{Palette, PaletteRef, Sprite, TransformSpec, Variant};
+use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
 use crate::transforms::{self, Transform, TransformError};
 
@@ -84,6 +85,32 @@ pub struct LenientResult {
     pub warning: Option<PaletteWarning>,
 }
 
+/// Resolve CSS variables in palette colors.
+///
+/// Takes a raw palette colors map and resolves any `var(--name)` references.
+/// Returns a new map with resolved color strings.
+fn resolve_palette_variables(colors: &HashMap<String, String>, strict: bool) -> (HashMap<String, String>, Vec<PaletteWarning>) {
+    let parser = PaletteParser::new();
+    let mode = if strict { ParseMode::Strict } else { ParseMode::Lenient };
+
+    match parser.resolve_to_strings(colors, mode) {
+        Ok(result) => {
+            let warnings: Vec<PaletteWarning> = result.warnings
+                .into_iter()
+                .map(|w| PaletteWarning { message: w.message })
+                .collect();
+            (result.colors, warnings)
+        }
+        Err(e) => {
+            // In strict mode this shouldn't happen as we'd return early,
+            // but in case it does, return the original with a warning
+            let mut warnings = Vec::new();
+            warnings.push(PaletteWarning { message: e.to_string() });
+            (colors.clone(), warnings)
+        }
+    }
+}
+
 /// Registry for named palettes.
 #[derive(Debug, Clone, Default)]
 pub struct PaletteRegistry {
@@ -119,12 +146,14 @@ impl PaletteRegistry {
     ///
     /// Returns an error if a named palette is not found.
     /// Handles @name syntax for built-in palettes.
+    /// Resolves CSS variables (var(--name)) in palette colors.
     pub fn resolve_strict(&self, sprite: &Sprite) -> Result<ResolvedPalette, PaletteError> {
         match &sprite.palette {
             PaletteRef::Named(name) => {
                 // Check for built-in palette reference (@name syntax)
                 if let Some(builtin_name) = name.strip_prefix('@') {
                     if let Some(palette) = palettes::get_builtin(builtin_name) {
+                        // Built-in palettes don't have CSS variables, use as-is
                         Ok(ResolvedPalette {
                             colors: palette.colors.clone(),
                             source: PaletteSource::Builtin(builtin_name.to_string()),
@@ -133,18 +162,24 @@ impl PaletteRegistry {
                         Err(PaletteError::BuiltinNotFound(builtin_name.to_string()))
                     }
                 } else if let Some(palette) = self.palettes.get(name) {
+                    // Resolve CSS variables in the palette
+                    let (resolved_colors, _warnings) = resolve_palette_variables(&palette.colors, true);
                     Ok(ResolvedPalette {
-                        colors: palette.colors.clone(),
+                        colors: resolved_colors,
                         source: PaletteSource::Named(name.clone()),
                     })
                 } else {
                     Err(PaletteError::NotFound(name.clone()))
                 }
             }
-            PaletteRef::Inline(colors) => Ok(ResolvedPalette {
-                colors: colors.clone(),
-                source: PaletteSource::Inline,
-            }),
+            PaletteRef::Inline(colors) => {
+                // Resolve CSS variables in inline palettes too
+                let (resolved_colors, _warnings) = resolve_palette_variables(colors, true);
+                Ok(ResolvedPalette {
+                    colors: resolved_colors,
+                    source: PaletteSource::Inline,
+                })
+            }
         }
     }
 
@@ -153,12 +188,14 @@ impl PaletteRegistry {
     /// Always returns a palette. If a named palette is not found, returns
     /// an empty fallback palette with a warning.
     /// Handles @name syntax for built-in palettes.
+    /// Resolves CSS variables (var(--name)) in palette colors.
     pub fn resolve_lenient(&self, sprite: &Sprite) -> LenientResult {
         match &sprite.palette {
             PaletteRef::Named(name) => {
                 // Check for built-in palette reference (@name syntax)
                 if let Some(builtin_name) = name.strip_prefix('@') {
                     if let Some(palette) = palettes::get_builtin(builtin_name) {
+                        // Built-in palettes don't have CSS variables, use as-is
                         LenientResult {
                             palette: ResolvedPalette {
                                 colors: palette.colors.clone(),
@@ -177,12 +214,21 @@ impl PaletteRegistry {
                         }
                     }
                 } else if let Some(palette) = self.palettes.get(name) {
+                    // Resolve CSS variables in the palette
+                    let (resolved_colors, var_warnings) = resolve_palette_variables(&palette.colors, false);
+                    let warning = if var_warnings.is_empty() {
+                        None
+                    } else {
+                        // Combine multiple variable warnings into one
+                        let messages: Vec<String> = var_warnings.into_iter().map(|w| w.message).collect();
+                        Some(PaletteWarning { message: messages.join("; ") })
+                    };
                     LenientResult {
                         palette: ResolvedPalette {
-                            colors: palette.colors.clone(),
+                            colors: resolved_colors,
                             source: PaletteSource::Named(name.clone()),
                         },
-                        warning: None,
+                        warning,
                     }
                 } else {
                     // Fallback: empty palette (tokens will get magenta during rendering)
@@ -195,13 +241,23 @@ impl PaletteRegistry {
                     }
                 }
             }
-            PaletteRef::Inline(colors) => LenientResult {
-                palette: ResolvedPalette {
-                    colors: colors.clone(),
-                    source: PaletteSource::Inline,
-                },
-                warning: None,
-            },
+            PaletteRef::Inline(colors) => {
+                // Resolve CSS variables in inline palettes too
+                let (resolved_colors, var_warnings) = resolve_palette_variables(colors, false);
+                let warning = if var_warnings.is_empty() {
+                    None
+                } else {
+                    let messages: Vec<String> = var_warnings.into_iter().map(|w| w.message).collect();
+                    Some(PaletteWarning { message: messages.join("; ") })
+                };
+                LenientResult {
+                    palette: ResolvedPalette {
+                        colors: resolved_colors,
+                        source: PaletteSource::Inline,
+                    },
+                    warning,
+                }
+            }
         }
     }
 
