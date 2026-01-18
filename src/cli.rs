@@ -509,6 +509,29 @@ pub enum Commands {
         allow_large: bool,
     },
 
+    /// Verify pixelsrc content for AI agents (returns JSON)
+    ///
+    /// Validates content and returns machine-readable diagnostics for
+    /// shell-based agents and scripts. Always outputs JSON to stdout.
+    #[command(name = "agent-verify")]
+    AgentVerify {
+        /// Read content from stdin (default if no --content provided)
+        #[arg(long)]
+        stdin: bool,
+
+        /// Content to verify (if not reading from stdin)
+        #[arg(long)]
+        content: Option<String>,
+
+        /// Include grid coordinate info for each sprite
+        #[arg(long)]
+        grid_info: bool,
+
+        /// Include available token suggestions from palettes
+        #[arg(long)]
+        suggest_tokens: bool,
+    },
+
     /// Start the Language Server Protocol server (for editor integration)
     #[command(hide = true)]
     Lsp,
@@ -652,6 +675,9 @@ pub fn run() -> ExitCode {
             stdin,
             allow_large,
         ),
+        Commands::AgentVerify { stdin, content, grid_info, suggest_tokens } => {
+            run_agent_verify(stdin, content.as_deref(), grid_info, suggest_tokens)
+        }
         #[cfg(not(target_arch = "wasm32"))]
         Commands::Lsp => run_lsp(),
         #[cfg(target_arch = "wasm32")]
@@ -2331,6 +2357,228 @@ fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> Exi
     } else {
         ExitCode::from(EXIT_SUCCESS)
     }
+}
+
+/// Execute the agent-verify command
+///
+/// Validates pixelsrc content and returns JSON output suitable for AI agents.
+fn run_agent_verify(
+    stdin_flag: bool,
+    content_arg: Option<&str>,
+    include_grid_info: bool,
+    include_tokens: bool,
+) -> ExitCode {
+    use std::io::{self, Read};
+
+    // Get content from stdin or --content argument
+    let content = if let Some(c) = content_arg {
+        c.to_string()
+    } else if stdin_flag || content_arg.is_none() {
+        // Default to stdin if no --content provided
+        let mut buf = String::new();
+        if let Err(e) = io::stdin().read_to_string(&mut buf) {
+            let error_output = serde_json::json!({
+                "valid": false,
+                "error": format!("Failed to read stdin: {}", e),
+                "diagnostics": []
+            });
+            println!("{}", serde_json::to_string_pretty(&error_output).unwrap());
+            return ExitCode::from(EXIT_ERROR);
+        }
+        buf
+    } else {
+        let error_output = serde_json::json!({
+            "valid": false,
+            "error": "No content provided. Use --content or pipe to stdin.",
+            "diagnostics": []
+        });
+        println!("{}", serde_json::to_string_pretty(&error_output).unwrap());
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    };
+
+    // Validate content
+    let mut validator = Validator::new();
+    for (line_idx, line) in content.lines().enumerate() {
+        validator.validate_line(line_idx + 1, line);
+    }
+
+    let issues = validator.into_issues();
+    let has_errors = issues.iter().any(|i| matches!(i.severity, Severity::Error));
+
+    // Convert issues to JSON format
+    let diagnostics: Vec<serde_json::Value> = issues
+        .iter()
+        .map(|i| {
+            let mut obj = serde_json::json!({
+                "line": i.line,
+                "severity": match i.severity {
+                    Severity::Error => "error",
+                    Severity::Warning => "warning",
+                },
+                "type": i.issue_type.to_string(),
+                "message": i.message,
+            });
+            if let Some(ref ctx) = i.context {
+                obj["context"] = serde_json::json!(ctx);
+            }
+            if let Some(ref sug) = i.suggestion {
+                obj["fix_suggestion"] = serde_json::json!(sug);
+            }
+            obj
+        })
+        .collect();
+
+    // Build base result
+    let mut result = serde_json::json!({
+        "valid": !has_errors,
+        "diagnostics": diagnostics,
+    });
+
+    // Optionally include grid info
+    if include_grid_info {
+        let grid_info = extract_grid_info(&content);
+        result["grid_info"] = serde_json::json!(grid_info);
+    }
+
+    // Optionally include available tokens
+    if include_tokens {
+        let tokens = collect_palette_tokens(&content);
+        result["available_tokens"] = serde_json::json!(tokens);
+    }
+
+    println!("{}", serde_json::to_string_pretty(&result).unwrap());
+
+    if has_errors {
+        ExitCode::from(EXIT_ERROR)
+    } else {
+        ExitCode::from(EXIT_SUCCESS)
+    }
+}
+
+/// Extract grid information from sprites in content
+fn extract_grid_info(content: &str) -> Vec<serde_json::Value> {
+    use crate::tokenizer::tokenize;
+
+    let mut info = Vec::new();
+
+    for line in content.lines() {
+        let obj: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let obj = match obj.as_object() {
+            Some(o) => o,
+            None => continue,
+        };
+
+        // Only process sprites
+        let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+            Some(t) => t,
+            None => continue,
+        };
+
+        if obj_type != "sprite" {
+            continue;
+        }
+
+        let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("unnamed");
+
+        // Get grid array
+        let grid = match obj.get("grid").and_then(|g| g.as_array()) {
+            Some(g) => g,
+            None => continue,
+        };
+
+        // Calculate row widths
+        let row_widths: Vec<usize> = grid
+            .iter()
+            .filter_map(|row| row.as_str())
+            .map(|row| {
+                let (tokens, _) = tokenize(row);
+                tokens.len()
+            })
+            .collect();
+
+        // Get expected size from size field or first row
+        let (expected_width, expected_height) = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
+            let w = size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            let h = size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            (w, h)
+        } else {
+            let first_width = row_widths.first().copied().unwrap_or(0);
+            (first_width, row_widths.len())
+        };
+
+        // Check if all rows are aligned
+        let aligned = row_widths.iter().all(|&w| w == expected_width);
+
+        info.push(serde_json::json!({
+            "name": name,
+            "size": [expected_width, expected_height],
+            "actual_rows": row_widths.len(),
+            "row_widths": row_widths,
+            "aligned": aligned,
+        }));
+    }
+
+    info
+}
+
+/// Collect all defined tokens from palettes in content
+fn collect_palette_tokens(content: &str) -> Vec<serde_json::Value> {
+    let mut tokens = Vec::new();
+
+    for line in content.lines() {
+        let obj: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let obj = match obj.as_object() {
+            Some(o) => o,
+            None => continue,
+        };
+
+        // Only process palettes
+        let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+            Some(t) => t,
+            None => continue,
+        };
+
+        if obj_type != "palette" {
+            continue;
+        }
+
+        let palette_name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("unnamed");
+
+        // Get colors object
+        let colors = match obj.get("colors").and_then(|c| c.as_object()) {
+            Some(c) => c,
+            None => continue,
+        };
+
+        // Extract token definitions
+        for (key, value) in colors {
+            if key.starts_with('{') && key.ends_with('}') {
+                let color_str = value.as_str().unwrap_or("");
+                tokens.push(serde_json::json!({
+                    "token": key,
+                    "color": color_str,
+                    "palette": palette_name,
+                }));
+            }
+        }
+    }
+
+    // Add built-in transparent token
+    tokens.push(serde_json::json!({
+        "token": "{_}",
+        "color": "#00000000",
+        "palette": "(built-in)",
+    }));
+
+    tokens
 }
 
 /// Execute the explain command
