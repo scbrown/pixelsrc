@@ -1,435 +1,892 @@
-# CSS Integration Strategy
+---
+phase: 22
+title: CSS Integration
+---
 
-**Status**: 🟡 Planning
-**Branch**: `claude/css-aliases-enhancement-dxxWz`
-**Goal**: Adopt CSS syntax and semantics instead of reinventing styling primitives
+# Phase 22: CSS Integration
+
+Adopt CSS syntax and semantics for colors, variables, easing, and styling.
+
+**Personas:** All (GenAI benefits everyone)
+
+**Status:** Not Started
+
+**Depends on:** Phase 21 (mdbook Documentation)
+
+**Related:**
+- [VISION.md](../VISION.md) - Tenets #3 and #5
+- [refactor.md](./refactor.md) - composition.rs breakup (REF-1)
+
+---
+
+## Overview
+
+| Component | Purpose |
+|-----------|---------|
+| CSS Colors | Replace hex-only with full CSS color syntax |
+| CSS Variables | `--custom-properties` and `var()` resolution |
+| CSS Easing | `cubic-bezier()`, `steps()`, named functions |
+| CSS Blend Modes | Standardize composition layer blending |
+| CSS Keyframes | Percentage-based animation definitions |
+| CSS Transforms | `translate()`, `rotate()`, `scale()` |
+
+---
 
 ## Strategic Vision
 
 ### The Problem
 
-Pixelsrc is currently reinventing concepts that CSS has solved for decades:
-- **Colors**: Custom hex-only palette format vs CSS `rgb()`, `hsl()`, `oklch()`, named colors, `--custom-properties`
-- **Easing**: Custom `Interpolation` enum vs CSS `cubic-bezier()`, `ease-in`, `steps()`
-- **Animations**: Custom timing system vs CSS `@keyframes`, `animation-duration`, `animation-timing-function`
-- **Transforms**: (Future) vs CSS `transform`, `rotate()`, `scale()`, `matrix()`
-- **Blending**: Custom `blend` field vs CSS `mix-blend-mode`
-- **Opacity**: Already matches CSS `opacity` (1.0 = opaque)
+Pixelsrc reinvents concepts CSS has solved for decades:
+- **Colors**: Hex-only vs CSS `rgb()`, `hsl()`, `oklch()`, `color-mix()`
+- **Easing**: Custom `Interpolation` enum vs CSS `cubic-bezier()`, `steps()`
+- **Animations**: Frame arrays vs CSS `@keyframes` percentages
+- **Transforms**: Custom flags vs CSS `transform` functions
 
 ### Why This Matters
 
-**GenAI familiarity is a force multiplier.** LLMs have seen millions of CSS examples during training. By adopting CSS syntax:
+**GenAI familiarity is a force multiplier.** LLMs have seen millions of CSS examples. By adopting CSS:
 
-1. **Lower cognitive load** - GenAI already knows `hsl(30, 45%, 85%)` and `cubic-bezier(0.68, -0.55, 0.265, 1.55)`
-2. **Proven semantics** - CSS color spaces, easing functions, and transforms are battle-tested
-3. **Future-proof** - As CSS evolves (e.g., `oklch()`, `color-mix()`), we get new features for free
-4. **Familiar to humans** - Web developers already know this syntax
+1. **Lower cognitive load** - GenAI knows `hsl(30, 45%, 85%)` natively
+2. **Proven semantics** - Battle-tested specifications
+3. **Future-proof** - New CSS features come free
+4. **Human-familiar** - Web developers know the syntax
 
 ### Alignment with Vision
 
-From `docs/VISION.md`:
-- **Tenet #3**: "Don't reinvent the wheel" - Use proven standards instead of custom syntax
-- **Tenet #5**: "GenAI-first" - Leverage existing LLM knowledge instead of teaching new formats
-
-## Implementation Paths
-
-### 1. CSS Color Functions (Phase 1)
-
-**Impact**: High | **Risk**: Low | **Effort**: ~1 week
-
-Replace hex-only palette colors with full CSS color syntax.
-
-#### Current State
-```jsonl
-{"type": "palette", "name": "hero", "colors": {
-  "{skin}": "#FFD5B4",
-  "{shadow}": "#000000"
-}}
-```
-
-#### Target State
-```jsonl
-{"type": "palette", "name": "hero", "colors": {
-  "{skin}": "hsl(30, 45%, 85%)",
-  "{shadow}": "oklch(0% 0 0 / 0.3)",
-  "{primary}": "rgb(255 215 0)",
-  "{highlight}": "#FFFACD"
-}}
-```
-
-#### Supported CSS Color Formats
-- Hex: `#FFD700`, `#FFD70080` (with alpha)
-- RGB: `rgb(255, 215, 0)`, `rgb(255 215 0 / 0.5)`
-- HSL: `hsl(51, 100%, 50%)`, `hsl(51deg 100% 50%)`
-- OKLCH: `oklch(84% 0.15 103)` (perceptually uniform)
-- Named colors: `gold`, `transparent`, `currentColor`
-
-#### Implementation
-```rust
-// Use lightningcss for parsing
-use lightningcss::values::color::CssColor;
-
-pub fn parse_css_color(css_string: &str) -> Result<[u8; 4], ColorParseError> {
-    let color = CssColor::parse_string(css_string)?;
-    Ok(color.to_rgba())
-}
-```
-
-**Dependencies**:
-- `lightningcss = "1.0"` - Full CSS parser (used by Parcel, production-proven)
-- OR `csscolorparser = "0.6"` - Simpler, color-only parser
-
-**Backwards Compatibility**: Continue accepting hex colors as before.
+- **Tenet #3**: "Don't reinvent the wheel"
+- **Tenet #5**: "GenAI-first"
 
 ---
 
-### 2. CSS Custom Properties (Phase 2)
+## Task Dependency Diagram
 
-**Impact**: High | **Risk**: Medium | **Effort**: ~1 week
-
-Enable CSS variable definitions and resolution in palettes.
-
-#### Target State
-```jsonl
-{"type": "palette", "name": "theme", "colors": {
-  "--primary": "oklch(60% 0.2 250)",
-  "--secondary": "oklch(70% 0.15 180)",
-  "--accent": "hsl(15, 80%, 60%)",
-  "{hero-shirt}": "var(--primary)",
-  "{hero-pants}": "var(--secondary)",
-  "{hero-shirt-shadow}": "color-mix(in oklch, var(--primary) 80%, black)"
-}}
 ```
+                           CSS INTEGRATION TASK FLOW
+═══════════════════════════════════════════════════════════════════════════════
 
-#### Benefits
-- **Theme variations**: Override `--primary` to create color schemes
-- **Palette composition**: Palettes can reference other palettes' variables
-- **Computed colors**: `color-mix()`, `color-contrast()` for automatic shading
+PREREQUISITE
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Phase 21 Complete                                 │
+│                      (mdbook for documentation home)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 1 (Foundation - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌────────────────────────────────┐  ┌────────────────────────────────┐    │
+│  │         CSS-1                  │  │         CSS-2                  │    │
+│  │    lightningcss Setup          │  │    ColorError Extension        │    │
+│  │    - Add Cargo dependency      │  │    - CssParse variant          │    │
+│  │    - Verify builds             │  │    - Display impl              │    │
+│  │    - Feature flags if needed   │  │    - From<lightningcss::Error> │    │
+│  └────────────────────────────────┘  └────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                                    │
+            └─────────────────┬──────────────────┘
+                              ▼
+WAVE 2 (CSS Colors)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-3                                    │    │
+│  │               CSS Color Parsing                                     │    │
+│  │               - Extend parse_color() in src/color.rs                │    │
+│  │               - rgb(), hsl(), oklch(), hwb()                        │    │
+│  │               - Named colors (gold, transparent)                    │    │
+│  │               - Hex fast-path preserved                             │    │
+│  │               Needs: CSS-1, CSS-2                                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-4                                    │    │
+│  │               Color Tests & Docs                                    │    │
+│  │               - Unit tests for all color formats                    │    │
+│  │               - Update docs/book/src/reference/colors.md            │    │
+│  │               - Update primer with CSS color examples               │    │
+│  │               Needs: CSS-3                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 3 (CSS Variables - Sequential)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-5                                    │    │
+│  │               Variable Registry Core                                │    │
+│  │               - Create src/variables.rs                             │    │
+│  │               - VariableRegistry struct                             │    │
+│  │               - define() and resolve() methods                      │    │
+│  │               - Circular reference detection                        │    │
+│  │               - Fallback value support                              │    │
+│  │               Needs: CSS-3                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                              │
+│                              ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-6                                    │    │
+│  │               Parser Integration                                    │    │
+│  │               - Two-pass palette parsing                            │    │
+│  │               - Lenient mode (magenta fallback)                     │    │
+│  │               - Strict mode (error on undefined)                    │    │
+│  │               - Integration with PaletteRegistry                    │    │
+│  │               Needs: CSS-5                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                              │
+│                              ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-7                                    │    │
+│  │               Variables Tests & Docs                                │    │
+│  │               - Unit tests for resolution                           │    │
+│  │               - Tests for circular refs, fallbacks                  │    │
+│  │               - Create docs/book/src/reference/css-variables.md     │    │
+│  │               - Update palette docs with var() examples             │    │
+│  │               Needs: CSS-6                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+WAVE 4 (Easing & Composition - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌───────────────────────────────────┐  ┌────────────────────────────────┐  │
+│  │           CSS-8                   │  │           CSS-9                │  │
+│  │    CSS Timing Functions           │  │    Composition Variables       │  │
+│  │    - Add Steps variant            │  │    - var() in layer opacity    │  │
+│  │    - parse_timing_function()      │  │    - var() in layer blend      │  │
+│  │    - cubic-bezier() parsing       │  │    - Resolve before render     │  │
+│  │    - steps() parsing              │  │    Needs: CSS-6                │  │
+│  │    Needs: CSS-3                   │  │                                │  │
+│  └───────────────────────────────────┘  └────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────┐  ┌────────────────────────────────┐  │
+│  │           CSS-10                  │  │           CSS-11               │  │
+│  │    Easing Tests & Docs            │  │    Composition Docs            │  │
+│  │    - Tests for all functions      │  │    - Blend mode reference      │  │
+│  │    - steps() semantic docs        │  │    - Variable examples         │  │
+│  │    - timing-functions.md          │  │    - Update composition.md     │  │
+│  │    Needs: CSS-8                   │  │    Needs: CSS-9                │  │
+│  └───────────────────────────────────┘  └────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                                     │
+            └─────────────────┬───────────────────┘
+                              ▼
+WAVE 5 (Advanced - Parallel)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐     │
+│  │      CSS-12        │  │      CSS-13        │  │      CSS-14        │     │
+│  │   color-mix()      │  │   @keyframes       │  │   CSS Transforms   │     │
+│  │   - Parse function │  │   - New Animation  │  │   - translate()    │     │
+│  │   - oklch interp   │  │     model          │  │   - rotate()       │     │
+│  │   - Percentage     │  │   - % keyframes    │  │   - scale()        │     │
+│  │     blending       │  │   - Parser update  │  │   - Parser         │     │
+│  │   Needs: CSS-6     │  │   Needs: CSS-8     │  │   Needs: CSS-8     │     │
+│  └────────────────────┘  └────────────────────┘  └────────────────────┘     │
+│                                                                             │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐     │
+│  │      CSS-15        │  │      CSS-16        │  │      CSS-17        │     │
+│  │   color-mix Docs   │  │   @keyframes Docs  │  │   Transform Docs   │     │
+│  │   Needs: CSS-12    │  │   Needs: CSS-13    │  │   Needs: CSS-14    │     │
+│  └────────────────────┘  └────────────────────┘  └────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                       │                       │
+            └───────────────────────┴───────────────────────┘
+                              │
+                              ▼
+WAVE 6 (Integration & Polish)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-18                                   │    │
+│  │                    Integration Test Suite                           │    │
+│  │                    - End-to-end CSS color tests                     │    │
+│  │                    - Variable resolution tests                      │    │
+│  │                    - Animation with keyframes tests                 │    │
+│  │                    - Composition with vars tests                    │    │
+│  │                    Needs: CSS-12, CSS-13, CSS-14                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-19                                   │    │
+│  │                    Example Updates                                  │    │
+│  │                    - Update examples/*.pxl with CSS syntax          │    │
+│  │                    - Update primer with CSS-first examples          │    │
+│  │                    - Update system prompts                          │    │
+│  │                    Needs: CSS-18                                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                            CSS-20                                   │    │
+│  │                    Documentation Finalization                       │    │
+│  │                    - Update mdbook SUMMARY.md                       │    │
+│  │                    - Cross-link all CSS docs                        │    │
+│  │                    - Update format spec                             │    │
+│  │                    - prime output updates                           │    │
+│  │                    Needs: CSS-19                                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-#### Implementation Challenges
-- **Variable scope**: Do variables scope to palette, file, or globally?
-- **Inheritance**: Can palettes inherit from base palettes?
-- **Resolution order**: When are variables resolved (parse time vs render time)?
+═══════════════════════════════════════════════════════════════════════════════
 
-**Recommended Scope**: Variables are file-scoped, resolved at parse time.
+PARALLELIZATION SUMMARY:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Wave 1: CSS-1 + CSS-2                        (2 tasks in parallel)         │
+│  Wave 2: CSS-3 → CSS-4                        (sequential)                  │
+│  Wave 3: CSS-5 → CSS-6 → CSS-7                (sequential - core feature)   │
+│  Wave 4: CSS-8 + CSS-9                        (2 parallel)                  │
+│          CSS-10 + CSS-11 (after their deps)   (2 parallel)                  │
+│  Wave 5: CSS-12 + CSS-13 + CSS-14             (3 parallel)                  │
+│          CSS-15 + CSS-16 + CSS-17             (3 parallel docs)             │
+│  Wave 6: CSS-18 → CSS-19 → CSS-20             (sequential)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CRITICAL PATH: CSS-1 → CSS-3 → CSS-5 → CSS-6 → CSS-8 → CSS-13 → CSS-18 → CSS-20
+
+BEADS CREATION ORDER:
+  1. CSS-1, CSS-2 (no deps)
+  2. CSS-3 (dep: CSS-1, CSS-2)
+  3. CSS-4 (dep: CSS-3)
+  4. CSS-5 (dep: CSS-3)
+  5. CSS-6 (dep: CSS-5)
+  6. CSS-7 (dep: CSS-6)
+  7. CSS-8 (dep: CSS-3), CSS-9 (dep: CSS-6)
+  8. CSS-10 (dep: CSS-8), CSS-11 (dep: CSS-9)
+  9. CSS-12 (dep: CSS-6), CSS-13 (dep: CSS-8), CSS-14 (dep: CSS-8)
+ 10. CSS-15 (dep: CSS-12), CSS-16 (dep: CSS-13), CSS-17 (dep: CSS-14)
+ 11. CSS-18 (dep: CSS-12, CSS-13, CSS-14)
+ 12. CSS-19 (dep: CSS-18)
+ 13. CSS-20 (dep: CSS-19)
+```
 
 ---
 
-### 3. CSS Easing Functions (Phase 3)
+## Tasks
 
-**Impact**: Medium | **Risk**: Low | **Effort**: ~3 days
+### Task CSS-1: lightningcss Setup
 
-Replace custom `Interpolation` enum with CSS timing function strings.
+**Wave:** 1 (parallel with CSS-2)
 
-#### Current State (`src/motion.rs`)
-```rust
-pub enum Interpolation {
-    Linear,
-    EaseIn,
-    EaseOut,
-    EaseInOut,
-    Bounce,
-    Elastic,
-    Bezier { p1: (f64, f64), p2: (f64, f64) },
-}
+Add lightningcss dependency and verify it builds.
+
+**Deliverables:**
+- Update `Cargo.toml`:
+  ```toml
+  [dependencies]
+  lightningcss = "1.0"
+  ```
+- Verify `cargo build` succeeds
+- Add feature flags if needed for WASM compatibility
+
+**Verification:**
+```bash
+cargo build
+cargo build --target wasm32-unknown-unknown
 ```
 
-#### Target State
-```jsonl
-{"type": "animation", "name": "bounce", "frames": ["f1", "f2"],
-  "timing-function": "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
-}
-
-{"type": "animation", "name": "walk", "frames": ["w1", "w2", "w3"],
-  "timing-function": "steps(3, jump-end)"
-}
-```
-
-#### Supported CSS Timing Functions
-- **Named**: `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`
-- **Cubic Bezier**: `cubic-bezier(x1, y1, x2, y2)`
-- **Steps**: `steps(n, jump-start|jump-end|jump-both)`
-- **Linear** (new): `linear(0, 0.25, 0.5 50%, 0.75, 1)`
-
-#### Implementation
-```rust
-// Parse CSS timing function string to internal enum
-pub fn parse_timing_function(css: &str) -> Result<Interpolation, ParseError> {
-    match css {
-        "linear" => Ok(Interpolation::Linear),
-        "ease-in" => Ok(Interpolation::EaseIn),
-        s if s.starts_with("cubic-bezier(") => {
-            // Parse cubic-bezier(x1, y1, x2, y2)
-            let (p1, p2) = parse_bezier_params(s)?;
-            Ok(Interpolation::Bezier { p1, p2 })
-        }
-        // ... more cases
-    }
-}
-```
-
-**Backwards Compatibility**: Accept both enum strings (`"ease-in"`) and CSS functions (`"cubic-bezier(...)"`).
+**Dependencies:** Phase 21 complete
 
 ---
 
-### 4. CSS Transform Functions (Phase 4)
+### Task CSS-2: ColorError Extension
 
-**Impact**: High | **Risk**: Medium | **Effort**: ~1-2 weeks
+**Wave:** 1 (parallel with CSS-1)
 
-When sprite transforms are implemented, use CSS transform syntax directly.
+Extend ColorError to handle CSS parsing errors.
 
-#### Target State
-```jsonl
-{"type": "sprite", "name": "rotated_hero", "base": "hero",
-  "transform": "rotate(45deg) scale(1.5) translateX(10px)"
-}
-
-{"type": "animation", "name": "spin", "frames": ["sprite"],
-  "keyframes": {
-    "0%": {"transform": "rotate(0deg)"},
-    "100%": {"transform": "rotate(360deg)"}
+**Deliverables:**
+- Update `src/color.rs`:
+  ```rust
+  pub enum ColorError {
+      Empty,
+      MissingHash,
+      InvalidLength(usize),
+      InvalidHex(char),
+      CssParse(String),  // NEW
   }
-}
+
+  impl From<lightningcss::error::Error<'_>> for ColorError {
+      fn from(e: lightningcss::error::Error) -> Self {
+          ColorError::CssParse(e.to_string())
+      }
+  }
+  ```
+
+**Verification:**
+```bash
+cargo test color
 ```
 
-#### Supported CSS Transform Functions
-- `translateX(px)`, `translateY(px)`, `translate(x, y)`
-- `rotate(deg)`, `rotateX(deg)`, `rotateY(deg)`
-- `scale(n)`, `scaleX(n)`, `scaleY(n)`, `scale(x, y)`
-- `skewX(deg)`, `skewY(deg)`
-- `matrix(a, b, c, d, tx, ty)`
-
-**Note**: This is future work. Current project has `src/transforms.rs` with flip/rotate but not CSS syntax.
+**Dependencies:** Phase 21 complete
 
 ---
 
-### 5. CSS @keyframes Syntax (Phase 5)
+### Task CSS-3: CSS Color Parsing
 
-**Impact**: High | **Risk**: High | **Effort**: ~2 weeks
+**Wave:** 2 (after CSS-1, CSS-2)
 
-Replace custom animation format with CSS-style keyframe definitions.
+Extend parse_color() to handle full CSS color syntax.
 
-#### Current State
-```jsonl
-{"type": "animation", "name": "bounce", "frames": ["f1", "f2", "f1"], "duration": 100}
+**Deliverables:**
+- Update `src/color.rs`:
+  ```rust
+  pub fn parse_color(s: &str) -> Result<Rgba<u8>, ColorError> {
+      // Fast path for hex colors
+      if s.starts_with('#') {
+          return parse_hex_color(s);
+      }
+
+      // CSS color parsing via lightningcss
+      let css_color = CssColor::parse_string(s)?;
+      Ok(css_color_to_rgba(&css_color))
+  }
+
+  fn css_color_to_rgba(color: &CssColor) -> Rgba<u8> {
+      // Convert lightningcss color to image::Rgba
+  }
+  ```
+
+**Supported formats:**
+- `rgb(255, 0, 0)`, `rgb(255 0 0)`, `rgb(255 0 0 / 0.5)`
+- `hsl(0, 100%, 50%)`, `hsl(0deg 100% 50%)`
+- `oklch(70% 0.15 30)`
+- `hwb(0 0% 0%)`
+- Named: `red`, `gold`, `transparent`
+
+**Verification:**
+```bash
+cargo test color::parse
+# Test: rgb(255, 0, 0) → Rgba([255, 0, 0, 255])
+# Test: hsl(0, 100%, 50%) → Rgba([255, 0, 0, 255])
+# Test: transparent → Rgba([0, 0, 0, 0])
 ```
 
-#### Target State
-```jsonl
-{"type": "keyframes", "name": "bounce",
-  "keyframes": {
-    "0%": {"sprite": "ball_squash", "transform": "translateY(0)"},
-    "50%": {"sprite": "ball_round", "transform": "translateY(-20px)"},
-    "100%": {"sprite": "ball_squash", "transform": "translateY(0)"}
-  },
-  "duration": "500ms",
-  "timing-function": "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
-}
+**Dependencies:** CSS-1, CSS-2
+
+---
+
+### Task CSS-4: Color Tests & Docs
+
+**Wave:** 2 (after CSS-3)
+
+Comprehensive tests and documentation for CSS colors.
+
+**Deliverables:**
+- Add tests to `src/color.rs`:
+  ```rust
+  #[test]
+  fn test_css_rgb() { ... }
+  #[test]
+  fn test_css_hsl() { ... }
+  #[test]
+  fn test_css_oklch() { ... }
+  #[test]
+  fn test_css_named() { ... }
+  ```
+- Update `docs/book/src/reference/colors.md`:
+  - All supported formats with examples
+  - Color space explanations
+  - When to use oklch vs hsl
+- Update primer/system prompts with CSS examples
+
+**Verification:**
+```bash
+cargo test color
+mdbook build docs/book
 ```
 
-#### Benefits
-- **Familiar syntax** - Matches CSS animations exactly
-- **Percentage-based timing** - More intuitive than frame indices
-- **Per-keyframe easing** - Different easing between keyframe pairs
-
-**Risk**: This changes the animation format significantly. Requires migration path for existing animations.
+**Dependencies:** CSS-3
 
 ---
 
-## Migration Strategy
+### Task CSS-5: Variable Registry Core
 
-### Phase 1: CSS Colors (Week 1) ⭐ **START HERE**
+**Wave:** 3 (after CSS-3)
 
-**Goal**: Support CSS color functions in palettes alongside existing hex colors.
+Create VariableRegistry for CSS custom property resolution.
 
-**Tasks**:
-1. Add `lightningcss` or `csscolorparser` dependency
-2. Update `parse_color()` in color parsing module to accept CSS syntax
-3. Add tests for `rgb()`, `hsl()`, `oklch()`, named colors
-4. Update docs with CSS color examples
-5. Maintain backwards compatibility with hex-only colors
+**Deliverables:**
+- New file `src/variables.rs`:
+  ```rust
+  pub struct VariableRegistry {
+      variables: HashMap<String, String>,
+  }
 
-**Success Criteria**:
-- All existing fixtures still pass
-- Can parse `hsl(30, 45%, 85%)` to RGBA
-- Can parse `oklch(84% 0.15 103)` to RGBA
-- Named colors like `gold` work
+  pub enum VariableError {
+      Undefined(String),
+      Circular(String),
+      Syntax(String),
+  }
 
-**Files to Modify**:
-- `src/color.rs` (or create it) - Color parsing logic
-- `src/models.rs` - Palette color field parsing
-- `tests/` - Add CSS color parsing tests
+  impl VariableRegistry {
+      pub fn new() -> Self;
+      pub fn define(&mut self, name: &str, value: &str);
+      pub fn resolve(&self, value: &str, strict: bool) -> Result<String, VariableError>;
+  }
+  ```
+- Circular reference detection via HashSet tracking
+- Fallback support: `var(--missing, #fff)`
+- Update `src/lib.rs` to add `pub mod variables;`
 
----
+**Verification:**
+```bash
+cargo test variables
+# Test: basic resolution
+# Test: chained variables
+# Test: circular detection
+# Test: fallback values
+```
 
-### Phase 2: CSS Custom Properties (Week 2)
-
-**Goal**: Enable `--variables` and `var()` resolution in palettes.
-
-**Tasks**:
-1. Extend palette parsing to recognize `--variable` definitions
-2. Implement `var()` resolution during palette expansion
-3. Support `color-mix()` for computed colors
-4. Add variable scope tracking (file-scoped recommended)
-5. Update error messages for undefined variables
-
-**Success Criteria**:
-- Can define `"--primary": "oklch(60% 0.2 250)"`
-- Can reference `"{shirt}": "var(--primary)"`
-- Undefined variables produce clear error messages
-- Variables can reference other variables
+**Dependencies:** CSS-3
 
 ---
 
-### Phase 3: CSS Easing (Week 3)
+### Task CSS-6: Parser Integration
 
-**Goal**: Accept CSS timing function strings in animations.
+**Wave:** 3 (after CSS-5)
 
-**Tasks**:
-1. Add CSS timing function parser
-2. Map CSS functions to existing `Interpolation` enum
-3. Support `steps()` for pixel-perfect frame stepping
-4. Update animation docs with CSS timing examples
-5. Deprecate custom easing names in favor of CSS
+Integrate VariableRegistry into palette parsing.
 
-**Success Criteria**:
-- `"timing-function": "ease-in"` works
-- `"timing-function": "cubic-bezier(0.68, -0.55, 0.265, 1.55)"` works
-- `"timing-function": "steps(4, jump-end)"` works
-- Backwards compatible with existing animations
+**Deliverables:**
+- Update `src/parser.rs` (or relevant parsing code):
+  ```rust
+  fn parse_palette(&mut self, json: &Value) -> Result<Palette, ParseError> {
+      let mut var_registry = VariableRegistry::new();
+      let colors = json["colors"].as_object()?;
+
+      // Pass 1: Collect --variable definitions
+      for (key, value) in colors {
+          if key.starts_with("--") {
+              var_registry.define(key, value.as_str()?);
+          }
+      }
+
+      // Pass 2: Resolve var() references
+      let mut resolved_colors = HashMap::new();
+      for (key, value) in colors {
+          if key.starts_with('{') {
+              let resolved = var_registry.resolve(value.as_str()?, self.strict)?;
+              resolved_colors.insert(key.clone(), resolved);
+          }
+      }
+
+      Ok(Palette { name, colors: resolved_colors })
+  }
+  ```
+- Lenient mode: undefined vars → `#FF00FF` + warning
+- Strict mode: undefined vars → error
+
+**Verification:**
+```bash
+cargo test parser::palette
+pxl render tests/fixtures/css/variables.pxl
+pxl render tests/fixtures/css/variables.pxl --strict
+```
+
+**Dependencies:** CSS-5
 
 ---
 
-### Phase 4: Documentation (Week 4)
+### Task CSS-7: Variables Tests & Docs
 
-**Goal**: Update all docs to emphasize CSS syntax and GenAI familiarity.
+**Wave:** 3 (after CSS-6)
 
-**Tasks**:
-1. Update format spec with CSS color examples
-2. Add "CSS Integration" section to README
-3. Create migration guide for existing projects
-4. Update GenAI system prompts to use CSS syntax
-5. Add CSS syntax examples to web editor
+Tests and documentation for CSS variables.
+
+**Deliverables:**
+- Integration tests for variable resolution
+- Create `docs/book/src/reference/css-variables.md`:
+  - Syntax reference
+  - Scoping rules (file-scoped)
+  - Error handling (strict vs lenient)
+  - Examples with common patterns
+- Update `docs/book/src/format/palette.md` with variable examples
+
+**Verification:**
+```bash
+cargo test variables
+mdbook build docs/book
+```
+
+**Dependencies:** CSS-6
+
+---
+
+### Task CSS-8: CSS Timing Functions
+
+**Wave:** 4 (parallel with CSS-9)
+
+Add CSS timing function parsing to motion.rs.
+
+**Deliverables:**
+- Update `src/motion.rs`:
+  ```rust
+  pub enum Interpolation {
+      Linear,
+      EaseIn,
+      EaseOut,
+      EaseInOut,
+      Bounce,
+      Elastic,
+      Bezier { p1: (f64, f64), p2: (f64, f64) },
+      Steps { count: u32, position: StepPosition },  // NEW
+  }
+
+  pub enum StepPosition {
+      JumpStart,
+      JumpEnd,
+      JumpNone,
+      JumpBoth,
+  }
+
+  pub fn parse_timing_function(css: &str) -> Result<Interpolation, ParseError>;
+  ```
+- Parse: `cubic-bezier(x1, y1, x2, y2)`
+- Parse: `steps(n, jump-end)`
+- Parse: named functions (`ease`, `ease-in-out`, etc.)
+
+**Verification:**
+```bash
+cargo test motion::parse_timing
+```
+
+**Dependencies:** CSS-3
+
+---
+
+### Task CSS-9: Composition Variables
+
+**Wave:** 4 (parallel with CSS-8)
+
+Enable var() in composition layer properties.
+
+**Deliverables:**
+- Update composition rendering to resolve variables:
+  ```rust
+  // Before applying opacity/blend, resolve any var() references
+  let opacity = match layer.opacity {
+      Some(val) if val.contains("var(") => {
+          let resolved = var_registry.resolve(&val, strict)?;
+          resolved.parse::<f64>()?
+      }
+      Some(val) => val.parse::<f64>()?,
+      None => 1.0,
+  };
+  ```
+- Support `var()` in:
+  - `opacity` field
+  - `blend` field
+
+**Verification:**
+```bash
+cargo test composition::variables
+pxl render tests/fixtures/css/composition_vars.pxl
+```
+
+**Dependencies:** CSS-6
+
+---
+
+### Task CSS-10: Easing Tests & Docs
+
+**Wave:** 4 (after CSS-8)
+
+Tests and documentation for CSS timing functions.
+
+**Deliverables:**
+- Tests for all timing functions
+- Create `docs/book/src/reference/timing-functions.md`:
+  - Named functions reference
+  - cubic-bezier() explanation
+  - steps() semantics for pixel art (important clarification)
+  - When to use each type
+- ASCII diagram explaining steps() applies to tweened properties, not frame selection
+
+**Verification:**
+```bash
+cargo test motion
+mdbook build docs/book
+```
+
+**Dependencies:** CSS-8
+
+---
+
+### Task CSS-11: Composition Docs
+
+**Wave:** 4 (after CSS-9)
+
+Documentation for composition styling.
+
+**Deliverables:**
+- Update `docs/book/src/format/composition.md`:
+  - Blend mode reference (matching CSS mix-blend-mode)
+  - Opacity usage
+  - Variable examples in layers
+- Add blend mode visual examples
+
+**Verification:**
+```bash
+mdbook build docs/book
+```
+
+**Dependencies:** CSS-9
+
+---
+
+### Task CSS-12: color-mix() Support
+
+**Wave:** 5 (parallel with CSS-13, CSS-14)
+
+Implement color-mix() function for computed colors.
+
+**Deliverables:**
+- Update color parsing to handle `color-mix()`:
+  ```rust
+  // color-mix(in oklch, var(--primary) 70%, black)
+  pub fn resolve_color_mix(expr: &str, var_registry: &VariableRegistry) -> Result<Rgba<u8>, ColorError>;
+  ```
+- Resolve variables first, then parse color-mix
+- Support `in oklch`, `in srgb`, `in hsl` color spaces
+- Percentage blending
+
+**Verification:**
+```bash
+cargo test color::color_mix
+pxl render tests/fixtures/css/color_mix.pxl
+```
+
+**Dependencies:** CSS-6
+
+---
+
+### Task CSS-13: @keyframes Animation Model
+
+**Wave:** 5 (parallel with CSS-12, CSS-14)
+
+Replace frame array with percentage-based keyframes.
+
+**Deliverables:**
+- Update `src/models.rs`:
+  ```rust
+  pub struct Animation {
+      pub name: String,
+      pub keyframes: HashMap<String, Keyframe>,  // "0%", "50%", "100%"
+      pub duration: String,                       // "500ms"
+      pub timing_function: Option<String>,
+  }
+
+  pub struct Keyframe {
+      pub sprite: Option<String>,
+      pub transform: Option<String>,
+      pub opacity: Option<f64>,
+      pub offset: Option<[i32; 2]>,
+  }
+  ```
+- Update parser for new format
+- Update animation renderer
+
+**Note:** This is a breaking change. Old `frames` format removed entirely.
+
+**Verification:**
+```bash
+cargo test animation::keyframes
+pxl render tests/fixtures/css/keyframes.pxl --gif
+```
+
+**Dependencies:** CSS-8
+
+---
+
+### Task CSS-14: CSS Transforms
+
+**Wave:** 5 (parallel with CSS-12, CSS-13)
+
+Parse and apply CSS transform functions.
+
+**Deliverables:**
+- New file or section for transform parsing:
+  ```rust
+  pub fn parse_transform(css: &str) -> Result<Transform, ParseError>;
+
+  pub struct Transform {
+      pub translate: Option<(i32, i32)>,
+      pub rotate: Option<f64>,        // degrees
+      pub scale: Option<(f64, f64)>,
+      pub flip_x: bool,
+      pub flip_y: bool,
+  }
+  ```
+- Support: `translate(x, y)`, `rotate(deg)`, `scale(n)`, `flip(x)`, `flip(y)`
+- Apply transforms during rendering
+
+**Verification:**
+```bash
+cargo test transforms::css
+pxl render tests/fixtures/css/transforms.pxl
+```
+
+**Dependencies:** CSS-8
+
+---
+
+### Task CSS-15: color-mix() Docs
+
+**Wave:** 5 (after CSS-12)
+
+Documentation for color-mix() function.
+
+**Deliverables:**
+- Update `docs/book/src/reference/colors.md` with color-mix section
+- Examples of shadow generation, highlights, etc.
+
+**Dependencies:** CSS-12
+
+---
+
+### Task CSS-16: @keyframes Docs
+
+**Wave:** 5 (after CSS-13)
+
+Documentation for keyframes animation format.
+
+**Deliverables:**
+- Update `docs/book/src/format/animation.md`:
+  - New keyframes syntax
+  - Migration from old frames format
+  - Examples
+- Update all animation examples in docs
+
+**Dependencies:** CSS-13
+
+---
+
+### Task CSS-17: Transform Docs
+
+**Wave:** 5 (after CSS-14)
+
+Documentation for CSS transforms.
+
+**Deliverables:**
+- Create `docs/book/src/reference/transforms.md`:
+  - All supported functions
+  - Pixel art considerations (nearest-neighbor scaling)
+  - Examples
+
+**Dependencies:** CSS-14
+
+---
+
+### Task CSS-18: Integration Test Suite
+
+**Wave:** 6 (after CSS-12, CSS-13, CSS-14)
+
+Comprehensive integration tests for all CSS features.
+
+**Deliverables:**
+- Create `tests/css_integration_tests.rs`:
+  - End-to-end color parsing tests
+  - Variable resolution across palettes
+  - Keyframe animations with transforms
+  - Compositions with variable blend/opacity
+- Fixture files in `tests/fixtures/css/`
+
+**Verification:**
+```bash
+cargo test --test css_integration_tests
+```
+
+**Dependencies:** CSS-12, CSS-13, CSS-14
+
+---
+
+### Task CSS-19: Example Updates
+
+**Wave:** 6 (after CSS-18)
+
+Update all examples to use CSS syntax.
+
+**Deliverables:**
+- Update `examples/*.pxl` files:
+  - Use `hsl()` or `oklch()` instead of hex where appropriate
+  - Add variable examples
+  - Update animations to keyframe format
+- Update primer documents
+- Update system prompts to suggest CSS syntax
+
+**Verification:**
+```bash
+pxl render examples/*.pxl
+pxl validate examples/
+```
+
+**Dependencies:** CSS-18
+
+---
+
+### Task CSS-20: Documentation Finalization
+
+**Wave:** 6 (after CSS-19)
+
+Final documentation pass and cross-linking.
+
+**Deliverables:**
+- Update `docs/book/src/SUMMARY.md` with new pages:
+  ```markdown
+  - [CSS Variables](reference/css-variables.md)
+  - [Timing Functions](reference/timing-functions.md)
+  - [Transforms](reference/transforms.md)
+  ```
+- Update `docs/spec/format.md` with CSS syntax
+- Update `pxl prime` output
+- Cross-link all CSS-related docs
+
+**Verification:**
+```bash
+mdbook build docs/book
+pxl prime --topic colors
+pxl prime --topic variables
+```
+
+**Dependencies:** CSS-19
 
 ---
 
 ## Technical Decisions
 
-### Parser Library: `lightningcss`
+### Parser Library: lightningcss
 
 **Chosen**: `lightningcss = "1.0"`
 
 **Why**:
-- Complete CSS parser written in Rust
-- Used in production by Parcel bundler (high confidence)
-- Handles colors, functions, custom properties, `calc()`, etc.
-- Can parse individual values (don't need full stylesheets)
-- Active maintenance and CSS spec compliance
+- Complete CSS parser in Rust
+- Production-proven (Parcel bundler)
+- Handles colors, functions, custom properties
+- Active maintenance
 
-**Alternative**: `csscolorparser = "0.6"` (simpler, but colors-only)
+### Variable Scope: File-Scoped, Parse-Time
 
----
-
-### Variable Scope: File-Scoped
-
-**Decision**: CSS custom properties are scoped to the current `.pxl` file.
+Variables are scoped to the parse unit and resolved during parsing.
 
 **Rationale**:
-- Simple mental model: variables defined in a file are available in that file
-- No cross-file dependency tracking needed
-- Matches how most programming languages handle variables
-- Can extend to global scope later if needed
+- Matches existing Registry pattern
+- Simple mental model
+- No cross-file tracking
+- Clear error messages
 
-**Alternative**: Global scope (more complex, harder to reason about)
+### Breaking Changes: Accepted
 
----
-
-### Resolution Timing: Parse Time
-
-**Decision**: Resolve CSS variables during parsing, not during rendering.
+The @keyframes format replaces frames format entirely.
 
 **Rationale**:
-- Simpler implementation: resolve once, render many times
-- Clearer error messages: undefined variables fail immediately
-- No runtime variable tracking needed
-- Matches how CSS preprocessors (Sass, Less) work
-
-**Alternative**: Render-time resolution (more flexible, but complex)
-
----
-
-### Backwards Compatibility: Strict
-
-**Decision**: All existing `.pxl` files must continue to work without changes.
-
-**Rationale**:
-- CSS syntax is additive, not replacement
-- Hex colors like `#FFD700` are valid CSS (no breaking changes)
-- Enum-style easing names (`"ease-in"`) map directly to CSS
-- No forced migration needed
-
----
-
-## Open Questions
-
-### 1. Should palettes support CSS cascade/inheritance?
-
-**Option A**: Simple `var()` resolution only
-**Option B**: Full inheritance with base palettes
-
-**Recommendation**: Start with Option A, add inheritance if users need it.
-
----
-
-### 2. Should we support `calc()`?
-
-Example: `"{size}": "calc(8px * 2)"`
-
-**Pros**: Extremely powerful for computed values
-**Cons**: Adds complexity, requires unit tracking
-
-**Recommendation**: Defer to Phase 3+. Colors and easing are higher priority.
-
----
-
-### 3. How deep should transform support go?
-
-**Option A**: Basic `rotate(deg)` and `scale(n)` only
-**Option B**: Full matrix operations and 3D transforms
-
-**Recommendation**: Start with Option A. Pixel art rarely needs 3D transforms.
-
----
-
-### 4. Should compositions use CSS Grid syntax?
-
-Current compositions already layer sprites. Could they use CSS Grid positioning?
-
-```jsonl
-{"type": "composition", "name": "scene",
-  "grid-template": "repeat(3, 8px) / repeat(4, 8px)",
-  "sprites": {
-    "hero": {"grid-area": "1 / 2 / 2 / 3"},
-    "enemy": {"grid-area": "2 / 3 / 3 / 4"}
-  }
-}
-```
-
-**Pros**: Powerful, familiar to web devs
-**Cons**: Complex, may be overkill for pixel art
-
-**Recommendation**: Defer. Current map-based system works well.
+- No external users yet
+- Documentation updates sufficient
+- Cleaner format without legacy code
 
 ---
 
 ## Success Metrics
 
-Pixelsrc CSS integration succeeds when:
-
-1. **LLMs generate CSS syntax naturally** - No need to teach hex colors, GenAI uses `hsl()` by default
-2. **Human readability improves** - `oklch(84% 0.15 103)` is more intuitive than `#FFD700` for color relationships
-3. **Zero breaking changes** - All existing `.pxl` files work unchanged
-4. **Docs emphasize CSS** - README and tutorials show CSS examples first, hex as fallback
+1. **LLMs generate CSS syntax naturally** - GenAI uses `hsl()` without prompting
+2. **Variables work intuitively** - `var(--primary)` resolves with clear errors
+3. **steps() understood** - Users know it's for property tweening
+4. **Consistent styling** - blend, opacity, transform use same syntax everywhere
+5. **Docs emphasize CSS** - All examples show CSS syntax first
 
 ---
 
@@ -437,37 +894,7 @@ Pixelsrc CSS integration succeeds when:
 
 - [VISION.md](../VISION.md) - Core design principles
 - [format.md](../spec/format.md) - Format specification
-- [motion.rs](../../src/motion.rs) - Current easing implementation
-- [models.rs](../../src/models.rs) - Data structures (Palette, Animation, etc.)
-
----
-
-## Implementation Tracking
-
-**Phase 1: CSS Colors**
-- [ ] Add `lightningcss` dependency
-- [ ] Implement CSS color parsing
-- [ ] Add test coverage for all CSS color formats
-- [ ] Update format spec documentation
-- [ ] Verify backwards compatibility
-
-**Phase 2: CSS Custom Properties**
-- [ ] Implement variable definition parsing (`--var`)
-- [ ] Implement `var()` resolution
-- [ ] Add `color-mix()` support
-- [ ] Add variable scope tracking
-- [ ] Update error messages
-
-**Phase 3: CSS Easing**
-- [ ] Implement timing function parser
-- [ ] Map to existing `Interpolation` enum
-- [ ] Add `steps()` support
-- [ ] Update animation docs
-- [ ] Deprecation plan for custom names
-
-**Phase 4: Documentation**
-- [ ] Update README with CSS examples
-- [ ] Update format spec
-- [ ] Create migration guide
-- [ ] Update GenAI system prompts
-- [ ] Add examples to web editor
+- [refactor.md](./refactor.md) - composition.rs breakup
+- [motion.rs](../../src/motion.rs) - Current easing
+- [color.rs](../../src/color.rs) - Current color parsing
+- [registry.rs](../../src/registry.rs) - Registry pattern

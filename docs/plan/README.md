@@ -29,6 +29,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 19](./advanced-transforms.md) | **Advanced Texture Features** (palette cycling, color ramps, atlas export) | In Progress |
 | [Phase 20](./build-system.md) | **Build System** (`pxl.toml`, `pxl init`, `pxl build`) | Not Started |
 | [Phase 21](./mdbook.md) | **mdbook Documentation** (exhaustive docs, WASM demos, playground) | Not Started |
+| [Phase 22](./css.md) | **CSS Integration** (colors, variables, easing, keyframes, transforms) | Not Started |
 
 ### Future Ideas
 
