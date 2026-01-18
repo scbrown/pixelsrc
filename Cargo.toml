@@ -26,6 +26,9 @@ wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 regex = "1.12.2"
 notify = "6.1"
+# CSS parsing - using minimal features for WASM compatibility
+# Note: bundler and visitor features are NOT available in WASM builds
+lightningcss = { version = "1.0.0-alpha.68", default-features = false, features = ["serde"] }
 notify-debouncer-mini = "0.4"
 
 [dev-dependencies]
@@ -34,7 +37,8 @@ wasm-bindgen-test = "0.3"
 serial_test = "3.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# WASM-specific dependencies can be added here
+# Enable js feature for getrandom to support WASM (required by lightningcss -> ahash -> getrandom)
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [profile.release]
 lto = true
