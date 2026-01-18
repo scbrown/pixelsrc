@@ -4,6 +4,7 @@
 
 use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
+use crate::variables::VariableRegistry;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -305,6 +306,209 @@ impl PixelsrcLanguageServer {
 
         tokens
     }
+
+    /// Collect all CSS variables from palettes in the document
+    ///
+    /// Returns a list of (variable_name, raw_value, line_number, palette_name) tuples.
+    fn collect_css_variables(content: &str) -> Vec<(String, String, usize, String)> {
+        let mut variables = Vec::new();
+
+        for (line_num, line) in content.lines().enumerate() {
+            // Try to parse as JSON
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Check if it's a palette
+            let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+                Some(t) => t,
+                None => continue,
+            };
+
+            if obj_type != "palette" {
+                continue;
+            }
+
+            let palette_name = obj
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            // Get the colors object
+            let colors = match obj.get("colors").and_then(|c| c.as_object()) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            // Extract CSS variables (keys starting with '--')
+            for (key, value) in colors {
+                if key.starts_with("--") {
+                    let value_str = match value.as_str() {
+                        Some(s) => s.to_string(),
+                        None => continue,
+                    };
+                    variables.push((key.clone(), value_str, line_num, palette_name.clone()));
+                }
+            }
+        }
+
+        variables
+    }
+
+    /// Build a VariableRegistry from document content
+    fn build_variable_registry(content: &str) -> VariableRegistry {
+        let mut registry = VariableRegistry::new();
+
+        for (name, value, _, _) in Self::collect_css_variables(content) {
+            registry.define(&name, &value);
+        }
+
+        registry
+    }
+
+    /// Find the position of a CSS variable definition in content
+    ///
+    /// Returns (line_number, start_char, end_char) if found.
+    fn find_variable_definition(content: &str, var_name: &str) -> Option<(usize, u32, u32)> {
+        let normalized_name = if var_name.starts_with("--") {
+            var_name.to_string()
+        } else {
+            format!("--{}", var_name)
+        };
+
+        // Search pattern: "var_name": or "var_name" : (with possible spaces)
+        let search_key = format!("\"{}\"", normalized_name);
+
+        for (line_num, line) in content.lines().enumerate() {
+            if let Some(pos) = line.find(&search_key) {
+                // Verify this is in a palette's colors object
+                if let Ok(obj) = serde_json::from_str::<Value>(line) {
+                    if let Some(obj) = obj.as_object() {
+                        if obj.get("type").and_then(|t| t.as_str()) == Some("palette") {
+                            if let Some(colors) = obj.get("colors").and_then(|c| c.as_object()) {
+                                if colors.contains_key(&normalized_name) {
+                                    let start = pos as u32;
+                                    let end = start + search_key.len() as u32;
+                                    return Some((line_num, start, end));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Extract CSS variable reference from text at a position
+    ///
+    /// Handles:
+    /// - `var(--name)` - returns Some("--name")
+    /// - `var(--name, fallback)` - returns Some("--name")
+    /// - Direct definition `"--name": "value"` - returns Some("--name")
+    fn extract_variable_at_position(line: &str, char_pos: u32) -> Option<String> {
+        let pos = char_pos as usize;
+        if pos >= line.len() {
+            return None;
+        }
+
+        // Check if we're in a var() reference
+        if let Some(var_start) = line[..=pos.min(line.len() - 1)].rfind("var(") {
+            // Find the end of the var() call
+            let after_var = &line[var_start..];
+            let mut paren_depth = 0;
+            let mut var_end = var_start;
+
+            for (i, c) in after_var.char_indices() {
+                match c {
+                    '(' => paren_depth += 1,
+                    ')' => {
+                        paren_depth -= 1;
+                        if paren_depth == 0 {
+                            var_end = var_start + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Check if cursor is within this var() call
+            if pos >= var_start && pos <= var_end {
+                // Extract the variable name from var(--name) or var(--name, fallback)
+                let content = &line[var_start + 4..var_end];
+                let var_name = if let Some(comma) = content.find(',') {
+                    content[..comma].trim()
+                } else {
+                    content.trim()
+                };
+
+                if var_name.starts_with("--") || !var_name.contains('(') {
+                    return Some(if var_name.starts_with("--") {
+                        var_name.to_string()
+                    } else {
+                        format!("--{}", var_name)
+                    });
+                }
+            }
+        }
+
+        // Check if we're on a variable definition (e.g., "--name": "value")
+        // Look for "--" before the cursor position
+        let before_pos = &line[..=pos.min(line.len() - 1)];
+        if let Some(quote_start) = before_pos.rfind('"') {
+            let after_quote = &line[quote_start + 1..];
+            if let Some(quote_end) = after_quote.find('"') {
+                let potential_var = &after_quote[..quote_end];
+                if potential_var.starts_with("--") {
+                    // Check if cursor is within or right after this string
+                    let string_end = quote_start + 1 + quote_end;
+                    if pos >= quote_start && pos <= string_end {
+                        return Some(potential_var.to_string());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Check if cursor is in a context where CSS variable completions should be offered
+    ///
+    /// Returns true if cursor is after "var(" or "var(--"
+    fn is_css_variable_completion_context(line: &str, char_pos: u32) -> bool {
+        let pos = char_pos as usize;
+        if pos < 4 {
+            return false;
+        }
+
+        let before = &line[..pos];
+
+        // Check for "var(" or "var(--" patterns
+        if before.ends_with("var(") || before.ends_with("var(--") {
+            return true;
+        }
+
+        // Check if we're inside a var() that's still being typed
+        if let Some(var_start) = before.rfind("var(") {
+            let in_var = &before[var_start + 4..];
+            // We're in a var() context if there's no closing paren yet
+            // and we haven't hit a comma (fallback)
+            if !in_var.contains(')') && !in_var.contains(',') {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -321,10 +525,11 @@ impl LanguageServer for PixelsrcLanguageServer {
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["{".to_string()]),
+                    trigger_characters: Some(vec!["{".to_string(), "-".to_string(), "(".to_string()]),
                     ..Default::default()
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
         })
@@ -442,6 +647,73 @@ impl LanguageServer for PixelsrcLanguageServer {
             }));
         }
 
+        // Check for CSS variable reference
+        if let Some(var_name) = Self::extract_variable_at_position(line, pos.character) {
+            let css_variables = Self::collect_css_variables(&content);
+            let registry = Self::build_variable_registry(&content);
+
+            // Find the variable's info
+            let var_info = css_variables
+                .iter()
+                .find(|(name, _, _, _)| name == &var_name);
+
+            if let Some((_, raw_value, _, palette_name)) = var_info {
+                // Try to resolve the variable
+                let resolved = registry.resolve_var(&var_name);
+
+                let hover_text = match resolved {
+                    Ok(resolved_value) => {
+                        if &resolved_value == raw_value {
+                            format!(
+                                "**CSS Variable**: `{}`\n\n\
+                                 **Value**: `{}`\n\n\
+                                 **Palette**: `{}`",
+                                var_name, raw_value, palette_name
+                            )
+                        } else {
+                            format!(
+                                "**CSS Variable**: `{}`\n\n\
+                                 **Raw Value**: `{}`\n\n\
+                                 **Resolved**: `{}`\n\n\
+                                 **Palette**: `{}`",
+                                var_name, raw_value, resolved_value, palette_name
+                            )
+                        }
+                    }
+                    Err(e) => {
+                        format!(
+                            "**CSS Variable**: `{}`\n\n\
+                             **Raw Value**: `{}`\n\n\
+                             **Error**: {}\n\n\
+                             **Palette**: `{}`",
+                            var_name, raw_value, e, palette_name
+                        )
+                    }
+                };
+
+                return Ok(Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: hover_text,
+                    }),
+                    range: None,
+                }));
+            } else {
+                // Variable referenced but not defined
+                return Ok(Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!(
+                            "**CSS Variable**: `{}`\n\n\
+                             ⚠ **Undefined** - This variable is not defined in any palette",
+                            var_name
+                        ),
+                    }),
+                    range: None,
+                }));
+            }
+        }
+
         Ok(None)
     }
 
@@ -450,6 +722,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         params: CompletionParams,
     ) -> Result<Option<CompletionResponse>> {
         let uri = &params.text_document_position.text_document.uri;
+        let pos = params.text_document_position.position;
 
         // Get the document content
         let documents = self.documents.read().unwrap();
@@ -459,7 +732,43 @@ impl LanguageServer for PixelsrcLanguageServer {
         };
         drop(documents);
 
-        // Collect defined tokens from the document
+        // Get the current line
+        let current_line = content.lines().nth(pos.line as usize).unwrap_or("");
+
+        // Check if we're in a CSS variable completion context (inside var())
+        if Self::is_css_variable_completion_context(current_line, pos.character) {
+            let css_variables = Self::collect_css_variables(&content);
+            let registry = Self::build_variable_registry(&content);
+
+            let mut completions: Vec<CompletionItem> = Vec::new();
+
+            for (var_name, raw_value, _, palette_name) in css_variables {
+                // Try to resolve the variable for the detail
+                let resolved = registry.resolve_var(&var_name);
+                let detail = match resolved {
+                    Ok(resolved_value) => {
+                        if resolved_value == raw_value {
+                            format!("{} ({})", raw_value, palette_name)
+                        } else {
+                            format!("{} → {} ({})", raw_value, resolved_value, palette_name)
+                        }
+                    }
+                    Err(_) => format!("{} ({})", raw_value, palette_name),
+                };
+
+                completions.push(CompletionItem {
+                    label: var_name.clone(),
+                    detail: Some(detail),
+                    kind: Some(CompletionItemKind::VARIABLE),
+                    insert_text: Some(var_name),
+                    ..Default::default()
+                });
+            }
+
+            return Ok(Some(CompletionResponse::Array(completions)));
+        }
+
+        // Standard token completions (for grid context)
         let defined_tokens = Self::collect_defined_tokens(&content);
 
         // Build completion items
@@ -544,6 +853,52 @@ impl LanguageServer for PixelsrcLanguageServer {
             .collect();
 
         Ok(Some(DocumentSymbolResponse::Flat(symbols)))
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let pos = params.text_document_position_params.position;
+
+        // Get the document content
+        let documents = self.documents.read().unwrap();
+        let content = match documents.get(uri) {
+            Some(c) => c.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+
+        // Get the line at the cursor position
+        let line = match content.lines().nth(pos.line as usize) {
+            Some(l) => l,
+            None => return Ok(None),
+        };
+
+        // Check if cursor is on a CSS variable reference
+        if let Some(var_name) = Self::extract_variable_at_position(line, pos.character) {
+            // Find where this variable is defined
+            if let Some((def_line, start_char, end_char)) =
+                Self::find_variable_definition(&content, &var_name)
+            {
+                return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                    uri: uri.clone(),
+                    range: Range {
+                        start: Position {
+                            line: def_line as u32,
+                            character: start_char,
+                        },
+                        end: Position {
+                            line: def_line as u32,
+                            character: end_char,
+                        },
+                    },
+                })));
+            }
+        }
+
+        Ok(None)
     }
 }
 
@@ -849,5 +1204,174 @@ also not json"##;
             PixelsrcLanguageServer::type_to_symbol_kind("unknown"),
             SymbolKind::OBJECT
         );
+    }
+
+    // === CSS Variable Tests ===
+
+    #[test]
+    fn test_collect_css_variables_single_palette() {
+        let content = r##"{"type": "palette", "name": "hero", "colors": {"--primary": "#FF0000", "{body}": "var(--primary)"}}"##;
+        let variables = PixelsrcLanguageServer::collect_css_variables(content);
+
+        assert_eq!(variables.len(), 1);
+        assert_eq!(variables[0].0, "--primary");
+        assert_eq!(variables[0].1, "#FF0000");
+        assert_eq!(variables[0].2, 0); // Line 0
+        assert_eq!(variables[0].3, "hero"); // Palette name
+    }
+
+    #[test]
+    fn test_collect_css_variables_multiple_palettes() {
+        let content = r##"{"type": "palette", "name": "p1", "colors": {"--color1": "#FF0000"}}
+{"type": "palette", "name": "p2", "colors": {"--color2": "#00FF00", "--color3": "var(--color1)"}}"##;
+        let variables = PixelsrcLanguageServer::collect_css_variables(content);
+
+        assert_eq!(variables.len(), 3);
+
+        // Check that we have all variables
+        assert!(variables.iter().any(|(n, _, _, _)| n == "--color1"));
+        assert!(variables.iter().any(|(n, _, _, _)| n == "--color2"));
+        assert!(variables.iter().any(|(n, _, _, _)| n == "--color3"));
+    }
+
+    #[test]
+    fn test_collect_css_variables_no_variables() {
+        let content = r##"{"type": "palette", "name": "simple", "colors": {"{red}": "#FF0000"}}"##;
+        let variables = PixelsrcLanguageServer::collect_css_variables(content);
+        assert!(variables.is_empty());
+    }
+
+    #[test]
+    fn test_build_variable_registry() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000", "--secondary": "var(--primary)"}}"##;
+        let registry = PixelsrcLanguageServer::build_variable_registry(content);
+
+        assert!(registry.contains("--primary"));
+        assert!(registry.contains("--secondary"));
+        assert_eq!(registry.resolve_var("--primary").unwrap(), "#FF0000");
+        assert_eq!(registry.resolve_var("--secondary").unwrap(), "#FF0000");
+    }
+
+    #[test]
+    fn test_find_variable_definition_exists() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
+        let result = PixelsrcLanguageServer::find_variable_definition(content, "--primary");
+
+        assert!(result.is_some());
+        let (line, start, end) = result.unwrap();
+        assert_eq!(line, 0);
+        assert!(start > 0);
+        assert!(end > start);
+    }
+
+    #[test]
+    fn test_find_variable_definition_without_dashes() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
+        // Should work even without the -- prefix
+        let result = PixelsrcLanguageServer::find_variable_definition(content, "primary");
+
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_find_variable_definition_not_found() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000"}}"##;
+        let result = PixelsrcLanguageServer::find_variable_definition(content, "--missing");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_variable_at_position_var_reference() {
+        let line = r#""{body}": "var(--primary)""#;
+        // Position inside var(--primary)
+        let pos = line.find("--primary").unwrap() as u32;
+        let result = PixelsrcLanguageServer::extract_variable_at_position(line, pos);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "--primary");
+    }
+
+    #[test]
+    fn test_extract_variable_at_position_var_with_fallback() {
+        let line = r#""{body}": "var(--primary, #FF0000)""#;
+        let pos = line.find("--primary").unwrap() as u32;
+        let result = PixelsrcLanguageServer::extract_variable_at_position(line, pos);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "--primary");
+    }
+
+    #[test]
+    fn test_extract_variable_at_position_definition() {
+        let line = r##""--primary": "#FF0000""##;
+        // Position on the variable name in the definition
+        let pos = line.find("--primary").unwrap() as u32;
+        let result = PixelsrcLanguageServer::extract_variable_at_position(line, pos);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "--primary");
+    }
+
+    #[test]
+    fn test_extract_variable_at_position_not_on_variable() {
+        let line = r##""{body}": "#FF0000""##;
+        let result = PixelsrcLanguageServer::extract_variable_at_position(line, 5);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_after_var_open() {
+        let line = r#""{body}": "var("#;
+        assert!(PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_after_var_dashes() {
+        let line = r#""{body}": "var(--"#;
+        assert!(PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_typing_name() {
+        let line = r#""{body}": "var(--pri"#;
+        assert!(PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_not_in_var() {
+        let line = r##""{body}": "#FF0000""##;
+        assert!(!PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_after_close() {
+        let line = r#""{body}": "var(--primary)"#;
+        // After the closing paren, should not be in context
+        assert!(!PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
+    }
+
+    #[test]
+    fn test_is_css_variable_completion_context_in_fallback() {
+        let line = r#""{body}": "var(--primary, "#;
+        // After the comma (in fallback), should not be in var completion context
+        assert!(!PixelsrcLanguageServer::is_css_variable_completion_context(
+            line,
+            line.len() as u32
+        ));
     }
 }
