@@ -78,11 +78,7 @@ fn test_atf3_palette_cycle_basic() {
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("Warning:"),
-        "No warnings expected for valid palette cycle: {}",
-        stderr
-    );
+    assert!(!stderr.contains("Warning:"), "No warnings expected for valid palette cycle: {stderr}");
 }
 
 #[test]
@@ -113,11 +109,7 @@ fn test_atf4_frame_tags_basic() {
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("Warning:"),
-        "No warnings expected for valid frame tags: {}",
-        stderr
-    );
+    assert!(!stderr.contains("Warning:"), "No warnings expected for valid frame tags: {stderr}");
 }
 
 // ============================================================================
@@ -176,11 +168,7 @@ fn test_atf7_hit_boxes_basic() {
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("Warning:"),
-        "No warnings expected for valid hit boxes: {}",
-        stderr
-    );
+    assert!(!stderr.contains("Warning:"), "No warnings expected for valid hit boxes: {stderr}");
 }
 
 #[test]
@@ -242,10 +230,7 @@ fn test_atf11_onion_skinning_show_command() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    assert!(
-        output_path.exists(),
-        "Onion skin output file should be created"
-    );
+    assert!(output_path.exists(), "Onion skin output file should be created");
 }
 
 #[test]
@@ -327,8 +312,7 @@ fn test_atf14_secondary_motion_basic() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         !stderr.contains("Warning:"),
-        "No warnings expected for valid secondary motion: {}",
-        stderr
+        "No warnings expected for valid secondary motion: {stderr}"
     );
 }
 

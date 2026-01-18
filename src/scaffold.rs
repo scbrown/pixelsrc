@@ -73,9 +73,7 @@ fn validate_name(name: &str) -> Result<(), ScaffoldError> {
 
 /// Find the project root by locating pxl.toml.
 fn find_project_root() -> Result<PathBuf, ScaffoldError> {
-    find_config()
-        .map(|p| p.parent().unwrap().to_path_buf())
-        .ok_or(ScaffoldError::NotInProject)
+    find_config().map(|p| p.parent().unwrap().to_path_buf()).ok_or(ScaffoldError::NotInProject)
 }
 
 /// Create a new sprite file.

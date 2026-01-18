@@ -3,7 +3,7 @@
 //! Provides functions to find, load, and merge configuration.
 
 use super::schema::{
-    AnimationsConfig, DefaultsConfig, ExportsConfig, PxlConfig, ProjectConfig, ValidateConfig,
+    AnimationsConfig, DefaultsConfig, ExportsConfig, ProjectConfig, PxlConfig, ValidateConfig,
     WatchConfig,
 };
 use std::collections::HashMap;
@@ -154,9 +154,7 @@ fn load_config_file(path: &Path) -> Result<PxlConfig, ConfigError> {
     // Validate the config
     let errors = config.validate();
     if !errors.is_empty() {
-        return Err(ConfigError::Validation(
-            errors.into_iter().map(|e| e.to_string()).collect(),
-        ));
+        return Err(ConfigError::Validation(errors.into_iter().map(|e| e.to_string()).collect()));
     }
 
     Ok(config)
@@ -263,10 +261,7 @@ mod tests {
     fn test_find_config_in_current_dir() {
         let temp = TempDir::new().unwrap();
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path)
-            .unwrap()
-            .write_all(b"[project]\nname = \"test\"")
-            .unwrap();
+        File::create(&config_path).unwrap().write_all(b"[project]\nname = \"test\"").unwrap();
 
         let found = find_config_from(temp.path().to_path_buf());
         assert_eq!(found, Some(config_path));
@@ -276,10 +271,7 @@ mod tests {
     fn test_find_config_in_parent_dir() {
         let temp = TempDir::new().unwrap();
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path)
-            .unwrap()
-            .write_all(b"[project]\nname = \"test\"")
-            .unwrap();
+        File::create(&config_path).unwrap().write_all(b"[project]\nname = \"test\"").unwrap();
 
         // Create a subdirectory
         let subdir = temp.path().join("src").join("sprites");
@@ -358,10 +350,7 @@ max_size = [512, 512]
     fn test_load_config_invalid_toml() {
         let temp = TempDir::new().unwrap();
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path)
-            .unwrap()
-            .write_all(b"this is not valid toml {{{")
-            .unwrap();
+        File::create(&config_path).unwrap().write_all(b"this is not valid toml {{{").unwrap();
 
         let result = load_config(Some(&config_path));
         assert!(matches!(result, Err(ConfigError::Parse(_))));
@@ -391,10 +380,7 @@ scale = 0
     #[test]
     fn test_merge_cli_overrides_out() {
         let mut config = default_config();
-        let overrides = CliOverrides {
-            out: Some(PathBuf::from("dist")),
-            ..Default::default()
-        };
+        let overrides = CliOverrides { out: Some(PathBuf::from("dist")), ..Default::default() };
 
         merge_cli_overrides(&mut config, &overrides);
         assert_eq!(config.project.out, PathBuf::from("dist"));
@@ -403,10 +389,8 @@ scale = 0
     #[test]
     fn test_merge_cli_overrides_src() {
         let mut config = default_config();
-        let overrides = CliOverrides {
-            src: Some(PathBuf::from("assets/pxl")),
-            ..Default::default()
-        };
+        let overrides =
+            CliOverrides { src: Some(PathBuf::from("assets/pxl")), ..Default::default() };
 
         merge_cli_overrides(&mut config, &overrides);
         assert_eq!(config.project.src, PathBuf::from("assets/pxl"));
@@ -415,10 +399,7 @@ scale = 0
     #[test]
     fn test_merge_cli_overrides_scale() {
         let mut config = default_config();
-        let overrides = CliOverrides {
-            scale: Some(4),
-            ..Default::default()
-        };
+        let overrides = CliOverrides { scale: Some(4), ..Default::default() };
 
         merge_cli_overrides(&mut config, &overrides);
         assert_eq!(config.defaults.scale, 4);
@@ -429,10 +410,7 @@ scale = 0
         let mut config = default_config();
         assert!(!config.validate.strict);
 
-        let overrides = CliOverrides {
-            strict: Some(true),
-            ..Default::default()
-        };
+        let overrides = CliOverrides { strict: Some(true), ..Default::default() };
 
         merge_cli_overrides(&mut config, &overrides);
         assert!(config.validate.strict);

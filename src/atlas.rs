@@ -19,11 +19,7 @@ pub struct AtlasConfig {
 
 impl Default for AtlasConfig {
     fn default() -> Self {
-        Self {
-            max_size: (4096, 4096),
-            padding: 0,
-            power_of_two: false,
-        }
+        Self { max_size: (4096, 4096), padding: 0, power_of_two: false }
     }
 }
 
@@ -253,9 +249,7 @@ pub fn pack_atlas(
         result_atlases[0].1.image = format!("{}.png", base_image_name);
     }
 
-    AtlasResult {
-        atlases: result_atlases,
-    }
+    AtlasResult { atlases: result_atlases }
 }
 
 /// Try to place a sprite in the given shelves
@@ -280,11 +274,7 @@ fn try_place_in_shelves(
     // Try to create new shelf
     let new_shelf_y = shelves.last().map(|s| s.y + s.height).unwrap_or(0);
     if new_shelf_y + padded_h <= max_size.1 && padded_w <= max_size.0 {
-        shelves.push(Shelf {
-            y: new_shelf_y,
-            height: padded_h,
-            width_used: padded_w,
-        });
+        shelves.push(Shelf { y: new_shelf_y, height: padded_h, width_used: padded_w });
         return Some((0, new_shelf_y));
     }
 
@@ -299,10 +289,7 @@ fn calculate_atlas_size(shelves: &[Shelf], config: &AtlasConfig) -> (u32, u32) {
 
     // Find the maximum width used and total height
     let max_width = shelves.iter().map(|s| s.width_used).max().unwrap_or(1);
-    let total_height = shelves
-        .last()
-        .map(|s| s.y + s.height)
-        .unwrap_or(1);
+    let total_height = shelves.last().map(|s| s.y + s.height).unwrap_or(1);
 
     // Remove padding from edges (padding is between sprites, not on edges)
     let width = if config.padding > 0 && max_width > config.padding {
@@ -354,14 +341,9 @@ pub fn add_animation_to_atlas(
     frame_names: &[String],
     fps: u32,
 ) {
-    metadata.animations.insert(
-        name.to_string(),
-        AtlasAnimation {
-            frames: frame_names.to_vec(),
-            fps,
-            tags: None,
-        },
-    );
+    metadata
+        .animations
+        .insert(name.to_string(), AtlasAnimation { frames: frame_names.to_vec(), fps, tags: None });
 }
 
 #[cfg(test)]
@@ -429,11 +411,8 @@ mod tests {
         assert!(metadata.frames.contains_key("blue"));
 
         // Check that sprites don't overlap
-        let positions: Vec<(u32, u32, u32, u32)> = metadata
-            .frames
-            .values()
-            .map(|f| (f.x, f.y, f.w, f.h))
-            .collect();
+        let positions: Vec<(u32, u32, u32, u32)> =
+            metadata.frames.values().map(|f| (f.x, f.y, f.w, f.h)).collect();
 
         for i in 0..positions.len() {
             for j in (i + 1)..positions.len() {
@@ -462,15 +441,10 @@ mod tests {
         let red = Rgba([255, 0, 0, 255]);
         let green = Rgba([0, 255, 0, 255]);
 
-        let sprites = vec![
-            make_solid_sprite("red", 8, 8, red),
-            make_solid_sprite("green", 8, 8, green),
-        ];
+        let sprites =
+            vec![make_solid_sprite("red", 8, 8, red), make_solid_sprite("green", 8, 8, green)];
 
-        let config = AtlasConfig {
-            padding: 2,
-            ..Default::default()
-        };
+        let config = AtlasConfig { padding: 2, ..Default::default() };
 
         let result = pack_atlas(&sprites, &config, "test");
         assert_eq!(result.atlases.len(), 1);
@@ -495,10 +469,7 @@ mod tests {
         let red = Rgba([255, 0, 0, 255]);
         let sprites = vec![make_solid_sprite("red", 10, 10, red)];
 
-        let config = AtlasConfig {
-            power_of_two: true,
-            ..Default::default()
-        };
+        let config = AtlasConfig { power_of_two: true, ..Default::default() };
 
         let result = pack_atlas(&sprites, &config, "test");
         assert_eq!(result.atlases.len(), 1);
@@ -588,25 +559,11 @@ mod tests {
             frames: HashMap::from([
                 (
                     "sprite1".to_string(),
-                    AtlasFrame {
-                        x: 0,
-                        y: 0,
-                        w: 16,
-                        h: 16,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 0, y: 0, w: 16, h: 16, origin: None, boxes: None },
                 ),
                 (
                     "sprite2".to_string(),
-                    AtlasFrame {
-                        x: 16,
-                        y: 0,
-                        w: 16,
-                        h: 16,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 16, y: 0, w: 16, h: 16, origin: None, boxes: None },
                 ),
             ]),
             animations: HashMap::new(),
@@ -657,24 +614,8 @@ mod tests {
             image: RgbaImage::from_pixel(32, 32, red),
             origin: Some([16, 32]),
             boxes: Some(HashMap::from([
-                (
-                    "hurt".to_string(),
-                    AtlasBox {
-                        x: 4,
-                        y: 0,
-                        w: 24,
-                        h: 32,
-                    },
-                ),
-                (
-                    "hit".to_string(),
-                    AtlasBox {
-                        x: 20,
-                        y: 8,
-                        w: 20,
-                        h: 16,
-                    },
-                ),
+                ("hurt".to_string(), AtlasBox { x: 4, y: 0, w: 24, h: 32 }),
+                ("hit".to_string(), AtlasBox { x: 20, y: 8, w: 20, h: 16 }),
             ])),
         };
 
@@ -715,24 +656,8 @@ mod tests {
                     h: 32,
                     origin: Some([16, 32]),
                     boxes: Some(HashMap::from([
-                        (
-                            "hurt".to_string(),
-                            AtlasBox {
-                                x: 4,
-                                y: 0,
-                                w: 24,
-                                h: 32,
-                            },
-                        ),
-                        (
-                            "hit".to_string(),
-                            AtlasBox {
-                                x: 20,
-                                y: 8,
-                                w: 20,
-                                h: 16,
-                            },
-                        ),
+                        ("hurt".to_string(), AtlasBox { x: 4, y: 0, w: 24, h: 32 }),
+                        ("hit".to_string(), AtlasBox { x: 20, y: 8, w: 20, h: 16 }),
                     ])),
                 },
             )]),

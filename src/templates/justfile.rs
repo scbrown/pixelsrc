@@ -105,11 +105,7 @@ pub fn generate_justfile_with_options(
     let mut sections = Vec::new();
 
     // Header
-    sections.push(format!(
-        "# {} - Pixelsrc {} project commands\n",
-        project_name,
-        template.name()
-    ));
+    sections.push(format!("# {} - Pixelsrc {} project commands\n", project_name, template.name()));
 
     // Default target
     let default_target = match template {
@@ -159,7 +155,8 @@ validate:
     }
 
     // Watch commands
-    if options.include_watch || matches!(template, JustfileTemplate::Animator | JustfileTemplate::Game)
+    if options.include_watch
+        || matches!(template, JustfileTemplate::Animator | JustfileTemplate::Game)
     {
         sections.push(
             r#"# Watch for changes and rebuild
@@ -171,7 +168,8 @@ watch:
     }
 
     // GIF commands
-    if options.include_gif || matches!(template, JustfileTemplate::Animator | JustfileTemplate::Game)
+    if options.include_gif
+        || matches!(template, JustfileTemplate::Animator | JustfileTemplate::Game)
     {
         sections.push(format!(
             r#"# Generate preview GIFs for animations
@@ -420,26 +418,10 @@ pub fn write_justfile(path: &Path, content: &str) -> std::io::Result<()> {
 /// List all available justfile templates.
 pub fn list_templates() -> Vec<(JustfileTemplate, &'static str, &'static str)> {
     vec![
-        (
-            JustfileTemplate::Minimal,
-            "minimal",
-            "Basic render commands only",
-        ),
-        (
-            JustfileTemplate::Artist,
-            "artist",
-            "Static art workflow with palette variants",
-        ),
-        (
-            JustfileTemplate::Animator,
-            "animator",
-            "Animation workflow with GIF previews",
-        ),
-        (
-            JustfileTemplate::Game,
-            "game",
-            "Full game pipeline with atlases and exports",
-        ),
+        (JustfileTemplate::Minimal, "minimal", "Basic render commands only"),
+        (JustfileTemplate::Artist, "artist", "Static art workflow with palette variants"),
+        (JustfileTemplate::Animator, "animator", "Animation workflow with GIF previews"),
+        (JustfileTemplate::Game, "game", "Full game pipeline with atlases and exports"),
     ]
 }
 
@@ -450,18 +432,9 @@ mod tests {
 
     #[test]
     fn test_template_from_str() {
-        assert_eq!(
-            JustfileTemplate::from_str("minimal"),
-            Some(JustfileTemplate::Minimal)
-        );
-        assert_eq!(
-            JustfileTemplate::from_str("GAME"),
-            Some(JustfileTemplate::Game)
-        );
-        assert_eq!(
-            JustfileTemplate::from_str("Animator"),
-            Some(JustfileTemplate::Animator)
-        );
+        assert_eq!(JustfileTemplate::from_str("minimal"), Some(JustfileTemplate::Minimal));
+        assert_eq!(JustfileTemplate::from_str("GAME"), Some(JustfileTemplate::Game));
+        assert_eq!(JustfileTemplate::from_str("Animator"), Some(JustfileTemplate::Animator));
         assert_eq!(JustfileTemplate::from_str("unknown"), None);
     }
 
@@ -528,8 +501,7 @@ mod tests {
             atlas_names: vec![],
         };
 
-        let content =
-            generate_justfile_with_options(JustfileTemplate::Minimal, "test", &options);
+        let content = generate_justfile_with_options(JustfileTemplate::Minimal, "test", &options);
 
         assert!(content.contains("assets/pxl"));
         assert!(content.contains("dist"));
@@ -545,8 +517,7 @@ mod tests {
             ..Default::default()
         };
 
-        let content =
-            generate_justfile_with_options(JustfileTemplate::Minimal, "test", &options);
+        let content = generate_justfile_with_options(JustfileTemplate::Minimal, "test", &options);
 
         assert!(content.contains("atlas-characters:"));
         assert!(content.contains("atlas-items:"));
@@ -589,18 +560,10 @@ mod tests {
             let content = generate_justfile(template, "test");
 
             // Should have a default target
-            assert!(
-                content.contains("default:"),
-                "Missing default in {:?}",
-                template
-            );
+            assert!(content.contains("default:"), "Missing default in {:?}", template);
 
             // Should not have consecutive empty lines (justfile syntax)
-            assert!(
-                !content.contains("\n\n\n"),
-                "Too many empty lines in {:?}",
-                template
-            );
+            assert!(!content.contains("\n\n\n"), "Too many empty lines in {:?}", template);
 
             // Check recipe structure: after a recipe line (contains :),
             // following indented lines are commands
@@ -620,11 +583,7 @@ mod tests {
 
                 if is_indented {
                     // Indented lines are commands - should be inside a recipe
-                    assert!(
-                        in_recipe,
-                        "Indented line outside recipe in {:?}: {}",
-                        template, line
-                    );
+                    assert!(in_recipe, "Indented line outside recipe in {:?}: {}", template, line);
                 } else {
                     // Non-indented, non-empty line should be a recipe definition
                     let trimmed = line.trim();

@@ -42,11 +42,7 @@ pub fn render_gif(
     let mut encoder = GifEncoder::new(writer);
 
     // Set repeat behavior
-    let repeat = if loop_anim {
-        Repeat::Infinite
-    } else {
-        Repeat::Finite(0)
-    };
+    let repeat = if loop_anim { Repeat::Infinite } else { Repeat::Finite(0) };
     encoder.set_repeat(repeat)?;
 
     // GIF uses centiseconds (1/100th of a second) for delays

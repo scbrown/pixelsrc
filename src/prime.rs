@@ -45,10 +45,7 @@ impl FromStr for PrimerSection {
             "examples" => Ok(PrimerSection::Examples),
             "tips" => Ok(PrimerSection::Tips),
             "full" => Ok(PrimerSection::Full),
-            _ => Err(format!(
-                "Unknown section '{}'. Available: format, examples, tips, full",
-                s
-            )),
+            _ => Err(format!("Unknown section '{}'. Available: format, examples, tips, full", s)),
         }
     }
 }
@@ -103,26 +100,11 @@ mod tests {
 
     #[test]
     fn test_primer_section_from_str() {
-        assert_eq!(
-            PrimerSection::from_str("format").unwrap(),
-            PrimerSection::Format
-        );
-        assert_eq!(
-            PrimerSection::from_str("FORMAT").unwrap(),
-            PrimerSection::Format
-        );
-        assert_eq!(
-            PrimerSection::from_str("examples").unwrap(),
-            PrimerSection::Examples
-        );
-        assert_eq!(
-            PrimerSection::from_str("tips").unwrap(),
-            PrimerSection::Tips
-        );
-        assert_eq!(
-            PrimerSection::from_str("full").unwrap(),
-            PrimerSection::Full
-        );
+        assert_eq!(PrimerSection::from_str("format").unwrap(), PrimerSection::Format);
+        assert_eq!(PrimerSection::from_str("FORMAT").unwrap(), PrimerSection::Format);
+        assert_eq!(PrimerSection::from_str("examples").unwrap(), PrimerSection::Examples);
+        assert_eq!(PrimerSection::from_str("tips").unwrap(), PrimerSection::Tips);
+        assert_eq!(PrimerSection::from_str("full").unwrap(), PrimerSection::Full);
         assert!(PrimerSection::from_str("invalid").is_err());
     }
 

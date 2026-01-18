@@ -320,8 +320,8 @@ mod tests {
         // White * red tint = red, at 50% opacity
         let pixel = result.get_pixel(0, 0);
         assert_eq!(pixel[0], 255); // Full red
-        assert_eq!(pixel[1], 0);   // No green
-        assert_eq!(pixel[2], 0);   // No blue
+        assert_eq!(pixel[1], 0); // No green
+        assert_eq!(pixel[2], 0); // No blue
         assert_eq!(pixel[3], 127); // ~50% alpha
     }
 

@@ -37,12 +37,7 @@ impl std::fmt::Display for IncludeError {
                 write!(f, "No palette found in included file: {}", path.display())
             }
             IncludeError::IoError(path, msg) => {
-                write!(
-                    f,
-                    "Error reading include file '{}': {}",
-                    path.display(),
-                    msg
-                )
+                write!(f, "Error reading include file '{}': {}", path.display(), msg)
             }
         }
     }
@@ -186,14 +181,8 @@ mod tests {
 
     #[test]
     fn test_extract_include_path() {
-        assert_eq!(
-            extract_include_path("@include:path/to/file.jsonl"),
-            Some("path/to/file.jsonl")
-        );
-        assert_eq!(
-            extract_include_path("@include:./relative.jsonl"),
-            Some("./relative.jsonl")
-        );
+        assert_eq!(extract_include_path("@include:path/to/file.jsonl"), Some("path/to/file.jsonl"));
+        assert_eq!(extract_include_path("@include:./relative.jsonl"), Some("./relative.jsonl"));
         assert_eq!(extract_include_path("@gameboy"), None);
         assert_eq!(extract_include_path("regular"), None);
     }
@@ -361,19 +350,13 @@ mod tests {
         // Create both .pxl and .jsonl files
         let pxl_path = temp_dir.path().join("colors.pxl");
         let mut pxl_file = fs::File::create(&pxl_path).unwrap();
-        writeln!(
-            pxl_file,
-            r##"{{"type": "palette", "name": "pxl_wins", "colors": {{}}}}"##
-        )
-        .unwrap();
+        writeln!(pxl_file, r##"{{"type": "palette", "name": "pxl_wins", "colors": {{}}}}"##)
+            .unwrap();
 
         let jsonl_path = temp_dir.path().join("colors.jsonl");
         let mut jsonl_file = fs::File::create(&jsonl_path).unwrap();
-        writeln!(
-            jsonl_file,
-            r##"{{"type": "palette", "name": "jsonl_loses", "colors": {{}}}}"##
-        )
-        .unwrap();
+        writeln!(jsonl_file, r##"{{"type": "palette", "name": "jsonl_loses", "colors": {{}}}}"##)
+            .unwrap();
 
         // Resolve without extension - .pxl should be preferred
         let result = resolve_include("colors", temp_dir.path());

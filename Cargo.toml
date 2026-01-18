@@ -53,3 +53,14 @@ wasm-opt = false
 
 [package.metadata.wasm-pack.profile.dev]
 wasm-opt = false
+
+# =============================================================================
+# Linting Configuration
+# =============================================================================
+# Note: Clippy lints are configured via CI command-line flags due to
+# Cargo.toml [lints.clippy] table not being respected in some environments.
+# See .github/workflows/ci.yml for the canonical clippy configuration.
+
+[lints.rust]
+# Forbid unsafe code - this is a pixel art tool, no need for unsafe
+unsafe_code = "forbid"

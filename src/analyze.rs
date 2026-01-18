@@ -123,11 +123,7 @@ impl CoOccurrenceMatrix {
 
     /// Get top N token pairs by co-occurrence count.
     pub fn top_n(&self, n: usize) -> Vec<((&String, &String), usize)> {
-        let mut items: Vec<_> = self
-            .pairs
-            .iter()
-            .map(|((a, b), count)| ((a, b), *count))
-            .collect();
+        let mut items: Vec<_> = self.pairs.iter().map(|((a, b), count)| ((a, b), *count)).collect();
         items.sort_by(|a, b| b.1.cmp(&a.1));
         items.truncate(n);
         items
@@ -184,9 +180,7 @@ impl TokenFamilyDetector {
 
     /// Create a detector with custom minimum family size.
     pub fn with_min_size(min_size: usize) -> Self {
-        Self {
-            min_family_size: min_size,
-        }
+        Self { min_family_size: min_size }
     }
 
     /// Detect token families from a token counter.
@@ -197,10 +191,7 @@ impl TokenFamilyDetector {
         for (token, count) in counter.sorted_by_frequency() {
             // Extract base prefix from token like {skin_light} -> "skin"
             if let Some(base) = self.extract_prefix(token) {
-                prefix_groups
-                    .entry(base)
-                    .or_default()
-                    .push((token.clone(), *count));
+                prefix_groups.entry(base).or_default().push((token.clone(), *count));
             }
         }
 
@@ -211,11 +202,7 @@ impl TokenFamilyDetector {
             .map(|(prefix, tokens)| {
                 let total_count = tokens.iter().map(|(_, c)| c).sum();
                 let token_names = tokens.into_iter().map(|(t, _)| t).collect();
-                TokenFamily {
-                    prefix,
-                    tokens: token_names,
-                    total_count,
-                }
+                TokenFamily { prefix, tokens: token_names, total_count }
             })
             .collect();
 
@@ -239,11 +226,8 @@ impl TokenFamilyDetector {
         }
 
         // Find the base prefix (before first underscore or digit suffix)
-        let base = inner
-            .split('_')
-            .next()
-            .unwrap_or(inner)
-            .trim_end_matches(|c: char| c.is_ascii_digit());
+        let base =
+            inner.split('_').next().unwrap_or(inner).trim_end_matches(|c: char| c.is_ascii_digit());
 
         if base.is_empty() {
             None
@@ -482,10 +466,7 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
     output.push_str(&format!("Total sprites: {}\n", report.total_sprites));
     output.push_str(&format!("Total palettes: {}\n", report.total_palettes));
     if report.total_compositions > 0 {
-        output.push_str(&format!(
-            "Total compositions: {}\n",
-            report.total_compositions
-        ));
+        output.push_str(&format!("Total compositions: {}\n", report.total_compositions));
     }
     if report.total_animations > 0 {
         output.push_str(&format!("Total animations: {}\n", report.total_animations));
@@ -501,10 +482,7 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
         output.push_str("────────────────────────\n");
         for (token, count) in report.token_counter.top_n(10) {
             let percentage = report.token_counter.percentage(token);
-            output.push_str(&format!(
-                "  {:12} {:>8}  ({:.1}%)\n",
-                token, count, percentage
-            ));
+            output.push_str(&format!("  {:12} {:>8}  ({:.1}%)\n", token, count, percentage));
         }
         output.push('\n');
     }
@@ -514,10 +492,7 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
         output.push_str("TOKEN CO-OCCURRENCE (top 5 pairs)\n");
         output.push_str("─────────────────────────────────\n");
         for ((token1, token2), count) in report.co_occurrence.top_n(5) {
-            output.push_str(&format!(
-                "  {} + {:12} {:>4} sprites\n",
-                token1, token2, count
-            ));
+            output.push_str(&format!("  {} + {:12} {:>4} sprites\n", token1, token2, count));
         }
         output.push('\n');
     }
@@ -570,10 +545,7 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
     if !report.palette_sizes.is_empty() {
         output.push_str("PALETTE PATTERNS\n");
         output.push_str("────────────────\n");
-        output.push_str(&format!(
-            "  Avg tokens/palette:    {:.1}\n",
-            report.avg_palette_size()
-        ));
+        output.push_str(&format!("  Avg tokens/palette:    {:.1}\n", report.avg_palette_size()));
         output.push('\n');
     }
 
@@ -991,7 +963,8 @@ mod tests {
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
             grid: grid.into_iter().map(|s| s.to_string()).collect(),
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1073,7 +1046,8 @@ mod tests {
 
     #[test]
     fn test_analyze_row_repetition_all() {
-        let sprite = make_compression_test_sprite("test", vec!["{a}{a}", "{a}{a}", "{a}{a}", "{a}{a}"]);
+        let sprite =
+            make_compression_test_sprite("test", vec!["{a}{a}", "{a}{a}", "{a}{a}", "{a}{a}"]);
         let stats = CompressionEstimator::analyze_row_repetition(&sprite);
         assert_eq!(stats.total_rows, 4);
         assert_eq!(stats.repeated_rows, 3);
@@ -1099,18 +1073,10 @@ mod tests {
 
     #[test]
     fn test_rle_stats_merge() {
-        let mut stats1 = RleStats {
-            total_tokens: 10,
-            total_runs: 5,
-            total_rows: 2,
-            total_unique_per_row: 4,
-        };
-        let stats2 = RleStats {
-            total_tokens: 20,
-            total_runs: 8,
-            total_rows: 3,
-            total_unique_per_row: 6,
-        };
+        let mut stats1 =
+            RleStats { total_tokens: 10, total_runs: 5, total_rows: 2, total_unique_per_row: 4 };
+        let stats2 =
+            RleStats { total_tokens: 20, total_runs: 8, total_rows: 3, total_unique_per_row: 6 };
         stats1.merge(&stats2);
         assert_eq!(stats1.total_tokens, 30);
         assert_eq!(stats1.total_runs, 13);

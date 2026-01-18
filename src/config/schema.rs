@@ -9,19 +9,15 @@ use std::path::PathBuf;
 /// Validation severity level for config issues
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum ValidationLevel {
     /// Treat as error, fail build
     Error,
     /// Emit warning, continue build
+    #[default]
     Warn,
     /// Silently ignore
     Ignore,
-}
-
-impl Default for ValidationLevel {
-    fn default() -> Self {
-        Self::Warn
-    }
 }
 
 /// Sprite sheet layout direction
@@ -89,10 +85,7 @@ pub struct DefaultsConfig {
 
 impl Default for DefaultsConfig {
     fn default() -> Self {
-        Self {
-            scale: default_scale(),
-            padding: default_padding(),
-        }
+        Self { scale: default_scale(), padding: default_padding() }
     }
 }
 
@@ -180,10 +173,7 @@ fn default_json_format() -> String {
 
 impl Default for GenericExportConfig {
     fn default() -> Self {
-        Self {
-            enabled: true,
-            atlas_format: "json".to_string(),
-        }
+        Self { enabled: true, atlas_format: "json".to_string() }
     }
 }
 
@@ -307,10 +297,7 @@ fn default_debounce_ms() -> u32 {
 
 impl Default for WatchConfig {
     fn default() -> Self {
-        Self {
-            debounce_ms: 100,
-            clear_screen: true,
-        }
+        Self { debounce_ms: 100, clear_screen: true }
     }
 }
 

@@ -27,11 +27,7 @@ impl std::fmt::Display for InitError {
             InitError::CreateDir(e) => write!(f, "Failed to create directory: {}", e),
             InitError::WriteFile(e) => write!(f, "Failed to write file: {}", e),
             InitError::UnknownPreset(preset) => {
-                write!(
-                    f,
-                    "Unknown preset '{}'. Available: minimal, artist, animator, game",
-                    preset
-                )
+                write!(f, "Unknown preset '{}'. Available: minimal, artist, animator, game", preset)
             }
         }
     }
@@ -84,14 +80,12 @@ impl Preset {
 /// init_project(Path::new("my-game"), "my-game", "minimal")?;
 /// ```
 pub fn init_project(path: &Path, name: &str, preset: &str) -> Result<(), InitError> {
-    let preset = Preset::from_str(preset).ok_or_else(|| InitError::UnknownPreset(preset.to_string()))?;
+    let preset =
+        Preset::from_str(preset).ok_or_else(|| InitError::UnknownPreset(preset.to_string()))?;
 
     // Check if directory already exists and is not empty
     if path.exists() {
-        let is_empty = path
-            .read_dir()
-            .map(|mut d| d.next().is_none())
-            .unwrap_or(false);
+        let is_empty = path.read_dir().map(|mut d| d.next().is_none()).unwrap_or(false);
         if !is_empty {
             return Err(InitError::DirectoryExists(path.display().to_string()));
         }
@@ -182,7 +176,7 @@ fn generate_example_sprite() -> String {
   "{primary}{white}{white}{primary}",
   "{_}{primary}{primary}{_}"
 ]}"#
-        .to_string()
+    .to_string()
 }
 
 // ============================================================================
@@ -263,7 +257,7 @@ fn generate_character_sprite() -> String {
   "{_}{primary}{secondary}{secondary}{primary}{_}",
   "{_}{_}{primary}{primary}{_}{_}"
 ]}"#
-        .to_string()
+    .to_string()
 }
 
 /// Generate variant example file content.
@@ -276,7 +270,7 @@ fn generate_variant_example() -> String {
   "{_}{primary}{secondary}{secondary}{primary}{_}",
   "{_}{_}{primary}{primary}{_}{_}"
 ]}"#
-        .to_string()
+    .to_string()
 }
 
 // ============================================================================
@@ -580,7 +574,7 @@ fn generate_player_sprites() -> String {
   "{_}{primary}{primary}{_}",
   "{black}{_}{_}{black}"
 ]}"#
-        .to_string()
+    .to_string()
 }
 
 /// Generate item sprites.
@@ -613,7 +607,7 @@ fn generate_ui_elements() -> String {
   "{accent}{bg}{bg}{bg}{bg}{accent}",
   "{accent}{accent}{accent}{accent}{accent}{accent}"
 ]}"#
-        .to_string()
+    .to_string()
 }
 
 #[cfg(test)]
@@ -944,7 +938,8 @@ mod tests {
         init_project(&project_path, "game", "game").unwrap();
 
         // Check player sprite
-        let player = fs::read_to_string(project_path.join("src/pxl/sprites/player/idle.pxl")).unwrap();
+        let player =
+            fs::read_to_string(project_path.join("src/pxl/sprites/player/idle.pxl")).unwrap();
         assert!(player.contains("\"type\": \"sprite\""));
         assert!(player.contains("player_idle_1"));
         assert!(player.contains("player_idle_2"));

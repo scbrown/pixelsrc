@@ -122,11 +122,7 @@ fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
     let l = (max + min) / 2.0;
 
     // Saturation
-    let s = if delta < f32::EPSILON {
-        0.0
-    } else {
-        delta / (1.0 - (2.0 * l - 1.0).abs())
-    };
+    let s = if delta < f32::EPSILON { 0.0 } else { delta / (1.0 - (2.0 * l - 1.0).abs()) };
 
     // Hue
     let h = if delta < f32::EPSILON {

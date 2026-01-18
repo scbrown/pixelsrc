@@ -31,10 +31,8 @@ pub fn apply_cycle_step(
     }
 
     // Collect original colors for tokens in the cycle
-    let original_colors: Vec<Option<String>> = tokens
-        .iter()
-        .map(|token| original_palette.get(token).cloned())
-        .collect();
+    let original_colors: Vec<Option<String>> =
+        tokens.iter().map(|token| original_palette.get(token).cloned()).collect();
 
     // Apply rotation: token at index i gets color from index (i + step) % len
     for (i, token) in tokens.iter().enumerate() {
@@ -165,19 +163,12 @@ mod tests {
     use crate::models::PaletteRef;
 
     fn make_palette(colors: &[(&str, &str)]) -> HashMap<String, String> {
-        colors
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
+        colors.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
     }
 
     #[test]
     fn test_apply_cycle_step_rotation() {
-        let palette = make_palette(&[
-            ("{w1}", "#001"),
-            ("{w2}", "#002"),
-            ("{w3}", "#003"),
-        ]);
+        let palette = make_palette(&[("{w1}", "#001"), ("{w2}", "#002"), ("{w3}", "#003")]);
 
         let cycle = PaletteCycle {
             tokens: vec!["{w1}".to_string(), "{w2}".to_string(), "{w3}".to_string()],
@@ -211,16 +202,10 @@ mod tests {
 
     #[test]
     fn test_apply_cycle_preserves_other_colors() {
-        let palette = make_palette(&[
-            ("{w1}", "#001"),
-            ("{w2}", "#002"),
-            ("{static}", "#999"),
-        ]);
+        let palette = make_palette(&[("{w1}", "#001"), ("{w2}", "#002"), ("{static}", "#999")]);
 
-        let cycle = PaletteCycle {
-            tokens: vec!["{w1}".to_string(), "{w2}".to_string()],
-            duration: None,
-        };
+        let cycle =
+            PaletteCycle { tokens: vec!["{w1}".to_string(), "{w2}".to_string()], duration: None };
 
         let result = apply_cycle_step(&palette, &cycle, 1);
 
@@ -236,10 +221,7 @@ mod tests {
     fn test_apply_cycle_empty_cycle() {
         let palette = make_palette(&[("{a}", "#111")]);
 
-        let cycle = PaletteCycle {
-            tokens: vec![],
-            duration: None,
-        };
+        let cycle = PaletteCycle { tokens: vec![], duration: None };
 
         let result = apply_cycle_step(&palette, &cycle, 5);
         assert_eq!(result.get("{a}"), Some(&"#111".to_string()));
@@ -290,10 +272,7 @@ mod tests {
 
         // Two cycles: length 2 and length 3 -> LCM = 6
         let cycles2 = vec![
-            PaletteCycle {
-                tokens: vec!["{a}".to_string(), "{b}".to_string()],
-                duration: None,
-            },
+            PaletteCycle { tokens: vec!["{a}".to_string(), "{b}".to_string()], duration: None },
             PaletteCycle {
                 tokens: vec!["{c}".to_string(), "{d}".to_string(), "{e}".to_string()],
                 duration: None,
@@ -326,10 +305,7 @@ mod tests {
             ..Default::default()
         };
 
-        let palette = make_palette(&[
-            ("{w1}", "#0000FF"),
-            ("{w2}", "#00FFFF"),
-        ]);
+        let palette = make_palette(&[("{w1}", "#0000FF"), ("{w2}", "#00FFFF")]);
 
         let anim = Animation {
             name: "water_cycle".to_string(),

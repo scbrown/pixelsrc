@@ -54,10 +54,7 @@ pub fn extract_aliases(grid: &[String]) -> (HashMap<char, String>, Vec<String>) 
 
     for (token, _) in sorted {
         // Extract name without braces
-        let name = token
-            .strip_prefix('{')
-            .and_then(|s| s.strip_suffix('}'))
-            .unwrap_or(&token);
+        let name = token.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(&token);
 
         let alias = if name == "_" {
             '_'
@@ -263,10 +260,8 @@ pub fn simple_grid_to_sprite(
     }
 
     // Build grid strings with {token} format
-    let grid_strings: Vec<String> = grid
-        .iter()
-        .map(|row| row.iter().map(|t| format!("{{{}}}", t)).collect())
-        .collect();
+    let grid_strings: Vec<String> =
+        grid.iter().map(|row| row.iter().map(|t| format!("{{{}}}", t)).collect()).collect();
 
     // Build result based on palette_ref
     if let Some(palette_name) = palette_ref {
@@ -342,13 +337,10 @@ mod tests {
 
     #[test]
     fn test_expand_aliases() {
-        let aliases: HashMap<char, String> = [
-            ('a', "skin".to_string()),
-            ('b', "hair".to_string()),
-            ('_', "_".to_string()),
-        ]
-        .into_iter()
-        .collect();
+        let aliases: HashMap<char, String> =
+            [('a', "skin".to_string()), ('b', "hair".to_string()), ('_', "_".to_string())]
+                .into_iter()
+                .collect();
 
         let grid = vec!["{_}{a}{b}".to_string()];
         let expanded = expand_aliases(&grid, &aliases);
@@ -360,11 +352,7 @@ mod tests {
     fn test_format_columns_basic() {
         let rows = vec![
             vec!["{_}".to_string(), "{_}".to_string(), "{body}".to_string()],
-            vec![
-                "{_}".to_string(),
-                "{skin_highlight}".to_string(),
-                "{body}".to_string(),
-            ],
+            vec!["{_}".to_string(), "{skin_highlight}".to_string(), "{body}".to_string()],
         ];
         let formatted = format_columns(rows);
 
@@ -405,10 +393,8 @@ mod tests {
 
     #[test]
     fn test_simple_grid_to_sprite_inline_palette() {
-        let grid = vec![
-            vec!["_".to_string(), "b".to_string()],
-            vec!["b".to_string(), "_".to_string()],
-        ];
+        let grid =
+            vec![vec!["_".to_string(), "b".to_string()], vec!["b".to_string(), "_".to_string()]];
         let sprite = simple_grid_to_sprite(grid, "test_sprite", None);
 
         assert_eq!(sprite["type"], "sprite");

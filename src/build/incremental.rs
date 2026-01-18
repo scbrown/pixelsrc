@@ -26,8 +26,8 @@
 //! ```
 
 use crate::build::{
-    BuildContext, BuildError, BuildManifest, BuildPlan, BuildResult, BuildTarget,
-    ManifestError, TargetResult,
+    BuildContext, BuildError, BuildManifest, BuildPlan, BuildResult, BuildTarget, ManifestError,
+    TargetResult,
 };
 use std::path::PathBuf;
 use std::time::Instant;
@@ -54,29 +54,15 @@ impl IncrementalBuild {
     ///
     /// Loads the manifest from the output directory if it exists.
     pub fn new(context: BuildContext) -> Self {
-        let manifest = BuildManifest::load_from_dir(&context.out_dir())
-            .ok()
-            .flatten()
-            .unwrap_or_else(BuildManifest::new);
+        let manifest =
+            BuildManifest::load_from_dir(&context.out_dir()).ok().flatten().unwrap_or_default();
 
-        Self {
-            context,
-            manifest,
-            force: false,
-            fail_fast: false,
-            save_manifest: true,
-        }
+        Self { context, manifest, force: false, fail_fast: false, save_manifest: true }
     }
 
     /// Create an incremental build with a pre-loaded manifest.
     pub fn with_manifest(context: BuildContext, manifest: BuildManifest) -> Self {
-        Self {
-            context,
-            manifest,
-            force: false,
-            fail_fast: false,
-            save_manifest: true,
-        }
+        Self { context, manifest, force: false, fail_fast: false, save_manifest: true }
     }
 
     /// Set force mode (rebuild all targets regardless of manifest).
@@ -156,7 +142,11 @@ impl IncrementalBuild {
     }
 
     /// Record a successful build in the manifest.
-    pub fn record_build(&mut self, target: &BuildTarget, outputs: &[PathBuf]) -> Result<(), ManifestError> {
+    pub fn record_build(
+        &mut self,
+        target: &BuildTarget,
+        outputs: &[PathBuf],
+    ) -> Result<(), ManifestError> {
         self.manifest.record_build(&target.id, &target.sources, outputs)
     }
 
@@ -164,7 +154,7 @@ impl IncrementalBuild {
     fn save_manifest_to_disk(&mut self) -> Result<(), BuildError> {
         self.manifest
             .save_to_dir(&self.context.out_dir())
-            .map_err(|e| BuildError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
+            .map_err(|e| BuildError::Io(std::io::Error::other(e.to_string())))
     }
 
     /// Execute a build plan with incremental checking.
@@ -428,11 +418,14 @@ mod tests {
     fn test_incremental_build_with_manifest() {
         let (_temp, ctx) = create_test_context();
         let mut manifest = BuildManifest::new();
-        manifest.targets.insert("test".to_string(), crate::build::TargetManifest {
-            sources: std::collections::HashMap::new(),
-            outputs: vec![],
-            built_at: "2024-01-01T00:00:00Z".to_string(),
-        });
+        manifest.targets.insert(
+            "test".to_string(),
+            crate::build::TargetManifest {
+                sources: std::collections::HashMap::new(),
+                outputs: vec![],
+                built_at: "2024-01-01T00:00:00Z".to_string(),
+            },
+        );
 
         let build = IncrementalBuild::with_manifest(ctx, manifest);
         assert_eq!(build.manifest.len(), 1);
@@ -444,11 +437,8 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
 
         let build = IncrementalBuild::new(ctx);
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source,
-            temp.path().join("build/test.png"),
-        );
+        let target =
+            BuildTarget::sprite("test".to_string(), source, temp.path().join("build/test.png"));
 
         assert!(build.needs_rebuild(&target).unwrap());
     }
@@ -459,11 +449,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source.clone(),
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
 
         let mut build = IncrementalBuild::new(ctx);
         build.record_build(&target, &[output]).unwrap();
@@ -477,11 +463,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source.clone(),
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
 
         let mut build = IncrementalBuild::new(ctx).with_force(true);
         build.record_build(&target, &[output]).unwrap();
@@ -496,11 +478,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "original");
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source.clone(),
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
 
         let mut build = IncrementalBuild::new(ctx);
         build.record_build(&target, &[output]).unwrap();
@@ -517,11 +495,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source.clone(),
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
 
         let mut build = IncrementalBuild::new(ctx);
         build.record_build(&target, &[output.clone()]).unwrap();
@@ -538,11 +512,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
         let output = temp.path().join("build/test.png");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source,
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
         let mut build = IncrementalBuild::new(ctx);
         build.record_build(&target, &[output]).unwrap();
@@ -585,12 +555,7 @@ mod tests {
 
     #[test]
     fn test_incremental_stats_percentages() {
-        let stats = IncrementalStats {
-            built: 1,
-            skipped: 3,
-            failed: 0,
-            total: 4,
-        };
+        let stats = IncrementalStats { built: 1, skipped: 3, failed: 0, total: 4 };
 
         assert!(stats.had_skips());
         assert!(stats.had_rebuilds());
@@ -599,12 +564,7 @@ mod tests {
 
     #[test]
     fn test_incremental_stats_display() {
-        let stats = IncrementalStats {
-            built: 5,
-            skipped: 10,
-            failed: 1,
-            total: 16,
-        };
+        let stats = IncrementalStats { built: 5, skipped: 10, failed: 1, total: 16 };
 
         let display = format!("{}", stats);
         assert!(display.contains("5 built"));
@@ -653,11 +613,7 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source,
-            output.clone(),
-        );
+        let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
         // First build - record the target
         {

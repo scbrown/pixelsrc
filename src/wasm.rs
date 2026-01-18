@@ -59,11 +59,8 @@ fn parse_and_prepare(jsonl: &str) -> (PaletteRegistry, Vec<crate::models::Sprite
     let parse_result = parse_stream(Cursor::new(jsonl));
     let mut registry = PaletteRegistry::new();
     let mut sprites = Vec::new();
-    let warnings: Vec<String> = parse_result
-        .warnings
-        .iter()
-        .map(|w| format!("line {}: {}", w.line, w.message))
-        .collect();
+    let warnings: Vec<String> =
+        parse_result.warnings.iter().map(|w| format!("line {}: {}", w.line, w.message)).collect();
 
     for obj in parse_result.objects {
         match obj {
@@ -107,12 +104,7 @@ pub fn render_to_png(jsonl: &str) -> Vec<u8> {
         use image::ImageEncoder;
         let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
         encoder
-            .write_image(
-                image.as_raw(),
-                image.width(),
-                image.height(),
-                image::ColorType::Rgba8,
-            )
+            .write_image(image.as_raw(), image.width(), image.height(), image::ColorType::Rgba8)
             .ok();
     }
 
@@ -132,12 +124,7 @@ pub fn render_to_rgba(jsonl: &str) -> RenderResult {
 
     if sprites.is_empty() {
         warnings.push("No sprites found in input".to_string());
-        return RenderResult {
-            width: 0,
-            height: 0,
-            pixels: Vec::new(),
-            warnings,
-        };
+        return RenderResult { width: 0, height: 0, pixels: Vec::new(), warnings };
     }
 
     let sprite = &sprites[0];

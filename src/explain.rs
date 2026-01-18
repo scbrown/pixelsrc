@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use crate::color::parse_color;
-use crate::models::{Animation, Composition, Particle, PaletteRef, Sprite, TtpObject, Variant};
+use crate::models::{Animation, Composition, PaletteRef, Particle, Sprite, TtpObject, Variant};
 use crate::palettes;
 use crate::tokenizer::tokenize;
 
@@ -184,32 +184,20 @@ pub fn explain_sprite(
 
     // Calculate transparency
     let transparent_count = token_counts.get("{_}").copied().unwrap_or(0);
-    let transparency_ratio = if total_cells > 0 {
-        (transparent_count as f64 / total_cells as f64) * 100.0
-    } else {
-        0.0
-    };
+    let transparency_ratio =
+        if total_cells > 0 { (transparent_count as f64 / total_cells as f64) * 100.0 } else { 0.0 };
 
     // Build token usage list
     let mut tokens: Vec<TokenUsage> = token_counts
         .iter()
         .map(|(token, &count)| {
-            let percentage = if total_cells > 0 {
-                (count as f64 / total_cells as f64) * 100.0
-            } else {
-                0.0
-            };
+            let percentage =
+                if total_cells > 0 { (count as f64 / total_cells as f64) * 100.0 } else { 0.0 };
 
             let color = palette_colors.and_then(|c| c.get(token).cloned());
             let color_name = color.as_ref().and_then(|c| describe_color(c));
 
-            TokenUsage {
-                token: token.clone(),
-                count,
-                percentage,
-                color,
-                color_name,
-            }
+            TokenUsage { token: token.clone(), count, percentage, color, color_name }
         })
         .collect();
 
@@ -282,11 +270,8 @@ pub fn explain_composition(composition: &Composition) -> CompositionExplanation 
 
 /// Explain a variant
 pub fn explain_variant(variant: &Variant) -> VariantExplanation {
-    let overrides: Vec<(String, String)> = variant
-        .palette
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
+    let overrides: Vec<(String, String)> =
+        variant.palette.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     VariantExplanation {
         name: variant.name.clone(),
@@ -488,10 +473,7 @@ pub fn format_palette_explanation(exp: &PaletteExplanation) -> String {
     output.push_str("--------------\n");
 
     for (token, hex, name) in &exp.colors {
-        let desc = name
-            .as_ref()
-            .map(|n| format!(" ({})", n))
-            .unwrap_or_default();
+        let desc = name.as_ref().map(|n| format!(" ({})", n)).unwrap_or_default();
         output.push_str(&format!("  {:12} => {}{}\n", token, hex, desc));
     }
 
@@ -505,10 +487,7 @@ pub fn format_animation_explanation(exp: &AnimationExplanation) -> String {
     output.push_str(&format!("Animation: {}\n", exp.name));
     output.push_str(&format!("Frames: {}\n", exp.frame_count));
     output.push_str(&format!("Duration: {}ms per frame\n", exp.duration_ms));
-    output.push_str(&format!(
-        "Loops: {}\n",
-        if exp.loops { "yes" } else { "no" }
-    ));
+    output.push_str(&format!("Loops: {}\n", if exp.loops { "yes" } else { "no" }));
     output.push('\n');
 
     output.push_str("FRAME SEQUENCE\n");
@@ -531,10 +510,7 @@ pub fn format_composition_explanation(exp: &CompositionExplanation) -> String {
     if let Some(size) = exp.size {
         output.push_str(&format!("Canvas size: {}x{}\n", size[0], size[1]));
     }
-    output.push_str(&format!(
-        "Cell size: {}x{}\n",
-        exp.cell_size[0], exp.cell_size[1]
-    ));
+    output.push_str(&format!("Cell size: {}x{}\n", exp.cell_size[0], exp.cell_size[1]));
     output.push_str(&format!("Sprite mappings: {}\n", exp.sprite_count));
     output.push_str(&format!("Layers: {}\n", exp.layer_count));
 
@@ -554,9 +530,7 @@ pub fn format_variant_explanation(exp: &VariantExplanation) -> String {
         output.push_str("PALETTE OVERRIDES\n");
         output.push_str("-----------------\n");
         for (token, color) in &exp.overrides {
-            let desc = describe_color(color)
-                .map(|n| format!(" ({})", n))
-                .unwrap_or_default();
+            let desc = describe_color(color).map(|n| format!(" ({})", n)).unwrap_or_default();
             output.push_str(&format!("  {:12} => {}{}\n", token, color, desc));
         }
     }
@@ -642,7 +616,8 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{_}{x}".to_string(), "{x}{_}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let colors = HashMap::from([
@@ -669,7 +644,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("test".to_string()),
             grid: vec!["{a}{b}{c}".to_string(), "{a}{b}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let exp = explain_sprite(&sprite, None);

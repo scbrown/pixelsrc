@@ -1,0 +1,11 @@
+# Rust formatting configuration
+# See: https://rust-lang.github.io/rustfmt/
+
+# Line width - 100 is a good balance for readability
+max_width = 100
+
+# Use maximum heuristics for better formatting consistency
+use_small_heuristics = "Max"
+
+# Match the project edition
+edition = "2021"

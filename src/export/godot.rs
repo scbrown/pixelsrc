@@ -82,10 +82,7 @@ pub struct GodotExporter {
 impl GodotExporter {
     /// Create a new Godot exporter with default settings.
     pub fn new() -> Self {
-        Self {
-            resource_path: "res://assets/sprites".to_string(),
-            sprite_frames: true,
-        }
+        Self { resource_path: "res://assets/sprites".to_string(), sprite_frames: true }
     }
 
     /// Create a Godot exporter with custom resource path.
@@ -117,10 +114,7 @@ impl GodotExporter {
         fs::create_dir_all(output_dir)?;
 
         // Get atlas base name (without extension)
-        let atlas_name = metadata
-            .image
-            .trim_end_matches(".png")
-            .trim_end_matches(".PNG");
+        let atlas_name = metadata.image.trim_end_matches(".png").trim_end_matches(".PNG");
 
         // Generate AtlasTexture for each frame
         if options.atlas_textures {
@@ -183,11 +177,7 @@ region = Rect2({}, {}, {}, {})
         let mut lines = Vec::new();
 
         // Count resources needed
-        let frame_count: usize = metadata
-            .animations
-            .values()
-            .map(|a| a.frames.len())
-            .sum();
+        let frame_count: usize = metadata.animations.values().map(|a| a.frames.len()).sum();
         let load_steps = frame_count + 1;
 
         // Header
@@ -303,10 +293,8 @@ pub fn export_godot(
     resource_path: &str,
 ) -> Result<Vec<std::path::PathBuf>, ExportError> {
     let exporter = GodotExporter::new().with_resource_path(resource_path);
-    let options = GodotExportOptions {
-        resource_path: resource_path.to_string(),
-        ..Default::default()
-    };
+    let options =
+        GodotExportOptions { resource_path: resource_path.to_string(), ..Default::default() };
     exporter.export_godot(metadata, output_dir, &options)
 }
 
@@ -324,36 +312,15 @@ mod tests {
             frames: HashMap::from([
                 (
                     "player_idle".to_string(),
-                    AtlasFrame {
-                        x: 0,
-                        y: 0,
-                        w: 32,
-                        h: 32,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 0, y: 0, w: 32, h: 32, origin: None, boxes: None },
                 ),
                 (
                     "player_walk_1".to_string(),
-                    AtlasFrame {
-                        x: 32,
-                        y: 0,
-                        w: 32,
-                        h: 32,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 32, y: 0, w: 32, h: 32, origin: None, boxes: None },
                 ),
                 (
                     "player_walk_2".to_string(),
-                    AtlasFrame {
-                        x: 64,
-                        y: 0,
-                        w: 32,
-                        h: 32,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 64, y: 0, w: 32, h: 32, origin: None, boxes: None },
                 ),
             ]),
             animations: HashMap::from([(
@@ -376,9 +343,8 @@ mod tests {
 
     #[test]
     fn test_godot_exporter_with_options() {
-        let exporter = GodotExporter::new()
-            .with_resource_path("res://game/assets")
-            .with_sprite_frames(false);
+        let exporter =
+            GodotExporter::new().with_resource_path("res://game/assets").with_sprite_frames(false);
 
         assert_eq!(exporter.resource_path, "res://game/assets");
         assert!(!exporter.sprite_frames);
@@ -387,8 +353,7 @@ mod tests {
     #[test]
     fn test_generate_atlas_texture() {
         let exporter = GodotExporter::new();
-        let content =
-            exporter.generate_atlas_texture("test.png", 10, 20, 32, 48, "res://sprites");
+        let content = exporter.generate_atlas_texture("test.png", 10, 20, 32, 48, "res://sprites");
 
         assert!(content.contains("[gd_resource type=\"AtlasTexture\""));
         assert!(content.contains("load_steps=2"));
@@ -464,14 +429,7 @@ mod tests {
             size: [64, 64],
             frames: HashMap::from([(
                 "icon".to_string(),
-                AtlasFrame {
-                    x: 0,
-                    y: 0,
-                    w: 64,
-                    h: 64,
-                    origin: None,
-                    boxes: None,
-                },
+                AtlasFrame { x: 0, y: 0, w: 64, h: 64, origin: None, boxes: None },
             )]),
             animations: HashMap::new(),
         };
@@ -489,9 +447,8 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let metadata = create_test_metadata();
 
-        let exporter = GodotExporter::new()
-            .with_resource_path("res://test")
-            .with_sprite_frames(false);
+        let exporter =
+            GodotExporter::new().with_resource_path("res://test").with_sprite_frames(false);
 
         let options = GodotExportOptions {
             resource_path: "res://test".to_string(),
@@ -514,9 +471,7 @@ mod tests {
         let exporter = GodotExporter::new();
         let options = ExportOptions::default();
 
-        exporter
-            .export(&metadata, temp.path(), &options)
-            .unwrap();
+        exporter.export(&metadata, temp.path(), &options).unwrap();
 
         // Should have created files
         assert!(temp.path().join("player_idle.tres").exists());

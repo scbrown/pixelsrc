@@ -240,11 +240,8 @@ impl LibGdxExporter {
                 content.push_str(&format!("  orig: {}, {}\n", frame.w, frame.h));
 
                 // Calculate offset from origin if present
-                let (offset_x, offset_y) = if let Some(origin) = &frame.origin {
-                    (origin[0], origin[1])
-                } else {
-                    (0, 0)
-                };
+                let (offset_x, offset_y) =
+                    if let Some(origin) = &frame.origin { (origin[0], origin[1]) } else { (0, 0) };
                 content.push_str(&format!("  offset: {}, {}\n", offset_x, offset_y));
 
                 // Index for animation sequences (-1 means not part of sequence)
@@ -257,7 +254,10 @@ impl LibGdxExporter {
     }
 
     /// Build a map of frame names to their animation sequence indices.
-    fn build_animation_indices<'a>(&self, metadata: &'a AtlasMetadata) -> std::collections::HashMap<&'a str, i32> {
+    fn build_animation_indices<'a>(
+        &self,
+        metadata: &'a AtlasMetadata,
+    ) -> std::collections::HashMap<&'a str, i32> {
         let mut indices = std::collections::HashMap::new();
 
         for animation in metadata.animations.values() {
@@ -277,10 +277,7 @@ impl Exporter for LibGdxExporter {
         output_path: &Path,
         options: &ExportOptions,
     ) -> Result<(), ExportError> {
-        let libgdx_options = LibGdxExportOptions {
-            base: options.clone(),
-            ..Default::default()
-        };
+        let libgdx_options = LibGdxExportOptions { base: options.clone(), ..Default::default() };
         self.export_libgdx(metadata, output_path, &libgdx_options)
     }
 
@@ -304,36 +301,15 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(
             "player_idle".to_string(),
-            AtlasFrame {
-                x: 0,
-                y: 0,
-                w: 32,
-                h: 32,
-                origin: None,
-                boxes: None,
-            },
+            AtlasFrame { x: 0, y: 0, w: 32, h: 32, origin: None, boxes: None },
         );
         frames.insert(
             "player_walk_1".to_string(),
-            AtlasFrame {
-                x: 32,
-                y: 0,
-                w: 32,
-                h: 32,
-                origin: Some([16, 32]),
-                boxes: None,
-            },
+            AtlasFrame { x: 32, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
         );
         frames.insert(
             "player_walk_2".to_string(),
-            AtlasFrame {
-                x: 64,
-                y: 0,
-                w: 32,
-                h: 32,
-                origin: Some([16, 32]),
-                boxes: None,
-            },
+            AtlasFrame { x: 64, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
         );
 
         let mut animations = HashMap::new();
@@ -346,12 +322,7 @@ mod tests {
             },
         );
 
-        AtlasMetadata {
-            image: "atlas.png".to_string(),
-            size: [128, 64],
-            frames,
-            animations,
-        }
+        AtlasMetadata { image: "atlas.png".to_string(), size: [128, 64], frames, animations }
     }
 
     #[test]
@@ -390,14 +361,8 @@ mod tests {
     fn test_filter_mode_as_str() {
         assert_eq!(LibGdxFilterMode::Nearest.as_str(), "Nearest");
         assert_eq!(LibGdxFilterMode::Linear.as_str(), "Linear");
-        assert_eq!(
-            LibGdxFilterMode::MipMapNearestNearest.as_str(),
-            "MipMapNearestNearest"
-        );
-        assert_eq!(
-            LibGdxFilterMode::MipMapLinearLinear.as_str(),
-            "MipMapLinearLinear"
-        );
+        assert_eq!(LibGdxFilterMode::MipMapNearestNearest.as_str(), "MipMapNearestNearest");
+        assert_eq!(LibGdxFilterMode::MipMapLinearLinear.as_str(), "MipMapLinearLinear");
     }
 
     #[test]
@@ -496,9 +461,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let output_path = dir.path().join("test.atlas");
 
-        exporter
-            .export_libgdx(&metadata, &output_path, &options)
-            .unwrap();
+        exporter.export_libgdx(&metadata, &output_path, &options).unwrap();
 
         assert!(output_path.exists());
 
@@ -515,9 +478,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let output_path = dir.path().join("nested").join("dir").join("test.atlas");
 
-        exporter
-            .export_libgdx(&metadata, &output_path, &options)
-            .unwrap();
+        exporter.export_libgdx(&metadata, &output_path, &options).unwrap();
 
         assert!(output_path.exists());
     }
@@ -582,10 +543,7 @@ mod tests {
             .copied()
             .collect();
 
-        assert_eq!(
-            frame_lines,
-            vec!["player_idle", "player_walk_1", "player_walk_2"]
-        );
+        assert_eq!(frame_lines, vec!["player_idle", "player_walk_1", "player_walk_2"]);
     }
 
     #[test]
@@ -595,14 +553,7 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(
             "sprite".to_string(),
-            AtlasFrame {
-                x: 0,
-                y: 0,
-                w: 16,
-                h: 16,
-                origin: None,
-                boxes: None,
-            },
+            AtlasFrame { x: 0, y: 0, w: 16, h: 16, origin: None, boxes: None },
         );
 
         let metadata = AtlasMetadata {

@@ -31,14 +31,8 @@ pub struct RenderInfo {
 
 /// Parse JSONL content and build registries.
 ///
-/// Returns (palette_registry, sprite_registry, animations) tuple.
-fn parse_content(
-    jsonl: &str,
-) -> (
-    PaletteRegistry,
-    SpriteRegistry,
-    HashMap<String, Animation>,
-) {
+/// Returns (`palette_registry`, `sprite_registry`, animations) tuple.
+fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<String, Animation>) {
     let cursor = Cursor::new(jsonl);
     let parse_result = parse_stream(cursor);
 
@@ -71,17 +65,14 @@ pub fn capture_render_info(jsonl: &str, sprite_name: &str) -> RenderInfo {
 
     let resolved = sprite_registry
         .resolve(sprite_name, &palette_registry, false)
-        .expect(&format!("Failed to resolve sprite '{}'", sprite_name));
+        .unwrap_or_else(|_| panic!("Failed to resolve sprite '{sprite_name}'"));
 
     let (image, _warnings) = render_resolved(&resolved);
 
     // Calculate SHA256 of PNG bytes
     let mut png_bytes = Vec::new();
     image
-        .write_to(
-            &mut Cursor::new(&mut png_bytes),
-            image::ImageOutputFormat::Png,
-        )
+        .write_to(&mut Cursor::new(&mut png_bytes), image::ImageOutputFormat::Png)
         .expect("Failed to encode PNG");
 
     let mut hasher = Sha256::new();
@@ -92,8 +83,7 @@ pub fn capture_render_info(jsonl: &str, sprite_name: &str) -> RenderInfo {
     // The resolved palette doesn't retain source info, so we look up the original sprite
 
     // Find original sprite to get palette source
-    let original_palette_name = if let Some(orig_sprite) = sprite_registry.get_sprite(sprite_name)
-    {
+    let original_palette_name = if let Some(orig_sprite) = sprite_registry.get_sprite(sprite_name) {
         match &orig_sprite.palette {
             PaletteRef::Named(name) => Some(name.clone()),
             PaletteRef::Inline(_) => None,
@@ -151,11 +141,8 @@ pub fn assert_output_hash(jsonl: &str, sprite_name: &str, expected_sha256: &str)
 
     // Fallback: Hash mismatch may be due to PNG compression differences
     // Log the mismatch but don't fail if we have valid dimensions
-    eprintln!(
-        "Note: Hash mismatch for sprite '{}' (platform PNG difference likely)",
-        sprite_name
-    );
-    eprintln!("  Expected: {}", expected_sha256);
+    eprintln!("Note: Hash mismatch for sprite '{sprite_name}' (platform PNG difference likely)");
+    eprintln!("  Expected: {expected_sha256}");
     eprintln!("  Got:      {}", info.sha256);
     eprintln!(
         "  Fallback: verifying dimensions ({}x{}) and {} colors",
@@ -180,7 +167,7 @@ pub fn assert_frame_count(jsonl: &str, animation_name: &str, expected_count: usi
 
     let animation = animations
         .get(animation_name)
-        .expect(&format!("Animation '{}' not found", animation_name));
+        .unwrap_or_else(|| panic!("Animation '{animation_name}' not found"));
 
     assert_eq!(
         animation.frames.len(),
@@ -194,8 +181,8 @@ pub fn assert_frame_count(jsonl: &str, animation_name: &str, expected_count: usi
 
 /// Verify that JSONL content passes or fails validation as expected.
 ///
-/// In strict mode (should_pass=true), content must have no errors.
-/// For expected failures (should_pass=false), content must have at least one error.
+/// In strict mode (`should_pass=true`), content must have no errors.
+/// For expected failures (`should_pass=false`), content must have at least one error.
 pub fn assert_validates(jsonl: &str, should_pass: bool) {
     let mut validator = Validator::new();
 
@@ -227,12 +214,7 @@ fn format_validation_issues(validator: &Validator) -> String {
         .issues()
         .iter()
         .filter(|i| matches!(i.severity, Severity::Error))
-        .map(|issue| {
-            format!(
-                "  Line {}: [{}] {}",
-                issue.line, issue.issue_type, issue.message
-            )
-        })
+        .map(|issue| format!("  Line {}: [{}] {}", issue.line, issue.issue_type, issue.message))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -278,14 +260,14 @@ mod tests {
         assert_eq!(info.sha256.len(), 64); // SHA256 hex is 64 chars
     }
 
-    /// Test assert_dimensions passes for correct dimensions
+    /// Test `assert_dimensions` passes for correct dimensions
     #[test]
     fn test_assert_dimensions_pass() {
         let jsonl = r##"{"type": "sprite", "name": "square", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}", "{x}{x}"]}"##;
         assert_dimensions(jsonl, "square", 2, 2);
     }
 
-    /// Test assert_dimensions fails for incorrect dimensions
+    /// Test `assert_dimensions` fails for incorrect dimensions
     #[test]
     #[should_panic(expected = "Width mismatch")]
     fn test_assert_dimensions_fail_width() {
@@ -293,7 +275,7 @@ mod tests {
         assert_dimensions(jsonl, "square", 3, 2);
     }
 
-    /// Test assert_frame_count with animation
+    /// Test `assert_frame_count` with animation
     #[test]
     fn test_assert_frame_count() {
         let jsonl = r##"{"type": "sprite", "name": "f1", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
@@ -303,7 +285,7 @@ mod tests {
         assert_frame_count(jsonl, "blink", 3);
     }
 
-    /// Test assert_validates with valid content
+    /// Test `assert_validates` with valid content
     #[test]
     fn test_assert_validates_valid() {
         let jsonl = r##"{"type": "palette", "name": "mono", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
@@ -311,7 +293,7 @@ mod tests {
         assert_validates(jsonl, true);
     }
 
-    /// Test assert_validates with invalid content
+    /// Test `assert_validates` with invalid content
     #[test]
     fn test_assert_validates_invalid() {
         // Invalid JSON
@@ -319,12 +301,16 @@ mod tests {
         assert_validates(jsonl, false);
     }
 
-    /// Test assert_output_hash (mainly testing it runs without panic)
+    /// Test `assert_output_hash` (mainly testing it runs without panic)
     #[test]
     fn test_assert_output_hash_fallback() {
         let jsonl = r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
         // Use an intentionally wrong hash to trigger fallback verification
-        assert_output_hash(jsonl, "dot", "0000000000000000000000000000000000000000000000000000000000000000");
+        assert_output_hash(
+            jsonl,
+            "dot",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        );
     }
 
     /// Test with named palette
@@ -347,7 +333,7 @@ mod tests {
         assert_color_count(jsonl, "rgb", 3);
     }
 
-    /// Test uses_palette assertion
+    /// Test `uses_palette` assertion
     #[test]
     fn test_assert_uses_palette() {
         let jsonl = r##"{"type": "palette", "name": "mypalette", "colors": {"{x}": "#FF0000"}}

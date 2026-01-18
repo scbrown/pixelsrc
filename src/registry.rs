@@ -66,15 +66,11 @@ pub struct PaletteWarning {
 
 impl PaletteWarning {
     pub fn not_found(name: &str) -> Self {
-        Self {
-            message: format!("Palette '{}' not found", name),
-        }
+        Self { message: format!("Palette '{}' not found", name) }
     }
 
     pub fn builtin_not_found(name: &str) -> Self {
-        Self {
-            message: format!("Built-in palette '{}' not found", name),
-        }
+        Self { message: format!("Built-in palette '{}' not found", name) }
     }
 }
 
@@ -89,13 +85,17 @@ pub struct LenientResult {
 ///
 /// Takes a raw palette colors map and resolves any `var(--name)` references.
 /// Returns a new map with resolved color strings.
-fn resolve_palette_variables(colors: &HashMap<String, String>, strict: bool) -> (HashMap<String, String>, Vec<PaletteWarning>) {
+fn resolve_palette_variables(
+    colors: &HashMap<String, String>,
+    strict: bool,
+) -> (HashMap<String, String>, Vec<PaletteWarning>) {
     let parser = PaletteParser::new();
     let mode = if strict { ParseMode::Strict } else { ParseMode::Lenient };
 
     match parser.resolve_to_strings(colors, mode) {
         Ok(result) => {
-            let warnings: Vec<PaletteWarning> = result.warnings
+            let warnings: Vec<PaletteWarning> = result
+                .warnings
                 .into_iter()
                 .map(|w| PaletteWarning { message: w.message })
                 .collect();
@@ -120,9 +120,7 @@ pub struct PaletteRegistry {
 impl PaletteRegistry {
     /// Create a new empty registry.
     pub fn new() -> Self {
-        Self {
-            palettes: HashMap::new(),
-        }
+        Self { palettes: HashMap::new() }
     }
 
     /// Register a palette in the registry.
@@ -163,7 +161,8 @@ impl PaletteRegistry {
                     }
                 } else if let Some(palette) = self.palettes.get(name) {
                     // Resolve CSS variables in the palette
-                    let (resolved_colors, _warnings) = resolve_palette_variables(&palette.colors, true);
+                    let (resolved_colors, _warnings) =
+                        resolve_palette_variables(&palette.colors, true);
                     Ok(ResolvedPalette {
                         colors: resolved_colors,
                         source: PaletteSource::Named(name.clone()),
@@ -175,10 +174,7 @@ impl PaletteRegistry {
             PaletteRef::Inline(colors) => {
                 // Resolve CSS variables in inline palettes too
                 let (resolved_colors, _warnings) = resolve_palette_variables(colors, true);
-                Ok(ResolvedPalette {
-                    colors: resolved_colors,
-                    source: PaletteSource::Inline,
-                })
+                Ok(ResolvedPalette { colors: resolved_colors, source: PaletteSource::Inline })
             }
         }
     }
@@ -215,12 +211,14 @@ impl PaletteRegistry {
                     }
                 } else if let Some(palette) = self.palettes.get(name) {
                     // Resolve CSS variables in the palette
-                    let (resolved_colors, var_warnings) = resolve_palette_variables(&palette.colors, false);
+                    let (resolved_colors, var_warnings) =
+                        resolve_palette_variables(&palette.colors, false);
                     let warning = if var_warnings.is_empty() {
                         None
                     } else {
                         // Combine multiple variable warnings into one
-                        let messages: Vec<String> = var_warnings.into_iter().map(|w| w.message).collect();
+                        let messages: Vec<String> =
+                            var_warnings.into_iter().map(|w| w.message).collect();
                         Some(PaletteWarning { message: messages.join("; ") })
                     };
                     LenientResult {
@@ -247,7 +245,8 @@ impl PaletteRegistry {
                 let warning = if var_warnings.is_empty() {
                     None
                 } else {
-                    let messages: Vec<String> = var_warnings.into_iter().map(|w| w.message).collect();
+                    let messages: Vec<String> =
+                        var_warnings.into_iter().map(|w| w.message).collect();
                     Some(PaletteWarning { message: messages.join("; ") })
                 };
                 LenientResult {
@@ -267,10 +266,7 @@ impl PaletteRegistry {
     /// In lenient mode, returns a fallback with a warning.
     pub fn resolve(&self, sprite: &Sprite, strict: bool) -> Result<LenientResult, PaletteError> {
         if strict {
-            self.resolve_strict(sprite).map(|palette| LenientResult {
-                palette,
-                warning: None,
-            })
+            self.resolve_strict(sprite).map(|palette| LenientResult { palette, warning: None })
         } else {
             Ok(self.resolve_lenient(sprite))
         }
@@ -301,18 +297,10 @@ impl fmt::Display for SpriteError {
         match self {
             SpriteError::NotFound(name) => write!(f, "Sprite or variant '{}' not found", name),
             SpriteError::BaseNotFound { variant, base } => {
-                write!(
-                    f,
-                    "Variant '{}' references unknown base sprite '{}'",
-                    variant, base
-                )
+                write!(f, "Variant '{}' references unknown base sprite '{}'", variant, base)
             }
             SpriteError::SourceNotFound { sprite, source } => {
-                write!(
-                    f,
-                    "Sprite '{}' references unknown source sprite '{}'",
-                    sprite, source
-                )
+                write!(f, "Sprite '{}' references unknown source sprite '{}'", sprite, source)
             }
             SpriteError::CircularReference { sprite, chain } => {
                 write!(
@@ -339,33 +327,21 @@ pub struct SpriteWarning {
 
 impl SpriteWarning {
     pub fn not_found(name: &str) -> Self {
-        Self {
-            message: format!("Sprite or variant '{}' not found", name),
-        }
+        Self { message: format!("Sprite or variant '{}' not found", name) }
     }
 
     pub fn base_not_found(variant: &str, base: &str) -> Self {
-        Self {
-            message: format!(
-                "Variant '{}' references unknown base sprite '{}'",
-                variant, base
-            ),
-        }
+        Self { message: format!("Variant '{}' references unknown base sprite '{}'", variant, base) }
     }
 
     pub fn source_not_found(sprite: &str, source: &str) -> Self {
         Self {
-            message: format!(
-                "Sprite '{}' references unknown source sprite '{}'",
-                sprite, source
-            ),
+            message: format!("Sprite '{}' references unknown source sprite '{}'", sprite, source),
         }
     }
 
     pub fn transform_error(sprite: &str, message: &str) -> Self {
-        Self {
-            message: format!("Transform error for sprite '{}': {}", sprite, message),
-        }
+        Self { message: format!("Transform error for sprite '{}': {}", sprite, message) }
     }
 }
 
@@ -409,7 +385,10 @@ fn parse_transform_spec(spec: &TransformSpec) -> Result<Transform, TransformErro
 /// Apply a single transform to a grid.
 ///
 /// Returns the transformed grid, or an error if the transform cannot be applied.
-fn apply_grid_transform(grid: &[String], transform: &Transform) -> Result<Vec<String>, TransformError> {
+fn apply_grid_transform(
+    grid: &[String],
+    transform: &Transform,
+) -> Result<Vec<String>, TransformError> {
     match transform {
         // Geometric transforms
         Transform::MirrorH => Ok(mirror_horizontal(grid)),
@@ -439,23 +418,19 @@ fn apply_grid_transform(grid: &[String], transform: &Transform) -> Result<Vec<St
         }
 
         // Subpixel - not yet implemented for grid transforms
-        Transform::Subpixel { .. } => {
-            Err(TransformError::InvalidParameter {
-                op: "subpixel".to_string(),
-                message: "subpixel transforms are not yet implemented for sprite grids".to_string(),
-            })
-        }
+        Transform::Subpixel { .. } => Err(TransformError::InvalidParameter {
+            op: "subpixel".to_string(),
+            message: "subpixel transforms are not yet implemented for sprite grids".to_string(),
+        }),
 
         // Animation transforms should not be applied to sprite grids
         Transform::Pingpong { .. }
         | Transform::Reverse
         | Transform::FrameOffset { .. }
-        | Transform::Hold { .. } => {
-            Err(TransformError::InvalidParameter {
-                op: format!("{:?}", transform),
-                message: "animation transforms cannot be applied to sprite grids".to_string(),
-            })
-        }
+        | Transform::Hold { .. } => Err(TransformError::InvalidParameter {
+            op: format!("{:?}", transform),
+            message: "animation transforms cannot be applied to sprite grids".to_string(),
+        }),
     }
 }
 
@@ -569,14 +544,10 @@ fn pad_grid(grid: &[String], size: u32) -> Vec<String> {
     let max_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
 
     let pad_token = "{_}";
-    let horizontal_padding: String = std::iter::repeat(pad_token)
-        .take(size as usize)
-        .collect::<Vec<_>>()
-        .join("");
-    let full_width_row: String = std::iter::repeat(pad_token)
-        .take(max_width + 2 * size as usize)
-        .collect::<Vec<_>>()
-        .join("");
+    let horizontal_padding: String =
+        std::iter::repeat_n(pad_token, size as usize).collect::<Vec<_>>().join("");
+    let full_width_row: String =
+        std::iter::repeat_n(pad_token, max_width + 2 * size as usize).collect::<Vec<_>>().join("");
 
     let mut result = Vec::new();
 
@@ -605,7 +576,13 @@ fn pad_grid(grid: &[String], size: u32) -> Vec<String> {
 }
 
 /// Extract sub-region from grid.
-fn crop_grid(grid: &[String], x: u32, y: u32, w: u32, h: u32) -> Result<Vec<String>, TransformError> {
+fn crop_grid(
+    grid: &[String],
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+) -> Result<Vec<String>, TransformError> {
     use crate::tokenizer::tokenize;
 
     if grid.is_empty() {
@@ -629,10 +606,8 @@ fn crop_grid(grid: &[String], x: u32, y: u32, w: u32, h: u32) -> Result<Vec<Stri
     for row_idx in y..(y + h) {
         if row_idx as usize >= parsed.len() {
             // Pad with transparent tokens if crop extends beyond grid
-            let transparent_row: String = std::iter::repeat("{_}")
-                .take(w as usize)
-                .collect::<Vec<_>>()
-                .join("");
+            let transparent_row: String =
+                std::iter::repeat_n("{_}", w as usize).collect::<Vec<_>>().join("");
             result.push(transparent_row);
         } else {
             let row = &parsed[row_idx as usize];
@@ -861,10 +836,7 @@ pub struct SpriteRegistry {
 impl SpriteRegistry {
     /// Create a new empty sprite registry.
     pub fn new() -> Self {
-        Self {
-            sprites: HashMap::new(),
-            variants: HashMap::new(),
-        }
+        Self { sprites: HashMap::new(), variants: HashMap::new() }
     }
 
     /// Register a sprite.
@@ -967,10 +939,7 @@ impl SpriteRegistry {
                     grid: vec![],
                     palette: HashMap::new(),
                     warnings: vec![SpriteWarning {
-                        message: format!(
-                            "Circular reference detected: {}",
-                            visited.join(" -> ")
-                        ),
+                        message: format!("Circular reference detected: {}", visited.join(" -> ")),
                     }],
                 });
             }
@@ -985,8 +954,12 @@ impl SpriteRegistry {
             match self.sprites.get(source_name) {
                 Some(source_sprite) => {
                     // Recursively resolve the source sprite
-                    let source_resolved =
-                        self.resolve_sprite_internal(source_sprite, palette_registry, strict, visited)?;
+                    let source_resolved = self.resolve_sprite_internal(
+                        source_sprite,
+                        palette_registry,
+                        strict,
+                        visited,
+                    )?;
                     warnings.extend(source_resolved.warnings);
                     source_resolved.grid
                 }
@@ -997,10 +970,7 @@ impl SpriteRegistry {
                             source: source_name.clone(),
                         });
                     } else {
-                        warnings.push(SpriteWarning::source_not_found(
-                            &sprite.name,
-                            source_name,
-                        ));
+                        warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
                         // Return empty grid on source not found in lenient mode
                         Vec::new()
                     }
@@ -1022,10 +992,7 @@ impl SpriteRegistry {
                     if strict {
                         return Err(e);
                     } else {
-                        warnings.push(SpriteWarning::transform_error(
-                            &sprite.name,
-                            &e.to_string(),
-                        ));
+                        warnings.push(SpriteWarning::transform_error(&sprite.name, &e.to_string()));
                         base_grid
                     }
                 }
@@ -1038,9 +1005,7 @@ impl SpriteRegistry {
         let palette = match palette_registry.resolve(sprite, strict) {
             Ok(result) => {
                 if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning {
-                        message: warning.message,
-                    });
+                    warnings.push(SpriteWarning { message: warning.message });
                 }
                 result.palette.colors
             }
@@ -1055,13 +1020,7 @@ impl SpriteRegistry {
             }
         };
 
-        Ok(ResolvedSprite {
-            name: sprite.name.clone(),
-            size: sprite.size,
-            grid,
-            palette,
-            warnings,
-        })
+        Ok(ResolvedSprite { name: sprite.name.clone(), size: sprite.size, grid, palette, warnings })
     }
 
     /// Apply a list of transforms to a grid.
@@ -1158,9 +1117,7 @@ impl SpriteRegistry {
         let base_palette = match palette_registry.resolve(base_sprite, strict) {
             Ok(result) => {
                 if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning {
-                        message: warning.message,
-                    });
+                    warnings.push(SpriteWarning { message: warning.message });
                 }
                 result.palette.colors
             }
@@ -1183,7 +1140,8 @@ impl SpriteRegistry {
 
         // Apply transforms if any
         let grid = if let Some(transform_specs) = &variant.transform {
-            match self.apply_transforms_to_grid(&base_grid, transform_specs, &variant.name, strict) {
+            match self.apply_transforms_to_grid(&base_grid, transform_specs, &variant.name, strict)
+            {
                 Ok((transformed, transform_warnings)) => {
                     warnings.extend(transform_warnings);
                     transformed
@@ -1192,10 +1150,8 @@ impl SpriteRegistry {
                     if strict {
                         return Err(e);
                     } else {
-                        warnings.push(SpriteWarning::transform_error(
-                            &variant.name,
-                            &e.to_string(),
-                        ));
+                        warnings
+                            .push(SpriteWarning::transform_error(&variant.name, &e.to_string()));
                         base_grid
                     }
                 }
@@ -1239,11 +1195,9 @@ mod tests {
             name: "checker".to_string(),
             size: None,
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec![
-                "{on}{off}{on}{off}".to_string(),
-                "{off}{on}{off}{on}".to_string(),
-            ],
-            metadata: None, ..Default::default()
+            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1256,7 +1210,8 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1266,7 +1221,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("nonexistent".to_string()),
             grid: vec!["{x}{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1325,10 +1281,7 @@ mod tests {
         let sprite = bad_ref_sprite();
 
         let result = registry.resolve_strict(&sprite);
-        assert_eq!(
-            result,
-            Err(PaletteError::NotFound("nonexistent".to_string()))
-        );
+        assert_eq!(result, Err(PaletteError::NotFound("nonexistent".to_string())));
     }
 
     #[test]
@@ -1349,10 +1302,7 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_none());
-        assert_eq!(
-            result.palette.source,
-            PaletteSource::Named("mono".to_string())
-        );
+        assert_eq!(result.palette.source, PaletteSource::Named("mono".to_string()));
     }
 
     #[test]
@@ -1362,12 +1312,7 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_some());
-        assert!(result
-            .warning
-            .as_ref()
-            .unwrap()
-            .message
-            .contains("nonexistent"));
+        assert!(result.warning.as_ref().unwrap().message.contains("nonexistent"));
         assert_eq!(result.palette.source, PaletteSource::Fallback);
         assert!(result.palette.colors.is_empty());
     }
@@ -1430,10 +1375,7 @@ mod tests {
         let result = registry.resolve_strict(&sprite);
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            PaletteError::NotFound("nonexistent".to_string())
-        );
+        assert_eq!(result.unwrap_err(), PaletteError::NotFound("nonexistent".to_string()));
     }
 
     #[test]
@@ -1445,10 +1387,7 @@ mod tests {
         let result = registry.resolve_lenient(&sprite);
 
         assert!(result.warning.is_some());
-        assert_eq!(
-            result.warning.unwrap().message,
-            "Palette 'nonexistent' not found"
-        );
+        assert_eq!(result.warning.unwrap().message, "Palette 'nonexistent' not found");
         assert_eq!(result.palette.source, PaletteSource::Fallback);
     }
 
@@ -1462,7 +1401,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("@gameboy".to_string()),
             grid: vec!["{lightest}{dark}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1472,7 +1412,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("@nonexistent".to_string()),
             grid: vec!["{x}{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1493,7 +1434,8 @@ mod tests {
                 "{_}{skin}{skin}{_}".to_string(),
                 "{_}{skin}{skin}{_}".to_string(),
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -1534,10 +1476,7 @@ mod tests {
 
         let result = registry.resolve_strict(&sprite).unwrap();
         assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
-        assert_eq!(
-            result.colors.get("{lightest}"),
-            Some(&"#9BBC0F".to_string())
-        );
+        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
         assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
     }
 
@@ -1547,10 +1486,7 @@ mod tests {
         let sprite = builtin_nonexistent_sprite();
 
         let result = registry.resolve_strict(&sprite);
-        assert_eq!(
-            result,
-            Err(PaletteError::BuiltinNotFound("nonexistent".to_string()))
-        );
+        assert_eq!(result, Err(PaletteError::BuiltinNotFound("nonexistent".to_string())));
     }
 
     #[test]
@@ -1560,14 +1496,8 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_none());
-        assert_eq!(
-            result.palette.source,
-            PaletteSource::Builtin("gameboy".to_string())
-        );
-        assert_eq!(
-            result.palette.colors.get("{lightest}"),
-            Some(&"#9BBC0F".to_string())
-        );
+        assert_eq!(result.palette.source, PaletteSource::Builtin("gameboy".to_string()));
+        assert_eq!(result.palette.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
     }
 
     #[test]
@@ -1577,10 +1507,7 @@ mod tests {
 
         let result = registry.resolve_lenient(&sprite);
         assert!(result.warning.is_some());
-        assert_eq!(
-            result.warning.unwrap().message,
-            "Built-in palette 'nonexistent' not found"
-        );
+        assert_eq!(result.warning.unwrap().message, "Built-in palette 'nonexistent' not found");
         assert_eq!(result.palette.source, PaletteSource::Fallback);
         assert!(result.palette.colors.is_empty());
     }
@@ -1592,10 +1519,7 @@ mod tests {
 
         let result = registry.resolve(&sprite, true);
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            PaletteError::BuiltinNotFound("nonexistent".to_string())
-        );
+        assert_eq!(result.unwrap_err(), PaletteError::BuiltinNotFound("nonexistent".to_string()));
     }
 
     #[test]
@@ -1618,10 +1542,7 @@ mod tests {
         let result = registry.resolve_strict(&sprite).unwrap();
         assert_eq!(result.source, PaletteSource::Builtin("gameboy".to_string()));
         // Verify correct gameboy colors
-        assert_eq!(
-            result.colors.get("{lightest}"),
-            Some(&"#9BBC0F".to_string())
-        );
+        assert_eq!(result.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
         assert_eq!(result.colors.get("{light}"), Some(&"#8BAC0F".to_string()));
         assert_eq!(result.colors.get("{dark}"), Some(&"#306230".to_string()));
         assert_eq!(result.colors.get("{darkest}"), Some(&"#0F380F".to_string()));
@@ -1638,18 +1559,12 @@ mod tests {
                 size: None,
                 palette: PaletteRef::Named(format!("@{}", name)),
                 grid: vec!["{_}".to_string()],
-                metadata: None, ..Default::default()
+                metadata: None,
+                ..Default::default()
             };
             let result = registry.resolve_strict(&sprite);
-            assert!(
-                result.is_ok(),
-                "Built-in palette @{} should be resolvable",
-                name
-            );
-            assert_eq!(
-                result.unwrap().source,
-                PaletteSource::Builtin(name.to_string())
-            );
+            assert!(result.is_ok(), "Built-in palette @{} should be resolvable", name);
+            assert_eq!(result.unwrap().source, PaletteSource::Builtin(name.to_string()));
         }
     }
 
@@ -1686,9 +1601,7 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry
-            .resolve("hero", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero");
         assert_eq!(result.size, Some([4, 4]));
         assert_eq!(result.grid.len(), 4);
@@ -1704,9 +1617,7 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry
-            .resolve("hero_red", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero_red");
         assert_eq!(result.size, Some([4, 4])); // Inherited from base
         assert_eq!(result.grid.len(), 4); // Copied from base
@@ -1728,9 +1639,7 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry
-            .resolve("hero_alt", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero_alt");
 
         // Both skin and hair should be overridden
@@ -1765,9 +1674,7 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry
-            .resolve("ghost", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
         assert_eq!(result.name, "ghost");
         assert!(result.grid.is_empty());
         assert!(result.palette.is_empty());
@@ -1793,9 +1700,7 @@ mod tests {
         let sprite_registry = SpriteRegistry::new();
         let palette_registry = PaletteRegistry::new();
 
-        let result = sprite_registry
-            .resolve("missing", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("missing", &palette_registry, false).unwrap();
         assert_eq!(result.name, "missing");
         assert!(result.grid.is_empty());
         assert_eq!(result.warnings.len(), 1);
@@ -1810,12 +1715,8 @@ mod tests {
 
         let palette_registry = PaletteRegistry::new();
 
-        let sprite_result = sprite_registry
-            .resolve("hero", &palette_registry, false)
-            .unwrap();
-        let variant_result = sprite_registry
-            .resolve("hero_red", &palette_registry, false)
-            .unwrap();
+        let sprite_result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let variant_result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
 
         // Grid should be identical
         assert_eq!(sprite_result.grid, variant_result.grid);
@@ -1843,9 +1744,7 @@ mod tests {
         };
         sprite_registry.register_variant(variant);
 
-        let result = sprite_registry
-            .resolve("checker_red", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("checker_red", &palette_registry, false).unwrap();
         assert_eq!(result.name, "checker_red");
         // {on} should be overridden
         assert_eq!(result.palette.get("{on}"), Some(&"#FF0000".to_string()));
@@ -1903,9 +1802,7 @@ mod tests {
         sprite_registry.register_sprite(derived);
 
         // Resolve derived should get base's grid
-        let result = sprite_registry
-            .resolve("derived", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
 
         assert_eq!(result.name, "derived");
         assert_eq!(result.grid.len(), 2);
@@ -1949,9 +1846,7 @@ mod tests {
         };
         sprite_registry.register_sprite(mirrored);
 
-        let result = sprite_registry
-            .resolve("mirrored", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("mirrored", &palette_registry, false).unwrap();
 
         // Grid should be horizontally mirrored: "{a}{b}" -> "{b}{a}"
         assert_eq!(result.grid.len(), 1);
@@ -1973,10 +1868,7 @@ mod tests {
                 ("{3}".to_string(), "#0000FF".to_string()),
                 ("{4}".to_string(), "#FFFF00".to_string()),
             ])),
-            grid: vec![
-                "{1}{2}".to_string(),
-                "{3}{4}".to_string(),
-            ],
+            grid: vec!["{1}{2}".to_string(), "{3}{4}".to_string()],
             metadata: None,
             ..Default::default()
         };
@@ -1994,9 +1886,7 @@ mod tests {
         };
         sprite_registry.register_sprite(rotated);
 
-        let result = sprite_registry
-            .resolve("rotated", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("rotated", &palette_registry, false).unwrap();
 
         // 90 degree clockwise rotation:
         // Original:    Rotated:
@@ -2041,9 +1931,7 @@ mod tests {
         };
         sprite_registry.register_sprite(transformed);
 
-        let result = sprite_registry
-            .resolve("transformed", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("transformed", &palette_registry, false).unwrap();
 
         // First mirror-h: "{a}{b}" -> "{b}{a}"
         // Then tile 2x1: "{b}{a}" -> "{b}{a}{b}{a}"
@@ -2096,9 +1984,7 @@ mod tests {
         sprite_registry.register_sprite(derived);
 
         // Lenient mode should return empty grid with warning
-        let result = sprite_registry
-            .resolve("derived", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
         assert!(result.grid.is_empty());
         assert!(!result.warnings.is_empty());
     }
@@ -2169,9 +2055,7 @@ mod tests {
         };
         sprite_registry.register_variant(variant);
 
-        let result = sprite_registry
-            .resolve("variant", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("variant", &palette_registry, false).unwrap();
 
         // Grid should be mirrored
         assert_eq!(result.grid[0], "{b}{a}");

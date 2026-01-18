@@ -29,13 +29,7 @@ impl BuildContext {
     /// - `project_root` - The project root directory
     pub fn new(config: PxlConfig, project_root: PathBuf) -> Self {
         let strict = config.validate.strict;
-        Self {
-            config,
-            project_root,
-            strict,
-            verbose: false,
-            target_filter: None,
-        }
+        Self { config, project_root, strict, verbose: false, target_filter: None }
     }
 
     /// Get the configuration.
@@ -152,8 +146,7 @@ mod tests {
     fn test_build_context_with_filter() {
         let config = default_config();
         let root = PathBuf::from("/project");
-        let ctx = BuildContext::new(config, root)
-            .with_filter(vec!["atlas:main".to_string()]);
+        let ctx = BuildContext::new(config, root).with_filter(vec!["atlas:main".to_string()]);
 
         assert_eq!(ctx.target_filter(), Some(&["atlas:main".to_string()][..]));
     }

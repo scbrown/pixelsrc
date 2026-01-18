@@ -19,13 +19,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tempfile::TempDir;
 
-use pixelsrc::build::{
-    Build, BuildContext, BuildManifest, BuildPlan, BuildPipeline, BuildResult, BuildTarget,
-    IncrementalBuild, IncrementalStats, ParallelBuild, ParallelStats, TargetKind,
-};
 use pixelsrc::build::progress::{
     ConsoleProgress, JsonProgress, NullProgress, ProgressEvent, ProgressReporter, ProgressTracker,
     TargetStatus,
+};
+use pixelsrc::build::{
+    Build, BuildContext, BuildManifest, BuildPipeline, BuildPlan, BuildResult, BuildTarget,
+    IncrementalBuild, IncrementalStats, ParallelBuild, ParallelStats, TargetKind,
 };
 use pixelsrc::config::default_config;
 
@@ -159,15 +159,11 @@ fn test_incremental_build_skips_up_to_date() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite(
-        "test".to_string(),
-        source.clone(),
-        output.clone(),
-    );
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     // First build - record in manifest
-    let mut build = IncrementalBuild::new(ctx.clone()).with_save_manifest(false);
-    build.record_build(&target, &[output.clone()]).unwrap();
+    let mut build = IncrementalBuild::new(ctx).with_save_manifest(false);
+    build.record_build(&target, &[output]).unwrap();
 
     // Second check - should not need rebuild
     assert!(!build.needs_rebuild(&target).unwrap());
@@ -179,11 +175,7 @@ fn test_incremental_build_detects_source_change() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "original");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite(
-        "test".to_string(),
-        source.clone(),
-        output.clone(),
-    );
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     let mut build = IncrementalBuild::new(ctx).with_save_manifest(false);
     build.record_build(&target, &[output]).unwrap();
@@ -200,11 +192,7 @@ fn test_incremental_build_detects_output_missing() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite(
-        "test".to_string(),
-        source.clone(),
-        output.clone(),
-    );
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     let mut build = IncrementalBuild::new(ctx).with_save_manifest(false);
     build.record_build(&target, &[output.clone()]).unwrap();
@@ -221,15 +209,9 @@ fn test_incremental_build_force_mode() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite(
-        "test".to_string(),
-        source.clone(),
-        output.clone(),
-    );
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
-    let mut build = IncrementalBuild::new(ctx)
-        .with_force(true)
-        .with_save_manifest(false);
+    let mut build = IncrementalBuild::new(ctx).with_force(true).with_save_manifest(false);
     build.record_build(&target, &[output]).unwrap();
 
     // Force mode should always rebuild
@@ -269,16 +251,12 @@ fn test_manifest_persistence() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite(
-        "test".to_string(),
-        source.clone(),
-        output.clone(),
-    );
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     // First session - record and save
     {
         let mut build = IncrementalBuild::new(ctx.clone());
-        build.record_build(&target, &[output.clone()]).unwrap();
+        build.record_build(&target, &[output]).unwrap();
         // Explicitly save the manifest to disk
         build.manifest_mut().save_to_dir(&ctx.out_dir()).unwrap();
     }
@@ -322,7 +300,7 @@ fn test_parallel_build_multiple_jobs() {
 
     // Create multiple source files
     for i in 0..10 {
-        create_test_file(temp.path(), &format!("src/pxl/sprite{}.pxl", i), "{}");
+        create_test_file(temp.path(), &format!("src/pxl/sprite{i}.pxl"), "{}");
     }
 
     let build = ParallelBuild::new(ctx).with_jobs(4);
@@ -422,9 +400,7 @@ fn test_null_progress_reporter() {
 
     // Should not panic on any event
     reporter.report(ProgressEvent::BuildStarted { total_targets: 10 });
-    reporter.report(ProgressEvent::TargetStarted {
-        target_id: "test".to_string(),
-    });
+    reporter.report(ProgressEvent::TargetStarted { target_id: "test".to_string() });
     reporter.report(ProgressEvent::TargetCompleted {
         target_id: "test".to_string(),
         status: TargetStatus::Success,
@@ -449,17 +425,13 @@ fn test_console_progress_build_lifecycle() {
         .with_verbose(true);
 
     reporter.report(ProgressEvent::BuildStarted { total_targets: 2 });
-    reporter.report(ProgressEvent::TargetStarted {
-        target_id: "sprite:player".to_string(),
-    });
+    reporter.report(ProgressEvent::TargetStarted { target_id: "sprite:player".to_string() });
     reporter.report(ProgressEvent::TargetCompleted {
         target_id: "sprite:player".to_string(),
         status: TargetStatus::Success,
         duration_ms: 150,
     });
-    reporter.report(ProgressEvent::TargetStarted {
-        target_id: "sprite:enemy".to_string(),
-    });
+    reporter.report(ProgressEvent::TargetStarted { target_id: "sprite:enemy".to_string() });
     reporter.report(ProgressEvent::TargetCompleted {
         target_id: "sprite:enemy".to_string(),
         status: TargetStatus::Skipped,
@@ -485,8 +457,7 @@ fn test_console_progress_build_lifecycle() {
 #[test]
 fn test_console_progress_with_failure() {
     let output = Arc::new(Mutex::new(Vec::new()));
-    let reporter = ConsoleProgress::with_output(TestWriter(Arc::clone(&output)))
-        .with_colors(false);
+    let reporter = ConsoleProgress::with_output(TestWriter(Arc::clone(&output))).with_colors(false);
 
     reporter.report(ProgressEvent::BuildStarted { total_targets: 1 });
     reporter.report(ProgressEvent::TargetCompleted {
@@ -512,8 +483,7 @@ fn test_console_progress_with_failure() {
 #[test]
 fn test_console_progress_warnings_and_errors() {
     let output = Arc::new(Mutex::new(Vec::new()));
-    let reporter = ConsoleProgress::with_output(TestWriter(Arc::clone(&output)))
-        .with_colors(false);
+    let reporter = ConsoleProgress::with_output(TestWriter(Arc::clone(&output))).with_colors(false);
 
     reporter.report(ProgressEvent::Warning {
         target_id: Some("sprite:test".to_string()),
@@ -621,11 +591,8 @@ fn test_target_kind_display() {
 
 #[test]
 fn test_target_filter_matching() {
-    let target = BuildTarget::atlas(
-        "characters".to_string(),
-        vec![],
-        PathBuf::from("build/characters.png"),
-    );
+    let target =
+        BuildTarget::atlas("characters".to_string(), vec![], PathBuf::from("build/characters.png"));
 
     // Exact match
     assert!(target.matches_filter("atlas:characters"));
@@ -769,16 +736,13 @@ fn test_manifest_multiple_targets() {
 
     // Record multiple targets
     for i in 0..5 {
-        let source = create_test_file(
-            temp.path(),
-            &format!("src/sprite{}.pxl", i),
-            &format!("content{}", i),
-        );
+        let source =
+            create_test_file(temp.path(), &format!("src/sprite{i}.pxl"), &format!("content{i}"));
         manifest
             .record_build(
-                &format!("sprite:sprite{}", i),
+                &format!("sprite:sprite{i}"),
                 &[source],
-                &[temp.path().join(format!("build/sprite{}.png", i))],
+                &[temp.path().join(format!("build/sprite{i}.png"))],
             )
             .unwrap();
     }
@@ -806,10 +770,7 @@ fn test_full_build_with_exports() {
     let mut plan = BuildPlan::new();
     plan.add_target(BuildTarget::atlas(
         "characters".to_string(),
-        vec![
-            temp.path().join("src/pxl/player.pxl"),
-            temp.path().join("src/pxl/enemy.pxl"),
-        ],
+        vec![temp.path().join("src/pxl/player.pxl"), temp.path().join("src/pxl/enemy.pxl")],
         temp.path().join("build/characters.png"),
     ));
 
@@ -855,10 +816,10 @@ fn test_incremental_build_workflow() {
     let source = create_test_file(temp.path(), "src/pxl/test.pxl", "original content");
     let output = create_test_file(temp.path(), "build/test.png", "output");
 
-    let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
+    let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     // First build
-    let mut build = IncrementalBuild::new(ctx.clone());
+    let mut build = IncrementalBuild::new(ctx);
     build.record_build(&target, &[output.clone()]).unwrap();
 
     // Should not need rebuild
@@ -954,13 +915,8 @@ fn test_build_builder_api() {
     let (temp, ctx) = create_test_context();
     create_test_file(temp.path(), "src/pxl/test.pxl", "{}");
 
-    let result = Build::new()
-        .context(ctx)
-        .dry_run(true)
-        .verbose(false)
-        .fail_fast(true)
-        .run()
-        .unwrap();
+    let result =
+        Build::new().context(ctx).dry_run(true).verbose(false).fail_fast(true).run().unwrap();
 
     assert!(result.is_success());
 }

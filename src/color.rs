@@ -158,8 +158,7 @@ fn parse_hex_color(s: &str) -> Result<Rgba<u8>, ColorError> {
 
 /// Parse a CSS color using lightningcss (rgb, hsl, hwb, oklch, named colors)
 fn parse_css_color(s: &str) -> Result<Rgba<u8>, ColorError> {
-    let css_color = CssColor::parse_string(s)
-        .map_err(|e| ColorError::CssParse(e.to_string()))?;
+    let css_color = CssColor::parse_string(s).map_err(|e| ColorError::CssParse(e.to_string()))?;
     css_color_to_rgba(css_color)
 }
 
@@ -289,10 +288,7 @@ mod tests {
         assert_eq!(parse_color("#GGG"), Err(ColorError::InvalidHex('G')));
         assert_eq!(parse_color("#XYZ"), Err(ColorError::InvalidHex('X')));
         assert_eq!(parse_color("#12345G"), Err(ColorError::InvalidHex('G')));
-        assert_eq!(
-            parse_color("#not-a-color"),
-            Err(ColorError::InvalidHex('n'))
-        );
+        assert_eq!(parse_color("#not-a-color"), Err(ColorError::InvalidHex('n')));
     }
 
     // Tests matching the fixture file: tests/fixtures/valid/color_formats.jsonl
@@ -533,8 +529,8 @@ mod tests {
         let red = parse_color("oklch(0.628 0.258 29.23)").unwrap();
         // Should be close to red - allow some tolerance for color space conversion
         assert!(red.0[0] > 250); // R close to 255
-        assert!(red.0[1] < 10);  // G close to 0
-        assert!(red.0[2] < 10);  // B close to 0
+        assert!(red.0[1] < 10); // G close to 0
+        assert!(red.0[2] < 10); // B close to 0
     }
 
     #[test]

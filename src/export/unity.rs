@@ -43,20 +43,15 @@ use std::io::Write;
 use std::path::Path;
 
 /// Unity texture filter mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
 pub enum UnityFilterMode {
     /// Point (nearest neighbor) filtering - pixel perfect
+    #[default]
     Point,
     /// Bilinear filtering - smooth
     Bilinear,
     /// Trilinear filtering - smooth with mipmaps
     Trilinear,
-}
-
-impl Default for UnityFilterMode {
-    fn default() -> Self {
-        Self::Point
-    }
 }
 
 impl UnityFilterMode {
@@ -178,11 +173,7 @@ pub struct UnityExporter {
 impl UnityExporter {
     /// Create a new Unity exporter with default settings.
     pub fn new() -> Self {
-        Self {
-            pixels_per_unit: 16,
-            filter_mode: UnityFilterMode::Point,
-            include_animations: true,
-        }
+        Self { pixels_per_unit: 16, filter_mode: UnityFilterMode::Point, include_animations: true }
     }
 
     /// Set pixels per unit.
@@ -264,12 +255,7 @@ impl UnityExporter {
                         h: frame.h as f32,
                     },
                     pivot,
-                    border: UnityVector4 {
-                        x: 0.0,
-                        y: 0.0,
-                        z: 0.0,
-                        w: 0.0,
-                    },
+                    border: UnityVector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
                 }
             })
             .collect();
@@ -295,10 +281,7 @@ impl UnityExporter {
 
         UnityAtlasData {
             texture: metadata.image.clone(),
-            texture_size: UnityVector2 {
-                x: metadata.size[0] as f32,
-                y: metadata.size[1] as f32,
-            },
+            texture_size: UnityVector2 { x: metadata.size[0] as f32, y: metadata.size[1] as f32 },
             pixels_per_unit: options.pixels_per_unit,
             filter_mode: options.filter_mode,
             sprites,
@@ -356,10 +339,7 @@ pub fn export_unity(
     pixels_per_unit: u32,
 ) -> Result<(), ExportError> {
     let exporter = UnityExporter::new().with_pixels_per_unit(pixels_per_unit);
-    let options = UnityExportOptions {
-        pixels_per_unit,
-        ..Default::default()
-    };
+    let options = UnityExportOptions { pixels_per_unit, ..Default::default() };
     exporter.export_unity(metadata, output_path, &options)
 }
 
@@ -388,25 +368,11 @@ mod tests {
                 ),
                 (
                     "player_walk_1".to_string(),
-                    AtlasFrame {
-                        x: 32,
-                        y: 0,
-                        w: 32,
-                        h: 32,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 32, y: 0, w: 32, h: 32, origin: None, boxes: None },
                 ),
                 (
                     "player_walk_2".to_string(),
-                    AtlasFrame {
-                        x: 64,
-                        y: 0,
-                        w: 32,
-                        h: 32,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 64, y: 0, w: 32, h: 32, origin: None, boxes: None },
                 ),
             ]),
             animations: HashMap::from([(
@@ -497,10 +463,7 @@ mod tests {
 
         // Find player_idle sprite
         let sprites = data["sprites"].as_array().unwrap();
-        let player_idle = sprites
-            .iter()
-            .find(|s| s["name"] == "player_idle")
-            .unwrap();
+        let player_idle = sprites.iter().find(|s| s["name"] == "player_idle").unwrap();
 
         // Check rect - Y should be flipped (128 - 0 - 32 = 96)
         assert_eq!(player_idle["rect"]["x"], 0.0);
@@ -519,10 +482,7 @@ mod tests {
         let data: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         let sprites = data["sprites"].as_array().unwrap();
-        let player_idle = sprites
-            .iter()
-            .find(|s| s["name"] == "player_idle")
-            .unwrap();
+        let player_idle = sprites.iter().find(|s| s["name"] == "player_idle").unwrap();
 
         // Origin [16, 32] on 32x32 sprite = pivot (0.5, 0.0) after Y flip
         assert_eq!(player_idle["pivot"]["x"], 0.5);
@@ -539,10 +499,7 @@ mod tests {
         let data: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         let sprites = data["sprites"].as_array().unwrap();
-        let walk_1 = sprites
-            .iter()
-            .find(|s| s["name"] == "player_walk_1")
-            .unwrap();
+        let walk_1 = sprites.iter().find(|s| s["name"] == "player_walk_1").unwrap();
 
         // No origin = default pivot at bottom center (0.5, 0.0)
         assert_eq!(walk_1["pivot"]["x"], 0.5);
@@ -574,10 +531,7 @@ mod tests {
     fn test_export_without_animations() {
         let exporter = UnityExporter::new().with_animations(false);
         let metadata = create_test_metadata();
-        let options = UnityExportOptions {
-            include_animations: false,
-            ..Default::default()
-        };
+        let options = UnityExportOptions { include_animations: false, ..Default::default() };
 
         let json = exporter.export_to_string(&metadata, &options).unwrap();
 
@@ -589,10 +543,7 @@ mod tests {
     fn test_export_custom_pixels_per_unit() {
         let exporter = UnityExporter::new().with_pixels_per_unit(100);
         let metadata = create_test_metadata();
-        let options = UnityExportOptions {
-            pixels_per_unit: 100,
-            ..Default::default()
-        };
+        let options = UnityExportOptions { pixels_per_unit: 100, ..Default::default() };
 
         let json = exporter.export_to_string(&metadata, &options).unwrap();
         assert!(json.contains("\"pixelsPerUnit\": 100"));
@@ -602,10 +553,8 @@ mod tests {
     fn test_export_bilinear_filter() {
         let exporter = UnityExporter::new().with_filter_mode(UnityFilterMode::Bilinear);
         let metadata = create_test_metadata();
-        let options = UnityExportOptions {
-            filter_mode: UnityFilterMode::Bilinear,
-            ..Default::default()
-        };
+        let options =
+            UnityExportOptions { filter_mode: UnityFilterMode::Bilinear, ..Default::default() };
 
         let json = exporter.export_to_string(&metadata, &options).unwrap();
         assert!(json.contains("\"filterMode\": \"Bilinear\""));
@@ -634,10 +583,7 @@ mod tests {
         let data: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         let sprites = data["sprites"].as_array().unwrap();
-        let names: Vec<&str> = sprites
-            .iter()
-            .map(|s| s["name"].as_str().unwrap())
-            .collect();
+        let names: Vec<&str> = sprites.iter().map(|s| s["name"].as_str().unwrap()).collect();
 
         // Should be sorted alphabetically
         assert_eq!(names, vec!["player_idle", "player_walk_1", "player_walk_2"]);

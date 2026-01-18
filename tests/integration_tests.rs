@@ -29,7 +29,7 @@ fn get_jsonl_files(dir: &Path) -> Vec<PathBuf> {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "jsonl") {
+            if path.extension().is_some_and(|e| e == "jsonl") {
                 files.push(path);
             }
         }
@@ -75,12 +75,7 @@ fn test_valid_fixtures_render() {
 
         // Valid fixtures should not produce warnings
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            !stderr.contains("Warning:"),
-            "Unexpected warnings for {:?}: {}",
-            fixture,
-            stderr
-        );
+        assert!(!stderr.contains("Warning:"), "Unexpected warnings for {fixture:?}: {stderr}");
     }
 
     println!("✓ All {} valid fixtures rendered successfully", files.len());
@@ -110,12 +105,7 @@ fn test_invalid_fixtures_error() {
 
         // Should have error output
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            stderr.contains("Error:"),
-            "Expected error message for {:?}: {}",
-            fixture,
-            stderr
-        );
+        assert!(stderr.contains("Error:"), "Expected error message for {fixture:?}: {stderr}");
     }
 
     println!("✓ All {} invalid fixtures produced errors", files.len());
@@ -125,7 +115,7 @@ fn test_invalid_fixtures_error() {
 ///
 /// Lenient fixtures have issues that produce warnings in lenient mode but
 /// still succeed (exit 0). Most produce warnings, but some edge cases
-/// (like duplicate_name.jsonl) may succeed silently.
+/// (like `duplicate_name.jsonl`) may succeed silently.
 #[test]
 fn test_lenient_fixtures_warn() {
     let fixtures_dir = Path::new("tests/fixtures/lenient");
@@ -168,7 +158,7 @@ fn test_lenient_fixtures_warn() {
 /// Test that lenient fixtures with warnings fail in strict mode
 ///
 /// Lenient fixtures that produce warnings in lenient mode should fail in strict mode.
-/// Some edge cases (like duplicate_name.jsonl) may not produce warnings and thus
+/// Some edge cases (like `duplicate_name.jsonl`) may not produce warnings and thus
 /// will succeed even in strict mode.
 #[test]
 fn test_strict_mode_fails_on_warnings() {
@@ -202,24 +192,15 @@ fn test_strict_mode_fails_on_warnings() {
         // Fixtures without warnings may succeed in strict mode (edge cases)
     }
 
-    assert!(
-        failed_count > 0,
-        "Expected at least some lenient fixtures to fail in strict mode"
-    );
+    assert!(failed_count > 0, "Expected at least some lenient fixtures to fail in strict mode");
 
-    println!(
-        "✓ {} lenient fixtures (with warnings) failed in strict mode as expected",
-        failed_count
-    );
+    println!("✓ {failed_count} lenient fixtures (with warnings) failed in strict mode as expected");
 }
 
 /// Test CLI help and version flags
 #[test]
 fn test_cli_help() {
-    let output = Command::new(pxl_binary())
-        .arg("--help")
-        .output()
-        .expect("Failed to execute pxl");
+    let output = Command::new(pxl_binary()).arg("--help").output().expect("Failed to execute pxl");
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -230,10 +211,8 @@ fn test_cli_help() {
 /// Test CLI version flag
 #[test]
 fn test_cli_version() {
-    let output = Command::new(pxl_binary())
-        .arg("--version")
-        .output()
-        .expect("Failed to execute pxl");
+    let output =
+        Command::new(pxl_binary()).arg("--version").output().expect("Failed to execute pxl");
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -253,8 +232,7 @@ fn test_missing_input_file() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("Cannot open") || stderr.contains("Error"),
-        "Expected file not found error, got: {}",
-        stderr
+        "Expected file not found error, got: {stderr}"
     );
 }
 
@@ -265,10 +243,8 @@ fn test_output_file_naming() {
     fs::create_dir_all(&output_dir).ok();
 
     // Clean up any existing files
-    for entry in fs::read_dir(&output_dir).into_iter().flatten() {
-        if let Ok(entry) = entry {
-            fs::remove_file(entry.path()).ok();
-        }
+    for entry in fs::read_dir(&output_dir).into_iter().flatten().flatten() {
+        fs::remove_file(entry.path()).ok();
     }
 
     // Test explicit output path
@@ -282,11 +258,7 @@ fn test_output_file_naming() {
         .expect("Failed to execute pxl");
 
     assert!(output.status.success());
-    assert!(
-        explicit_output.exists(),
-        "Output file not created at {:?}",
-        explicit_output
-    );
+    assert!(explicit_output.exists(), "Output file not created at {explicit_output:?}");
 }
 
 /// Test @include:path syntax for external palette files
@@ -313,19 +285,11 @@ fn test_include_palette() {
     );
 
     // Verify the output file exists and is a valid PNG
-    assert!(
-        output_path.exists(),
-        "Output file not created at {:?}",
-        output_path
-    );
+    assert!(output_path.exists(), "Output file not created at {output_path:?}");
 
     // No warnings should be produced
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("Warning:"),
-        "Unexpected warnings: {}",
-        stderr
-    );
+    assert!(!stderr.contains("Warning:"), "Unexpected warnings: {stderr}");
 }
 
 /// Test sprite filtering with --sprite flag

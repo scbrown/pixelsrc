@@ -9,7 +9,7 @@ use std::process::ExitCode;
 
 use crate::alias::{parse_simple_grid, simple_grid_to_sprite};
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
-use crate::atlas::{pack_atlas, add_animation_to_atlas, AtlasBox, AtlasConfig, SpriteInput};
+use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
 use crate::diff::{diff_files, format_diff};
 #[allow(unused_imports)]
@@ -24,10 +24,7 @@ use glob::glob;
 
 /// Check if a path has a valid Pixelsrc file extension (.pxl or .jsonl).
 pub fn is_pixelsrc_file(path: &std::path::Path) -> bool {
-    matches!(
-        path.extension().and_then(|e| e.to_str()),
-        Some("pxl") | Some("jsonl")
-    )
+    matches!(path.extension().and_then(|e| e.to_str()), Some("pxl") | Some("jsonl"))
 }
 
 /// Find all Pixelsrc files in a directory (recursively).
@@ -292,7 +289,7 @@ pub enum Commands {
         only: Option<String>,
     },
 
-/// Expand grid with column-aligned spacing for readability
+    /// Expand grid with column-aligned spacing for readability
     Inline {
         /// Input file containing sprite definitions
         input: PathBuf,
@@ -556,59 +553,29 @@ pub fn run() -> ExitCode {
             padding,
             power_of_two,
         ),
-        Commands::Import {
-            input,
-            output,
-            max_colors,
-            name,
-        } => run_import(&input, output.as_deref(), max_colors, name.as_deref()),
+        Commands::Import { input, output, max_colors, name } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref())
+        }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
-        Commands::Analyze {
-            files,
-            dir,
-            recursive,
-            format,
-            output,
-        } => run_analyze(
-            &files,
-            dir.as_deref(),
-            recursive,
-            &format,
-            output.as_deref(),
-        ),
-        Commands::Fmt {
-            files,
-            check,
-            stdout,
-        } => run_fmt(&files, check, stdout),
+        Commands::Analyze { files, dir, recursive, format, output } => {
+            run_analyze(&files, dir.as_deref(), recursive, &format, output.as_deref())
+        }
+        Commands::Fmt { files, check, stdout } => run_fmt(&files, check, stdout),
         Commands::Prime { brief, section } => run_prime(brief, section.as_deref()),
-        Commands::Validate {
-            files,
-            stdin,
-            strict,
-            json,
-        } => run_validate(&files, stdin, strict, json),
+        Commands::Validate { files, stdin, strict, json } => {
+            run_validate(&files, stdin, strict, json)
+        }
         Commands::Explain { input, name, json } => run_explain(&input, name.as_deref(), json),
-        Commands::Diff {
-            file_a,
-            file_b,
-            sprite,
-            json,
-        } => run_diff(&file_a, &file_b, sprite.as_deref(), json),
-        Commands::Suggest {
-            files,
-            stdin,
-            json,
-            only,
-        } => run_suggest(&files, stdin, json, only.as_deref()),
+        Commands::Diff { file_a, file_b, sprite, json } => {
+            run_diff(&file_a, &file_b, sprite.as_deref(), json)
+        }
+        Commands::Suggest { files, stdin, json, only } => {
+            run_suggest(&files, stdin, json, only.as_deref())
+        }
         Commands::Inline { input, sprite } => run_inline(&input, sprite.as_deref()),
         Commands::Alias { input, sprite } => run_alias(&input, sprite.as_deref()),
-        Commands::Grid {
-            input,
-            sprite,
-            full,
-        } => run_grid(&input, sprite.as_deref(), full),
+        Commands::Grid { input, sprite, full } => run_grid(&input, sprite.as_deref(), full),
         Commands::Show {
             file,
             sprite,
@@ -632,29 +599,18 @@ pub fn run() -> ExitCode {
             onion_fade,
             output.as_deref(),
         ),
-        Commands::Build {
-            out,
-            src,
-            watch,
-            dry_run,
-            verbose,
-        } => run_build(out.as_deref(), src.as_deref(), watch, dry_run, verbose),
-        Commands::New {
-            asset_type,
-            name,
-            palette,
-        } => run_new(&asset_type, &name, palette.as_deref()),
-        Commands::Init {
-            path,
-            name,
-            preset,
-        } => run_init(path.as_deref(), name.as_deref(), &preset),
-        Commands::Sketch {
-            file,
-            name,
-            palette,
-            output,
-        } => run_sketch(file.as_deref(), &name, palette.as_deref(), output.as_deref()),
+        Commands::Build { out, src, watch, dry_run, verbose } => {
+            run_build(out.as_deref(), src.as_deref(), watch, dry_run, verbose)
+        }
+        Commands::New { asset_type, name, palette } => {
+            run_new(&asset_type, &name, palette.as_deref())
+        }
+        Commands::Init { path, name, preset } => {
+            run_init(path.as_deref(), name.as_deref(), &preset)
+        }
+        Commands::Sketch { file, name, palette, output } => {
+            run_sketch(file.as_deref(), &name, palette.as_deref(), output.as_deref())
+        }
         Commands::Transform {
             input,
             mirror,
@@ -1029,7 +985,8 @@ fn run_render(
         for sprite in &sprites {
             // TRF-9: Use sprite registry to resolve transforms
             // Check if sprite uses @include: palette (needs special handling)
-            let uses_include_palette = matches!(&sprite.palette, PaletteRef::Named(name) if is_include_ref(name));
+            let uses_include_palette =
+                matches!(&sprite.palette, PaletteRef::Named(name) if is_include_ref(name));
 
             // For @include: palettes, resolve palette first, then apply transforms
             // For normal palettes, use sprite_registry.resolve() which handles both
@@ -1076,7 +1033,8 @@ fn run_render(
                 let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
                     Ok(r) => {
                         for warning in &r.warnings {
-                            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                            all_warnings
+                                .push(format!("sprite '{}': {}", sprite.name, warning.message));
                         }
                         r
                     }
@@ -1328,7 +1286,11 @@ fn render_composition_to_image(
                 if let PaletteRef::Named(name) = &sprite.palette {
                     if is_include_ref(name) {
                         let include_path = extract_include_path(name).unwrap();
-                        match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                        match resolve_include_with_detection(
+                            include_path,
+                            input_dir,
+                            include_visited,
+                        ) {
                             Ok(palette) => palette.colors,
                             Err(e) => {
                                 if strict {
@@ -1406,7 +1368,7 @@ fn run_animation_render(
     output: Option<&std::path::Path>,
     animations: &std::collections::HashMap<String, Animation>,
     sprites: &std::collections::HashMap<String, Sprite>,
-    sprite_registry: &SpriteRegistry,
+    _sprite_registry: &SpriteRegistry,
     palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
@@ -1472,7 +1434,9 @@ fn run_animation_render(
 
     // Check if this is a palette-cycle animation
     // Palette cycling is used when animation has palette_cycle defined
-    let (frame_images, frame_duration) = if animation.has_palette_cycle() && animation.frames.len() == 1 {
+    let (frame_images, frame_duration) = if animation.has_palette_cycle()
+        && animation.frames.len() == 1
+    {
         // Palette cycle mode: generate frames by rotating colors
         let frame_name = &animation.frames[0];
         let sprite = match sprites.get(frame_name) {
@@ -1584,7 +1548,8 @@ fn run_animation_render(
                 _ => match palette_registry.resolve(sprite, strict) {
                     Ok(result) => {
                         if let Some(warning) = result.warning {
-                            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                            all_warnings
+                                .push(format!("sprite '{}': {}", sprite.name, warning.message));
                             if strict {
                                 for warning in all_warnings.iter() {
                                     eprintln!("Error: {}", warning);
@@ -1626,10 +1591,7 @@ fn run_animation_render(
     };
 
     if frame_images.is_empty() {
-        eprintln!(
-            "Error: No valid frames to render in animation '{}'",
-            animation.name
-        );
+        eprintln!("Error: No valid frames to render in animation '{}'", animation.name);
         return ExitCode::from(EXIT_ERROR);
     }
 
@@ -1648,28 +1610,15 @@ fn run_animation_render(
 
     // Output as GIF or spritesheet
     if gif_output {
-        if let Err(e) = render_gif(
-            &frame_images,
-            frame_duration,
-            animation.loops(),
-            &output_path,
-        ) {
-            eprintln!(
-                "Error: Failed to save GIF '{}': {}",
-                output_path.display(),
-                e
-            );
+        if let Err(e) = render_gif(&frame_images, frame_duration, animation.loops(), &output_path) {
+            eprintln!("Error: Failed to save GIF '{}': {}", output_path.display(), e);
             return ExitCode::from(EXIT_ERROR);
         }
     } else {
         // Spritesheet output
         let sheet = render_spritesheet(&frame_images, None);
         if let Err(e) = save_png(&sheet, &output_path) {
-            eprintln!(
-                "Error: Failed to save spritesheet '{}': {}",
-                output_path.display(),
-                e
-            );
+            eprintln!("Error: Failed to save spritesheet '{}': {}", output_path.display(), e);
             return ExitCode::from(EXIT_ERROR);
         }
     }
@@ -1710,7 +1659,7 @@ fn run_atlas_render(
     output: Option<&std::path::Path>,
     sprites: &std::collections::HashMap<String, Sprite>,
     animations: &std::collections::HashMap<String, Animation>,
-    sprite_registry: &SpriteRegistry,
+    _sprite_registry: &SpriteRegistry,
     palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
@@ -1732,11 +1681,7 @@ fn run_atlas_render(
     };
 
     // Configure atlas packing
-    let config = AtlasConfig {
-        max_size,
-        padding,
-        power_of_two,
-    };
+    let config = AtlasConfig { max_size, padding, power_of_two };
 
     // Render all sprites to images
     let mut sprite_inputs: Vec<SpriteInput> = Vec::new();
@@ -1805,15 +1750,7 @@ fn run_atlas_render(
             let boxes = meta.boxes.as_ref().map(|b| {
                 b.iter()
                     .map(|(name, cb)| {
-                        (
-                            name.clone(),
-                            AtlasBox {
-                                x: cb.x,
-                                y: cb.y,
-                                w: cb.w,
-                                h: cb.h,
-                            },
-                        )
+                        (name.clone(), AtlasBox { x: cb.x, y: cb.y, w: cb.w, h: cb.h })
                     })
                     .collect()
             });
@@ -1822,12 +1759,7 @@ fn run_atlas_render(
             (None, None)
         };
 
-        sprite_inputs.push(SpriteInput {
-            name: sprite.name.clone(),
-            image,
-            origin,
-            boxes,
-        });
+        sprite_inputs.push(SpriteInput { name: sprite.name.clone(), image, origin, boxes });
     }
 
     if sprite_inputs.is_empty() {
@@ -1837,11 +1769,7 @@ fn run_atlas_render(
 
     // Determine output base name
     let base_name = if let Some(out_path) = output {
-        out_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("atlas")
-            .to_string()
+        out_path.file_stem().and_then(|s| s.to_str()).unwrap_or("atlas").to_string()
     } else {
         input
             .file_stem()
@@ -2037,13 +1965,9 @@ fn run_import(
     }
 
     // Derive sprite name from filename if not provided
-    let name = sprite_name.map(String::from).unwrap_or_else(|| {
-        input
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    });
+    let name = sprite_name
+        .map(String::from)
+        .unwrap_or_else(|| input.file_stem().unwrap_or_default().to_string_lossy().to_string());
 
     // Import the PNG
     let result = match import_png(input, &name, max_colors) {
@@ -2057,10 +1981,7 @@ fn run_import(
     // Generate output path
     let output_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
         let stem = input.file_stem().unwrap_or_default().to_string_lossy();
-        input
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join(format!("{}.jsonl", stem))
+        input.parent().unwrap_or(std::path::Path::new(".")).join(format!("{}.jsonl", stem))
     });
 
     // Write JSONL output
@@ -2115,12 +2036,7 @@ fn run_analyze(
 
     for (i, path) in file_list.iter().enumerate() {
         if show_progress {
-            eprint!(
-                "\rAnalyzing file {}/{}: {}",
-                i + 1,
-                total_files,
-                path.display()
-            );
+            eprint!("\rAnalyzing file {}/{}: {}", i + 1, total_files, path.display());
         }
         if let Err(e) = report.analyze_file(path) {
             report.files_failed += 1;
@@ -2277,14 +2193,8 @@ fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> Exi
     }
 
     let issues = validator.into_issues();
-    let error_count = issues
-        .iter()
-        .filter(|i| matches!(i.severity, Severity::Error))
-        .count();
-    let warning_count = issues
-        .iter()
-        .filter(|i| matches!(i.severity, Severity::Warning))
-        .count();
+    let error_count = issues.iter().filter(|i| matches!(i.severity, Severity::Error)).count();
+    let warning_count = issues.iter().filter(|i| matches!(i.severity, Severity::Warning)).count();
 
     // Determine validity based on strict mode
     let has_failures = error_count > 0 || (strict && warning_count > 0);
@@ -2588,10 +2498,7 @@ fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool
 
     if filtered_diffs.is_empty() {
         if sprite.is_some() {
-            eprintln!(
-                "Error: Sprite '{}' not found in either file",
-                sprite.unwrap()
-            );
+            eprintln!("Error: Sprite '{}' not found in either file", sprite.unwrap());
             return ExitCode::from(EXIT_ERROR);
         }
         println!("No sprites found to compare.");
@@ -2633,11 +2540,7 @@ fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool
                                     "token": token,
                                 })
                             }
-                            crate::diff::PaletteChange::Changed {
-                                token,
-                                old_color,
-                                new_color,
-                            } => {
+                            crate::diff::PaletteChange::Changed { token, old_color, new_color } => {
                                 serde_json::json!({
                                     "type": "changed",
                                     "token": token,
@@ -2677,10 +2580,7 @@ fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: bool
                 println!("---");
                 println!();
             }
-            println!(
-                "{}",
-                format_diff(name, diff, &file_a_display, &file_b_display)
-            );
+            println!("{}", format_diff(name, diff, &file_a_display, &file_b_display));
         }
     }
 
@@ -2696,10 +2596,7 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
         Some("token") => Some(SuggestionType::MissingToken),
         Some("row") => Some(SuggestionType::RowCompletion),
         Some(other) => {
-            eprintln!(
-                "Error: Unknown suggestion type '{}'. Use 'token' or 'row'.",
-                other
-            );
+            eprintln!("Error: Unknown suggestion type '{}'. Use 'token' or 'row'.", other);
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         None => None,
@@ -2743,11 +2640,7 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
 
     // Apply type filter if specified
     let suggestions: Vec<_> = if let Some(filter_type) = type_filter {
-        report
-            .filter_by_type(filter_type)
-            .into_iter()
-            .cloned()
-            .collect()
+        report.filter_by_type(filter_type).into_iter().cloned().collect()
     } else {
         report.suggestions.clone()
     };
@@ -2787,14 +2680,8 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                     SuggestionFix::ReplaceToken { from, to } => {
                         println!("  Fix: Replace {} with {}", from, to);
                     }
-                    SuggestionFix::AddToPalette {
-                        token,
-                        suggested_color,
-                    } => {
-                        println!(
-                            "  Fix: Add \"{}\": \"{}\" to palette",
-                            token, suggested_color
-                        );
+                    SuggestionFix::AddToPalette { token, suggested_color } => {
+                        println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
                     }
                     SuggestionFix::ExtendRow {
                         row_index,
@@ -2901,11 +2788,7 @@ fn run_inline(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
         }
 
         // Convert grid rows to tokenized vectors
-        let rows: Vec<Vec<String>> = sprite
-            .grid
-            .iter()
-            .map(|row| parse_grid_row(row))
-            .collect();
+        let rows: Vec<Vec<String>> = sprite.grid.iter().map(|row| parse_grid_row(row)).collect();
 
         // Format with column alignment
         let formatted = format_columns(rows);
@@ -2981,10 +2864,8 @@ fn run_alias(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
         // Sort by alias character for consistent output
         let mut alias_pairs: Vec<_> = aliases.iter().collect();
         alias_pairs.sort_by_key(|(c, _)| *c);
-        let aliases_map: serde_json::Map<String, serde_json::Value> = alias_pairs
-            .into_iter()
-            .map(|(c, name)| (c.to_string(), json!(name)))
-            .collect();
+        let aliases_map: serde_json::Map<String, serde_json::Value> =
+            alias_pairs.into_iter().map(|(c, name)| (c.to_string(), json!(name))).collect();
 
         // Build output JSON
         let output = json!({
@@ -3076,11 +2957,11 @@ fn run_show(
     onion_fade: bool,
     output: Option<&Path>,
 ) -> ExitCode {
-    use std::collections::HashMap;
-    use crate::models::{TtpObject, Sprite, Animation};
+    use crate::models::{Animation, Sprite, TtpObject};
+    use crate::onion::{parse_hex_color, render_onion_skin, OnionConfig};
     use crate::registry::PaletteRegistry;
     use crate::renderer::render_sprite;
-    use crate::onion::{render_onion_skin, parse_hex_color, OnionConfig};
+    use std::collections::HashMap;
 
     // Open input file
     let input_file = match File::open(file) {
@@ -3135,7 +3016,9 @@ fn run_show(
             match animations_by_name.values().next() {
                 Some(a) => a,
                 None => {
-                    eprintln!("Error: No animations found in input file (--onion requires an animation)");
+                    eprintln!(
+                        "Error: No animations found in input file (--onion requires an animation)"
+                    );
                     return ExitCode::from(EXIT_ERROR);
                 }
             }
@@ -3247,8 +3130,7 @@ fn run_show(
             Some(s) => s,
             None => {
                 eprintln!("Error: No sprite named '{}' found in input", name);
-                let sprite_names: Vec<&str> =
-                    sprites_by_name.keys().map(|s| s.as_str()).collect();
+                let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
                 if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
                     eprintln!("{}", suggestion);
                 }
@@ -3276,10 +3158,8 @@ fn run_show(
     };
 
     // Convert palette colors to hex strings for render_ansi_grid
-    let palette_hex: HashMap<String, String> = resolved_palette
-        .iter()
-        .map(|(token, hex)| (token.clone(), hex.clone()))
-        .collect();
+    let palette_hex: HashMap<String, String> =
+        resolved_palette.iter().map(|(token, hex)| (token.clone(), hex.clone())).collect();
 
     // Build aliases map (empty for now - we'll use auto-aliasing)
     let aliases: HashMap<char, String> = HashMap::new();
@@ -3344,12 +3224,10 @@ fn run_build(
     };
 
     // Determine source and output directories
-    let src_dir = src
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(&config.project.src));
-    let out_dir = out
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(&config.project.out));
+    let src_dir =
+        src.map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&config.project.src));
+    let out_dir =
+        out.map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&config.project.out));
 
     // Check source directory exists
     if !src_dir.exists() {
@@ -3373,12 +3251,7 @@ fn run_build(
 
     // Watch mode
     if watch {
-        let options = WatchOptions {
-            src_dir,
-            out_dir,
-            config: config.watch,
-            verbose,
-        };
+        let options = WatchOptions { src_dir, out_dir, config: config.watch, verbose };
 
         println!("Starting watch mode...");
         println!("Press Ctrl+C to stop");
@@ -3470,11 +3343,7 @@ fn run_init(path: Option<&Path>, name: Option<&str>, preset: &str) -> ExitCode {
     // Determine project name
     let project_name = name
         .map(|n| n.to_string())
-        .or_else(|| {
-            project_path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-        })
+        .or_else(|| project_path.file_name().map(|n| n.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "my-project".to_string());
 
     // Run initialization
@@ -3524,15 +3393,13 @@ fn run_sketch(
 
     // Read input
     let input = match file {
-        Some(path) => {
-            match std::fs::read_to_string(path) {
-                Ok(content) => content,
-                Err(e) => {
-                    eprintln!("Error: Cannot read '{}': {}", path.display(), e);
-                    return ExitCode::from(EXIT_ERROR);
-                }
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!("Error: Cannot read '{}': {}", path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
             }
-        }
+        },
         None => {
             // Read from stdin
             let mut buffer = String::new();
@@ -3653,16 +3520,17 @@ fn run_transform(
     }
 
     let target_sprite = match sprite_name {
-        Some(name) => {
-            match sprites.iter().find(|s| s.name == name) {
-                Some(s) => *s,
-                None => {
-                    eprintln!("Error: Sprite '{}' not found in input file", name);
-                    eprintln!("Available sprites: {}", sprites.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(", "));
-                    return ExitCode::from(EXIT_INVALID_ARGS);
-                }
+        Some(name) => match sprites.iter().find(|s| s.name == name) {
+            Some(s) => *s,
+            None => {
+                eprintln!("Error: Sprite '{}' not found in input file", name);
+                eprintln!(
+                    "Available sprites: {}",
+                    sprites.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(", ")
+                );
+                return ExitCode::from(EXIT_INVALID_ARGS);
             }
-        }
+        },
         None => {
             if sprites.len() > 1 {
                 eprintln!("Warning: Multiple sprites found, using '{}'", sprites[0].name);
@@ -3698,7 +3566,10 @@ fn run_transform(
                 grid = apply_mirror_vertical(&grid);
             }
             _ => {
-                eprintln!("Error: Invalid mirror axis '{}'. Use 'horizontal', 'vertical', or 'both'", axis);
+                eprintln!(
+                    "Error: Invalid mirror axis '{}'. Use 'horizontal', 'vertical', or 'both'",
+                    axis
+                );
                 return ExitCode::from(EXIT_INVALID_ARGS);
             }
         }
@@ -3754,7 +3625,10 @@ fn run_transform(
     if let Some(crop_spec) = crop {
         let parts: Vec<&str> = crop_spec.split(',').collect();
         if parts.len() != 4 {
-            eprintln!("Error: Invalid crop format '{}'. Use 'X,Y,W,H' (e.g., '0,0,8,8')", crop_spec);
+            eprintln!(
+                "Error: Invalid crop format '{}'. Use 'X,Y,W,H' (e.g., '0,0,8,8')",
+                crop_spec
+            );
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         let x: u32 = match parts[0].parse() {

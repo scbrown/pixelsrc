@@ -61,10 +61,7 @@ pub struct PaletteParseWarning {
 
 impl PaletteParseWarning {
     pub fn new(token: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            token: token.into(),
-            message: message.into(),
-        }
+        Self { token: token.into(), message: message.into() }
     }
 }
 
@@ -95,11 +92,7 @@ pub struct ParsedPalette {
 impl ParsedPalette {
     /// Create a new empty parsed palette
     pub fn new() -> Self {
-        Self {
-            colors: HashMap::new(),
-            variables: VariableRegistry::new(),
-            warnings: Vec::new(),
-        }
+        Self { colors: HashMap::new(), variables: VariableRegistry::new(), warnings: Vec::new() }
     }
 }
 
@@ -134,9 +127,7 @@ impl PaletteParser {
     /// External variables are used as fallbacks when resolving var() references.
     /// Local palette variables take precedence over external ones.
     pub fn with_external_vars(external: VariableRegistry) -> Self {
-        Self {
-            external_vars: Some(external),
-        }
+        Self { external_vars: Some(external) }
     }
 
     /// Parse a raw palette into resolved colors
@@ -185,10 +176,7 @@ impl PaletteParser {
                         return Err(e);
                     }
                     // Lenient mode: use magenta and record warning
-                    result.warnings.push(PaletteParseWarning::new(
-                        token.clone(),
-                        e.to_string(),
-                    ));
+                    result.warnings.push(PaletteParseWarning::new(token.clone(), e.to_string()));
                     result.colors.insert(token.clone(), MAGENTA);
                 }
             }
@@ -279,10 +267,9 @@ impl PaletteParser {
                                 error: e,
                             });
                         }
-                        result.warnings.push(PaletteParseWarning::new(
-                            token.clone(),
-                            e.to_string(),
-                        ));
+                        result
+                            .warnings
+                            .push(PaletteParseWarning::new(token.clone(), e.to_string()));
                         // Keep original unresolved value in lenient mode
                         value.clone()
                     }
@@ -314,21 +301,14 @@ mod tests {
     use super::*;
 
     fn make_palette(entries: &[(&str, &str)]) -> HashMap<String, String> {
-        entries
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
+        entries.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
     }
 
     // ========== Basic parsing tests ==========
 
     #[test]
     fn test_parse_simple_colors() {
-        let raw = make_palette(&[
-            ("{r}", "#FF0000"),
-            ("{g}", "#00FF00"),
-            ("{b}", "#0000FF"),
-        ]);
+        let raw = make_palette(&[("{r}", "#FF0000"), ("{g}", "#00FF00"), ("{b}", "#0000FF")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -361,10 +341,7 @@ mod tests {
 
     #[test]
     fn test_simple_var_reference() {
-        let raw = make_palette(&[
-            ("--primary", "#FF0000"),
-            ("{red}", "var(--primary)"),
-        ]);
+        let raw = make_palette(&[("--primary", "#FF0000"), ("{red}", "var(--primary)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -377,9 +354,7 @@ mod tests {
 
     #[test]
     fn test_var_with_fallback() {
-        let raw = make_palette(&[
-            ("{color}", "var(--missing, #00FF00)"),
-        ]);
+        let raw = make_palette(&[("{color}", "var(--missing, #00FF00)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -405,10 +380,7 @@ mod tests {
     #[test]
     fn test_forward_reference() {
         // {color} references --primary which is defined after it
-        let raw = make_palette(&[
-            ("{color}", "var(--primary)"),
-            ("--primary", "#0000FF"),
-        ]);
+        let raw = make_palette(&[("{color}", "var(--primary)"), ("--primary", "#0000FF")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -436,9 +408,7 @@ mod tests {
 
     #[test]
     fn test_lenient_undefined_var() {
-        let raw = make_palette(&[
-            ("{color}", "var(--undefined)"),
-        ]);
+        let raw = make_palette(&[("{color}", "var(--undefined)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -451,10 +421,7 @@ mod tests {
 
     #[test]
     fn test_lenient_invalid_color() {
-        let raw = make_palette(&[
-            ("{valid}", "#FF0000"),
-            ("{invalid}", "not-a-color"),
-        ]);
+        let raw = make_palette(&[("{valid}", "#FF0000"), ("{invalid}", "not-a-color")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -485,9 +452,7 @@ mod tests {
 
     #[test]
     fn test_strict_undefined_var() {
-        let raw = make_palette(&[
-            ("{color}", "var(--undefined)"),
-        ]);
+        let raw = make_palette(&[("{color}", "var(--undefined)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Strict);
@@ -503,9 +468,7 @@ mod tests {
 
     #[test]
     fn test_strict_invalid_color() {
-        let raw = make_palette(&[
-            ("{color}", "not-a-color"),
-        ]);
+        let raw = make_palette(&[("{color}", "not-a-color")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Strict);
@@ -521,10 +484,7 @@ mod tests {
 
     #[test]
     fn test_strict_stops_on_first_error() {
-        let raw = make_palette(&[
-            ("{bad1}", "var(--undefined)"),
-            ("{bad2}", "also-undefined"),
-        ]);
+        let raw = make_palette(&[("{bad1}", "var(--undefined)"), ("{bad2}", "also-undefined")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Strict);
@@ -540,9 +500,7 @@ mod tests {
         let mut external = VariableRegistry::new();
         external.define("--global", "#00FF00");
 
-        let raw = make_palette(&[
-            ("{color}", "var(--global)"),
-        ]);
+        let raw = make_palette(&[("{color}", "var(--global)")]);
 
         let parser = PaletteParser::with_external_vars(external);
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -610,11 +568,8 @@ mod tests {
 
     #[test]
     fn test_circular_var_reference_lenient() {
-        let raw = make_palette(&[
-            ("--a", "var(--b)"),
-            ("--b", "var(--a)"),
-            ("{color}", "var(--a)"),
-        ]);
+        let raw =
+            make_palette(&[("--a", "var(--b)"), ("--b", "var(--a)"), ("{color}", "var(--a)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -626,11 +581,8 @@ mod tests {
 
     #[test]
     fn test_circular_var_reference_strict() {
-        let raw = make_palette(&[
-            ("--a", "var(--b)"),
-            ("--b", "var(--a)"),
-            ("{color}", "var(--a)"),
-        ]);
+        let raw =
+            make_palette(&[("--a", "var(--b)"), ("--b", "var(--a)"), ("{color}", "var(--a)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Strict);
@@ -653,10 +605,7 @@ mod tests {
 
     #[test]
     fn test_only_variables() {
-        let raw = make_palette(&[
-            ("--a", "#FF0000"),
-            ("--b", "#00FF00"),
-        ]);
+        let raw = make_palette(&[("--a", "#FF0000"), ("--b", "#00FF00")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -669,10 +618,7 @@ mod tests {
     #[test]
     fn test_var_without_dashes_in_name() {
         // var(primary) should be normalized to var(--primary)
-        let raw = make_palette(&[
-            ("--primary", "#FF0000"),
-            ("{color}", "var(primary)"),
-        ]);
+        let raw = make_palette(&[("--primary", "#FF0000"), ("{color}", "var(primary)")]);
 
         let parser = PaletteParser::new();
         let result = parser.parse(&raw, ParseMode::Lenient).unwrap();

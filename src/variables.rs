@@ -73,9 +73,7 @@ pub struct VariableRegistry {
 impl VariableRegistry {
     /// Create a new empty variable registry
     pub fn new() -> Self {
-        Self {
-            variables: HashMap::new(),
-        }
+        Self { variables: HashMap::new() }
     }
 
     /// Define a CSS variable
@@ -402,10 +400,7 @@ mod tests {
         reg.define("--backup", "#00FF00");
 
         // Fallback contains a var() reference
-        assert_eq!(
-            reg.resolve("var(--missing, var(--backup))").unwrap(),
-            "#00FF00"
-        );
+        assert_eq!(reg.resolve("var(--missing, var(--backup))").unwrap(), "#00FF00");
     }
 
     #[test]
@@ -416,10 +411,7 @@ mod tests {
         reg.define("--b", "0");
 
         // Multiple var() in one value
-        assert_eq!(
-            reg.resolve("rgb(var(--r), var(--g), var(--b))").unwrap(),
-            "rgb(255, 128, 0)"
-        );
+        assert_eq!(reg.resolve("rgb(var(--r), var(--g), var(--b))").unwrap(), "rgb(255, 128, 0)");
     }
 
     #[test]
@@ -520,22 +512,17 @@ mod tests {
     #[test]
     fn test_error_display() {
         let err = VariableError::Undefined("--test".to_string());
-        assert_eq!(
-            err.to_string(),
-            "undefined variable '--test' with no fallback"
-        );
+        assert_eq!(err.to_string(), "undefined variable '--test' with no fallback");
 
-        let err = VariableError::Circular(vec!["--a".to_string(), "--b".to_string(), "--a".to_string()]);
+        let err =
+            VariableError::Circular(vec!["--a".to_string(), "--b".to_string(), "--a".to_string()]);
         assert_eq!(err.to_string(), "circular dependency: --a -> --b -> --a");
 
         let err = VariableError::InvalidSyntax("test error".to_string());
         assert_eq!(err.to_string(), "invalid variable syntax: test error");
 
         let err = VariableError::MaxDepthExceeded;
-        assert_eq!(
-            err.to_string(),
-            "maximum variable resolution depth exceeded"
-        );
+        assert_eq!(err.to_string(), "maximum variable resolution depth exceeded");
     }
 
     #[test]
@@ -556,9 +543,7 @@ mod tests {
         reg.define("--fallback", "final");
 
         // var(--missing, var(--also-missing, var(--fallback)))
-        let result = reg
-            .resolve("var(--missing, var(--also-missing, var(--fallback)))")
-            .unwrap();
+        let result = reg.resolve("var(--missing, var(--also-missing, var(--fallback)))").unwrap();
         assert_eq!(result, "final");
     }
 
@@ -568,10 +553,7 @@ mod tests {
         reg.define("--size", "10px");
 
         // var() embedded in other content
-        assert_eq!(
-            reg.resolve("border: 1px solid var(--size)").unwrap(),
-            "border: 1px solid 10px"
-        );
+        assert_eq!(reg.resolve("border: 1px solid var(--size)").unwrap(), "border: 1px solid 10px");
     }
 
     #[test]

@@ -164,16 +164,10 @@ mod tests {
     fn test_get_builtin_gameboy() {
         let palette = get_builtin("gameboy").expect("gameboy palette should exist");
         assert_eq!(palette.name, "gameboy");
-        assert_eq!(
-            palette.colors.get("{lightest}"),
-            Some(&"#9BBC0F".to_string())
-        );
+        assert_eq!(palette.colors.get("{lightest}"), Some(&"#9BBC0F".to_string()));
         assert_eq!(palette.colors.get("{light}"), Some(&"#8BAC0F".to_string()));
         assert_eq!(palette.colors.get("{dark}"), Some(&"#306230".to_string()));
-        assert_eq!(
-            palette.colors.get("{darkest}"),
-            Some(&"#0F380F".to_string())
-        );
+        assert_eq!(palette.colors.get("{darkest}"), Some(&"#0F380F".to_string()));
     }
 
     #[test]
@@ -221,10 +215,7 @@ mod tests {
         assert_eq!(palette.name, "dracula");
         // 11 colors + transparent
         assert_eq!(palette.colors.len(), 12);
-        assert_eq!(
-            palette.colors.get("{background}"),
-            Some(&"#282A36".to_string())
-        );
+        assert_eq!(palette.colors.get("{background}"), Some(&"#282A36".to_string()));
         assert_eq!(palette.colors.get("{purple}"), Some(&"#BD93F9".to_string()));
         assert_eq!(palette.colors.get("{pink}"), Some(&"#FF79C6".to_string()));
     }

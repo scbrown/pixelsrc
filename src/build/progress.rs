@@ -260,11 +260,7 @@ impl ProgressReporter for ConsoleProgress {
                     ));
                 }
             }
-            ProgressEvent::TargetCompleted {
-                target_id,
-                status,
-                duration_ms,
-            } => {
+            ProgressEvent::TargetCompleted { target_id, status, duration_ms } => {
                 self.current.fetch_add(1, Ordering::SeqCst);
                 let current = self.current.load(Ordering::SeqCst);
                 let total = self.total.load(Ordering::SeqCst);
@@ -291,13 +287,7 @@ impl ProgressReporter for ConsoleProgress {
                     self.writeln(&format!("        {}", self.red(&err)));
                 }
             }
-            ProgressEvent::BuildCompleted {
-                success,
-                duration_ms,
-                succeeded,
-                skipped,
-                failed,
-            } => {
+            ProgressEvent::BuildCompleted { success, duration_ms, succeeded, skipped, failed } => {
                 let duration_str = format_duration(duration_ms);
                 let total = succeeded + skipped + failed;
 
@@ -327,24 +317,14 @@ impl ProgressReporter for ConsoleProgress {
                     Some(id) => format!("{}: ", id),
                     None => String::new(),
                 };
-                self.writeln(&format!(
-                    "{} {}{}",
-                    self.yellow("[warn]"),
-                    prefix,
-                    message
-                ));
+                self.writeln(&format!("{} {}{}", self.yellow("[warn]"), prefix, message));
             }
             ProgressEvent::Error { target_id, message } => {
                 let prefix = match target_id {
                     Some(id) => format!("{}: ", id),
                     None => String::new(),
                 };
-                self.writeln(&format!(
-                    "{} {}{}",
-                    self.red("[error]"),
-                    prefix,
-                    message
-                ));
+                self.writeln(&format!("{} {}{}", self.red("[error]"), prefix, message));
             }
         }
     }
@@ -369,16 +349,12 @@ impl std::fmt::Debug for JsonProgress {
 impl JsonProgress {
     /// Create a new JSON progress reporter writing to stderr.
     pub fn new() -> Self {
-        Self {
-            output: Mutex::new(Box::new(std::io::stderr())),
-        }
+        Self { output: Mutex::new(Box::new(std::io::stderr())) }
     }
 
     /// Create a JSON progress reporter that writes to a custom output.
     pub fn with_output<W: Write + Send + 'static>(output: W) -> Self {
-        Self {
-            output: Mutex::new(Box::new(output)),
-        }
+        Self { output: Mutex::new(Box::new(output)) }
     }
 
     /// Write a JSON line to output.
@@ -404,11 +380,7 @@ impl ProgressReporter for JsonProgress {
             ProgressEvent::TargetStarted { target_id } => {
                 format!(r#"{{"event":"target_started","target_id":"{}"}}"#, escape_json(&target_id))
             }
-            ProgressEvent::TargetCompleted {
-                target_id,
-                status,
-                duration_ms,
-            } => {
+            ProgressEvent::TargetCompleted { target_id, status, duration_ms } => {
                 let status_str = match &status {
                     TargetStatus::Success => "success",
                     TargetStatus::Skipped => "skipped",
@@ -426,13 +398,7 @@ impl ProgressReporter for JsonProgress {
                     error
                 )
             }
-            ProgressEvent::BuildCompleted {
-                success,
-                duration_ms,
-                succeeded,
-                skipped,
-                failed,
-            } => {
+            ProgressEvent::BuildCompleted { success, duration_ms, succeeded, skipped, failed } => {
                 format!(
                     r#"{{"event":"build_completed","success":{},"duration_ms":{},"succeeded":{},"skipped":{},"failed":{}}}"#,
                     success, duration_ms, succeeded, skipped, failed
@@ -443,22 +409,14 @@ impl ProgressReporter for JsonProgress {
                     Some(id) => format!(r#","target_id":"{}""#, escape_json(&id)),
                     None => String::new(),
                 };
-                format!(
-                    r#"{{"event":"warning","message":"{}"{}}}"#,
-                    escape_json(&message),
-                    target
-                )
+                format!(r#"{{"event":"warning","message":"{}"{}}}"#, escape_json(&message), target)
             }
             ProgressEvent::Error { target_id, message } => {
                 let target = match target_id {
                     Some(id) => format!(r#","target_id":"{}""#, escape_json(&id)),
                     None => String::new(),
                 };
-                format!(
-                    r#"{{"event":"error","message":"{}"{}}}"#,
-                    escape_json(&message),
-                    target
-                )
+                format!(r#"{{"event":"error","message":"{}"{}}}"#, escape_json(&message), target)
             }
         };
         self.write_json(&json);
@@ -519,9 +477,7 @@ impl ProgressTracker {
 
     /// Get the elapsed time since the build started.
     pub fn elapsed(&self) -> Duration {
-        self.start_time
-            .map(|t| t.elapsed())
-            .unwrap_or(Duration::ZERO)
+        self.start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO)
     }
 
     /// Get the elapsed time in milliseconds.
@@ -621,10 +577,7 @@ mod tests {
     fn test_target_status_display() {
         assert_eq!(TargetStatus::Success.to_string(), "success");
         assert_eq!(TargetStatus::Skipped.to_string(), "skipped");
-        assert_eq!(
-            TargetStatus::Failed("error".to_string()).to_string(),
-            "failed: error"
-        );
+        assert_eq!(TargetStatus::Failed("error".to_string()).to_string(), "failed: error");
     }
 
     #[test]
@@ -632,9 +585,7 @@ mod tests {
         let reporter = NullProgress::new();
         // Should not panic
         reporter.report(ProgressEvent::BuildStarted { total_targets: 10 });
-        reporter.report(ProgressEvent::TargetStarted {
-            target_id: "test".to_string(),
-        });
+        reporter.report(ProgressEvent::TargetStarted { target_id: "test".to_string() });
         assert!(!reporter.is_verbose());
     }
 
@@ -847,13 +798,7 @@ mod tests {
 
         let event = tracker.build_completed_event();
         match event {
-            ProgressEvent::BuildCompleted {
-                success,
-                succeeded,
-                skipped,
-                failed,
-                ..
-            } => {
+            ProgressEvent::BuildCompleted { success, succeeded, skipped, failed, .. } => {
                 assert!(success);
                 assert_eq!(succeeded, 2);
                 assert_eq!(skipped, 0);

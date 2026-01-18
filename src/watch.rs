@@ -58,22 +58,12 @@ pub struct BuildError {
 impl BuildError {
     /// Create a new build error with file and message
     pub fn new(file: impl Into<PathBuf>, message: impl Into<String>) -> Self {
-        Self {
-            file: file.into(),
-            line: None,
-            column: None,
-            message: message.into(),
-        }
+        Self { file: file.into(), line: None, column: None, message: message.into() }
     }
 
     /// Create a build error with line information
     pub fn with_line(file: impl Into<PathBuf>, line: usize, message: impl Into<String>) -> Self {
-        Self {
-            file: file.into(),
-            line: Some(line),
-            column: None,
-            message: message.into(),
-        }
+        Self { file: file.into(), line: Some(line), column: None, message: message.into() }
     }
 
     /// Create a build error with full location information
@@ -83,12 +73,7 @@ impl BuildError {
         column: usize,
         message: impl Into<String>,
     ) -> Self {
-        Self {
-            file: file.into(),
-            line: Some(line),
-            column: Some(column),
-            message: message.into(),
-        }
+        Self { file: file.into(), line: Some(line), column: Some(column), message: message.into() }
     }
 }
 
@@ -120,18 +105,12 @@ impl ErrorTracker {
 
     /// Update tracker with new build result, returns list of fixed files
     pub fn update(&mut self, result: &BuildResult) -> Vec<PathBuf> {
-        let current_error_files: HashSet<PathBuf> = result
-            .build_errors
-            .iter()
-            .map(|e| e.file.clone())
-            .collect();
+        let current_error_files: HashSet<PathBuf> =
+            result.build_errors.iter().map(|e| e.file.clone()).collect();
 
         // Find files that had errors before but don't now
-        let fixed: Vec<PathBuf> = self
-            .files_with_errors
-            .difference(&current_error_files)
-            .cloned()
-            .collect();
+        let fixed: Vec<PathBuf> =
+            self.files_with_errors.difference(&current_error_files).cloned().collect();
 
         // Update the tracked error files
         self.files_with_errors = current_error_files;
@@ -245,9 +224,7 @@ fn format_duration(duration: Duration) -> String {
 /// Get current timestamp for logging
 fn timestamp() -> String {
     use std::time::SystemTime;
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
     let secs = now.as_secs() % 86400; // seconds since midnight
     let hours = (secs / 3600) % 24;
     let minutes = (secs / 60) % 60;
@@ -342,8 +319,7 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
 
     // Create debounced watcher
     let debounce_duration = Duration::from_millis(options.config.debounce_ms as u64);
-    let mut debouncer =
-        new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
+    let mut debouncer = new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
 
     // Start watching the source directory
     debouncer
@@ -362,11 +338,7 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
     let result = do_build(&options, simple_build);
     print_build_result(&result, &[]);
     error_tracker.update(&result);
-    println!(
-        "[{}] Watching {} for changes...",
-        timestamp(),
-        options.src_dir.display()
-    );
+    println!("[{}] Watching {} for changes...", timestamp(), options.src_dir.display());
 
     // Watch loop
     loop {
@@ -376,8 +348,7 @@ pub fn watch_and_rebuild(options: WatchOptions) -> Result<(), WatchError> {
                 let relevant_changes: Vec<_> = events
                     .iter()
                     .filter(|e| {
-                        matches!(e.kind, DebouncedEventKind::Any)
-                            && is_relevant_file(&e.path)
+                        matches!(e.kind, DebouncedEventKind::Any) && is_relevant_file(&e.path)
                     })
                     .collect();
 
@@ -565,10 +536,8 @@ mod tests {
 
     #[test]
     fn test_watch_error_source_not_found() {
-        let options = WatchOptions {
-            src_dir: PathBuf::from("/nonexistent/path"),
-            ..Default::default()
-        };
+        let options =
+            WatchOptions { src_dir: PathBuf::from("/nonexistent/path"), ..Default::default() };
 
         let result = watch_and_rebuild(options);
         assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
@@ -580,11 +549,8 @@ mod tests {
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src).unwrap();
 
-        let options = WatchOptions {
-            src_dir: src,
-            out_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let options =
+            WatchOptions { src_dir: src, out_dir: temp.path().to_path_buf(), ..Default::default() };
 
         let result = do_build(&options, |_src, _out| {
             let mut r = BuildResult::new();
@@ -595,7 +561,7 @@ mod tests {
 
         assert_eq!(result.files_processed, 5);
         assert_eq!(result.sprites_rendered, 10);
-        assert!(result.duration > Duration::ZERO || result.duration == Duration::ZERO);
+        assert!(result.duration >= Duration::ZERO);
     }
 
     // Error recovery tests

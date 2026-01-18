@@ -56,12 +56,7 @@ struct Color {
 
 impl Color {
     fn from_rgba(rgba: Rgba<u8>) -> Self {
-        Self {
-            r: rgba[0],
-            g: rgba[1],
-            b: rgba[2],
-            a: rgba[3],
-        }
+        Self { r: rgba[0], g: rgba[1], b: rgba[2], a: rgba[3] }
     }
 
     fn to_hex(self) -> String {
@@ -151,34 +146,13 @@ impl ColorBox {
     fn average_color(&self) -> Color {
         let total: u64 = self.colors.iter().map(|(_, count)| *count as u64).sum();
         if total == 0 {
-            return Color {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 255,
-            };
+            return Color { r: 0, g: 0, b: 0, a: 255 };
         }
 
-        let r: u64 = self
-            .colors
-            .iter()
-            .map(|(c, count)| c.r as u64 * *count as u64)
-            .sum();
-        let g: u64 = self
-            .colors
-            .iter()
-            .map(|(c, count)| c.g as u64 * *count as u64)
-            .sum();
-        let b: u64 = self
-            .colors
-            .iter()
-            .map(|(c, count)| c.b as u64 * *count as u64)
-            .sum();
-        let a: u64 = self
-            .colors
-            .iter()
-            .map(|(c, count)| c.a as u64 * *count as u64)
-            .sum();
+        let r: u64 = self.colors.iter().map(|(c, count)| c.r as u64 * *count as u64).sum();
+        let g: u64 = self.colors.iter().map(|(c, count)| c.g as u64 * *count as u64).sum();
+        let b: u64 = self.colors.iter().map(|(c, count)| c.b as u64 * *count as u64).sum();
+        let a: u64 = self.colors.iter().map(|(c, count)| c.a as u64 * *count as u64).sum();
 
         Color {
             r: (r / total) as u8,
@@ -220,11 +194,8 @@ fn median_cut_quantize(colors: HashMap<Color, u32>, max_colors: usize) -> Vec<Co
     }
 
     // Adjust max_colors if we have a transparent color
-    let effective_max = if transparent.is_some() {
-        max_colors.saturating_sub(1)
-    } else {
-        max_colors
-    };
+    let effective_max =
+        if transparent.is_some() { max_colors.saturating_sub(1) } else { max_colors };
 
     if opaque_colors.len() <= effective_max {
         let mut result: Vec<Color> = opaque_colors.into_iter().map(|(c, _)| c).collect();
@@ -348,13 +319,7 @@ pub fn import_png<P: AsRef<Path>>(
         grid.push(row);
     }
 
-    Ok(ImportResult {
-        name: name.to_string(),
-        width,
-        height,
-        palette,
-        grid,
-    })
+    Ok(ImportResult { name: name.to_string(), width, height, palette, grid })
 }
 
 #[cfg(test)]
@@ -363,67 +328,28 @@ mod tests {
 
     #[test]
     fn test_color_to_hex_opaque() {
-        let color = Color {
-            r: 255,
-            g: 128,
-            b: 0,
-            a: 255,
-        };
+        let color = Color { r: 255, g: 128, b: 0, a: 255 };
         assert_eq!(color.to_hex(), "#FF8000");
     }
 
     #[test]
     fn test_color_to_hex_transparent() {
-        let color = Color {
-            r: 255,
-            g: 128,
-            b: 0,
-            a: 128,
-        };
+        let color = Color { r: 255, g: 128, b: 0, a: 128 };
         assert_eq!(color.to_hex(), "#FF800080");
     }
 
     #[test]
     fn test_color_to_hex_fully_transparent() {
-        let color = Color {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 0,
-        };
+        let color = Color { r: 0, g: 0, b: 0, a: 0 };
         assert_eq!(color.to_hex(), "#00000000");
     }
 
     #[test]
     fn test_median_cut_no_quantization_needed() {
         let mut colors = HashMap::new();
-        colors.insert(
-            Color {
-                r: 255,
-                g: 0,
-                b: 0,
-                a: 255,
-            },
-            10,
-        );
-        colors.insert(
-            Color {
-                r: 0,
-                g: 255,
-                b: 0,
-                a: 255,
-            },
-            10,
-        );
-        colors.insert(
-            Color {
-                r: 0,
-                g: 0,
-                b: 255,
-                a: 255,
-            },
-            10,
-        );
+        colors.insert(Color { r: 255, g: 0, b: 0, a: 255 }, 10);
+        colors.insert(Color { r: 0, g: 255, b: 0, a: 255 }, 10);
+        colors.insert(Color { r: 0, g: 0, b: 255, a: 255 }, 10);
 
         let result = median_cut_quantize(colors, 4);
         assert_eq!(result.len(), 3);
@@ -434,15 +360,7 @@ mod tests {
         let mut colors = HashMap::new();
         // Create more colors than max
         for i in 0..20 {
-            colors.insert(
-                Color {
-                    r: i * 10,
-                    g: i * 5,
-                    b: i * 2,
-                    a: 255,
-                },
-                1,
-            );
+            colors.insert(Color { r: i * 10, g: i * 5, b: i * 2, a: 255 }, 1);
         }
 
         let result = median_cut_quantize(colors, 4);
@@ -452,33 +370,9 @@ mod tests {
     #[test]
     fn test_transparent_color_preserved() {
         let mut colors = HashMap::new();
-        colors.insert(
-            Color {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0,
-            },
-            10,
-        ); // Transparent
-        colors.insert(
-            Color {
-                r: 255,
-                g: 0,
-                b: 0,
-                a: 255,
-            },
-            10,
-        );
-        colors.insert(
-            Color {
-                r: 0,
-                g: 255,
-                b: 0,
-                a: 255,
-            },
-            10,
-        );
+        colors.insert(Color { r: 0, g: 0, b: 0, a: 0 }, 10); // Transparent
+        colors.insert(Color { r: 255, g: 0, b: 0, a: 255 }, 10);
+        colors.insert(Color { r: 0, g: 255, b: 0, a: 255 }, 10);
 
         let result = median_cut_quantize(colors, 3);
         assert!(result.iter().any(|c| c.is_transparent()));
@@ -486,33 +380,11 @@ mod tests {
 
     #[test]
     fn test_find_closest_color() {
-        let palette = vec![
-            Color {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 255,
-            },
-            Color {
-                r: 255,
-                g: 255,
-                b: 255,
-                a: 255,
-            },
-        ];
+        let palette =
+            vec![Color { r: 0, g: 0, b: 0, a: 255 }, Color { r: 255, g: 255, b: 255, a: 255 }];
 
-        let dark = Color {
-            r: 30,
-            g: 30,
-            b: 30,
-            a: 255,
-        };
-        let light = Color {
-            r: 200,
-            g: 200,
-            b: 200,
-            a: 255,
-        };
+        let dark = Color { r: 30, g: 30, b: 30, a: 255 };
+        let light = Color { r: 200, g: 200, b: 200, a: 255 };
 
         assert_eq!(find_closest_color(dark, &palette), 0);
         assert_eq!(find_closest_color(light, &palette), 1);

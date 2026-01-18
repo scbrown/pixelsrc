@@ -56,13 +56,7 @@ pub struct TargetResult {
 impl TargetResult {
     /// Create a successful result.
     pub fn success(target_id: String, outputs: Vec<PathBuf>, duration: Duration) -> Self {
-        Self {
-            target_id,
-            status: BuildStatus::Success,
-            outputs,
-            duration,
-            warnings: vec![],
-        }
+        Self { target_id, status: BuildStatus::Success, outputs, duration, warnings: vec![] }
     }
 
     /// Create a skipped result.
@@ -127,26 +121,17 @@ impl BuildResult {
 
     /// Get the number of successful targets.
     pub fn success_count(&self) -> usize {
-        self.targets
-            .iter()
-            .filter(|r| matches!(r.status, BuildStatus::Success))
-            .count()
+        self.targets.iter().filter(|r| matches!(r.status, BuildStatus::Success)).count()
     }
 
     /// Get the number of skipped targets.
     pub fn skipped_count(&self) -> usize {
-        self.targets
-            .iter()
-            .filter(|r| matches!(r.status, BuildStatus::Skipped))
-            .count()
+        self.targets.iter().filter(|r| matches!(r.status, BuildStatus::Skipped)).count()
     }
 
     /// Get the number of failed targets.
     pub fn failed_count(&self) -> usize {
-        self.targets
-            .iter()
-            .filter(|r| r.status.is_failure())
-            .count()
+        self.targets.iter().filter(|r| r.status.is_failure()).count()
     }
 
     /// Check if the overall build succeeded (no failures).
@@ -156,26 +141,17 @@ impl BuildResult {
 
     /// Get all outputs produced.
     pub fn all_outputs(&self) -> Vec<&PathBuf> {
-        self.targets
-            .iter()
-            .flat_map(|r| r.outputs.iter())
-            .collect()
+        self.targets.iter().flat_map(|r| r.outputs.iter()).collect()
     }
 
     /// Get all warnings.
     pub fn all_warnings(&self) -> Vec<&String> {
-        self.targets
-            .iter()
-            .flat_map(|r| r.warnings.iter())
-            .collect()
+        self.targets.iter().flat_map(|r| r.warnings.iter()).collect()
     }
 
     /// Get failed target results.
     pub fn failures(&self) -> Vec<&TargetResult> {
-        self.targets
-            .iter()
-            .filter(|r| r.status.is_failure())
-            .collect()
+        self.targets.iter().filter(|r| r.status.is_failure()).collect()
     }
 
     /// Format a summary of the build result.
@@ -225,10 +201,7 @@ mod tests {
     fn test_build_status_display() {
         assert_eq!(BuildStatus::Success.to_string(), "success");
         assert_eq!(BuildStatus::Skipped.to_string(), "skipped");
-        assert_eq!(
-            BuildStatus::Failed("error".to_string()).to_string(),
-            "failed: error"
-        );
+        assert_eq!(BuildStatus::Failed("error".to_string()).to_string(), "failed: error");
     }
 
     #[test]
@@ -264,12 +237,9 @@ mod tests {
 
     #[test]
     fn test_target_result_with_warnings() {
-        let result = TargetResult::success(
-            "atlas:main".to_string(),
-            vec![],
-            Duration::from_millis(100),
-        )
-        .with_warnings(vec!["Warning 1".to_string(), "Warning 2".to_string()]);
+        let result =
+            TargetResult::success("atlas:main".to_string(), vec![], Duration::from_millis(100))
+                .with_warnings(vec!["Warning 1".to_string(), "Warning 2".to_string()]);
 
         assert_eq!(result.warnings.len(), 2);
     }
@@ -277,11 +247,7 @@ mod tests {
     #[test]
     fn test_build_result_counts() {
         let mut result = BuildResult::new();
-        result.add_result(TargetResult::success(
-            "a".to_string(),
-            vec![],
-            Duration::ZERO,
-        ));
+        result.add_result(TargetResult::success("a".to_string(), vec![], Duration::ZERO));
         result.add_result(TargetResult::skipped("b".to_string()));
         result.add_result(TargetResult::failed(
             "c".to_string(),
@@ -298,11 +264,7 @@ mod tests {
     #[test]
     fn test_build_result_is_success() {
         let mut result = BuildResult::new();
-        result.add_result(TargetResult::success(
-            "a".to_string(),
-            vec![],
-            Duration::ZERO,
-        ));
+        result.add_result(TargetResult::success("a".to_string(), vec![], Duration::ZERO));
         result.add_result(TargetResult::skipped("b".to_string()));
 
         assert!(result.is_success());

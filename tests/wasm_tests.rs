@@ -1,4 +1,4 @@
-//! WASM tests using wasm_bindgen_test
+//! WASM tests using `wasm_bindgen_test`
 //!
 //! Run with: wasm-pack test --headless --chrome --features wasm
 //! Or for node: see tests in src/wasm.rs (run with cargo test --features wasm)
@@ -54,10 +54,7 @@ fn test_render_png_empty_input() {
 fn test_render_png_palette_only() {
     let jsonl = r##"{"type": "palette", "name": "test", "colors": {"{x}": "#FF0000"}}"##;
     let result = render_to_png(jsonl);
-    assert!(
-        result.is_empty(),
-        "Palette-only input should produce empty PNG"
-    );
+    assert!(result.is_empty(), "Palette-only input should produce empty PNG");
 }
 
 #[wasm_bindgen_test]
@@ -65,11 +62,7 @@ fn test_render_png_complex_sprite() {
     let result = render_to_png(HEART_SPRITE);
 
     assert!(!result.is_empty(), "Complex sprite should produce PNG");
-    assert_eq!(
-        &result[0..4],
-        &[0x89, 0x50, 0x4E, 0x47],
-        "Should have PNG magic bytes"
-    );
+    assert_eq!(&result[0..4], &[0x89, 0x50, 0x4E, 0x47], "Should have PNG magic bytes");
 }
 
 // ============================================================================
@@ -104,10 +97,7 @@ fn test_render_rgba_no_sprites() {
     assert!(result.pixels().is_empty(), "Pixels should be empty");
 
     let warnings = result.warnings();
-    assert!(
-        warnings.iter().any(|w| w.contains("No sprites")),
-        "Should warn about missing sprites"
-    );
+    assert!(warnings.iter().any(|w| w.contains("No sprites")), "Should warn about missing sprites");
 }
 
 #[wasm_bindgen_test]
@@ -240,20 +230,13 @@ fn test_list_sprites_mixed_content() {
 #[wasm_bindgen_test]
 fn test_validate_valid_input() {
     let result = validate(HEART_SPRITE);
-    assert!(
-        result.is_empty(),
-        "Valid input should have no warnings: {:?}",
-        result
-    );
+    assert!(result.is_empty(), "Valid input should have no warnings: {:?}", result);
 }
 
 #[wasm_bindgen_test]
 fn test_validate_valid_minimal() {
     let result = validate(MINIMAL_DOT);
-    assert!(
-        result.is_empty(),
-        "Minimal valid sprite should have no warnings"
-    );
+    assert!(result.is_empty(), "Minimal valid sprite should have no warnings");
 }
 
 #[wasm_bindgen_test]

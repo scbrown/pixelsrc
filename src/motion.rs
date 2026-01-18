@@ -39,10 +39,7 @@ impl Point2D {
 
     /// Linear interpolation between two points
     pub fn lerp(&self, other: &Point2D, t: f64) -> Point2D {
-        Point2D {
-            x: self.x + (other.x - self.x) * t,
-            y: self.y + (other.y - self.y) * t,
-        }
+        Point2D { x: self.x + (other.x - self.x) * t, y: self.y + (other.y - self.y) * t }
     }
 
     /// Distance to another point
@@ -64,39 +61,28 @@ pub struct ControlPoint {
 
 impl ControlPoint {
     pub fn new(x: f64, y: f64) -> Self {
-        Self {
-            position: Point2D::new(x, y),
-            control: None,
-        }
+        Self { position: Point2D::new(x, y), control: None }
     }
 
     pub fn with_control(x: f64, y: f64, cx: f64, cy: f64) -> Self {
-        Self {
-            position: Point2D::new(x, y),
-            control: Some(Point2D::new(cx, cy)),
-        }
+        Self { position: Point2D::new(x, y), control: Some(Point2D::new(cx, cy)) }
     }
 }
 
 /// Step position for CSS steps() timing function.
 ///
 /// Controls when the step occurs within each interval.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StepPosition {
     /// Step occurs at the start of each interval (step-start, jump-start)
     JumpStart,
     /// Step occurs at the end of each interval (step-end, jump-end) - default
+    #[default]
     JumpEnd,
     /// No step at 0% or 100%, steps occur only in between
     JumpNone,
     /// Steps occur at both 0% and 100%
     JumpBoth,
-}
-
-impl Default for StepPosition {
-    fn default() -> Self {
-        StepPosition::JumpEnd
-    }
 }
 
 impl fmt::Display for StepPosition {
@@ -111,9 +97,10 @@ impl fmt::Display for StepPosition {
 }
 
 /// Interpolation method for keyframe animation
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum Interpolation {
     /// Constant speed between keyframes
+    #[default]
     Linear,
     /// Slow start, fast end (acceleration)
     EaseIn,
@@ -141,27 +128,16 @@ pub enum Interpolation {
     },
 }
 
-impl Default for Interpolation {
-    fn default() -> Self {
-        Interpolation::Linear
-    }
-}
-
 /// Motion path type for position interpolation
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum MotionPath {
     /// Straight line between keyframes
+    #[default]
     Linear,
     /// Automatic arc curve fitting (parabolic for throw/jump)
     Arc,
     /// Explicit bezier with control points
     Bezier(Vec<ControlPoint>),
-}
-
-impl Default for MotionPath {
-    fn default() -> Self {
-        MotionPath::Linear
-    }
 }
 
 /// Apply easing to a normalized time value (0.0 to 1.0)
@@ -266,7 +242,11 @@ fn steps_ease(t: f64, count: u32, position: StepPosition) -> f64 {
             // Effectively steps-1 intervals, output ranges from 0 to 1
             if count == 1 {
                 // Special case: with 1 step and jump-none, output is always 0 until end
-                if t >= 1.0 { 1.0 } else { 0.0 }
+                if t >= 1.0 {
+                    1.0
+                } else {
+                    0.0
+                }
             } else {
                 let intervals = steps - 1.0;
                 ((t * intervals).floor() / intervals).min(1.0)
@@ -330,7 +310,12 @@ fn cubic_bezier_derivative(t: f64, p1: f64, p2: f64) -> f64 {
 }
 
 /// Interpolate between two points with easing
-pub fn interpolate_point(start: &Point2D, end: &Point2D, t: f64, interpolation: &Interpolation) -> Point2D {
+pub fn interpolate_point(
+    start: &Point2D,
+    end: &Point2D,
+    t: f64,
+    interpolation: &Interpolation,
+) -> Point2D {
     let eased_t = ease(t, interpolation);
     start.lerp(end, eased_t)
 }
@@ -488,10 +473,7 @@ pub fn generate_motion_frames(
                         let dy = np.y - pp.y;
                         let arc_height = dx.abs() * 0.3;
                         let arc_offset = 4.0 * arc_height * eased_t * (1.0 - eased_t);
-                        Point2D {
-                            x: pp.x + dx * eased_t,
-                            y: pp.y + dy * eased_t - arc_offset,
-                        }
+                        Point2D { x: pp.x + dx * eased_t, y: pp.y + dy * eased_t - arc_offset }
                     }
                     MotionPath::Bezier(_) => {
                         // For bezier, use the full path interpolation
@@ -613,16 +595,10 @@ pub fn parse_timing_function(s: &str) -> Result<Interpolation, TimingFunctionErr
         "ease-out" => return Ok(Interpolation::EaseOut),
         "ease-in-out" => return Ok(Interpolation::EaseInOut),
         "step-start" => {
-            return Ok(Interpolation::Steps {
-                count: 1,
-                position: StepPosition::JumpStart,
-            })
+            return Ok(Interpolation::Steps { count: 1, position: StepPosition::JumpStart })
         }
         "step-end" => {
-            return Ok(Interpolation::Steps {
-                count: 1,
-                position: StepPosition::JumpEnd,
-            })
+            return Ok(Interpolation::Steps { count: 1, position: StepPosition::JumpEnd })
         }
         // Also support our custom named functions
         "bounce" => return Ok(Interpolation::Bounce),
@@ -637,9 +613,7 @@ pub fn parse_timing_function(s: &str) -> Result<Interpolation, TimingFunctionErr
         })?;
 
         if paren_end <= paren_start {
-            return Err(TimingFunctionError::Syntax(
-                "invalid parentheses".to_string(),
-            ));
+            return Err(TimingFunctionError::Syntax("invalid parentheses".to_string()));
         }
 
         let func_name = s[..paren_start].trim().to_lowercase();
@@ -694,10 +668,7 @@ fn parse_cubic_bezier(args: &str) -> Result<Interpolation, TimingFunctionError> 
     }
     // y values can be outside [0, 1] for overshoot effects
 
-    Ok(Interpolation::Bezier {
-        p1: (x1, y1),
-        p2: (x2, y2),
-    })
+    Ok(Interpolation::Bezier { p1: (x1, y1), p2: (x2, y2) })
 }
 
 /// Parse steps(count) or steps(count, position) arguments
@@ -716,9 +687,7 @@ fn parse_steps(args: &str) -> Result<Interpolation, TimingFunctionError> {
     })?;
 
     if count == 0 {
-        return Err(TimingFunctionError::InvalidSteps(
-            "step count must be at least 1".to_string(),
-        ));
+        return Err(TimingFunctionError::InvalidSteps("step count must be at least 1".to_string()));
     }
 
     let position = if parts.len() == 2 {
@@ -744,10 +713,7 @@ fn parse_step_position(s: &str) -> Result<StepPosition, TimingFunctionError> {
         "jump-end" | "end" => Ok(StepPosition::JumpEnd),
         "jump-none" => Ok(StepPosition::JumpNone),
         "jump-both" => Ok(StepPosition::JumpBoth),
-        _ => Err(TimingFunctionError::InvalidSteps(format!(
-            "unknown step position: {}",
-            s
-        ))),
+        _ => Err(TimingFunctionError::InvalidSteps(format!("unknown step position: {}", s))),
     }
 }
 
@@ -825,10 +791,7 @@ mod tests {
     #[test]
     fn test_ease_bezier() {
         // CSS ease equivalent: cubic-bezier(0.25, 0.1, 0.25, 1.0)
-        let bezier = Interpolation::Bezier {
-            p1: (0.25, 0.1),
-            p2: (0.25, 1.0),
-        };
+        let bezier = Interpolation::Bezier { p1: (0.25, 0.1), p2: (0.25, 1.0) };
         assert!((ease(0.0, &bezier) - 0.0).abs() < 0.01);
         assert!((ease(1.0, &bezier) - 1.0).abs() < 0.01);
 
@@ -843,10 +806,7 @@ mod tests {
 
     #[test]
     fn test_interpolate_path_linear() {
-        let keyframes = vec![
-            ControlPoint::new(0.0, 0.0),
-            ControlPoint::new(100.0, 50.0),
-        ];
+        let keyframes = vec![ControlPoint::new(0.0, 0.0), ControlPoint::new(100.0, 50.0)];
 
         let mid = interpolate_path(&keyframes, 0.5, &MotionPath::Linear, &Interpolation::Linear);
         assert!((mid.x - 50.0).abs() < 0.001);
@@ -855,10 +815,7 @@ mod tests {
 
     #[test]
     fn test_interpolate_path_arc() {
-        let keyframes = vec![
-            ControlPoint::new(0.0, 0.0),
-            ControlPoint::new(100.0, 0.0),
-        ];
+        let keyframes = vec![ControlPoint::new(0.0, 0.0), ControlPoint::new(100.0, 0.0)];
 
         // Arc should peak at midpoint with upward curve (negative y)
         let mid = interpolate_path(&keyframes, 0.5, &MotionPath::Arc, &Interpolation::Linear);
@@ -907,12 +864,10 @@ mod tests {
 
     #[test]
     fn test_generate_motion_frames() {
-        let keyframes = vec![
-            (0, Point2D::new(0.0, 0.0)),
-            (10, Point2D::new(100.0, 50.0)),
-        ];
+        let keyframes = vec![(0, Point2D::new(0.0, 0.0)), (10, Point2D::new(100.0, 50.0))];
 
-        let frames = generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::Linear);
+        let frames =
+            generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::Linear);
         assert_eq!(frames.len(), 11);
 
         // First frame should be at start
@@ -930,12 +885,10 @@ mod tests {
 
     #[test]
     fn test_generate_motion_frames_arc() {
-        let keyframes = vec![
-            (0, Point2D::new(0.0, 0.0)),
-            (10, Point2D::new(100.0, 0.0)),
-        ];
+        let keyframes = vec![(0, Point2D::new(0.0, 0.0)), (10, Point2D::new(100.0, 0.0))];
 
-        let frames = generate_motion_frames(&keyframes, 11, &MotionPath::Arc, &Interpolation::Linear);
+        let frames =
+            generate_motion_frames(&keyframes, 11, &MotionPath::Arc, &Interpolation::Linear);
         assert_eq!(frames.len(), 11);
 
         // Middle frame should be above baseline (negative y)
@@ -987,10 +940,7 @@ mod tests {
     #[test]
     fn test_ease_steps_jump_end() {
         // steps(4, jump-end): outputs 0, 0.25, 0.5, 0.75 at intervals
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpEnd,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpEnd };
 
         assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
         assert!((ease(0.24, &steps) - 0.0).abs() < 0.001);
@@ -1004,10 +954,7 @@ mod tests {
     #[test]
     fn test_ease_steps_jump_start() {
         // steps(4, jump-start): outputs 0.25, 0.5, 0.75, 1.0 at intervals
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpStart,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpStart };
 
         assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
         assert!((ease(0.01, &steps) - 0.25).abs() < 0.001);
@@ -1019,10 +966,7 @@ mod tests {
     #[test]
     fn test_ease_steps_jump_none() {
         // steps(4, jump-none): outputs 0, 0.33, 0.67, 1.0
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpNone,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpNone };
 
         assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
         assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
@@ -1031,10 +975,7 @@ mod tests {
     #[test]
     fn test_ease_steps_jump_both() {
         // steps(4, jump-both): outputs 0.2, 0.4, 0.6, 0.8 initially, then 1.0
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpBoth,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpBoth };
 
         // At t=0, should be 1/5 = 0.2
         assert!((ease(0.0, &steps) - 0.2).abs() < 0.001);
@@ -1044,18 +985,12 @@ mod tests {
     #[test]
     fn test_ease_step_start_step_end() {
         // step-start = steps(1, jump-start)
-        let step_start = Interpolation::Steps {
-            count: 1,
-            position: StepPosition::JumpStart,
-        };
+        let step_start = Interpolation::Steps { count: 1, position: StepPosition::JumpStart };
         assert!((ease(0.0, &step_start) - 0.0).abs() < 0.001);
         assert!((ease(0.01, &step_start) - 1.0).abs() < 0.001);
 
         // step-end = steps(1, jump-end)
-        let step_end = Interpolation::Steps {
-            count: 1,
-            position: StepPosition::JumpEnd,
-        };
+        let step_end = Interpolation::Steps { count: 1, position: StepPosition::JumpEnd };
         assert!((ease(0.0, &step_end) - 0.0).abs() < 0.001);
         assert!((ease(0.99, &step_end) - 0.0).abs() < 0.001);
         assert!((ease(1.0, &step_end) - 1.0).abs() < 0.001);
@@ -1063,51 +998,24 @@ mod tests {
 
     #[test]
     fn test_parse_timing_function_named() {
-        assert_eq!(
-            parse_timing_function("linear").unwrap(),
-            Interpolation::Linear
-        );
-        assert_eq!(
-            parse_timing_function("ease").unwrap(),
-            Interpolation::EaseInOut
-        );
-        assert_eq!(
-            parse_timing_function("ease-in").unwrap(),
-            Interpolation::EaseIn
-        );
-        assert_eq!(
-            parse_timing_function("ease-out").unwrap(),
-            Interpolation::EaseOut
-        );
-        assert_eq!(
-            parse_timing_function("ease-in-out").unwrap(),
-            Interpolation::EaseInOut
-        );
-        assert_eq!(
-            parse_timing_function("bounce").unwrap(),
-            Interpolation::Bounce
-        );
-        assert_eq!(
-            parse_timing_function("elastic").unwrap(),
-            Interpolation::Elastic
-        );
+        assert_eq!(parse_timing_function("linear").unwrap(), Interpolation::Linear);
+        assert_eq!(parse_timing_function("ease").unwrap(), Interpolation::EaseInOut);
+        assert_eq!(parse_timing_function("ease-in").unwrap(), Interpolation::EaseIn);
+        assert_eq!(parse_timing_function("ease-out").unwrap(), Interpolation::EaseOut);
+        assert_eq!(parse_timing_function("ease-in-out").unwrap(), Interpolation::EaseInOut);
+        assert_eq!(parse_timing_function("bounce").unwrap(), Interpolation::Bounce);
+        assert_eq!(parse_timing_function("elastic").unwrap(), Interpolation::Elastic);
     }
 
     #[test]
     fn test_parse_timing_function_step_keywords() {
         assert_eq!(
             parse_timing_function("step-start").unwrap(),
-            Interpolation::Steps {
-                count: 1,
-                position: StepPosition::JumpStart
-            }
+            Interpolation::Steps { count: 1, position: StepPosition::JumpStart }
         );
         assert_eq!(
             parse_timing_function("step-end").unwrap(),
-            Interpolation::Steps {
-                count: 1,
-                position: StepPosition::JumpEnd
-            }
+            Interpolation::Steps { count: 1, position: StepPosition::JumpEnd }
         );
     }
 
@@ -1156,71 +1064,29 @@ mod tests {
     #[test]
     fn test_parse_timing_function_steps() {
         let result = parse_timing_function("steps(4)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpEnd
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpEnd });
 
         let result = parse_timing_function("steps(4, jump-start)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpStart
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpStart });
 
         let result = parse_timing_function("steps(4, jump-end)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpEnd
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpEnd });
 
         let result = parse_timing_function("steps(4, jump-none)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpNone
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpNone });
 
         let result = parse_timing_function("steps(4, jump-both)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpBoth
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpBoth });
     }
 
     #[test]
     fn test_parse_timing_function_steps_short_positions() {
         // CSS also accepts "start" and "end" as shorthand
         let result = parse_timing_function("steps(4, start)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpStart
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpStart });
 
         let result = parse_timing_function("steps(4, end)").unwrap();
-        assert_eq!(
-            result,
-            Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpEnd
-            }
-        );
+        assert_eq!(result, Interpolation::Steps { count: 4, position: StepPosition::JumpEnd });
     }
 
     #[test]
@@ -1254,20 +1120,11 @@ mod tests {
 
     #[test]
     fn test_parse_timing_function_case_insensitive() {
-        assert_eq!(
-            parse_timing_function("LINEAR").unwrap(),
-            Interpolation::Linear
-        );
-        assert_eq!(
-            parse_timing_function("EASE-IN-OUT").unwrap(),
-            Interpolation::EaseInOut
-        );
+        assert_eq!(parse_timing_function("LINEAR").unwrap(), Interpolation::Linear);
+        assert_eq!(parse_timing_function("EASE-IN-OUT").unwrap(), Interpolation::EaseInOut);
         assert_eq!(
             parse_timing_function("Cubic-Bezier(0.25, 0.1, 0.25, 1.0)").unwrap(),
-            Interpolation::Bezier {
-                p1: (0.25, 0.1),
-                p2: (0.25, 1.0)
-            }
+            Interpolation::Bezier { p1: (0.25, 0.1), p2: (0.25, 1.0) }
         );
     }
 

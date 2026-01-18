@@ -8,9 +8,7 @@ pub struct Warning {
 
 impl Warning {
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into() }
     }
 }
 
@@ -55,17 +53,11 @@ pub fn tokenize(row: &str) -> (Vec<String>, Vec<Warning>) {
                 tokens.push(token);
             } else {
                 // Unclosed token
-                warnings.push(Warning::new(format!(
-                    "Unclosed token '{}' in grid row",
-                    token
-                )));
+                warnings.push(Warning::new(format!("Unclosed token '{}' in grid row", token)));
             }
         } else {
             // Character outside token
-            warnings.push(Warning::new(format!(
-                "Unexpected character '{}' in grid row",
-                c
-            )));
+            warnings.push(Warning::new(format!("Unexpected character '{}' in grid row", c)));
         }
     }
 

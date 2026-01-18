@@ -190,9 +190,7 @@ pub struct Warning {
 
 impl Warning {
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into() }
     }
 }
 
@@ -207,11 +205,7 @@ pub enum CompositionError {
         composition_name: String,
     },
     /// Canvas size is not divisible by cell_size
-    SizeNotDivisible {
-        size: (u32, u32),
-        cell_size: (u32, u32),
-        composition_name: String,
-    },
+    SizeNotDivisible { size: (u32, u32), cell_size: (u32, u32), composition_name: String },
     /// Map dimensions don't match expected grid size
     MapDimensionMismatch {
         layer_name: Option<String>,
@@ -239,11 +233,7 @@ impl fmt::Display for CompositionError {
                 cell_size.1,
                 composition_name
             ),
-            CompositionError::SizeNotDivisible {
-                size,
-                cell_size,
-                composition_name,
-            } => write!(
+            CompositionError::SizeNotDivisible { size, cell_size, composition_name } => write!(
                 f,
                 "Size ({}x{}) is not divisible by cell_size ({}x{}) in composition '{}'",
                 size.0, size.1, cell_size.0, cell_size.1, composition_name
@@ -410,16 +400,8 @@ pub fn render_composition(
     }
 
     // Calculate expected grid dimensions for map validation
-    let expected_cols = if cell_size[0] > 0 {
-        width / cell_size[0]
-    } else {
-        width
-    };
-    let expected_rows = if cell_size[1] > 0 {
-        height / cell_size[1]
-    } else {
-        height
-    };
+    let expected_cols = if cell_size[0] > 0 { width / cell_size[0] } else { width };
+    let expected_rows = if cell_size[1] > 0 { height / cell_size[1] } else { height };
 
     // Create canvas (transparent by default)
     let mut canvas = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
@@ -432,14 +414,12 @@ pub fn render_composition(
     // Render each layer (bottom to top)
     for layer in &comp.layers {
         // Parse layer blend mode and opacity with CSS variable resolution (ATF-10, CSS-9)
-        let (blend_mode, blend_warning) =
-            resolve_blend_mode(layer.blend.as_deref(), variables);
+        let (blend_mode, blend_warning) = resolve_blend_mode(layer.blend.as_deref(), variables);
         if let Some(w) = blend_warning {
             warnings.push(w);
         }
 
-        let (opacity, opacity_warning) =
-            resolve_opacity(layer.opacity.as_ref(), variables);
+        let (opacity, opacity_warning) = resolve_opacity(layer.opacity.as_ref(), variables);
         if let Some(w) = opacity_warning {
             warnings.push(w);
         }
@@ -545,11 +525,7 @@ fn infer_size_from_layers(
     for layer in layers {
         if let Some(ref map) = layer.map {
             let rows = map.len() as u32;
-            let cols = map
-                .iter()
-                .map(|r| r.chars().count() as u32)
-                .max()
-                .unwrap_or(0);
+            let cols = map.iter().map(|r| r.chars().count() as u32).max().unwrap_or(0);
             max_rows = max_rows.max(rows);
             max_cols = max_cols.max(cols);
         }
@@ -752,7 +728,7 @@ mod tests {
             name: None,
             fill: None,
             map: Some(vec!["ABC".to_string(), "DEF".to_string()]),
-                ..Default::default()
+            ..Default::default()
         }];
 
         let (width, height) = infer_size_from_layers(&layers, [1, 1]);
@@ -875,13 +851,13 @@ mod tests {
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
             ],
         };
@@ -928,13 +904,13 @@ mod tests {
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), ".B".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
             ],
         };
@@ -984,19 +960,19 @@ mod tests {
                     name: Some("layer1".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("layer2".to_string()),
                     fill: None,
                     map: Some(vec!["GG".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("layer3".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
             ],
         };
@@ -1046,13 +1022,13 @@ mod tests {
                     name: Some("background".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
                 CompositionLayer {
                     name: Some("empty".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), "..".to_string()]),
-                ..Default::default()
+                    ..Default::default()
                 },
             ],
         };
@@ -1159,7 +1135,8 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         // 4x4 sprite exceeds 2x2 cell
@@ -1210,7 +1187,8 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         // 4x4 sprite exceeds 2x2 cell
@@ -1262,22 +1240,16 @@ mod tests {
                 CompositionLayer {
                     name: Some("background".to_string()),
                     fill: None,
-                    map: Some(vec![
-                        "BBB".to_string(),
-                        "BBB".to_string(),
-                        "BBB".to_string(),
-                    ]),
-                ..Default::default()},
+                    map: Some(vec!["BBB".to_string(), "BBB".to_string(), "BBB".to_string()]),
+                    ..Default::default()
+                },
                 // Second layer: big red sprite at (0,0)
                 CompositionLayer {
                     name: Some("foreground".to_string()),
                     fill: None,
-                    map: Some(vec![
-                        "X..".to_string(),
-                        "...".to_string(),
-                        "...".to_string(),
-                    ]),
-                ..Default::default()},
+                    map: Some(vec!["X..".to_string(), "...".to_string(), "...".to_string()]),
+                    ..Default::default()
+                },
             ],
         };
 
@@ -1297,10 +1269,8 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("big_sprite".to_string(), big_sprite),
-            ("blue".to_string(), blue),
-        ]);
+        let sprites =
+            HashMap::from([("big_sprite".to_string(), big_sprite), ("blue".to_string(), blue)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
@@ -1373,7 +1343,8 @@ mod tests {
                     "..".to_string(),
                     "..".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         // 2x4 sprite (width fits, height exceeds)
@@ -1413,7 +1384,8 @@ mod tests {
                     "..B.".to_string(),
                     "....".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         let mut big_a = RgbaImage::new(3, 3);
@@ -1531,7 +1503,8 @@ mod tests {
                     "....".to_string(),
                     "..AB".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         // 4x4 pixel tiles
@@ -1549,10 +1522,8 @@ mod tests {
             }
         }
 
-        let sprites = HashMap::from([
-            ("tile_a".to_string(), tile_a),
-            ("tile_b".to_string(), tile_b),
-        ]);
+        let sprites =
+            HashMap::from([("tile_a".to_string(), tile_a), ("tile_b".to_string(), tile_b)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
@@ -1655,12 +1626,9 @@ mod tests {
             layers: vec![CompositionLayer {
                 name: None,
                 fill: None,
-                map: Some(vec![
-                    "X.X".to_string(),
-                    "...".to_string(),
-                    "X.X".to_string(),
-                ]),
-                ..Default::default()}],
+                map: Some(vec!["X.X".to_string(), "...".to_string(), "X.X".to_string()]),
+                ..Default::default()
+            }],
         };
 
         // 8x4 wide tile
@@ -1811,10 +1779,8 @@ mod tests {
         let mut tile = RgbaImage::new(4, 4);
         tile.put_pixel(0, 0, Rgba([255, 255, 0, 255]));
 
-        let sprites = HashMap::from([
-            ("background".to_string(), background),
-            ("tile".to_string(), tile),
-        ]);
+        let sprites =
+            HashMap::from([("background".to_string(), background), ("tile".to_string(), tile)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
@@ -1823,10 +1789,8 @@ mod tests {
         assert_eq!(image.height(), 20);
 
         // With validation, we expect a map dimension warning since map is 2x2 but expected is 4x5
-        let dim_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("don't match expected"))
-            .collect();
+        let dim_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("don't match expected")).collect();
         assert_eq!(dim_warnings.len(), 1);
     }
 
@@ -1893,9 +1857,7 @@ mod tests {
 
         // Should have warning about missing base
         assert!(!warnings.is_empty());
-        assert!(warnings[0]
-            .message
-            .contains("Base sprite 'nonexistent' not found"));
+        assert!(warnings[0].message.contains("Base sprite 'nonexistent' not found"));
 
         // Should still render with size inferred from layers
         assert_eq!(image.width(), 4); // 2 cells * 2 cell_size
@@ -1974,7 +1936,8 @@ mod tests {
                 ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
             ])),
             grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let variant = Variant {
@@ -1993,12 +1956,9 @@ mod tests {
         sprite_registry.register_variant(variant);
 
         // Render both base and variant
-        let hero_resolved = sprite_registry
-            .resolve("hero", &palette_registry, false)
-            .unwrap();
-        let variant_resolved = sprite_registry
-            .resolve("hero_red", &palette_registry, false)
-            .unwrap();
+        let hero_resolved = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
+        let variant_resolved =
+            sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
 
         let (hero_img, _) = render_resolved(&hero_resolved);
         let (variant_img, _) = render_resolved(&variant_resolved);
@@ -2023,10 +1983,8 @@ mod tests {
         };
 
         // Provide both the base sprite and variant as rendered images
-        let sprites = HashMap::from([
-            ("hero".to_string(), hero_img),
-            ("hero_red".to_string(), variant_img),
-        ]);
+        let sprites =
+            HashMap::from([("hero".to_string(), hero_img), ("hero_red".to_string(), variant_img)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
@@ -2070,16 +2028,15 @@ mod tests {
                     "....".to_string(),
                     "....".to_string(),
                 ]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
 
         let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No divisibility warnings
-        let div_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("not divisible"))
-            .collect();
+        let div_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("not divisible")).collect();
         assert!(div_warnings.is_empty());
     }
 
@@ -2107,10 +2064,8 @@ mod tests {
         let (_, warnings) = result.unwrap();
 
         // Should have divisibility warning
-        let div_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("not divisible"))
-            .collect();
+        let div_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("not divisible")).collect();
         assert_eq!(div_warnings.len(), 1);
         assert!(div_warnings[0].message.contains("65x64"));
         assert!(div_warnings[0].message.contains("16x16"));
@@ -2140,11 +2095,7 @@ mod tests {
         let err = result.unwrap_err();
 
         match err {
-            CompositionError::SizeNotDivisible {
-                size,
-                cell_size,
-                composition_name,
-            } => {
+            CompositionError::SizeNotDivisible { size, cell_size, composition_name } => {
                 assert_eq!(size, (64, 65));
                 assert_eq!(cell_size, (16, 16));
                 assert_eq!(composition_name, "invalid_height");
@@ -2174,10 +2125,8 @@ mod tests {
         let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No dimension warnings
-        let dim_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("don't match expected"))
-            .collect();
+        let dim_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("don't match expected")).collect();
         assert!(dim_warnings.is_empty());
     }
 
@@ -2206,10 +2155,8 @@ mod tests {
         let (_, warnings) = result.unwrap();
 
         // Should have dimension warning
-        let dim_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("don't match expected"))
-            .collect();
+        let dim_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("don't match expected")).collect();
         assert_eq!(dim_warnings.len(), 1);
         assert!(dim_warnings[0].message.contains("3x2")); // actual
         assert!(dim_warnings[0].message.contains("2x2")); // expected
@@ -2276,10 +2223,8 @@ mod tests {
         let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // Should have warning mentioning unnamed layer
-        let dim_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("unnamed layer"))
-            .collect();
+        let dim_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("unnamed layer")).collect();
         assert_eq!(dim_warnings.len(), 1);
     }
 
@@ -2489,7 +2434,7 @@ mod tests {
         // Multiplying with white gives the original color
         assert_eq!(result[0], 255); // R
         assert_eq!(result[1], 128); // G (approximately)
-        assert_eq!(result[2], 0);   // B
+        assert_eq!(result[2], 0); // B
     }
 
     #[test]
@@ -2522,14 +2467,16 @@ mod tests {
                     fill: None,
                     map: Some(vec!["WW".to_string(), "WW".to_string()]),
                     blend: None, // Normal
-                    opacity: None, transform: None,
+                    opacity: None,
+                    transform: None,
                 },
                 CompositionLayer {
                     name: Some("shadow".to_string()),
                     fill: None,
                     map: Some(vec!["S.".to_string(), "..".to_string()]),
                     blend: Some("multiply".to_string()),
-                    opacity: None, transform: None,
+                    opacity: None,
+                    transform: None,
                 },
             ],
         };
@@ -2542,10 +2489,7 @@ mod tests {
         let mut shadow = RgbaImage::new(1, 1);
         shadow.put_pixel(0, 0, Rgba([128, 128, 128, 255]));
 
-        let sprites = HashMap::from([
-            ("white".to_string(), white),
-            ("shadow".to_string(), shadow),
-        ]);
+        let sprites = HashMap::from([("white".to_string(), white), ("shadow".to_string(), shadow)]);
 
         let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
@@ -2555,7 +2499,7 @@ mod tests {
         assert!(pixel[0] < 200); // Darkened red
         assert!(pixel[1] < 200); // Darkened green
         assert!(pixel[2] < 200); // Darkened blue
-        // (1,0) should still be white
+                                 // (1,0) should still be white
         assert_eq!(*image.get_pixel(1, 0), Rgba([255, 255, 255, 255]));
     }
 
@@ -2628,14 +2572,16 @@ mod tests {
                     fill: None,
                     map: Some(vec!["B".to_string()]),
                     blend: None,
-                    opacity: None, transform: None,
+                    opacity: None,
+                    transform: None,
                 },
                 CompositionLayer {
                     name: Some("glow".to_string()),
                     fill: None,
                     map: Some(vec!["R".to_string()]),
                     blend: Some("add".to_string()),
-                    opacity: None, transform: None,
+                    opacity: None,
+                    transform: None,
                 },
             ],
         };
@@ -2670,7 +2616,7 @@ mod tests {
                 name: None,
                 fill: None,
                 map: Some(vec!["R".to_string()]),
-                blend: None, // Default: normal
+                blend: None,   // Default: normal
                 opacity: None, // Default: 1.0
                 transform: None,
             }],
@@ -2702,7 +2648,8 @@ mod tests {
                 fill: None,
                 map: Some(vec!["R".to_string()]),
                 blend: Some("invalid_blend_mode".to_string()),
-                opacity: None, transform: None,
+                opacity: None,
+                transform: None,
             }],
         };
 

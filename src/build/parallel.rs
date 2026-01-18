@@ -33,9 +33,7 @@ use std::time::Instant;
 
 /// Default number of parallel jobs (uses available parallelism).
 fn default_jobs() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
 }
 
 /// Parallel build executor.
@@ -51,11 +49,7 @@ pub struct ParallelBuild {
 impl ParallelBuild {
     /// Create a new parallel build.
     pub fn new(context: BuildContext) -> Self {
-        Self {
-            context,
-            jobs: default_jobs(),
-            fail_fast: false,
-        }
+        Self { context, jobs: default_jobs(), fail_fast: false }
     }
 
     /// Set the number of parallel jobs.
@@ -151,7 +145,10 @@ impl ParallelBuild {
     ///
     /// Returns a vector of vectors, where each inner vector contains targets
     /// that can be built in parallel (all their dependencies are in earlier levels).
-    fn compute_levels<'a>(&self, plan: &'a BuildPlan) -> Result<Vec<Vec<&'a BuildTarget>>, BuildError> {
+    fn compute_levels<'a>(
+        &self,
+        plan: &'a BuildPlan,
+    ) -> Result<Vec<Vec<&'a BuildTarget>>, BuildError> {
         let targets = plan.targets();
 
         if targets.is_empty() {
@@ -238,10 +235,7 @@ impl ParallelBuild {
 
         // For single-threaded or single-target levels, just execute sequentially
         if self.jobs == 1 || targets.len() == 1 {
-            return Ok(targets
-                .iter()
-                .map(|t| self.execute_target(t))
-                .collect());
+            return Ok(targets.iter().map(|t| self.execute_target(t)).collect());
         }
 
         // Execute in parallel using scoped threads
@@ -300,7 +294,11 @@ impl ParallelBuild {
     }
 
     /// Execute a single build target (internal, takes context reference).
-    fn execute_target_internal(&self, target: &BuildTarget, context: &BuildContext) -> TargetResult {
+    fn execute_target_internal(
+        &self,
+        target: &BuildTarget,
+        context: &BuildContext,
+    ) -> TargetResult {
         let start = Instant::now();
 
         if context.is_verbose() {
@@ -425,12 +423,7 @@ impl ParallelStats {
             }
         }
 
-        Self {
-            levels,
-            workers: jobs,
-            max_parallelism,
-            total_targets: targets.len(),
-        }
+        Self { levels, workers: jobs, max_parallelism, total_targets: targets.len() }
     }
 
     /// Get the theoretical speedup factor.
@@ -494,9 +487,7 @@ mod tests {
     #[test]
     fn test_parallel_build_with_options() {
         let (_temp, ctx) = create_test_context();
-        let build = ParallelBuild::new(ctx)
-            .with_jobs(4)
-            .with_fail_fast(true);
+        let build = ParallelBuild::new(ctx).with_jobs(4).with_fail_fast(true);
 
         assert_eq!(build.jobs, 4);
         assert!(build.fail_fast);
@@ -598,11 +589,8 @@ mod tests {
         let source = create_test_file(temp.path(), "src/pxl/test.pxl", "content");
 
         let build = ParallelBuild::new(ctx);
-        let target = BuildTarget::sprite(
-            "test".to_string(),
-            source,
-            temp.path().join("build/test.png"),
-        );
+        let target =
+            BuildTarget::sprite("test".to_string(), source, temp.path().join("build/test.png"));
 
         let failed = Arc::new(Mutex::new(false));
         let results = build.execute_level(&[&target], failed).unwrap();
@@ -620,7 +608,7 @@ mod tests {
 
         let build = ParallelBuild::new(ctx).with_jobs(2);
 
-        let targets = vec![
+        let targets = [
             BuildTarget::sprite("a".to_string(), source_a, temp.path().join("build/a.png")),
             BuildTarget::sprite("b".to_string(), source_b, temp.path().join("build/b.png")),
             BuildTarget::sprite("c".to_string(), source_c, temp.path().join("build/c.png")),
@@ -646,7 +634,7 @@ mod tests {
 
         let build = ParallelBuild::new(ctx).with_jobs(2);
 
-        let targets = vec![
+        let targets = [
             BuildTarget::sprite("a".to_string(), source_a, temp.path().join("build/a.png")),
             BuildTarget::sprite(
                 "missing".to_string(),
@@ -698,12 +686,7 @@ mod tests {
 
     #[test]
     fn test_parallel_stats_display() {
-        let stats = ParallelStats {
-            levels: 3,
-            workers: 4,
-            max_parallelism: 2,
-            total_targets: 10,
-        };
+        let stats = ParallelStats { levels: 3, workers: 4, max_parallelism: 2, total_targets: 10 };
 
         let display = format!("{}", stats);
         assert!(display.contains("10 targets"));
@@ -713,12 +696,7 @@ mod tests {
 
     #[test]
     fn test_parallel_stats_speedup() {
-        let stats = ParallelStats {
-            levels: 2,
-            workers: 4,
-            max_parallelism: 4,
-            total_targets: 8,
-        };
+        let stats = ParallelStats { levels: 2, workers: 4, max_parallelism: 4, total_targets: 8 };
 
         assert!((stats.speedup_factor() - 4.0).abs() < 0.001);
     }

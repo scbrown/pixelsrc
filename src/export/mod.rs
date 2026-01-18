@@ -80,10 +80,7 @@ pub struct ExportOptions {
 
 impl Default for ExportOptions {
     fn default() -> Self {
-        Self {
-            pretty: true,
-            include_sources: false,
-        }
+        Self { pretty: true, include_sources: false }
     }
 }
 
@@ -117,10 +114,8 @@ mod tests {
 
     #[test]
     fn test_export_error_display() {
-        let io_err = ExportError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "file not found",
-        ));
+        let io_err =
+            ExportError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "file not found"));
         assert!(io_err.to_string().contains("IO error"));
 
         let ser_err = ExportError::Serialization("invalid json".to_string());

@@ -4,7 +4,7 @@
 //! common mistakes like undefined tokens, row mismatches, and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{Particle, PaletteRef, TtpObject};
+use crate::models::{PaletteRef, Particle, TtpObject};
 use crate::tokenizer::tokenize;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -155,10 +155,8 @@ impl Validator {
     /// Create a new validator
     pub fn new() -> Self {
         // Initialize with built-in palette names
-        let builtin_palettes: HashSet<String> = crate::palettes::list_builtins()
-            .into_iter()
-            .map(|s| format!("@{}", s))
-            .collect();
+        let builtin_palettes: HashSet<String> =
+            crate::palettes::list_builtins().into_iter().map(|s| format!("@{}", s)).collect();
 
         Self {
             issues: Vec::new(),
@@ -631,32 +629,22 @@ impl Validator {
 
     /// Check if there are any errors
     pub fn has_errors(&self) -> bool {
-        self.issues
-            .iter()
-            .any(|i| matches!(i.severity, Severity::Error))
+        self.issues.iter().any(|i| matches!(i.severity, Severity::Error))
     }
 
     /// Check if there are any warnings
     pub fn has_warnings(&self) -> bool {
-        self.issues
-            .iter()
-            .any(|i| matches!(i.severity, Severity::Warning))
+        self.issues.iter().any(|i| matches!(i.severity, Severity::Warning))
     }
 
     /// Count errors
     pub fn error_count(&self) -> usize {
-        self.issues
-            .iter()
-            .filter(|i| matches!(i.severity, Severity::Error))
-            .count()
+        self.issues.iter().filter(|i| matches!(i.severity, Severity::Error)).count()
     }
 
     /// Count warnings
     pub fn warning_count(&self) -> usize {
-        self.issues
-            .iter()
-            .filter(|i| matches!(i.severity, Severity::Warning))
-            .count()
+        self.issues.iter().filter(|i| matches!(i.severity, Severity::Warning)).count()
     }
 }
 
@@ -712,11 +700,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     // Fill table
     for i in 1..=a_len {
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             dp[i][j] = (dp[i - 1][j] + 1) // deletion
                 .min(dp[i][j - 1] + 1) // insertion
                 .min(dp[i - 1][j - 1] + cost); // substitution
@@ -861,11 +845,8 @@ mod tests {
             r#"{"type": "sprite", "name": "test", "size": [10, 10], "palette": "test", "grid": ["{a}{a}"]}"#,
         );
 
-        let size_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::SizeMismatch)
-            .collect();
+        let size_mismatch_issues: Vec<_> =
+            validator.issues().iter().filter(|i| i.issue_type == IssueType::SizeMismatch).collect();
         assert_eq!(size_mismatch_issues.len(), 1);
     }
 
@@ -881,11 +862,8 @@ mod tests {
             r#"{"type": "sprite", "name": "test", "palette": "test", "grid": []}"#,
         );
 
-        let empty_grid_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::EmptyGrid)
-            .collect();
+        let empty_grid_issues: Vec<_> =
+            validator.issues().iter().filter(|i| i.issue_type == IssueType::EmptyGrid).collect();
         assert_eq!(empty_grid_issues.len(), 1);
     }
 
@@ -965,20 +943,14 @@ mod tests {
             .iter()
             .filter(|i| i.issue_type == IssueType::UndefinedToken)
             .collect();
-        assert!(
-            !undefined_token_issues.is_empty(),
-            "Expected undefined token warning for {{b}}"
-        );
+        assert!(!undefined_token_issues.is_empty(), "Expected undefined token warning for {{b}}");
 
         let row_mismatch_issues: Vec<_> = validator
             .issues()
             .iter()
             .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
             .collect();
-        assert!(
-            !row_mismatch_issues.is_empty(),
-            "Expected row length mismatch warning"
-        );
+        assert!(!row_mismatch_issues.is_empty(), "Expected row length mismatch warning");
     }
 
     #[test]
@@ -1002,23 +974,15 @@ mod tests {
             .collect();
 
         // Should find {skni} and {hiar} as undefined
-        assert_eq!(
-            undefined_token_issues.len(),
-            2,
-            "Expected 2 undefined token warnings"
-        );
+        assert_eq!(undefined_token_issues.len(), 2, "Expected 2 undefined token warnings");
 
         // Check that suggestions are provided
-        let has_skin_suggestion = undefined_token_issues.iter().any(|i| {
-            i.suggestion
-                .as_ref()
-                .map_or(false, |s| s.contains("{skin}"))
-        });
-        let has_hair_suggestion = undefined_token_issues.iter().any(|i| {
-            i.suggestion
-                .as_ref()
-                .map_or(false, |s| s.contains("{hair}"))
-        });
+        let has_skin_suggestion = undefined_token_issues
+            .iter()
+            .any(|i| i.suggestion.as_ref().is_some_and(|s| s.contains("{skin}")));
+        let has_hair_suggestion = undefined_token_issues
+            .iter()
+            .any(|i| i.suggestion.as_ref().is_some_and(|s| s.contains("{hair}")));
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");

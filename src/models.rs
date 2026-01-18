@@ -544,10 +544,7 @@ impl Animation {
 
     /// Returns whether this animation uses palette cycling.
     pub fn has_palette_cycle(&self) -> bool {
-        self.palette_cycle
-            .as_ref()
-            .map(|cycles| !cycles.is_empty())
-            .unwrap_or(false)
+        self.palette_cycle.as_ref().map(|cycles| !cycles.is_empty()).unwrap_or(false)
     }
 
     /// Returns the palette cycles, or an empty slice if none.
@@ -557,10 +554,7 @@ impl Animation {
 
     /// Returns whether this animation has secondary motion attachments.
     pub fn has_attachments(&self) -> bool {
-        self.attachments
-            .as_ref()
-            .map(|a| !a.is_empty())
-            .unwrap_or(false)
+        self.attachments.as_ref().map(|a| !a.is_empty()).unwrap_or(false)
     }
 
     /// Returns the attachments, or an empty slice if none.
@@ -684,10 +678,7 @@ pub struct VelocityRange {
 
 impl Default for VelocityRange {
     fn default() -> Self {
-        Self {
-            x: [0.0, 0.0],
-            y: [0.0, 0.0],
-        }
+        Self { x: [0.0, 0.0], y: [0.0, 0.0] }
     }
 }
 
@@ -800,7 +791,8 @@ mod tests {
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -813,11 +805,9 @@ mod tests {
             name: "checker".to_string(),
             size: Some([4, 4]),
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec![
-                "{on}{off}{on}{off}".to_string(),
-                "{off}{on}{off}{on}".to_string(),
-            ],
-            metadata: None, ..Default::default()
+            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            metadata: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         let parsed: Sprite = serde_json::from_str(&json).unwrap();
@@ -843,7 +833,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{a}{b}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         });
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"sprite""#));
@@ -853,10 +844,7 @@ mod tests {
 
     #[test]
     fn test_warning_roundtrip() {
-        let warning = Warning {
-            message: "Row 1 has 3 tokens, expected 4".to_string(),
-            line: 5,
-        };
+        let warning = Warning { message: "Row 1 has 3 tokens, expected 4".to_string(), line: 5 };
         let json = serde_json::to_string(&warning).unwrap();
         let parsed: Warning = serde_json::from_str(&json).unwrap();
         assert_eq!(warning, parsed);
@@ -964,7 +952,8 @@ mod tests {
                 name: Some("layer1".to_string()),
                 fill: None,
                 map: Some(vec!["A.".to_string(), ".A".to_string()]),
-                ..Default::default()}],
+                ..Default::default()
+            }],
         };
         let obj = TtpObject::Composition(comp.clone());
         let json = serde_json::to_string(&obj).unwrap();
@@ -1172,12 +1161,10 @@ mod tests {
             frames: vec!["sprite".to_string()],
             duration: Some(Duration::Milliseconds(100)),
             r#loop: Some(true),
-            palette_cycle: Some(vec![
-                PaletteCycle {
-                    tokens: vec!["{a}".to_string(), "{b}".to_string()],
-                    duration: Some(150),
-                },
-            ]),
+            palette_cycle: Some(vec![PaletteCycle {
+                tokens: vec!["{a}".to_string(), "{b}".to_string()],
+                duration: Some(150),
+            }]),
             tags: None,
             frame_metadata: None,
             attachments: None,
@@ -1355,10 +1342,7 @@ mod tests {
             emitter: ParticleEmitter {
                 rate: 2.0,
                 lifetime: [5, 15],
-                velocity: Some(VelocityRange {
-                    x: [-2.0, 2.0],
-                    y: [-1.0, 0.0],
-                }),
+                velocity: Some(VelocityRange { x: [-2.0, 2.0], y: [-1.0, 0.0] }),
                 gravity: Some(0.1),
                 fade: Some(true),
                 rotation: None,
@@ -1405,12 +1389,7 @@ mod tests {
 
     #[test]
     fn test_collision_box_roundtrip() {
-        let box_data = CollisionBox {
-            x: 4,
-            y: 0,
-            w: 24,
-            h: 32,
-        };
+        let box_data = CollisionBox { x: 4, y: 0, w: 24, h: 32 };
         let json = serde_json::to_string(&box_data).unwrap();
         let parsed: CollisionBox = serde_json::from_str(&json).unwrap();
         assert_eq!(box_data, parsed);
@@ -1421,24 +1400,8 @@ mod tests {
         let metadata = SpriteMetadata {
             origin: Some([16, 32]),
             boxes: Some(HashMap::from([
-                (
-                    "hurt".to_string(),
-                    CollisionBox {
-                        x: 4,
-                        y: 0,
-                        w: 24,
-                        h: 32,
-                    },
-                ),
-                (
-                    "hit".to_string(),
-                    CollisionBox {
-                        x: 20,
-                        y: 8,
-                        w: 20,
-                        h: 16,
-                    },
-                ),
+                ("hurt".to_string(), CollisionBox { x: 4, y: 0, w: 24, h: 32 }),
+                ("hit".to_string(), CollisionBox { x: 20, y: 8, w: 20, h: 16 }),
             ])),
             attach_in: None,
             attach_out: None,
@@ -1604,7 +1567,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("default".to_string()),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&sprite).unwrap();
         // Should not contain "metadata" key when None
@@ -1637,12 +1601,7 @@ mod tests {
     #[test]
     fn test_collision_box_negative_coordinates() {
         // Collision boxes can have negative x,y for positions relative to origin
-        let box_data = CollisionBox {
-            x: -8,
-            y: -16,
-            w: 16,
-            h: 32,
-        };
+        let box_data = CollisionBox { x: -8, y: -16, w: 16, h: 32 };
         let json = serde_json::to_string(&box_data).unwrap();
         let parsed: CollisionBox = serde_json::from_str(&json).unwrap();
         assert_eq!(box_data, parsed);
@@ -1706,11 +1665,7 @@ mod tests {
         let attachment = Attachment {
             name: "cape".to_string(),
             anchor: [8, 8],
-            chain: vec![
-                "cape_top".to_string(),
-                "cape_mid".to_string(),
-                "cape_bottom".to_string(),
-            ],
+            chain: vec!["cape_top".to_string(), "cape_mid".to_string(), "cape_bottom".to_string()],
             delay: Some(2),
             follow: Some(FollowMode::Velocity),
             damping: Some(0.7),

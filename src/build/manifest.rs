@@ -56,11 +56,7 @@ impl std::fmt::Display for ManifestError {
             ManifestError::Io(e) => write!(f, "IO error: {}", e),
             ManifestError::Json(e) => write!(f, "JSON error: {}", e),
             ManifestError::VersionMismatch { expected, found } => {
-                write!(
-                    f,
-                    "Manifest version mismatch: expected {}, found {}",
-                    expected, found
-                )
+                write!(f, "Manifest version mismatch: expected {}, found {}", expected, found)
             }
         }
     }
@@ -187,7 +183,11 @@ impl BuildManifest {
     /// - Any source file has changed (different hash)
     /// - Any source file is missing from the previous build
     /// - Any output file is missing
-    pub fn needs_rebuild(&self, target_id: &str, sources: &[PathBuf]) -> Result<bool, ManifestError> {
+    pub fn needs_rebuild(
+        &self,
+        target_id: &str,
+        sources: &[PathBuf],
+    ) -> Result<bool, ManifestError> {
         let target = match self.targets.get(target_id) {
             Some(t) => t,
             None => return Ok(true), // Never built
@@ -318,9 +318,7 @@ fn fnv1a_hash(data: &[u8]) -> u64 {
 
 /// Format a SystemTime as an ISO 8601 timestamp string.
 fn format_timestamp(time: SystemTime) -> String {
-    let duration = time
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
+    let duration = time.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
     let secs = duration.as_secs();
 
     // Simple UTC timestamp without timezone library
@@ -333,10 +331,7 @@ fn format_timestamp(time: SystemTime) -> String {
     // Calculate year/month/day from days since epoch (1970-01-01)
     let (year, month, day) = days_to_ymd(days as i64);
 
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hours, minutes, seconds
-    )
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hours, minutes, seconds)
 }
 
 /// Convert days since Unix epoch to year/month/day.
@@ -411,9 +406,7 @@ mod tests {
         let output = temp.path().join("build/test.png");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source.clone()], &[output.clone()])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source.clone()], &[output.clone()]).unwrap();
 
         assert_eq!(manifest.len(), 1);
         let target = manifest.get_target("sprite:test").unwrap();
@@ -437,9 +430,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source.clone()], &[output])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source.clone()], &[output]).unwrap();
 
         assert!(!manifest.needs_rebuild("sprite:test", &[source]).unwrap());
     }
@@ -451,9 +442,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source.clone()], &[output])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source.clone()], &[output]).unwrap();
 
         // Modify source file
         create_test_file(temp.path(), "src/test.pxl", "modified content");
@@ -471,9 +460,7 @@ mod tests {
         create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source.clone()], &[output.clone()])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source.clone()], &[output.clone()]).unwrap();
 
         // Delete output
         fs::remove_file(&output).unwrap();
@@ -489,14 +476,10 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("atlas:test", &[source1.clone()], &[output])
-            .unwrap();
+        manifest.record_build("atlas:test", &[source1.clone()], &[output]).unwrap();
 
         // Now build with additional source
-        assert!(manifest
-            .needs_rebuild("atlas:test", &[source1, source2])
-            .unwrap());
+        assert!(manifest.needs_rebuild("atlas:test", &[source1, source2]).unwrap());
     }
 
     #[test]
@@ -507,9 +490,7 @@ mod tests {
         let manifest_path = temp.path().join(MANIFEST_FILENAME);
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source], &[output])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source], &[output]).unwrap();
         manifest.save(&manifest_path).unwrap();
 
         let loaded = BuildManifest::load(&manifest_path).unwrap().unwrap();
@@ -534,9 +515,7 @@ mod tests {
         let output = temp.path().join("build/test.png");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test", &[source], &[output])
-            .unwrap();
+        manifest.record_build("sprite:test", &[source], &[output]).unwrap();
 
         assert_eq!(manifest.len(), 1);
         manifest.remove_target("sprite:test");
@@ -550,12 +529,8 @@ mod tests {
         let source2 = create_test_file(temp.path(), "src/test2.pxl", "content 2");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:test1", &[source1], &[])
-            .unwrap();
-        manifest
-            .record_build("sprite:test2", &[source2], &[])
-            .unwrap();
+        manifest.record_build("sprite:test1", &[source1], &[]).unwrap();
+        manifest.record_build("sprite:test2", &[source2], &[]).unwrap();
 
         assert_eq!(manifest.len(), 2);
         manifest.clear();
@@ -635,12 +610,8 @@ mod tests {
         let source2 = create_test_file(temp.path(), "src/test2.pxl", "content 2");
 
         let mut manifest = BuildManifest::new();
-        manifest
-            .record_build("sprite:a", &[source1], &[])
-            .unwrap();
-        manifest
-            .record_build("sprite:b", &[source2], &[])
-            .unwrap();
+        manifest.record_build("sprite:a", &[source1], &[]).unwrap();
+        manifest.record_build("sprite:b", &[source2], &[]).unwrap();
 
         let ids: Vec<&String> = manifest.target_ids().collect();
         assert_eq!(ids.len(), 2);

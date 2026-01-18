@@ -6,16 +6,13 @@
 //! - Lenient vs strict mode handling
 //! - Integration with color parsing
 
+use image::Rgba;
 use pixelsrc::palette_parser::{PaletteParser, ParseMode, MAGENTA};
 use pixelsrc::variables::VariableRegistry;
-use image::Rgba;
 use std::collections::HashMap;
 
 fn make_palette(entries: &[(&str, &str)]) -> HashMap<String, String> {
-    entries
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    entries.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
 
 // ========== End-to-end palette parsing tests ==========
@@ -166,11 +163,7 @@ fn test_lenient_undefined_variable_uses_magenta() {
 
 #[test]
 fn test_lenient_circular_reference_uses_magenta() {
-    let raw = make_palette(&[
-        ("--a", "var(--b)"),
-        ("--b", "var(--a)"),
-        ("{color}", "var(--a)"),
-    ]);
+    let raw = make_palette(&[("--a", "var(--b)"), ("--b", "var(--a)"), ("{color}", "var(--a)")]);
 
     let parser = PaletteParser::new();
     let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
@@ -208,9 +201,7 @@ fn test_lenient_mixed_valid_and_invalid() {
 
 #[test]
 fn test_strict_fails_on_undefined_variable() {
-    let raw = make_palette(&[
-        ("{color}", "var(--undefined)"),
-    ]);
+    let raw = make_palette(&[("{color}", "var(--undefined)")]);
 
     let parser = PaletteParser::new();
     let result = parser.parse(&raw, ParseMode::Strict);
@@ -222,10 +213,7 @@ fn test_strict_fails_on_undefined_variable() {
 
 #[test]
 fn test_strict_fails_on_circular_reference() {
-    let raw = make_palette(&[
-        ("--self", "var(--self)"),
-        ("{color}", "var(--self)"),
-    ]);
+    let raw = make_palette(&[("--self", "var(--self)"), ("{color}", "var(--self)")]);
 
     let parser = PaletteParser::new();
     let result = parser.parse(&raw, ParseMode::Strict);
@@ -270,10 +258,7 @@ fn test_variable_registry_available_for_reuse() {
     assert!(registry.contains("--brand-secondary"));
 
     // Can resolve additional values
-    assert_eq!(
-        registry.resolve("var(--brand-primary)").unwrap(),
-        "#4169E1"
-    );
+    assert_eq!(registry.resolve("var(--brand-primary)").unwrap(), "#4169E1");
 }
 
 // ========== resolve_to_strings tests ==========

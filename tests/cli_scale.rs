@@ -46,11 +46,7 @@ fn test_scale_default() {
         .output()
         .expect("Failed to execute pxl");
 
-    assert!(
-        output.status.success(),
-        "Render failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert!(output.status.success(), "Render failed: {}", String::from_utf8_lossy(&output.stderr));
 
     let (w, h) = get_image_dimensions(&output_path);
     assert_eq!((w, h), (1, 1), "Default scale should produce 1x1 output");
@@ -187,8 +183,7 @@ fn test_scale_invalid_too_high() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("17") || stderr.contains("invalid") || stderr.contains("error"),
-        "Expected error message about invalid scale value, got: {}",
-        stderr
+        "Expected error message about invalid scale value, got: {stderr}"
     );
 }
 
@@ -235,14 +230,8 @@ fn test_scale_with_spritesheet() {
     let (w, h) = get_image_dimensions(&output_path);
     // Original frames are 8x8, scale 2 makes 16x16
     // 4 frames horizontal = 64 wide, 16 tall
-    assert_eq!(
-        h, 16,
-        "Scaled spritesheet height should be 16 (8x8 frames * scale 2)"
-    );
-    assert!(
-        w > 16,
-        "Scaled spritesheet width should be wider than single frame"
-    );
+    assert_eq!(h, 16, "Scaled spritesheet height should be 16 (8x8 frames * scale 2)");
+    assert!(w > 16, "Scaled spritesheet width should be wider than single frame");
 }
 
 /// Test scale with GIF output
@@ -271,9 +260,5 @@ fn test_scale_with_gif() {
     );
 
     // Verify GIF was created
-    assert!(
-        output_path.exists(),
-        "GIF output file should exist at {:?}",
-        output_path
-    );
+    assert!(output_path.exists(), "GIF output file should exist at {output_path:?}");
 }

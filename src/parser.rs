@@ -32,10 +32,7 @@ pub struct ParseResult {
 ///
 /// Returns `Ok(TtpObject)` on success, or `Err(ParseError)` if parsing fails.
 pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseError> {
-    serde_json::from_str(line).map_err(|e| ParseError {
-        message: e.to_string(),
-        line: line_number,
-    })
+    serde_json::from_str(line).map_err(|e| ParseError { message: e.to_string(), line: line_number })
 }
 
 /// Parse a stream of JSON objects into Pixelsrc objects.
@@ -60,10 +57,7 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
                 if e.is_eof() {
                     break;
                 }
-                result.warnings.push(Warning {
-                    message: e.to_string(),
-                    line: e.line(),
-                });
+                result.warnings.push(Warning { message: e.to_string(), line: e.line() });
             }
         }
     }
@@ -244,9 +238,7 @@ mod tests {
             let entry = entry.unwrap();
             let path = entry.path();
             // Support both .jsonl and .pxl extensions
-            let is_pixelsrc = path
-                .extension()
-                .map_or(false, |e| e == "jsonl" || e == "pxl");
+            let is_pixelsrc = path.extension().is_some_and(|e| e == "jsonl" || e == "pxl");
             if is_pixelsrc {
                 let file = fs::File::open(&path).unwrap();
                 let reader = std::io::BufReader::new(file);
@@ -286,10 +278,7 @@ mod tests {
             let entry = entry.unwrap();
             let path = entry.path();
             // Support both .pxl and .jsonl extensions
-            if path
-                .extension()
-                .map_or(false, |e| e == "jsonl" || e == "pxl")
-            {
+            if path.extension().is_some_and(|e| e == "jsonl" || e == "pxl") {
                 let filename = path.file_name().unwrap().to_str().unwrap();
 
                 // Skip semantic error files - they parse successfully

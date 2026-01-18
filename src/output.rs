@@ -130,10 +130,7 @@ pub fn generate_output_path(
                 output.to_path_buf()
             } else {
                 // -o output.png (multiple) → output_{name}.png
-                let stem = output
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("output");
+                let stem = output.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
                 let parent = output.parent().unwrap_or(Path::new(""));
                 if parent.as_os_str().is_empty() {
                     PathBuf::from(format!("{}_{}.png", stem, sprite_name))
@@ -144,10 +141,7 @@ pub fn generate_output_path(
         }
         None => {
             // Default: {input_stem}_{sprite_name}.png
-            let input_stem = input
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("output");
+            let input_stem = input.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
             let parent = input.parent().unwrap_or(Path::new(""));
             if parent.as_os_str().is_empty() {
                 PathBuf::from(format!("{}_{}.png", input_stem, sprite_name))

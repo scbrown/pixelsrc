@@ -133,10 +133,7 @@ pub fn export_json(
     pretty: bool,
 ) -> Result<(), ExportError> {
     let exporter = JsonExporter::new();
-    let options = ExportOptions {
-        pretty,
-        ..Default::default()
-    };
+    let options = ExportOptions { pretty, ..Default::default() };
     exporter.export(metadata, output_path, &options)
 }
 
@@ -154,14 +151,7 @@ mod tests {
             frames: HashMap::from([
                 (
                     "sprite1".to_string(),
-                    AtlasFrame {
-                        x: 0,
-                        y: 0,
-                        w: 16,
-                        h: 16,
-                        origin: None,
-                        boxes: None,
-                    },
+                    AtlasFrame { x: 0, y: 0, w: 16, h: 16, origin: None, boxes: None },
                 ),
                 (
                     "sprite2".to_string(),
@@ -173,12 +163,7 @@ mod tests {
                         origin: Some([8, 16]),
                         boxes: Some(HashMap::from([(
                             "hit".to_string(),
-                            AtlasBox {
-                                x: 2,
-                                y: 2,
-                                w: 12,
-                                h: 12,
-                            },
+                            AtlasBox { x: 2, y: 2, w: 12, h: 12 },
                         )])),
                     },
                 ),
@@ -205,10 +190,7 @@ mod tests {
     fn test_export_to_string_pretty() {
         let exporter = JsonExporter::new();
         let metadata = create_test_metadata();
-        let options = ExportOptions {
-            pretty: true,
-            ..Default::default()
-        };
+        let options = ExportOptions { pretty: true, ..Default::default() };
 
         let json = exporter.export_to_string(&metadata, &options).unwrap();
 
@@ -228,10 +210,7 @@ mod tests {
     fn test_export_to_string_compact() {
         let exporter = JsonExporter::new();
         let metadata = create_test_metadata();
-        let options = ExportOptions {
-            pretty: false,
-            ..Default::default()
-        };
+        let options = ExportOptions { pretty: false, ..Default::default() };
 
         let json = exporter.export_to_string(&metadata, &options).unwrap();
 
@@ -318,14 +297,7 @@ mod tests {
             size: [32, 32],
             frames: HashMap::from([(
                 "sprite".to_string(),
-                AtlasFrame {
-                    x: 0,
-                    y: 0,
-                    w: 32,
-                    h: 32,
-                    origin: None,
-                    boxes: None,
-                },
+                AtlasFrame { x: 0, y: 0, w: 32, h: 32, origin: None, boxes: None },
             )]),
             animations: HashMap::new(),
         };
@@ -377,13 +349,7 @@ mod tests {
         assert_eq!(parsed["image"], original.image);
         assert_eq!(parsed["size"][0], original.size[0]);
         assert_eq!(parsed["size"][1], original.size[1]);
-        assert_eq!(
-            parsed["frames"].as_object().unwrap().len(),
-            original.frames.len()
-        );
-        assert_eq!(
-            parsed["animations"].as_object().unwrap().len(),
-            original.animations.len()
-        );
+        assert_eq!(parsed["frames"].as_object().unwrap().len(), original.frames.len());
+        assert_eq!(parsed["animations"].as_object().unwrap().len(), original.animations.len());
     }
 }

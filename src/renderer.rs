@@ -15,9 +15,7 @@ pub struct Warning {
 
 impl Warning {
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into() }
     }
 }
 
@@ -102,10 +100,7 @@ pub fn render_sprite(
 
         // Handle empty grid case
         if max_width == 0 || grid_height == 0 {
-            warnings.push(Warning::new(format!(
-                "Empty grid in sprite '{}'",
-                sprite.name
-            )));
+            warnings.push(Warning::new(format!("Empty grid in sprite '{}'", sprite.name)));
             return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
         }
 
@@ -114,10 +109,7 @@ pub fn render_sprite(
 
     // Handle zero dimensions
     if width == 0 || height == 0 {
-        warnings.push(Warning::new(format!(
-            "Empty grid in sprite '{}'",
-            sprite.name
-        )));
+        warnings.push(Warning::new(format!("Empty grid in sprite '{}'", sprite.name)));
         return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
     }
 
@@ -251,10 +243,8 @@ pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
         let grid_height = parsed_rows.len();
 
         if max_width == 0 || grid_height == 0 {
-            warnings.push(Warning::new(format!(
-                "Empty grid in sprite/variant '{}'",
-                resolved.name
-            )));
+            warnings
+                .push(Warning::new(format!("Empty grid in sprite/variant '{}'", resolved.name)));
             return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
         }
 
@@ -262,10 +252,7 @@ pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
     };
 
     if width == 0 || height == 0 {
-        warnings.push(Warning::new(format!(
-            "Empty grid in sprite/variant '{}'",
-            resolved.name
-        )));
+        warnings.push(Warning::new(format!("Empty grid in sprite/variant '{}'", resolved.name)));
         return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
     }
 
@@ -355,10 +342,7 @@ mod tests {
     use serial_test::serial;
 
     fn make_palette(colors: &[(&str, &str)]) -> HashMap<String, String> {
-        colors
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
+        colors.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
     }
 
     #[test]
@@ -369,7 +353,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -400,7 +385,8 @@ mod tests {
                 "{_}{_}{r}{r}{r}{_}{_}".to_string(),
                 "{_}{_}{_}{r}{_}{_}{_}".to_string(),
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{r}", "#FF0000"), ("{p}", "#FF6B6B")]);
@@ -433,7 +419,8 @@ mod tests {
                 "{_}{x}{x}{_}".to_string(),
                 "{x}{_}{_}{x}".to_string(),
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#0000FF")]);
@@ -462,7 +449,8 @@ mod tests {
                 "{x}{x}".to_string(),       // Only 2 tokens, expects 4
                 "{x}{x}{x}{x}".to_string(), // Full row
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -499,7 +487,8 @@ mod tests {
                 "{x}{x}{x}{x}{x}".to_string(), // 5 tokens, expects 2
                 "{x}{x}".to_string(),          // Full row
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -529,7 +518,8 @@ mod tests {
                 "{x}{y}{x}".to_string(), // {y} is unknown
                 "{x}{x}{x}".to_string(),
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{_}", "#00000000"), ("{x}", "#FF0000")]);
@@ -541,9 +531,7 @@ mod tests {
 
         // Should have warning about unknown token
         assert!(!warnings.is_empty());
-        assert!(warnings
-            .iter()
-            .any(|w| w.message.contains("Unknown token {y}")));
+        assert!(warnings.iter().any(|w| w.message.contains("Unknown token {y}")));
 
         // {y} should be magenta
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255])); // {x}
@@ -558,7 +546,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[]);
@@ -581,7 +570,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[("{x}", "not-a-color")]);
@@ -606,7 +596,8 @@ mod tests {
                 "{a}{b}{c}".to_string(),
                 "{d}{e}".to_string(), // Shorter row - width should still be 3
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[
@@ -635,7 +626,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec!["{x}{x}{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let palette = make_palette(&[]); // {x} is not defined
@@ -643,10 +635,8 @@ mod tests {
         let (image, warnings) = render_sprite(&sprite, &palette);
 
         // Should only have one warning about {x}
-        let unknown_x_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("Unknown token {x}"))
-            .collect();
+        let unknown_x_warnings: Vec<_> =
+            warnings.iter().filter(|w| w.message.contains("Unknown token {x}")).collect();
         assert_eq!(unknown_x_warnings.len(), 1);
 
         // All pixels should be magenta
@@ -732,7 +722,7 @@ mod tests {
         let (image, warnings) = render_resolved(&resolved);
 
         // Should have warnings about row length and grid height
-        assert!(warnings.len() >= 1);
+        assert!(!warnings.is_empty());
         assert_eq!(image.width(), 3);
         assert_eq!(image.height(), 3);
     }
@@ -829,11 +819,7 @@ mod tests {
         let file = fs::File::open("tests/fixtures/valid/variant_basic.jsonl").unwrap();
         let result = parse_stream(BufReader::new(file));
 
-        assert!(
-            result.warnings.is_empty(),
-            "Parse warnings: {:?}",
-            result.warnings
-        );
+        assert!(result.warnings.is_empty(), "Parse warnings: {:?}", result.warnings);
 
         // Should have 3 objects: 1 sprite + 2 variants
         assert_eq!(result.objects.len(), 3);
@@ -852,9 +838,7 @@ mod tests {
         }
 
         // Resolve and render the base sprite
-        let hero = sprite_registry
-            .resolve("hero", &palette_registry, false)
-            .unwrap();
+        let hero = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         assert_eq!(hero.name, "hero");
         // Size is inferred from grid (4x4), not explicitly set
         assert_eq!(hero.size, None);
@@ -865,9 +849,7 @@ mod tests {
         assert_eq!(hero_img.height(), 4);
 
         // Resolve and render hero_red variant
-        let hero_red = sprite_registry
-            .resolve("hero_red", &palette_registry, false)
-            .unwrap();
+        let hero_red = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
         assert_eq!(hero_red.name, "hero_red");
         assert_eq!(hero_red.size, None); // Inherited from base (also None)
         assert_eq!(hero_red.grid, hero.grid); // Same grid
@@ -879,9 +861,7 @@ mod tests {
         assert_eq!(*hero_red_img.get_pixel(1, 1), Rgba([255, 102, 102, 255]));
 
         // Resolve and render hero_alt variant (multiple overrides)
-        let hero_alt = sprite_registry
-            .resolve("hero_alt", &palette_registry, false)
-            .unwrap();
+        let hero_alt = sprite_registry.resolve("hero_alt", &palette_registry, false).unwrap();
         assert_eq!(hero_alt.name, "hero_alt");
         let (hero_alt_img, hero_alt_warns) = render_resolved(&hero_alt);
         assert!(hero_alt_warns.is_empty());
@@ -924,9 +904,7 @@ mod tests {
         assert!(result.is_err());
 
         // Lenient mode should succeed with warnings
-        let result = sprite_registry
-            .resolve("ghost", &palette_registry, false)
-            .unwrap();
+        let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
         assert_eq!(result.warnings.len(), 1);
         assert!(result.warnings[0].message.contains("nonexistent"));
 

@@ -2,9 +2,7 @@
 //!
 //! The pipeline coordinates the execution of build targets in the correct order.
 
-use crate::build::{
-    BuildContext, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult,
-};
+use crate::build::{BuildContext, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult};
 use std::fs;
 use std::time::Instant;
 
@@ -65,11 +63,7 @@ pub struct BuildPipeline {
 impl BuildPipeline {
     /// Create a new build pipeline.
     pub fn new(context: BuildContext) -> Self {
-        Self {
-            context,
-            fail_fast: false,
-            dry_run: false,
-        }
+        Self { context, fail_fast: false, dry_run: false }
     }
 
     /// Set fail-fast mode (stop on first error).
@@ -370,9 +364,7 @@ mod tests {
     #[test]
     fn test_build_pipeline_with_options() {
         let (_temp, ctx) = create_test_context();
-        let pipeline = BuildPipeline::new(ctx)
-            .with_fail_fast(true)
-            .with_dry_run(true);
+        let pipeline = BuildPipeline::new(ctx).with_fail_fast(true).with_dry_run(true);
 
         assert!(pipeline.fail_fast);
         assert!(pipeline.dry_run);
@@ -395,10 +387,7 @@ mod tests {
         // Create a source file
         let src_dir = temp.path().join("src/pxl");
         let sprite_file = src_dir.join("test.pxl");
-        File::create(&sprite_file)
-            .unwrap()
-            .write_all(b"{}")
-            .unwrap();
+        File::create(&sprite_file).unwrap().write_all(b"{}").unwrap();
 
         let pipeline = BuildPipeline::new(ctx).with_dry_run(true);
         let result = pipeline.build().unwrap();
@@ -409,12 +398,7 @@ mod tests {
     fn test_build_builder() {
         let (_temp, ctx) = create_test_context();
 
-        let result = Build::new()
-            .context(ctx)
-            .dry_run(true)
-            .verbose(false)
-            .run()
-            .unwrap();
+        let result = Build::new().context(ctx).dry_run(true).verbose(false).run().unwrap();
 
         assert!(result.is_success());
     }

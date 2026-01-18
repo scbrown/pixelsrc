@@ -11,9 +11,7 @@ pub struct Warning {
 
 impl Warning {
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into() }
     }
 }
 
@@ -85,10 +83,7 @@ pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> 
 
     // Warn if animation has no frames
     if anim.frames.is_empty() {
-        warnings.push(Warning::new(format!(
-            "Animation '{}' has no frames",
-            anim.name
-        )));
+        warnings.push(Warning::new(format!("Animation '{}' has no frames", anim.name)));
         return warnings;
     }
 
@@ -151,11 +146,7 @@ mod tests {
         // Animation with existing sprites should produce no warnings
         let anim = Animation {
             name: "walk".to_string(),
-            frames: vec![
-                "frame1".to_string(),
-                "frame2".to_string(),
-                "frame3".to_string(),
-            ],
+            frames: vec!["frame1".to_string(), "frame2".to_string(), "frame3".to_string()],
             duration: None,
             r#loop: None,
             palette_cycle: None,
@@ -165,11 +156,7 @@ mod tests {
             ..Default::default()
         };
 
-        let sprites = vec![
-            make_sprite("frame1"),
-            make_sprite("frame2"),
-            make_sprite("frame3"),
-        ];
+        let sprites = vec![make_sprite("frame1"), make_sprite("frame2"), make_sprite("frame3")];
 
         let warnings = validate_animation(&anim, &sprites);
         assert!(warnings.is_empty());
@@ -186,7 +173,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         // Only "on" sprite exists
@@ -211,7 +199,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("some_sprite")];
@@ -228,17 +217,14 @@ mod tests {
         // Animation with multiple missing sprites should warn for each
         let anim = Animation {
             name: "multi_missing".to_string(),
-            frames: vec![
-                "exists".to_string(),
-                "missing1".to_string(),
-                "missing2".to_string(),
-            ],
+            frames: vec!["exists".to_string(), "missing1".to_string(), "missing2".to_string()],
             duration: None,
             r#loop: None,
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("exists")];
@@ -261,7 +247,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         // No matching sprites
@@ -283,7 +270,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites: Vec<Sprite> = vec![];
@@ -305,7 +293,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("pose")];
@@ -330,7 +319,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: None,
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("frame1"), make_sprite("frame2")];
@@ -361,7 +351,8 @@ mod tests {
                 FrameMetadata::default(), // Only 2 entries for 3 frames
                 FrameMetadata::default(),
             ]),
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("f1"), make_sprite("f2"), make_sprite("f3")];
@@ -385,7 +376,8 @@ mod tests {
             palette_cycle: None,
             tags: None,
             frame_metadata: Some(vec![FrameMetadata::default(), FrameMetadata::default()]),
-            attachments: None, ..Default::default()
+            attachments: None,
+            ..Default::default()
         };
 
         let sprites = vec![make_sprite("f1"), make_sprite("f2")];

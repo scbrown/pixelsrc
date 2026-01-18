@@ -52,11 +52,7 @@ pub enum PaletteChange {
     /// Token was removed
     Removed { token: String },
     /// Token color was changed
-    Changed {
-        token: String,
-        old_color: String,
-        new_color: String,
-    },
+    Changed { token: String, old_color: String, new_color: String },
 }
 
 /// A change to a grid row
@@ -78,10 +74,7 @@ struct DiffContext {
 
 impl DiffContext {
     fn new() -> Self {
-        Self {
-            palettes_a: HashMap::new(),
-            palettes_b: HashMap::new(),
-        }
+        Self { palettes_a: HashMap::new(), palettes_b: HashMap::new() }
     }
 
     /// Resolve a palette reference to its color map
@@ -110,14 +103,8 @@ pub fn diff_sprites(
     // Compare dimensions
     let dim_a = get_sprite_dimensions(a);
     let dim_b = get_sprite_dimensions(b);
-    let dimension_change = if dim_a != dim_b {
-        Some(DimensionChange {
-            old: dim_a,
-            new: dim_b,
-        })
-    } else {
-        None
-    };
+    let dimension_change =
+        if dim_a != dim_b { Some(DimensionChange { old: dim_a, new: dim_b }) } else { None };
 
     // Compare palettes
     let tokens_a: HashSet<_> = palette_a.keys().collect();
@@ -125,18 +112,14 @@ pub fn diff_sprites(
 
     // Find removed tokens
     for token in tokens_a.difference(&tokens_b) {
-        palette_changes.push(PaletteChange::Removed {
-            token: (*token).clone(),
-        });
+        palette_changes.push(PaletteChange::Removed { token: (*token).clone() });
     }
 
     // Find added tokens
     for token in tokens_b.difference(&tokens_a) {
         if let Some(color) = palette_b.get(*token) {
-            palette_changes.push(PaletteChange::Added {
-                token: (*token).clone(),
-                color: color.clone(),
-            });
+            palette_changes
+                .push(PaletteChange::Added { token: (*token).clone(), color: color.clone() });
         }
     }
 
@@ -180,23 +163,16 @@ pub fn diff_sprites(
             (Some(ra), Some(rb)) => {
                 if ra != rb {
                     let description = describe_row_change(row_idx, ra, rb);
-                    grid_changes.push(GridChange {
-                        row: row_idx,
-                        description,
-                    });
+                    grid_changes.push(GridChange { row: row_idx, description });
                 }
             }
             (Some(_), None) => {
-                grid_changes.push(GridChange {
-                    row: row_idx,
-                    description: "Row removed".to_string(),
-                });
+                grid_changes
+                    .push(GridChange { row: row_idx, description: "Row removed".to_string() });
             }
             (None, Some(_)) => {
-                grid_changes.push(GridChange {
-                    row: row_idx,
-                    description: "Row added".to_string(),
-                });
+                grid_changes
+                    .push(GridChange { row: row_idx, description: "Row added".to_string() });
             }
             (None, None) => {}
         }
@@ -205,12 +181,7 @@ pub fn diff_sprites(
     // Generate summary
     let summary = generate_summary(&dimension_change, &palette_changes, &grid_changes);
 
-    SpriteDiff {
-        dimension_change,
-        palette_changes,
-        grid_changes,
-        summary,
-    }
+    SpriteDiff { dimension_change, palette_changes, grid_changes, summary }
 }
 
 /// Get sprite dimensions, computing from grid if not specified
@@ -246,21 +217,13 @@ fn describe_row_change(_row_idx: usize, old: &str, new: &str) -> String {
     let removed: Vec<_> = set_old.difference(&set_new).collect();
 
     if tokens_old.len() != tokens_new.len() {
-        return format!(
-            "Token count changed: {} → {}",
-            tokens_old.len(),
-            tokens_new.len()
-        );
+        return format!("Token count changed: {} → {}", tokens_old.len(), tokens_new.len());
     }
 
     if !added.is_empty() && !removed.is_empty() {
         let added_str: Vec<_> = added.iter().map(|t| t.as_str()).collect();
         let removed_str: Vec<_> = removed.iter().map(|t| t.as_str()).collect();
-        return format!(
-            "Tokens changed: -{} +{}",
-            removed_str.join(", "),
-            added_str.join(", ")
-        );
+        return format!("Tokens changed: -{} +{}", removed_str.join(", "), added_str.join(", "));
     }
 
     // Count position differences
@@ -274,11 +237,7 @@ fn describe_row_change(_row_idx: usize, old: &str, new: &str) -> String {
     if diff_positions.len() <= 3 {
         format!(
             "Tokens changed at position(s): {}",
-            diff_positions
-                .iter()
-                .map(|p| p.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
+            diff_positions.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ")
         )
     } else {
         format!("{} tokens changed", diff_positions.len())
@@ -294,24 +253,16 @@ fn generate_summary(
     let mut parts = Vec::new();
 
     if let Some(dim) = dimension_change {
-        parts.push(format!(
-            "Dimensions: {}x{} → {}x{}",
-            dim.old.0, dim.old.1, dim.new.0, dim.new.1
-        ));
+        parts
+            .push(format!("Dimensions: {}x{} → {}x{}", dim.old.0, dim.old.1, dim.new.0, dim.new.1));
     }
 
-    let added_count = palette_changes
-        .iter()
-        .filter(|c| matches!(c, PaletteChange::Added { .. }))
-        .count();
-    let removed_count = palette_changes
-        .iter()
-        .filter(|c| matches!(c, PaletteChange::Removed { .. }))
-        .count();
-    let changed_count = palette_changes
-        .iter()
-        .filter(|c| matches!(c, PaletteChange::Changed { .. }))
-        .count();
+    let added_count =
+        palette_changes.iter().filter(|c| matches!(c, PaletteChange::Added { .. })).count();
+    let removed_count =
+        palette_changes.iter().filter(|c| matches!(c, PaletteChange::Removed { .. })).count();
+    let changed_count =
+        palette_changes.iter().filter(|c| matches!(c, PaletteChange::Changed { .. })).count();
 
     if added_count > 0 || removed_count > 0 || changed_count > 0 {
         let mut palette_parts = Vec::new();
@@ -437,18 +388,13 @@ pub fn diff_files(path_a: &Path, path_b: &Path) -> Result<Vec<(String, SpriteDif
 pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) -> String {
     let mut output = Vec::new();
 
-    output.push(format!(
-        "Comparing sprite \"{}\" ({}) vs ({}):",
-        name, file_a, file_b
-    ));
+    output.push(format!("Comparing sprite \"{}\" ({}) vs ({}):", name, file_a, file_b));
     output.push(String::new());
 
     // Dimensions
     if let Some(dim) = &diff.dimension_change {
-        output.push(format!(
-            "Dimensions: {}x{} → {}x{}",
-            dim.old.0, dim.old.1, dim.new.0, dim.new.1
-        ));
+        output
+            .push(format!("Dimensions: {}x{} → {}x{}", dim.old.0, dim.old.1, dim.new.0, dim.new.1));
     } else if diff.is_empty() {
         output.push("No differences found.".to_string());
         return output.join("\n");
@@ -468,15 +414,8 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
                 PaletteChange::Removed { token } => {
                     output.push(format!("  - {}", token));
                 }
-                PaletteChange::Changed {
-                    token,
-                    old_color,
-                    new_color,
-                } => {
-                    output.push(format!(
-                        "  ~ {} color: {} → {}",
-                        token, old_color, new_color
-                    ));
+                PaletteChange::Changed { token, old_color, new_color } => {
+                    output.push(format!("  ~ {} color: {} → {}", token, old_color, new_color));
                 }
             }
         }
@@ -508,7 +447,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Inline(palette),
             grid: grid.into_iter().map(String::from).collect(),
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         }
     }
 
@@ -609,14 +549,16 @@ mod tests {
             size: Some([8, 8]),
             palette: PaletteRef::Inline(palette.clone()),
             grid: vec!["{a}".to_string(); 8],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         let sprite_b = Sprite {
             name: "test".to_string(),
             size: Some([16, 16]),
             palette: PaletteRef::Inline(palette.clone()),
             grid: vec!["{a}".to_string(); 16],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
 
         let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
@@ -652,7 +594,8 @@ mod tests {
             size: Some([16, 8]),
             palette: PaletteRef::Inline(HashMap::new()),
             grid: vec![],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         assert_eq!(get_sprite_dimensions(&sprite), (16, 8));
     }
@@ -668,7 +611,8 @@ mod tests {
                 "{a}{b}{c}{d}".to_string(),
                 "{a}{b}{c}{d}".to_string(),
             ],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         assert_eq!(get_sprite_dimensions(&sprite), (4, 3));
     }

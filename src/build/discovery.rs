@@ -49,8 +49,8 @@ pub fn discover_files(base_dir: &Path, pattern: &str) -> Result<Vec<PathBuf>, Di
     let full_pattern = base_dir.join(pattern);
     let pattern_str = full_pattern.to_string_lossy();
 
-    let paths = glob(&pattern_str)
-        .map_err(|e| DiscoveryError::InvalidPattern(pattern.to_string(), e))?;
+    let paths =
+        glob(&pattern_str).map_err(|e| DiscoveryError::InvalidPattern(pattern.to_string(), e))?;
 
     let mut files = Vec::new();
     for entry in paths {
@@ -139,11 +139,7 @@ pub fn create_build_plan(ctx: &BuildContext) -> Result<BuildPlan, DiscoveryError
     // Create animation targets
     let anim_sources = discover_animation_sources(ctx)?;
     for source in anim_sources {
-        let name = source
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unnamed")
-            .to_string();
+        let name = source.file_stem().and_then(|s| s.to_str()).unwrap_or("unnamed").to_string();
 
         let output = out_dir.join("animations").join(format!("{}.png", name));
         plan.add_target(BuildTarget::animation(name.clone(), source.clone(), output.clone()));

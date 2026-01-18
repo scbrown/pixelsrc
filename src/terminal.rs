@@ -114,10 +114,7 @@ pub fn render_ansi_grid(
                 seen_tokens.insert(token.clone(), c);
 
                 // Add to legend if we haven't seen this token
-                let hex_color = palette
-                    .get(token)
-                    .cloned()
-                    .unwrap_or_else(|| "???".to_string());
+                let hex_color = palette.get(token).cloned().unwrap_or_else(|| "???".to_string());
                 let name = token.trim_matches(|c| c == '{' || c == '}').to_string();
                 legend_entries.push((c, name, hex_color));
 
@@ -125,10 +122,7 @@ pub fn render_ansi_grid(
             };
 
             // Get the color for this token
-            let hex_color = palette
-                .get(token)
-                .cloned()
-                .unwrap_or_else(|| "#808080".to_string());
+            let hex_color = palette.get(token).cloned().unwrap_or_else(|| "#808080".to_string());
             let rgba = parse_color(&hex_color).unwrap_or(Rgba([128, 128, 128, 255]));
             let ansi_bg = color_to_ansi_bg(rgba);
 
@@ -204,12 +198,7 @@ pub fn render_coordinate_grid(grid: &[String], full_names: bool) -> String {
     // Determine cell width based on mode
     let cell_width = if full_names {
         // Find the longest token name
-        parsed_rows
-            .iter()
-            .flat_map(|row| row.iter())
-            .map(|token| token.len())
-            .max()
-            .unwrap_or(3)
+        parsed_rows.iter().flat_map(|row| row.iter()).map(|token| token.len()).max().unwrap_or(3)
     } else {
         2 // Single char + space
     };
@@ -233,22 +222,14 @@ pub fn render_coordinate_grid(grid: &[String], full_names: bool) -> String {
     // Border line
     output.push_str(&" ".repeat(row_num_width));
     output.push_str(" \u{250C}"); // ┌
-    let border_width = if full_names {
-        max_cols * (cell_width + 1)
-    } else {
-        max_cols * 3
-    };
+    let border_width = if full_names { max_cols * (cell_width + 1) } else { max_cols * 3 };
     output.push_str(&"\u{2500}".repeat(border_width)); // ─
     output.push('\n');
 
     // Data rows
     for (row_idx, tokens) in parsed_rows.iter().enumerate() {
         // Row number
-        output.push_str(&format!(
-            "{:>width$} \u{2502}",
-            row_idx,
-            width = row_num_width
-        )); // │
+        output.push_str(&format!("{:>width$} \u{2502}", row_idx, width = row_num_width)); // │
 
         for token in tokens {
             let display = if full_names {
@@ -330,8 +311,12 @@ pub fn render_image_ansi(image: &image::RgbaImage) -> String {
                 // Both visible
                 output.push_str(&format!(
                     "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m▀",
-                    bottom_pixel[0], bottom_pixel[1], bottom_pixel[2],
-                    top_pixel[0], top_pixel[1], top_pixel[2]
+                    bottom_pixel[0],
+                    bottom_pixel[1],
+                    bottom_pixel[2],
+                    top_pixel[0],
+                    top_pixel[1],
+                    top_pixel[2]
                 ));
             }
         }

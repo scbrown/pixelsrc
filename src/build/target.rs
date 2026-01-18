@@ -66,14 +66,7 @@ impl BuildTarget {
     /// Create a new atlas target.
     pub fn atlas(name: String, sources: Vec<PathBuf>, output: PathBuf) -> Self {
         let id = format!("atlas:{}", name);
-        Self {
-            id,
-            kind: TargetKind::Atlas,
-            name,
-            sources,
-            output,
-            dependencies: vec![],
-        }
+        Self { id, kind: TargetKind::Atlas, name, sources, output, dependencies: vec![] }
     }
 
     /// Create a new animation target.
@@ -106,14 +99,7 @@ impl BuildTarget {
     /// Create a new export target.
     pub fn export(name: String, format: String, output: PathBuf) -> Self {
         let id = format!("export:{}:{}", format, name);
-        Self {
-            id,
-            kind: TargetKind::Export,
-            name,
-            sources: vec![],
-            output,
-            dependencies: vec![],
-        }
+        Self { id, kind: TargetKind::Export, name, sources: vec![], output, dependencies: vec![] }
     }
 
     /// Add a dependency to this target.
@@ -195,9 +181,7 @@ impl BuildPlan {
             return self;
         }
 
-        self.targets.retain(|t| {
-            patterns.iter().any(|p| t.matches_filter(p))
-        });
+        self.targets.retain(|t| patterns.iter().any(|p| t.matches_filter(p)));
         self
     }
 
@@ -299,10 +283,7 @@ mod tests {
     fn test_build_target_atlas() {
         let target = BuildTarget::atlas(
             "characters".to_string(),
-            vec![
-                PathBuf::from("src/player.pxl"),
-                PathBuf::from("src/enemy.pxl"),
-            ],
+            vec![PathBuf::from("src/player.pxl"), PathBuf::from("src/enemy.pxl")],
             PathBuf::from("build/characters.png"),
         );
 

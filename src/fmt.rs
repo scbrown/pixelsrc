@@ -444,7 +444,8 @@ mod tests {
             size: Some([4, 2]),
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{_}{a}{a}{_}".to_string(), "{a}{a}{a}{a}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         let formatted = format_sprite(&sprite);
         // Should have grid rows on separate lines
@@ -461,7 +462,8 @@ mod tests {
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
             grid: vec!["{x}".to_string()],
-            metadata: None, ..Default::default()
+            metadata: None,
+            ..Default::default()
         };
         let formatted = format_sprite(&sprite);
         // Single row should stay on one line
@@ -546,11 +548,7 @@ mod tests {
                 CompositionLayer {
                     name: Some("objects".to_string()),
                     fill: None,
-                    map: Some(vec![
-                        "....".to_string(),
-                        "..H.".to_string(),
-                        "....".to_string(),
-                    ]),
+                    map: Some(vec!["....".to_string(), "..H.".to_string(), "....".to_string()]),
                     ..Default::default()
                 },
             ],

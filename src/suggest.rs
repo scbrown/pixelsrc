@@ -99,18 +99,12 @@ impl SuggestionReport {
 
     /// Filter suggestions by type
     pub fn filter_by_type(&self, suggestion_type: SuggestionType) -> Vec<&Suggestion> {
-        self.suggestions
-            .iter()
-            .filter(|s| s.suggestion_type == suggestion_type)
-            .collect()
+        self.suggestions.iter().filter(|s| s.suggestion_type == suggestion_type).collect()
     }
 
     /// Count suggestions of a specific type
     pub fn count_by_type(&self, suggestion_type: SuggestionType) -> usize {
-        self.suggestions
-            .iter()
-            .filter(|s| s.suggestion_type == suggestion_type)
-            .count()
+        self.suggestions.iter().filter(|s| s.suggestion_type == suggestion_type).count()
     }
 }
 
@@ -134,16 +128,10 @@ impl Suggester {
     /// Create a new suggester
     pub fn new() -> Self {
         // Initialize with built-in palette names
-        let builtin_palettes: HashSet<String> = crate::palettes::list_builtins()
-            .into_iter()
-            .map(|s| format!("@{}", s))
-            .collect();
+        let builtin_palettes: HashSet<String> =
+            crate::palettes::list_builtins().into_iter().map(|s| format!("@{}", s)).collect();
 
-        Self {
-            report: SuggestionReport::new(),
-            palettes: HashMap::new(),
-            builtin_palettes,
-        }
+        Self { report: SuggestionReport::new(), palettes: HashMap::new(), builtin_palettes }
     }
 
     /// Analyze content from a reader
@@ -193,7 +181,7 @@ impl Suggester {
         let mut all_tokens_used: HashSet<String> = HashSet::new();
         let mut row_lengths: Vec<(usize, String, Vec<String>)> = Vec::new();
 
-        for (_row_idx, row) in sprite.grid.iter().enumerate() {
+        for row in sprite.grid.iter() {
             let (tokens, _warnings) = tokenize(row);
             all_tokens_used.extend(tokens.iter().cloned());
             row_lengths.push((tokens.len(), row.clone(), tokens));
@@ -210,11 +198,7 @@ impl Suggester {
 
         // Check for row length mismatches
         if !row_lengths.is_empty() {
-            let max_length = row_lengths
-                .iter()
-                .map(|(len, _, _)| *len)
-                .max()
-                .unwrap_or(0);
+            let max_length = row_lengths.iter().map(|(len, _, _)| *len).max().unwrap_or(0);
             if max_length > 0 {
                 // Find the most common token for padding (prefer {_} if present)
                 let pad_token = self.find_pad_token(&all_tokens_used, palette_tokens.as_ref());
@@ -399,11 +383,7 @@ pub fn levenshtein_distance(a: &str, b: &str) -> usize {
     for i in 1..=a_len {
         curr_row[0] = i;
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             curr_row[j] = (prev_row[j] + 1) // deletion
                 .min(curr_row[j - 1] + 1) // insertion
                 .min(prev_row[j - 1] + cost); // substitution
@@ -448,10 +428,7 @@ pub fn format_suggestion(suggestions: &[&str]) -> Option<String> {
     match suggestions.len() {
         0 => None,
         1 => Some(format!("Did you mean '{}'?", suggestions[0])),
-        2 => Some(format!(
-            "Did you mean '{}' or '{}'?",
-            suggestions[0], suggestions[1]
-        )),
+        2 => Some(format!("Did you mean '{}' or '{}'?", suggestions[0], suggestions[1])),
         _ => Some(format!(
             "Did you mean '{}', '{}', or '{}'?",
             suggestions[0], suggestions[1], suggestions[2]
@@ -534,19 +511,13 @@ mod tests {
     #[test]
     fn test_format_suggestion_two() {
         let result = format_suggestion(&["character", "item"]);
-        assert_eq!(
-            result,
-            Some("Did you mean 'character' or 'item'?".to_string())
-        );
+        assert_eq!(result, Some("Did you mean 'character' or 'item'?".to_string()));
     }
 
     #[test]
     fn test_format_suggestion_three() {
         let result = format_suggestion(&["character", "item", "tileset"]);
-        assert_eq!(
-            result,
-            Some("Did you mean 'character', 'item', or 'tileset'?".to_string())
-        );
+        assert_eq!(result, Some("Did you mean 'character', 'item', or 'tileset'?".to_string()));
     }
 
     // Suggester tests
@@ -625,13 +596,7 @@ mod tests {
 
         // First row (2 tokens) should be extended to match second row (4 tokens)
         match &row_completion[0].fix {
-            SuggestionFix::ExtendRow {
-                row_index,
-                tokens_to_add,
-                pad_token,
-                suggested,
-                ..
-            } => {
+            SuggestionFix::ExtendRow { row_index, tokens_to_add, pad_token, suggested, .. } => {
                 assert_eq!(*row_index, 0);
                 assert_eq!(*tokens_to_add, 2);
                 assert_eq!(pad_token, "{_}");
