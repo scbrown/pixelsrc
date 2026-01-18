@@ -211,6 +211,52 @@ impl PixelsrcLanguageServer {
         None
     }
 
+    /// Extract document symbols from content
+    ///
+    /// Returns a list of (name, type, line_number) tuples for all defined objects.
+    fn extract_symbols(content: &str) -> Vec<(String, String, usize)> {
+        let mut symbols = Vec::new();
+
+        for (line_num, line) in content.lines().enumerate() {
+            // Try to parse as JSON
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Get type and name fields
+            let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+                Some(t) => t,
+                None => continue,
+            };
+
+            let name = match obj.get("name").and_then(|n| n.as_str()) {
+                Some(n) => n,
+                None => continue,
+            };
+
+            symbols.push((name.to_string(), obj_type.to_string(), line_num));
+        }
+
+        symbols
+    }
+
+    /// Map pixelsrc type to LSP SymbolKind
+    fn type_to_symbol_kind(obj_type: &str) -> SymbolKind {
+        match obj_type {
+            "palette" => SymbolKind::CONSTANT,
+            "sprite" => SymbolKind::CLASS,
+            "animation" => SymbolKind::FUNCTION,
+            "composition" => SymbolKind::MODULE,
+            _ => SymbolKind::OBJECT,
+        }
+    }
+
     /// Collect all defined tokens from palettes in the document
     ///
     /// Returns a list of (token, color) pairs from all palette definitions.
@@ -278,6 +324,7 @@ impl LanguageServer for PixelsrcLanguageServer {
                     trigger_characters: Some(vec!["{".to_string()]),
                     ..Default::default()
                 }),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
         })
@@ -449,6 +496,55 @@ impl LanguageServer for PixelsrcLanguageServer {
 
         Ok(Some(CompletionResponse::Array(completions)))
     }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = &params.text_document.uri;
+
+        // Get the document content
+        let documents = self.documents.read().unwrap();
+        let content = match documents.get(uri) {
+            Some(c) => c.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+
+        // Extract symbols using helper method
+        let extracted = Self::extract_symbols(&content);
+
+        // Convert to SymbolInformation
+        let symbols: Vec<SymbolInformation> = extracted
+            .into_iter()
+            .map(|(name, obj_type, line_num)| {
+                let line = content.lines().nth(line_num).unwrap_or("");
+                #[allow(deprecated)]
+                SymbolInformation {
+                    name,
+                    kind: Self::type_to_symbol_kind(&obj_type),
+                    tags: None,
+                    deprecated: None,
+                    location: Location {
+                        uri: uri.clone(),
+                        range: Range {
+                            start: Position {
+                                line: line_num as u32,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: line_num as u32,
+                                character: line.len() as u32,
+                            },
+                        },
+                    },
+                    container_name: None,
+                }
+            })
+            .collect();
+
+        Ok(Some(DocumentSymbolResponse::Flat(symbols)))
+    }
 }
 
 /// Run the LSP server on stdin/stdout
@@ -609,5 +705,149 @@ mod tests {
     fn test_collect_defined_tokens_empty_content() {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens("");
         assert!(tokens.is_empty());
+    }
+
+    // === Document Symbol Tests ===
+
+    #[test]
+    fn test_extract_symbols_single_palette() {
+        let content = r##"{"type": "palette", "name": "hero", "colors": {"{a}": "#FF0000"}}"##;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].0, "hero");
+        assert_eq!(symbols[0].1, "palette");
+        assert_eq!(symbols[0].2, 0);
+    }
+
+    #[test]
+    fn test_extract_symbols_single_sprite() {
+        let content = r#"{"type": "sprite", "name": "player", "grid": ["{a}"]}"#;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].0, "player");
+        assert_eq!(symbols[0].1, "sprite");
+        assert_eq!(symbols[0].2, 0);
+    }
+
+    #[test]
+    fn test_extract_symbols_animation() {
+        let content = r#"{"type": "animation", "name": "walk_cycle", "frames": ["frame1"]}"#;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].0, "walk_cycle");
+        assert_eq!(symbols[0].1, "animation");
+    }
+
+    #[test]
+    fn test_extract_symbols_composition() {
+        let content = r#"{"type": "composition", "name": "scene1", "layers": []}"#;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].0, "scene1");
+        assert_eq!(symbols[0].1, "composition");
+    }
+
+    #[test]
+    fn test_extract_symbols_multiple_objects() {
+        let content = r##"{"type": "palette", "name": "colors", "colors": {"{a}": "#FF0000"}}
+{"type": "sprite", "name": "hero", "grid": ["{a}"]}
+{"type": "sprite", "name": "enemy", "grid": ["{a}"]}
+{"type": "animation", "name": "idle", "frames": ["hero"]}"##;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 4);
+
+        // Check names in order
+        assert_eq!(symbols[0].0, "colors");
+        assert_eq!(symbols[0].1, "palette");
+        assert_eq!(symbols[0].2, 0);
+
+        assert_eq!(symbols[1].0, "hero");
+        assert_eq!(symbols[1].1, "sprite");
+        assert_eq!(symbols[1].2, 1);
+
+        assert_eq!(symbols[2].0, "enemy");
+        assert_eq!(symbols[2].1, "sprite");
+        assert_eq!(symbols[2].2, 2);
+
+        assert_eq!(symbols[3].0, "idle");
+        assert_eq!(symbols[3].1, "animation");
+        assert_eq!(symbols[3].2, 3);
+    }
+
+    #[test]
+    fn test_extract_symbols_skips_invalid_json() {
+        let content = r##"this is not json
+{"type": "palette", "name": "valid", "colors": {}}
+also not json"##;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].0, "valid");
+        assert_eq!(symbols[0].2, 1); // Line 1 (0-indexed)
+    }
+
+    #[test]
+    fn test_extract_symbols_skips_missing_type() {
+        let content = r#"{"name": "no_type", "colors": {}}"#;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+        assert!(symbols.is_empty());
+    }
+
+    #[test]
+    fn test_extract_symbols_skips_missing_name() {
+        let content = r#"{"type": "palette", "colors": {}}"#;
+        let symbols = PixelsrcLanguageServer::extract_symbols(content);
+        assert!(symbols.is_empty());
+    }
+
+    #[test]
+    fn test_extract_symbols_empty_content() {
+        let symbols = PixelsrcLanguageServer::extract_symbols("");
+        assert!(symbols.is_empty());
+    }
+
+    #[test]
+    fn test_type_to_symbol_kind_palette() {
+        assert_eq!(
+            PixelsrcLanguageServer::type_to_symbol_kind("palette"),
+            SymbolKind::CONSTANT
+        );
+    }
+
+    #[test]
+    fn test_type_to_symbol_kind_sprite() {
+        assert_eq!(
+            PixelsrcLanguageServer::type_to_symbol_kind("sprite"),
+            SymbolKind::CLASS
+        );
+    }
+
+    #[test]
+    fn test_type_to_symbol_kind_animation() {
+        assert_eq!(
+            PixelsrcLanguageServer::type_to_symbol_kind("animation"),
+            SymbolKind::FUNCTION
+        );
+    }
+
+    #[test]
+    fn test_type_to_symbol_kind_composition() {
+        assert_eq!(
+            PixelsrcLanguageServer::type_to_symbol_kind("composition"),
+            SymbolKind::MODULE
+        );
+    }
+
+    #[test]
+    fn test_type_to_symbol_kind_unknown() {
+        assert_eq!(
+            PixelsrcLanguageServer::type_to_symbol_kind("unknown"),
+            SymbolKind::OBJECT
+        );
     }
 }
