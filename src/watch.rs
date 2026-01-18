@@ -222,6 +222,62 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
+/// Extract a readable file name from a target ID.
+/// Converts "sprite:player" to "player.pxl", "atlas:main" to "atlas:main", etc.
+fn target_id_to_display_name(target_id: &str) -> String {
+    if let Some((kind, name)) = target_id.split_once(':') {
+        match kind {
+            "sprite" | "animation" | "preview" => format!("{}.pxl", name),
+            _ => target_id.to_string(),
+        }
+    } else {
+        target_id.to_string()
+    }
+}
+
+/// Try to extract a line number from an error message.
+/// Looks for patterns like "line 5", "Line 5:", "at line 5", etc.
+fn extract_line_number(message: &str) -> Option<usize> {
+    // Common patterns for line numbers in error messages
+    let patterns = [
+        r"[Ll]ine\s+(\d+)",
+        r"at line\s+(\d+)",
+        r":(\d+):",      // file:line:col format
+        r":(\d+)$",      // file:line format at end
+    ];
+
+    for pattern in patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if let Some(caps) = re.captures(message) {
+                if let Some(m) = caps.get(1) {
+                    if let Ok(line) = m.as_str().parse::<usize>() {
+                        return Some(line);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Format an error message for display, optionally extracting line info.
+fn format_error_display(target_id: &str, error_msg: &str) -> String {
+    let display_name = target_id_to_display_name(target_id);
+    let line_num = extract_line_number(error_msg);
+
+    // Clean up the error message - remove "failed: " prefix if present
+    let clean_msg = error_msg.strip_prefix("failed: ").unwrap_or(error_msg);
+
+    if let Some(line) = line_num {
+        format!(
+            "Error in {}:\n          Line {}: {}",
+            display_name, line, clean_msg
+        )
+    } else {
+        format!("Error in {}: {}", display_name, clean_msg)
+    }
+}
+
 /// Get current timestamp for logging
 fn timestamp() -> String {
     use std::time::SystemTime;
@@ -669,9 +725,11 @@ fn print_incremental_result(
                     if failed == 1 { "" } else { "s" }
                 );
 
-                // Print failures
+                // Print failures with improved formatting
                 for target in result.failures() {
-                    eprintln!("[{}] Error: {} - {}", timestamp(), target.target_id, target.status);
+                    let error_msg = format!("{}", target.status);
+                    let formatted = format_error_display(&target.target_id, &error_msg);
+                    eprintln!("[{}] {}", timestamp(), formatted);
                 }
             }
 
@@ -753,9 +811,11 @@ fn print_pipeline_result(
                     if failed == 1 { "" } else { "s" }
                 );
 
-                // Print failures
+                // Print failures with improved formatting
                 for target in build_result.failures() {
-                    eprintln!("[{}] Error: {} - {}", timestamp(), target.target_id, target.status);
+                    let error_msg = format!("{}", target.status);
+                    let formatted = format_error_display(&target.target_id, &error_msg);
+                    eprintln!("[{}] {}", timestamp(), formatted);
                 }
             }
 
@@ -1147,5 +1207,75 @@ mod tests {
         // Force mode should still fail if source doesn't exist
         let result = watch_with_incremental(context, watch_config, true);
         assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
+    }
+
+    // Error display formatting tests
+
+    #[test]
+    fn test_target_id_to_display_name_sprite() {
+        assert_eq!(target_id_to_display_name("sprite:player"), "player.pxl");
+        assert_eq!(target_id_to_display_name("sprite:enemy_boss"), "enemy_boss.pxl");
+    }
+
+    #[test]
+    fn test_target_id_to_display_name_animation() {
+        assert_eq!(target_id_to_display_name("animation:walk"), "walk.pxl");
+        assert_eq!(target_id_to_display_name("preview:idle"), "idle.pxl");
+    }
+
+    #[test]
+    fn test_target_id_to_display_name_atlas() {
+        // Atlas targets keep their original format
+        assert_eq!(target_id_to_display_name("atlas:main"), "atlas:main");
+        assert_eq!(target_id_to_display_name("export:godot"), "export:godot");
+    }
+
+    #[test]
+    fn test_target_id_to_display_name_no_colon() {
+        assert_eq!(target_id_to_display_name("something"), "something");
+    }
+
+    #[test]
+    fn test_extract_line_number_basic() {
+        assert_eq!(extract_line_number("error at line 5"), Some(5));
+        assert_eq!(extract_line_number("Line 10: syntax error"), Some(10));
+        assert_eq!(extract_line_number("invalid JSON at line 42"), Some(42));
+    }
+
+    #[test]
+    fn test_extract_line_number_colon_format() {
+        assert_eq!(extract_line_number("file.pxl:15:3: error"), Some(15));
+        assert_eq!(extract_line_number("path/to/file.pxl:99"), Some(99));
+    }
+
+    #[test]
+    fn test_extract_line_number_none() {
+        assert_eq!(extract_line_number("no line number here"), None);
+        assert_eq!(extract_line_number("error: something went wrong"), None);
+    }
+
+    #[test]
+    fn test_format_error_display_with_line() {
+        let formatted = format_error_display("sprite:player", "failed: Parse error at line 5");
+        assert!(formatted.contains("Error in player.pxl:"));
+        assert!(formatted.contains("Line 5:"));
+        assert!(formatted.contains("Parse error"));
+    }
+
+    #[test]
+    fn test_format_error_display_without_line() {
+        let formatted = format_error_display("sprite:enemy", "File not found");
+        assert!(formatted.contains("Error in enemy.pxl:"));
+        assert!(formatted.contains("File not found"));
+        // Should NOT have multi-line format when no line number
+        assert!(!formatted.contains("\n          Line"));
+    }
+
+    #[test]
+    fn test_format_error_display_strips_failed_prefix() {
+        let formatted = format_error_display("sprite:test", "failed: Some error");
+        // Should not have "failed:" in the output
+        assert!(!formatted.contains("failed:"));
+        assert!(formatted.contains("Some error"));
     }
 }
