@@ -3198,36 +3198,53 @@ fn run_build(
     dry_run: bool,
     verbose: bool,
 ) -> ExitCode {
-    use crate::config::loader::{find_config, load_config};
-    use crate::watch::{simple_build, watch_and_rebuild, WatchOptions};
+    use crate::build::{BuildContext, BuildPipeline};
+    use crate::config::loader::{find_config, load_config, merge_cli_overrides, CliOverrides};
+    use crate::watch::{watch_and_rebuild, WatchOptions};
 
-    // Try to find and load config
-    let config = match find_config() {
+    // Find config file path and determine project root
+    let (config, project_root) = match find_config() {
         Some(config_path) => {
             if verbose {
                 println!("Using config: {}", config_path.display());
             }
-            match load_config(Some(&config_path)) {
+            let cfg = match load_config(Some(&config_path)) {
                 Ok(cfg) => cfg,
                 Err(e) => {
                     eprintln!("Error loading config: {}", e);
                     return ExitCode::from(EXIT_ERROR);
                 }
-            }
+            };
+            let root = config_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+            (cfg, root)
         }
         None => {
             if verbose {
                 println!("No pxl.toml found, using defaults");
             }
-            crate::config::loader::default_config()
+            let root = std::env::current_dir().unwrap_or_default();
+            (crate::config::loader::default_config(), root)
         }
     };
 
-    // Determine source and output directories
-    let src_dir =
-        src.map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&config.project.src));
-    let out_dir =
-        out.map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&config.project.out));
+    // Apply CLI overrides to config
+    let mut config = config;
+    let overrides = CliOverrides {
+        out: out.map(|p| p.to_path_buf()),
+        src: src.map(|p| p.to_path_buf()),
+        ..Default::default()
+    };
+    merge_cli_overrides(&mut config, &overrides);
+
+    // Resolve source directory
+    let src_dir = if config.project.src.is_absolute() {
+        config.project.src.clone()
+    } else {
+        project_root.join(&config.project.src)
+    };
 
     // Check source directory exists
     if !src_dir.exists() {
@@ -3238,19 +3255,41 @@ fn run_build(
 
     // Dry run mode
     if dry_run {
+        let out_dir = if config.project.out.is_absolute() {
+            config.project.out.clone()
+        } else {
+            project_root.join(&config.project.out)
+        };
+
         println!("Dry run - would build:");
         println!("  Source: {}", src_dir.display());
         println!("  Output: {}", out_dir.display());
 
-        // Count files that would be processed
-        let result = simple_build(&src_dir, &out_dir);
-        println!("  Files: {}", result.files_processed);
-        println!("  Sprites: {}", result.sprites_rendered);
+        // Use BuildPipeline in dry-run mode to discover targets
+        let context = BuildContext::new(config, project_root).with_verbose(verbose);
+        let pipeline = BuildPipeline::new(context).with_dry_run(true);
+
+        match pipeline.build() {
+            Ok(result) => {
+                println!("  Targets: {}", result.targets.len());
+                for target in &result.targets {
+                    println!("    - {}", target.target_id);
+                }
+            }
+            Err(e) => {
+                eprintln!("  Error discovering targets: {}", e);
+            }
+        }
         return ExitCode::from(EXIT_SUCCESS);
     }
 
-    // Watch mode
+    // Watch mode (still uses simple_build for now - will be updated in BST-7)
     if watch {
+        let out_dir = if config.project.out.is_absolute() {
+            config.project.out.clone()
+        } else {
+            project_root.join(&config.project.out)
+        };
         let options = WatchOptions { src_dir, out_dir, config: config.watch, verbose };
 
         println!("Starting watch mode...");
@@ -3265,22 +3304,26 @@ fn run_build(
             }
         }
     } else {
-        // Single build
+        // Single build using BuildPipeline
         println!("Building...");
-        let result = simple_build(&src_dir, &out_dir);
 
-        if result.success() {
-            println!(
-                "Build complete - Files: {} | Sprites: {}",
-                result.files_processed, result.sprites_rendered
-            );
-            ExitCode::from(EXIT_SUCCESS)
-        } else {
-            eprintln!("Build failed with {} errors", result.errors.len());
-            for error in &result.errors {
-                eprintln!("  {}", error);
+        let context = BuildContext::new(config, project_root).with_verbose(verbose);
+        let pipeline = BuildPipeline::new(context);
+
+        match pipeline.build() {
+            Ok(result) => {
+                if result.is_success() {
+                    println!("{}", result.summary());
+                    ExitCode::from(EXIT_SUCCESS)
+                } else {
+                    eprintln!("{}", result.summary());
+                    ExitCode::from(EXIT_ERROR)
+                }
             }
-            ExitCode::from(EXIT_ERROR)
+            Err(e) => {
+                eprintln!("Build error: {}", e);
+                ExitCode::from(EXIT_ERROR)
+            }
         }
     }
 }
