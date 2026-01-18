@@ -383,6 +383,10 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
 
+        /// Force rebuild all targets (ignore cache)
+        #[arg(short, long)]
+        force: bool,
+
         /// Verbose output
         #[arg(short, long)]
         verbose: bool,
@@ -599,8 +603,8 @@ pub fn run() -> ExitCode {
             onion_fade,
             output.as_deref(),
         ),
-        Commands::Build { out, src, watch, dry_run, verbose } => {
-            run_build(out.as_deref(), src.as_deref(), watch, dry_run, verbose)
+        Commands::Build { out, src, watch, dry_run, force, verbose } => {
+            run_build(out.as_deref(), src.as_deref(), watch, dry_run, force, verbose)
         }
         Commands::New { asset_type, name, palette } => {
             run_new(&asset_type, &name, palette.as_deref())
@@ -3196,9 +3200,10 @@ fn run_build(
     src: Option<&Path>,
     watch: bool,
     dry_run: bool,
+    force: bool,
     verbose: bool,
 ) -> ExitCode {
-    use crate::build::{BuildContext, BuildPipeline};
+    use crate::build::{BuildContext, BuildPipeline, IncrementalBuild, IncrementalStats};
     use crate::config::loader::{find_config, load_config, merge_cli_overrides, CliOverrides};
 
     // Find config file path and determine project root
@@ -3282,16 +3287,19 @@ fn run_build(
         return ExitCode::from(EXIT_SUCCESS);
     }
 
-    // Watch mode using build pipeline
+    // Watch mode using incremental build pipeline
     if watch {
         let watch_config = config.watch.clone();
         let context = BuildContext::new(config, project_root).with_verbose(verbose);
 
         println!("Starting watch mode...");
+        if force {
+            println!("Force mode: caching disabled");
+        }
         println!("Press Ctrl+C to stop");
         println!();
 
-        match crate::watch::watch_with_pipeline(context, watch_config) {
+        match crate::watch::watch_with_incremental(context, watch_config, force) {
             Ok(()) => ExitCode::from(EXIT_SUCCESS),
             Err(e) => {
                 eprintln!("Watch error: {}", e);
@@ -3299,16 +3307,31 @@ fn run_build(
             }
         }
     } else {
-        // Single build using BuildPipeline
-        println!("Building...");
+        // Single build using IncrementalBuild
+        if force {
+            println!("Building (force rebuild, ignoring cache)...");
+        } else {
+            println!("Building (incremental)...");
+        }
 
         let context = BuildContext::new(config, project_root).with_verbose(verbose);
-        let pipeline = BuildPipeline::new(context);
+        let mut incremental = IncrementalBuild::new(context)
+            .with_force(force);
 
-        match pipeline.build() {
+        match incremental.run() {
             Ok(result) => {
+                let stats = IncrementalStats::from_result(&result);
                 if result.is_success() {
-                    println!("{}", result.summary());
+                    // Show incremental stats in summary
+                    if stats.had_skips() && !force {
+                        println!(
+                            "{} ({} skipped - unchanged)",
+                            result.summary(),
+                            stats.skipped
+                        );
+                    } else {
+                        println!("{}", result.summary());
+                    }
                     ExitCode::from(EXIT_SUCCESS)
                 } else {
                     eprintln!("{}", result.summary());

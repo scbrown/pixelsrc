@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
-use crate::build::{BuildContext, BuildPipeline, BuildStatus};
+use crate::build::{BuildContext, BuildPipeline, BuildStatus, IncrementalBuild, IncrementalStats};
 use crate::config::schema::WatchConfig;
 
 /// Error during watch mode
@@ -512,6 +512,182 @@ pub fn watch_with_pipeline(context: BuildContext, watch_config: WatchConfig) -> 
     }
 }
 
+/// Watch for file changes and rebuild using incremental builds.
+///
+/// This function blocks and runs until interrupted (Ctrl+C).
+/// Uses the incremental build system to skip unchanged targets.
+///
+/// # Arguments
+/// * `context` - Build context with config and project root
+/// * `watch_config` - Watch mode configuration
+/// * `force` - If true, bypass caching and rebuild all targets
+///
+/// # Returns
+/// * `Ok(())` if watch mode exits cleanly (shouldn't happen normally)
+/// * `Err(WatchError)` if watch setup fails
+pub fn watch_with_incremental(
+    context: BuildContext,
+    watch_config: WatchConfig,
+    force: bool,
+) -> Result<(), WatchError> {
+    let src_dir = context.src_dir().to_path_buf();
+    let verbose = context.is_verbose();
+
+    // Verify source directory exists
+    if !src_dir.exists() {
+        return Err(WatchError::SourceNotFound(src_dir));
+    }
+
+    // Create output directory if needed
+    let out_dir = context.out_dir();
+    if !out_dir.exists() {
+        std::fs::create_dir_all(out_dir).ok();
+    }
+
+    // Create channel for debounced events
+    let (tx, rx) = channel();
+
+    // Create debounced watcher
+    let debounce_duration = Duration::from_millis(watch_config.debounce_ms as u64);
+    let mut debouncer = new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
+
+    // Start watching the source directory
+    debouncer
+        .watcher()
+        .watch(&src_dir, RecursiveMode::Recursive)
+        .map_err(WatchError::WatchPath)?;
+
+    // Error tracker for detecting fixed files
+    let mut error_tracker = ErrorTracker::new();
+
+    // Create the incremental build
+    let mut incremental = IncrementalBuild::new(context).with_force(force);
+
+    // Initial build
+    if watch_config.clear_screen {
+        clear_screen();
+    }
+    println!("[{}] Building...", timestamp());
+    let build_result = incremental.run();
+    let result = convert_pipeline_result(&build_result);
+    let fixed_files = error_tracker.update(&result);
+    print_incremental_result(&build_result, &fixed_files, verbose, force);
+    println!("[{}] Watching {} for changes...", timestamp(), src_dir.display());
+
+    // Watch loop
+    loop {
+        match rx.recv() {
+            Ok(Ok(events)) => {
+                // Filter for relevant file changes
+                let relevant_changes: Vec<_> = events
+                    .iter()
+                    .filter(|e| {
+                        matches!(e.kind, DebouncedEventKind::Any) && is_relevant_file(&e.path)
+                    })
+                    .collect();
+
+                if !relevant_changes.is_empty() {
+                    // Log changed files
+                    for event in &relevant_changes {
+                        if let Some(name) = event.path.file_name() {
+                            println!("[{}] Changed: {}", timestamp(), name.to_string_lossy());
+                        }
+                    }
+
+                    // Clear screen if configured
+                    if watch_config.clear_screen {
+                        clear_screen();
+                    }
+
+                    // Rebuild using incremental build
+                    println!("[{}] Building...", timestamp());
+                    let build_result = incremental.run();
+                    let result = convert_pipeline_result(&build_result);
+
+                    // Track fixed files before updating error tracker
+                    let fixed_files = error_tracker.update(&result);
+                    print_incremental_result(&build_result, &fixed_files, verbose, force);
+
+                    println!(
+                        "[{}] Watching {} for changes...",
+                        timestamp(),
+                        src_dir.display()
+                    );
+                }
+            }
+            Ok(Err(error)) => {
+                // Watch error (non-fatal) - log but continue watching
+                eprintln!("[{}] Watch error: {:?}", timestamp(), error);
+                eprintln!("[{}] Continuing to watch...", timestamp());
+            }
+            Err(e) => {
+                return Err(WatchError::ChannelError(e.to_string()));
+            }
+        }
+    }
+}
+
+/// Print incremental build result to console
+fn print_incremental_result(
+    build_result: &Result<crate::build::BuildResult, crate::build::pipeline::BuildError>,
+    fixed_files: &[PathBuf],
+    verbose: bool,
+    force: bool,
+) {
+    // Report fixed files first
+    for fixed in fixed_files {
+        println!("[{}] Fixed: {}", timestamp(), fixed.display());
+    }
+
+    match build_result {
+        Ok(result) => {
+            let stats = IncrementalStats::from_result(result);
+            if result.is_success() {
+                if stats.had_skips() && !force {
+                    println!(
+                        "[{}] Build complete ({:?}) - {} built, {} skipped (unchanged)",
+                        timestamp(),
+                        result.total_duration,
+                        stats.built,
+                        stats.skipped
+                    );
+                } else {
+                    println!(
+                        "[{}] Build complete ({:?}) - {} built",
+                        timestamp(),
+                        result.total_duration,
+                        stats.built
+                    );
+                }
+            } else {
+                let failed = stats.failed;
+                println!(
+                    "[{}] Build failed ({:?}) - {} error{}",
+                    timestamp(),
+                    result.total_duration,
+                    failed,
+                    if failed == 1 { "" } else { "s" }
+                );
+
+                // Print failures
+                for target in result.failures() {
+                    eprintln!("[{}] Error: {} - {}", timestamp(), target.target_id, target.status);
+                }
+            }
+
+            // Print warnings if verbose
+            if verbose {
+                for warning in result.all_warnings() {
+                    eprintln!("[{}] Warning: {}", timestamp(), warning);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[{}] Build error: {}", timestamp(), e);
+        }
+    }
+}
+
 /// Convert pipeline BuildResult to watch module's BuildResult for error tracking
 fn convert_pipeline_result(
     pipeline_result: &Result<crate::build::BuildResult, crate::build::pipeline::BuildError>,
@@ -945,6 +1121,31 @@ mod tests {
         let watch_config = WatchConfig::default();
 
         let result = watch_with_pipeline(context, watch_config);
+        assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
+    }
+
+    #[test]
+    fn test_watch_with_incremental_source_not_found() {
+        use crate::config::default_config;
+
+        let config = default_config();
+        let context = BuildContext::new(config, PathBuf::from("/nonexistent/path"));
+        let watch_config = WatchConfig::default();
+
+        let result = watch_with_incremental(context, watch_config, false);
+        assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
+    }
+
+    #[test]
+    fn test_watch_with_incremental_force_mode() {
+        use crate::config::default_config;
+
+        let config = default_config();
+        let context = BuildContext::new(config, PathBuf::from("/nonexistent/path"));
+        let watch_config = WatchConfig::default();
+
+        // Force mode should still fail if source doesn't exist
+        let result = watch_with_incremental(context, watch_config, true);
         assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
     }
 }
