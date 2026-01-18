@@ -6,6 +6,7 @@
 //! - Linear interpolation
 //! - Standard easing functions (ease-in, ease-out, ease-in-out)
 //! - Cubic bezier interpolation with control points
+//! - CSS steps() timing function
 //! - Automatic arc path fitting
 //!
 //! # Example
@@ -22,6 +23,7 @@
 //! ```
 
 use std::f64::consts::PI;
+use std::fmt;
 
 /// A 2D point for motion path calculations
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -76,6 +78,38 @@ impl ControlPoint {
     }
 }
 
+/// Step position for CSS steps() timing function.
+///
+/// Controls when the step occurs within each interval.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepPosition {
+    /// Step occurs at the start of each interval (step-start, jump-start)
+    JumpStart,
+    /// Step occurs at the end of each interval (step-end, jump-end) - default
+    JumpEnd,
+    /// No step at 0% or 100%, steps occur only in between
+    JumpNone,
+    /// Steps occur at both 0% and 100%
+    JumpBoth,
+}
+
+impl Default for StepPosition {
+    fn default() -> Self {
+        StepPosition::JumpEnd
+    }
+}
+
+impl fmt::Display for StepPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StepPosition::JumpStart => write!(f, "jump-start"),
+            StepPosition::JumpEnd => write!(f, "jump-end"),
+            StepPosition::JumpNone => write!(f, "jump-none"),
+            StepPosition::JumpBoth => write!(f, "jump-both"),
+        }
+    }
+}
+
 /// Interpolation method for keyframe animation
 #[derive(Debug, Clone, PartialEq)]
 pub enum Interpolation {
@@ -97,6 +131,13 @@ pub enum Interpolation {
         p1: (f64, f64),
         /// Control point 2 (x, y) - typically (0.0-1.0, 0.0-1.0)
         p2: (f64, f64),
+    },
+    /// CSS steps() timing function - discrete jumps between values
+    Steps {
+        /// Number of steps
+        count: u32,
+        /// When the step occurs within each interval
+        position: StepPosition,
     },
 }
 
@@ -189,6 +230,54 @@ pub fn ease(t: f64, interpolation: &Interpolation) -> f64 {
             // Cubic bezier easing
             // Using iterative approach to find t for given x, then compute y
             cubic_bezier_ease(t, p1.0, p1.1, p2.0, p2.1)
+        }
+
+        Interpolation::Steps { count, position } => {
+            // CSS steps() timing function - discrete jumps
+            steps_ease(t, *count, *position)
+        }
+    }
+}
+
+/// CSS steps() easing calculation
+///
+/// Implements the CSS steps() timing function with all step position variants.
+/// See: https://www.w3.org/TR/css-easing-1/#step-easing-functions
+fn steps_ease(t: f64, count: u32, position: StepPosition) -> f64 {
+    if count == 0 {
+        return t;
+    }
+
+    let steps = count as f64;
+
+    match position {
+        StepPosition::JumpStart => {
+            // Jump at start: ceiling((t * steps)) / steps
+            // step-start = steps(1, jump-start)
+            (t * steps).ceil() / steps
+        }
+        StepPosition::JumpEnd => {
+            // Jump at end: floor((t * steps)) / steps
+            // step-end = steps(1, jump-end)
+            (t * steps).floor() / steps
+        }
+        StepPosition::JumpNone => {
+            // No jump at 0 or 1, only in between
+            // Effectively steps-1 intervals, output ranges from 0 to 1
+            if count == 1 {
+                // Special case: with 1 step and jump-none, output is always 0 until end
+                if t >= 1.0 { 1.0 } else { 0.0 }
+            } else {
+                let intervals = steps - 1.0;
+                ((t * intervals).floor() / intervals).min(1.0)
+            }
+        }
+        StepPosition::JumpBoth => {
+            // Jump at both 0 and 1
+            // steps+1 output values for steps intervals
+            let intervals = steps;
+            let output_steps = steps + 1.0;
+            ((t * intervals).floor() + 1.0) / output_steps
         }
     }
 }
@@ -445,6 +534,223 @@ pub fn parse_motion_path(s: &str) -> Option<MotionPath> {
     }
 }
 
+/// Error type for timing function parsing
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimingFunctionError {
+    /// Empty input string
+    Empty,
+    /// Unknown timing function name
+    UnknownFunction(String),
+    /// Invalid cubic-bezier parameters
+    InvalidBezier(String),
+    /// Invalid steps parameters
+    InvalidSteps(String),
+    /// Syntax error in function call
+    Syntax(String),
+}
+
+impl fmt::Display for TimingFunctionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TimingFunctionError::Empty => write!(f, "empty timing function"),
+            TimingFunctionError::UnknownFunction(name) => {
+                write!(f, "unknown timing function: {}", name)
+            }
+            TimingFunctionError::InvalidBezier(msg) => {
+                write!(f, "invalid cubic-bezier: {}", msg)
+            }
+            TimingFunctionError::InvalidSteps(msg) => {
+                write!(f, "invalid steps: {}", msg)
+            }
+            TimingFunctionError::Syntax(msg) => {
+                write!(f, "syntax error: {}", msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for TimingFunctionError {}
+
+/// Parse a CSS timing function string.
+///
+/// Supports:
+/// - Named functions: `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`,
+///   `step-start`, `step-end`
+/// - `cubic-bezier(x1, y1, x2, y2)` - custom bezier curve
+/// - `steps(count)` or `steps(count, position)` - discrete steps
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::motion::{parse_timing_function, Interpolation, StepPosition};
+///
+/// // Named functions
+/// let ease = parse_timing_function("ease").unwrap();
+/// assert!(matches!(ease, Interpolation::EaseInOut));
+///
+/// // Cubic bezier
+/// let bezier = parse_timing_function("cubic-bezier(0.25, 0.1, 0.25, 1.0)").unwrap();
+/// assert!(matches!(bezier, Interpolation::Bezier { .. }));
+///
+/// // Steps
+/// let steps = parse_timing_function("steps(4, jump-end)").unwrap();
+/// assert!(matches!(steps, Interpolation::Steps { count: 4, position: StepPosition::JumpEnd }));
+/// ```
+pub fn parse_timing_function(s: &str) -> Result<Interpolation, TimingFunctionError> {
+    let s = s.trim();
+
+    if s.is_empty() {
+        return Err(TimingFunctionError::Empty);
+    }
+
+    let lower = s.to_lowercase();
+
+    // Check for named functions first
+    match lower.as_str() {
+        "linear" => return Ok(Interpolation::Linear),
+        "ease" => return Ok(Interpolation::EaseInOut),
+        "ease-in" => return Ok(Interpolation::EaseIn),
+        "ease-out" => return Ok(Interpolation::EaseOut),
+        "ease-in-out" => return Ok(Interpolation::EaseInOut),
+        "step-start" => {
+            return Ok(Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpStart,
+            })
+        }
+        "step-end" => {
+            return Ok(Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpEnd,
+            })
+        }
+        // Also support our custom named functions
+        "bounce" => return Ok(Interpolation::Bounce),
+        "elastic" => return Ok(Interpolation::Elastic),
+        _ => {}
+    }
+
+    // Check for function syntax: name(args)
+    if let Some(paren_start) = s.find('(') {
+        let paren_end = s.rfind(')').ok_or_else(|| {
+            TimingFunctionError::Syntax("missing closing parenthesis".to_string())
+        })?;
+
+        if paren_end <= paren_start {
+            return Err(TimingFunctionError::Syntax(
+                "invalid parentheses".to_string(),
+            ));
+        }
+
+        let func_name = s[..paren_start].trim().to_lowercase();
+        let args_str = s[paren_start + 1..paren_end].trim();
+
+        match func_name.as_str() {
+            "cubic-bezier" => parse_cubic_bezier(args_str),
+            "steps" => parse_steps(args_str),
+            _ => Err(TimingFunctionError::UnknownFunction(func_name)),
+        }
+    } else {
+        Err(TimingFunctionError::UnknownFunction(s.to_string()))
+    }
+}
+
+/// Parse cubic-bezier(x1, y1, x2, y2) arguments
+fn parse_cubic_bezier(args: &str) -> Result<Interpolation, TimingFunctionError> {
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    if parts.len() != 4 {
+        return Err(TimingFunctionError::InvalidBezier(format!(
+            "expected 4 values, got {}",
+            parts.len()
+        )));
+    }
+
+    let x1: f64 = parts[0].parse().map_err(|_| {
+        TimingFunctionError::InvalidBezier(format!("invalid x1 value: {}", parts[0]))
+    })?;
+    let y1: f64 = parts[1].parse().map_err(|_| {
+        TimingFunctionError::InvalidBezier(format!("invalid y1 value: {}", parts[1]))
+    })?;
+    let x2: f64 = parts[2].parse().map_err(|_| {
+        TimingFunctionError::InvalidBezier(format!("invalid x2 value: {}", parts[2]))
+    })?;
+    let y2: f64 = parts[3].parse().map_err(|_| {
+        TimingFunctionError::InvalidBezier(format!("invalid y2 value: {}", parts[3]))
+    })?;
+
+    // CSS spec: x values must be in [0, 1]
+    if !(0.0..=1.0).contains(&x1) {
+        return Err(TimingFunctionError::InvalidBezier(format!(
+            "x1 must be between 0 and 1, got {}",
+            x1
+        )));
+    }
+    if !(0.0..=1.0).contains(&x2) {
+        return Err(TimingFunctionError::InvalidBezier(format!(
+            "x2 must be between 0 and 1, got {}",
+            x2
+        )));
+    }
+    // y values can be outside [0, 1] for overshoot effects
+
+    Ok(Interpolation::Bezier {
+        p1: (x1, y1),
+        p2: (x2, y2),
+    })
+}
+
+/// Parse steps(count) or steps(count, position) arguments
+fn parse_steps(args: &str) -> Result<Interpolation, TimingFunctionError> {
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    if parts.is_empty() || parts.len() > 2 {
+        return Err(TimingFunctionError::InvalidSteps(format!(
+            "expected 1 or 2 values, got {}",
+            parts.len()
+        )));
+    }
+
+    let count: u32 = parts[0].parse().map_err(|_| {
+        TimingFunctionError::InvalidSteps(format!("invalid step count: {}", parts[0]))
+    })?;
+
+    if count == 0 {
+        return Err(TimingFunctionError::InvalidSteps(
+            "step count must be at least 1".to_string(),
+        ));
+    }
+
+    let position = if parts.len() == 2 {
+        parse_step_position(parts[1])?
+    } else {
+        StepPosition::JumpEnd // CSS default
+    };
+
+    // Validate jump-none requires count >= 2
+    if position == StepPosition::JumpNone && count < 2 {
+        return Err(TimingFunctionError::InvalidSteps(
+            "jump-none requires at least 2 steps".to_string(),
+        ));
+    }
+
+    Ok(Interpolation::Steps { count, position })
+}
+
+/// Parse step position keyword
+fn parse_step_position(s: &str) -> Result<StepPosition, TimingFunctionError> {
+    match s.to_lowercase().as_str() {
+        "jump-start" | "start" => Ok(StepPosition::JumpStart),
+        "jump-end" | "end" => Ok(StepPosition::JumpEnd),
+        "jump-none" => Ok(StepPosition::JumpNone),
+        "jump-both" => Ok(StepPosition::JumpBoth),
+        _ => Err(TimingFunctionError::InvalidSteps(format!(
+            "unknown step position: {}",
+            s
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -659,5 +965,327 @@ mod tests {
         assert_eq!(parse_motion_path("arc"), Some(MotionPath::Arc));
         assert_eq!(parse_motion_path("bezier"), Some(MotionPath::Bezier(vec![])));
         assert_eq!(parse_motion_path("invalid"), None);
+    }
+
+    // ========================================================================
+    // CSS Timing Function Tests (CSS-8)
+    // ========================================================================
+
+    #[test]
+    fn test_step_position_default() {
+        assert_eq!(StepPosition::default(), StepPosition::JumpEnd);
+    }
+
+    #[test]
+    fn test_step_position_display() {
+        assert_eq!(format!("{}", StepPosition::JumpStart), "jump-start");
+        assert_eq!(format!("{}", StepPosition::JumpEnd), "jump-end");
+        assert_eq!(format!("{}", StepPosition::JumpNone), "jump-none");
+        assert_eq!(format!("{}", StepPosition::JumpBoth), "jump-both");
+    }
+
+    #[test]
+    fn test_ease_steps_jump_end() {
+        // steps(4, jump-end): outputs 0, 0.25, 0.5, 0.75 at intervals
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpEnd,
+        };
+
+        assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(0.24, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(0.25, &steps) - 0.25).abs() < 0.001);
+        assert!((ease(0.49, &steps) - 0.25).abs() < 0.001);
+        assert!((ease(0.5, &steps) - 0.5).abs() < 0.001);
+        assert!((ease(0.99, &steps) - 0.75).abs() < 0.001);
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_ease_steps_jump_start() {
+        // steps(4, jump-start): outputs 0.25, 0.5, 0.75, 1.0 at intervals
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpStart,
+        };
+
+        assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(0.01, &steps) - 0.25).abs() < 0.001);
+        assert!((ease(0.25, &steps) - 0.25).abs() < 0.001);
+        assert!((ease(0.26, &steps) - 0.5).abs() < 0.001);
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_ease_steps_jump_none() {
+        // steps(4, jump-none): outputs 0, 0.33, 0.67, 1.0
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpNone,
+        };
+
+        assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_ease_steps_jump_both() {
+        // steps(4, jump-both): outputs 0.2, 0.4, 0.6, 0.8 initially, then 1.0
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpBoth,
+        };
+
+        // At t=0, should be 1/5 = 0.2
+        assert!((ease(0.0, &steps) - 0.2).abs() < 0.001);
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_ease_step_start_step_end() {
+        // step-start = steps(1, jump-start)
+        let step_start = Interpolation::Steps {
+            count: 1,
+            position: StepPosition::JumpStart,
+        };
+        assert!((ease(0.0, &step_start) - 0.0).abs() < 0.001);
+        assert!((ease(0.01, &step_start) - 1.0).abs() < 0.001);
+
+        // step-end = steps(1, jump-end)
+        let step_end = Interpolation::Steps {
+            count: 1,
+            position: StepPosition::JumpEnd,
+        };
+        assert!((ease(0.0, &step_end) - 0.0).abs() < 0.001);
+        assert!((ease(0.99, &step_end) - 0.0).abs() < 0.001);
+        assert!((ease(1.0, &step_end) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_timing_function_named() {
+        assert_eq!(
+            parse_timing_function("linear").unwrap(),
+            Interpolation::Linear
+        );
+        assert_eq!(
+            parse_timing_function("ease").unwrap(),
+            Interpolation::EaseInOut
+        );
+        assert_eq!(
+            parse_timing_function("ease-in").unwrap(),
+            Interpolation::EaseIn
+        );
+        assert_eq!(
+            parse_timing_function("ease-out").unwrap(),
+            Interpolation::EaseOut
+        );
+        assert_eq!(
+            parse_timing_function("ease-in-out").unwrap(),
+            Interpolation::EaseInOut
+        );
+        assert_eq!(
+            parse_timing_function("bounce").unwrap(),
+            Interpolation::Bounce
+        );
+        assert_eq!(
+            parse_timing_function("elastic").unwrap(),
+            Interpolation::Elastic
+        );
+    }
+
+    #[test]
+    fn test_parse_timing_function_step_keywords() {
+        assert_eq!(
+            parse_timing_function("step-start").unwrap(),
+            Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpStart
+            }
+        );
+        assert_eq!(
+            parse_timing_function("step-end").unwrap(),
+            Interpolation::Steps {
+                count: 1,
+                position: StepPosition::JumpEnd
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_timing_function_cubic_bezier() {
+        let result = parse_timing_function("cubic-bezier(0.25, 0.1, 0.25, 1.0)").unwrap();
+        match result {
+            Interpolation::Bezier { p1, p2 } => {
+                assert!((p1.0 - 0.25).abs() < 0.001);
+                assert!((p1.1 - 0.1).abs() < 0.001);
+                assert!((p2.0 - 0.25).abs() < 0.001);
+                assert!((p2.1 - 1.0).abs() < 0.001);
+            }
+            _ => panic!("Expected Bezier interpolation"),
+        }
+    }
+
+    #[test]
+    fn test_parse_timing_function_cubic_bezier_spaces() {
+        // Should handle extra whitespace
+        let result = parse_timing_function("cubic-bezier( 0.42 , 0 , 0.58 , 1 )").unwrap();
+        match result {
+            Interpolation::Bezier { p1, p2 } => {
+                assert!((p1.0 - 0.42).abs() < 0.001);
+                assert!((p1.1 - 0.0).abs() < 0.001);
+                assert!((p2.0 - 0.58).abs() < 0.001);
+                assert!((p2.1 - 1.0).abs() < 0.001);
+            }
+            _ => panic!("Expected Bezier interpolation"),
+        }
+    }
+
+    #[test]
+    fn test_parse_timing_function_cubic_bezier_errors() {
+        // Wrong number of arguments
+        assert!(parse_timing_function("cubic-bezier(0.25, 0.1, 0.25)").is_err());
+
+        // Invalid x values (out of [0, 1])
+        assert!(parse_timing_function("cubic-bezier(-0.1, 0.1, 0.25, 1.0)").is_err());
+        assert!(parse_timing_function("cubic-bezier(0.25, 0.1, 1.5, 1.0)").is_err());
+
+        // Non-numeric values
+        assert!(parse_timing_function("cubic-bezier(a, 0.1, 0.25, 1.0)").is_err());
+    }
+
+    #[test]
+    fn test_parse_timing_function_steps() {
+        let result = parse_timing_function("steps(4)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd
+            }
+        );
+
+        let result = parse_timing_function("steps(4, jump-start)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpStart
+            }
+        );
+
+        let result = parse_timing_function("steps(4, jump-end)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd
+            }
+        );
+
+        let result = parse_timing_function("steps(4, jump-none)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpNone
+            }
+        );
+
+        let result = parse_timing_function("steps(4, jump-both)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpBoth
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_timing_function_steps_short_positions() {
+        // CSS also accepts "start" and "end" as shorthand
+        let result = parse_timing_function("steps(4, start)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpStart
+            }
+        );
+
+        let result = parse_timing_function("steps(4, end)").unwrap();
+        assert_eq!(
+            result,
+            Interpolation::Steps {
+                count: 4,
+                position: StepPosition::JumpEnd
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_timing_function_steps_errors() {
+        // Step count must be at least 1
+        assert!(parse_timing_function("steps(0)").is_err());
+
+        // jump-none requires at least 2 steps
+        assert!(parse_timing_function("steps(1, jump-none)").is_err());
+        assert!(parse_timing_function("steps(2, jump-none)").is_ok());
+
+        // Invalid step count
+        assert!(parse_timing_function("steps(abc)").is_err());
+
+        // Unknown step position
+        assert!(parse_timing_function("steps(4, unknown)").is_err());
+    }
+
+    #[test]
+    fn test_parse_timing_function_errors() {
+        // Empty input
+        assert!(parse_timing_function("").is_err());
+
+        // Unknown function
+        assert!(parse_timing_function("unknown-function").is_err());
+        assert!(parse_timing_function("unknown(1, 2)").is_err());
+
+        // Missing parenthesis
+        assert!(parse_timing_function("steps(4").is_err());
+    }
+
+    #[test]
+    fn test_parse_timing_function_case_insensitive() {
+        assert_eq!(
+            parse_timing_function("LINEAR").unwrap(),
+            Interpolation::Linear
+        );
+        assert_eq!(
+            parse_timing_function("EASE-IN-OUT").unwrap(),
+            Interpolation::EaseInOut
+        );
+        assert_eq!(
+            parse_timing_function("Cubic-Bezier(0.25, 0.1, 0.25, 1.0)").unwrap(),
+            Interpolation::Bezier {
+                p1: (0.25, 0.1),
+                p2: (0.25, 1.0)
+            }
+        );
+    }
+
+    #[test]
+    fn test_timing_function_error_display() {
+        let err = TimingFunctionError::Empty;
+        assert_eq!(format!("{}", err), "empty timing function");
+
+        let err = TimingFunctionError::UnknownFunction("foo".to_string());
+        assert_eq!(format!("{}", err), "unknown timing function: foo");
+
+        let err = TimingFunctionError::InvalidBezier("bad value".to_string());
+        assert_eq!(format!("{}", err), "invalid cubic-bezier: bad value");
+
+        let err = TimingFunctionError::InvalidSteps("bad count".to_string());
+        assert_eq!(format!("{}", err), "invalid steps: bad count");
+
+        let err = TimingFunctionError::Syntax("missing paren".to_string());
+        assert_eq!(format!("{}", err), "syntax error: missing paren");
     }
 }
