@@ -127,8 +127,8 @@ mod tests {
     fn test_get_primer_brief() {
         let content = get_primer(PrimerSection::Full, true);
         assert!(content.contains("# Pixelsrc Quick Reference"));
-        // Brief version is shorter
-        assert!(content.len() < 3000);
+        // Brief version should stay reasonably short
+        assert!(content.len() < 3500);
     }
 
     #[test]

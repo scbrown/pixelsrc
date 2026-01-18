@@ -77,21 +77,23 @@ fn test_color_mix_produces_valid_output() {
     let output_dir = std::env::temp_dir().join("pxl_color_mix_test");
     fs::create_dir_all(&output_dir).ok();
 
-    let output_path = output_dir.join("color_mix.png");
+    let output_base = output_dir.join("color_mix.png");
+    // Render appends sprite names: color_mix_<sprite_name>.png
+    let expected_output = output_dir.join("color_mix_color_mix_demo.png");
 
     let output = Command::new(pxl_binary())
         .arg("render")
         .arg(fixture)
         .arg("-o")
-        .arg(&output_path)
+        .arg(&output_base)
         .output()
         .expect("Failed to execute pxl");
 
     assert!(output.status.success());
-    assert!(output_path.exists(), "Output PNG not created");
+    assert!(expected_output.exists(), "Output PNG not created at {:?}", expected_output);
 
     // Verify output is valid PNG by checking file size
-    let metadata = fs::metadata(&output_path).expect("Cannot read output file");
+    let metadata = fs::metadata(&expected_output).expect("Cannot read output file");
     assert!(metadata.len() > 0, "Output file is empty");
 }
 
