@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
+use crate::build::{BuildContext, BuildPipeline, BuildStatus};
 use crate::config::schema::WatchConfig;
 
 /// Error during watch mode
@@ -402,6 +403,199 @@ fn is_relevant_file(path: &Path) -> bool {
     }
 }
 
+/// Watch for file changes and rebuild using the build pipeline.
+///
+/// This function blocks and runs until interrupted (Ctrl+C).
+///
+/// # Arguments
+/// * `context` - Build context with config and project root
+/// * `watch_config` - Watch mode configuration
+///
+/// # Returns
+/// * `Ok(())` if watch mode exits cleanly (shouldn't happen normally)
+/// * `Err(WatchError)` if watch setup fails
+pub fn watch_with_pipeline(context: BuildContext, watch_config: WatchConfig) -> Result<(), WatchError> {
+    let src_dir = context.src_dir().to_path_buf();
+    let verbose = context.is_verbose();
+
+    // Verify source directory exists
+    if !src_dir.exists() {
+        return Err(WatchError::SourceNotFound(src_dir));
+    }
+
+    // Create output directory if needed
+    let out_dir = context.out_dir();
+    if !out_dir.exists() {
+        std::fs::create_dir_all(out_dir).ok();
+    }
+
+    // Create channel for debounced events
+    let (tx, rx) = channel();
+
+    // Create debounced watcher
+    let debounce_duration = Duration::from_millis(watch_config.debounce_ms as u64);
+    let mut debouncer = new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
+
+    // Start watching the source directory
+    debouncer
+        .watcher()
+        .watch(&src_dir, RecursiveMode::Recursive)
+        .map_err(WatchError::WatchPath)?;
+
+    // Error tracker for detecting fixed files
+    let mut error_tracker = ErrorTracker::new();
+
+    // Create the pipeline
+    let pipeline = BuildPipeline::new(context);
+
+    // Initial build
+    if watch_config.clear_screen {
+        clear_screen();
+    }
+    println!("[{}] Building...", timestamp());
+    let pipeline_result = pipeline.build();
+    let result = convert_pipeline_result(&pipeline_result);
+    let fixed_files = error_tracker.update(&result);
+    print_pipeline_result(&pipeline_result, &fixed_files, verbose);
+    println!("[{}] Watching {} for changes...", timestamp(), src_dir.display());
+
+    // Watch loop
+    loop {
+        match rx.recv() {
+            Ok(Ok(events)) => {
+                // Filter for relevant file changes
+                let relevant_changes: Vec<_> = events
+                    .iter()
+                    .filter(|e| {
+                        matches!(e.kind, DebouncedEventKind::Any) && is_relevant_file(&e.path)
+                    })
+                    .collect();
+
+                if !relevant_changes.is_empty() {
+                    // Log changed files
+                    for event in &relevant_changes {
+                        if let Some(name) = event.path.file_name() {
+                            println!("[{}] Changed: {}", timestamp(), name.to_string_lossy());
+                        }
+                    }
+
+                    // Clear screen if configured
+                    if watch_config.clear_screen {
+                        clear_screen();
+                    }
+
+                    // Rebuild using pipeline
+                    println!("[{}] Building...", timestamp());
+                    let pipeline_result = pipeline.build();
+                    let result = convert_pipeline_result(&pipeline_result);
+
+                    // Track fixed files before updating error tracker
+                    let fixed_files = error_tracker.update(&result);
+                    print_pipeline_result(&pipeline_result, &fixed_files, verbose);
+
+                    println!(
+                        "[{}] Watching {} for changes...",
+                        timestamp(),
+                        src_dir.display()
+                    );
+                }
+            }
+            Ok(Err(error)) => {
+                // Watch error (non-fatal) - log but continue watching
+                eprintln!("[{}] Watch error: {:?}", timestamp(), error);
+                eprintln!("[{}] Continuing to watch...", timestamp());
+            }
+            Err(e) => {
+                return Err(WatchError::ChannelError(e.to_string()));
+            }
+        }
+    }
+}
+
+/// Convert pipeline BuildResult to watch module's BuildResult for error tracking
+fn convert_pipeline_result(
+    pipeline_result: &Result<crate::build::BuildResult, crate::build::pipeline::BuildError>,
+) -> BuildResult {
+    let mut result = BuildResult::new();
+
+    match pipeline_result {
+        Ok(build_result) => {
+            result.files_processed = build_result.targets.len();
+            result.sprites_rendered = build_result.success_count();
+            result.duration = build_result.total_duration;
+
+            // Convert failures to BuildErrors
+            for target in &build_result.targets {
+                if let BuildStatus::Failed(msg) = &target.status {
+                    // Try to extract file path from target_id (format: "kind:name")
+                    result.add_error(BuildError::new(
+                        PathBuf::from(&target.target_id),
+                        msg.clone(),
+                    ));
+                }
+            }
+
+            // Collect warnings
+            result.warnings = build_result.all_warnings().into_iter().cloned().collect();
+        }
+        Err(e) => {
+            result.errors.push(e.to_string());
+        }
+    }
+
+    result
+}
+
+/// Print pipeline build result to console
+fn print_pipeline_result(
+    pipeline_result: &Result<crate::build::BuildResult, crate::build::pipeline::BuildError>,
+    fixed_files: &[PathBuf],
+    verbose: bool,
+) {
+    // Report fixed files first
+    for fixed in fixed_files {
+        println!("[{}] Fixed: {}", timestamp(), fixed.display());
+    }
+
+    match pipeline_result {
+        Ok(build_result) => {
+            if build_result.is_success() {
+                println!(
+                    "[{}] Build complete ({:?}) - {} built, {} skipped",
+                    timestamp(),
+                    build_result.total_duration,
+                    build_result.success_count(),
+                    build_result.skipped_count()
+                );
+            } else {
+                let failed = build_result.failed_count();
+                println!(
+                    "[{}] Build failed ({:?}) - {} error{}",
+                    timestamp(),
+                    build_result.total_duration,
+                    failed,
+                    if failed == 1 { "" } else { "s" }
+                );
+
+                // Print failures
+                for target in build_result.failures() {
+                    eprintln!("[{}] Error: {} - {}", timestamp(), target.target_id, target.status);
+                }
+            }
+
+            // Print warnings if verbose
+            if verbose {
+                for warning in build_result.all_warnings() {
+                    eprintln!("[{}] Warning: {}", timestamp(), warning);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[{}] Build error: {}", timestamp(), e);
+        }
+    }
+}
+
 /// Print build result to console with fixed file notifications
 fn print_build_result(result: &BuildResult, fixed_files: &[PathBuf]) {
     // Report fixed files first (before showing new errors)
@@ -685,5 +879,72 @@ mod tests {
 
         assert!(!result.success());
         assert_eq!(result.error_count(), 2);
+    }
+
+    // Pipeline integration tests
+
+    #[test]
+    fn test_convert_pipeline_result_success() {
+        use crate::build::{BuildResult as PipelineBuildResult, TargetResult};
+
+        let mut pipeline_result = PipelineBuildResult::new();
+        pipeline_result.add_result(TargetResult::success(
+            "sprite:test".to_string(),
+            vec![PathBuf::from("test.png")],
+            Duration::from_millis(50),
+        ));
+        pipeline_result.total_duration = Duration::from_millis(100);
+
+        let watch_result = convert_pipeline_result(&Ok(pipeline_result));
+        assert!(watch_result.success());
+        assert_eq!(watch_result.files_processed, 1);
+        assert_eq!(watch_result.sprites_rendered, 1);
+    }
+
+    #[test]
+    fn test_convert_pipeline_result_with_failures() {
+        use crate::build::{BuildResult as PipelineBuildResult, TargetResult};
+
+        let mut pipeline_result = PipelineBuildResult::new();
+        pipeline_result.add_result(TargetResult::success(
+            "sprite:good".to_string(),
+            vec![],
+            Duration::from_millis(50),
+        ));
+        pipeline_result.add_result(TargetResult::failed(
+            "sprite:bad".to_string(),
+            "Invalid syntax".to_string(),
+            Duration::from_millis(10),
+        ));
+
+        let watch_result = convert_pipeline_result(&Ok(pipeline_result));
+        assert!(!watch_result.success());
+        assert_eq!(watch_result.files_processed, 2);
+        assert_eq!(watch_result.sprites_rendered, 1); // Only successful ones
+        assert_eq!(watch_result.build_errors.len(), 1);
+    }
+
+    #[test]
+    fn test_convert_pipeline_result_error() {
+        use crate::build::pipeline::BuildError as PipelineBuildError;
+
+        let pipeline_error = PipelineBuildError::Build("Config error".to_string());
+        let watch_result = convert_pipeline_result(&Err(pipeline_error));
+
+        assert!(!watch_result.success());
+        assert_eq!(watch_result.errors.len(), 1);
+        assert!(watch_result.errors[0].contains("Config error"));
+    }
+
+    #[test]
+    fn test_watch_with_pipeline_source_not_found() {
+        use crate::config::default_config;
+
+        let config = default_config();
+        let context = BuildContext::new(config, PathBuf::from("/nonexistent/path"));
+        let watch_config = WatchConfig::default();
+
+        let result = watch_with_pipeline(context, watch_config);
+        assert!(matches!(result, Err(WatchError::SourceNotFound(_))));
     }
 }

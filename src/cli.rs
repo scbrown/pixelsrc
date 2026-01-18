@@ -3200,7 +3200,6 @@ fn run_build(
 ) -> ExitCode {
     use crate::build::{BuildContext, BuildPipeline};
     use crate::config::loader::{find_config, load_config, merge_cli_overrides, CliOverrides};
-    use crate::watch::{watch_and_rebuild, WatchOptions};
 
     // Find config file path and determine project root
     let (config, project_root) = match find_config() {
@@ -3283,20 +3282,16 @@ fn run_build(
         return ExitCode::from(EXIT_SUCCESS);
     }
 
-    // Watch mode (still uses simple_build for now - will be updated in BST-7)
+    // Watch mode using build pipeline
     if watch {
-        let out_dir = if config.project.out.is_absolute() {
-            config.project.out.clone()
-        } else {
-            project_root.join(&config.project.out)
-        };
-        let options = WatchOptions { src_dir, out_dir, config: config.watch, verbose };
+        let watch_config = config.watch.clone();
+        let context = BuildContext::new(config, project_root).with_verbose(verbose);
 
         println!("Starting watch mode...");
         println!("Press Ctrl+C to stop");
         println!();
 
-        match watch_and_rebuild(options) {
+        match crate::watch::watch_with_pipeline(context, watch_config) {
             Ok(()) => ExitCode::from(EXIT_SUCCESS),
             Err(e) => {
                 eprintln!("Watch error: {}", e);
