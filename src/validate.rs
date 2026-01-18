@@ -362,20 +362,34 @@ impl Validator {
             match first_row_count {
                 None => first_row_count = Some(tokens.len()),
                 Some(expected) if tokens.len() != expected => {
-                    self.issues.push(
-                        ValidationIssue::warning(
-                            line_number,
-                            IssueType::RowLengthMismatch,
-                            format!(
-                                "Row {} has {} tokens, expected {} (row 1 has {})",
-                                row_idx + 1,
-                                tokens.len(),
-                                expected,
-                                expected
-                            ),
-                        )
-                        .with_context(format!("sprite \"{}\"", name)),
+                    let actual = tokens.len();
+                    let message = format!(
+                        "Row {} length mismatch: expected {} tokens, found {}",
+                        row_idx + 1,
+                        expected,
+                        actual
                     );
+
+                    let mut issue = ValidationIssue::warning(
+                        line_number,
+                        IssueType::RowLengthMismatch,
+                        message,
+                    )
+                    .with_context(format!("sprite \"{}\"", name));
+
+                    // Add padding suggestion for short rows
+                    if actual < expected {
+                        let padding_needed = expected - actual;
+                        let padding = "{_}".repeat(padding_needed);
+                        issue = issue.with_suggestion(format!(
+                            "add {} padding token{}: {}",
+                            padding_needed,
+                            if padding_needed == 1 { "" } else { "s" },
+                            padding
+                        ));
+                    }
+
+                    self.issues.push(issue);
                 }
                 _ => {}
             }
@@ -831,6 +845,135 @@ mod tests {
             .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
             .collect();
         assert_eq!(row_mismatch_issues.len(), 1);
+    }
+
+    #[test]
+    fn test_row_length_message_format() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}{a}"]}"#,
+        );
+
+        let row_mismatch_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
+            .collect();
+        assert_eq!(row_mismatch_issues.len(), 1);
+
+        let issue = row_mismatch_issues[0];
+        // Check message format: "Row X length mismatch: expected Y tokens, found Z"
+        assert!(
+            issue.message.contains("expected 4 tokens"),
+            "Message should contain 'expected 4 tokens': {}",
+            issue.message
+        );
+        assert!(
+            issue.message.contains("found 2"),
+            "Message should contain 'found 2': {}",
+            issue.message
+        );
+    }
+
+    #[test]
+    fn test_row_length_padding_suggestion() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}"]}"#,
+        );
+
+        let row_mismatch_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
+            .collect();
+        assert_eq!(row_mismatch_issues.len(), 1);
+
+        let issue = row_mismatch_issues[0];
+        // Check padding suggestion for short row (1 token vs expected 4)
+        assert!(
+            issue.suggestion.is_some(),
+            "Short row should have padding suggestion"
+        );
+        let suggestion = issue.suggestion.as_ref().unwrap();
+        assert!(
+            suggestion.contains("{_}{_}{_}"),
+            "Should suggest 3 padding tokens: {}",
+            suggestion
+        );
+        assert!(
+            suggestion.contains("add 3 padding tokens"),
+            "Should mention adding 3 tokens: {}",
+            suggestion
+        );
+    }
+
+    #[test]
+    fn test_row_length_single_padding_suggestion() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}", "{a}"]}"#,
+        );
+
+        let row_mismatch_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
+            .collect();
+        assert_eq!(row_mismatch_issues.len(), 1);
+
+        let issue = row_mismatch_issues[0];
+        let suggestion = issue.suggestion.as_ref().unwrap();
+        // Should say "token" (singular) not "tokens"
+        assert!(
+            suggestion.contains("add 1 padding token:"),
+            "Should use singular 'token': {}",
+            suggestion
+        );
+    }
+
+    #[test]
+    fn test_row_length_no_padding_for_long_rows() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        // Row 2 is LONGER than row 1 (5 tokens vs 3)
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}", "{a}{a}{a}{a}{a}"]}"#,
+        );
+
+        let row_mismatch_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
+            .collect();
+        assert_eq!(row_mismatch_issues.len(), 1);
+
+        let issue = row_mismatch_issues[0];
+        // Long rows should NOT have padding suggestion (can't "pad" to make shorter)
+        assert!(
+            issue.suggestion.is_none(),
+            "Long rows should not have padding suggestion, but got: {:?}",
+            issue.suggestion
+        );
     }
 
     #[test]
