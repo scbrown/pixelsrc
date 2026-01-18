@@ -1,0 +1,5 @@
+{"type": "sprite", "name": "dot", "size": [2, 2], "palette": {"r": "#FF0000"}, "grid": ["rr", "rr"]}
+{"type": "sprite", "name": "cross", "size": [3, 3], "palette": {".": "#00000000", "g": "#00FF00"}, "grid": [".g.", "ggg", ".g."]}
+{"type": "composition", "name": "grid_positions", "size": [8, 8], "cell_size": [2, 2], "sprites": {".": null, "D": "dot"}, "layers": [{"map": ["D...", ".D..", "..D.", "...D"]}]}
+{"type": "composition", "name": "corner_placement", "size": [6, 6], "cell_size": [3, 3], "sprites": {".": null, "C": "cross"}, "layers": [{"map": ["C.", ".C"]}]}
+{"type": "composition", "name": "centered", "size": [8, 8], "cell_size": [2, 2], "sprites": {".": null, "D": "dot"}, "layers": [{"map": ["....", ".DD.", ".DD.", "...."]}]}

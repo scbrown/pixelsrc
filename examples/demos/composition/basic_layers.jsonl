@@ -1,3 +1,3 @@
 {"type": "sprite", "name": "bg", "size": [5, 5], "palette": {"b": "#0000FF"}, "grid": ["bbbbb", "bbbbb", "bbbbb", "bbbbb", "bbbbb"]}
 {"type": "sprite", "name": "fg", "size": [3, 3], "palette": {".": "#00000000", "r": "#FF0000"}, "grid": [".r.", "rrr", ".r."]}
-{"type": "composition", "name": "scene", "size": [5, 5], "layers": [{"sprite": "bg"}, {"sprite": "fg", "offset": [1, 1]}]}
+{"type": "composition", "name": "scene", "size": [5, 5], "cell_size": [1, 1], "sprites": {"B": "bg", "F": "fg", ".": null}, "layers": [{"map": ["BBBBB", "BBBBB", "BBBBB", "BBBBB", "BBBBB"]}, {"map": [".....", ".FFF.", ".FFF.", ".FFF.", "....."]}]}
