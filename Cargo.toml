@@ -41,6 +41,11 @@ tempfile = "3"
 wasm-bindgen-test = "0.3"
 serial_test = "3.0"
 sha2 = "0.10"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "critical_paths"
+harness = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Enable js feature for getrandom to support WASM (required by lightningcss -> ahash -> getrandom)
