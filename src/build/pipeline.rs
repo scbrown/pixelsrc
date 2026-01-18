@@ -2,11 +2,13 @@
 //!
 //! The pipeline coordinates the execution of build targets in the correct order.
 
+use crate::atlas::{pack_atlas, AtlasBox, AtlasConfig as PackerConfig, SpriteInput};
 use crate::build::{BuildContext, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult};
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
 use crate::registry::PaletteRegistry;
 use crate::renderer::render_sprite;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -317,15 +319,191 @@ impl BuildPipeline {
     }
 
     /// Build an atlas target.
+    ///
+    /// Parses all source files, renders sprites, packs them into a texture atlas,
+    /// and saves the atlas image and metadata JSON.
     fn build_atlas(&self, target: &BuildTarget) -> Result<Vec<std::path::PathBuf>, String> {
-        // Atlas building will be implemented by BST-5
-        // For now, validate sources exist
+        // Validate sources exist
         for source in &target.sources {
             if !source.exists() {
                 return Err(format!("Source file not found: {}", source.display()));
             }
         }
-        Ok(vec![target.output.clone()])
+
+        // Look up the atlas configuration
+        let atlas_config = self
+            .context
+            .config()
+            .atlases
+            .get(&target.name)
+            .ok_or_else(|| format!("Atlas config '{}' not found", target.name))?;
+
+        // Create packer config from atlas config
+        let padding = self.context.config().effective_padding(atlas_config);
+        let packer_config = PackerConfig {
+            max_size: (atlas_config.max_size[0], atlas_config.max_size[1]),
+            padding,
+            power_of_two: atlas_config.power_of_two,
+        };
+
+        // Collect sprites from all source files
+        let mut sprite_inputs: Vec<SpriteInput> = Vec::new();
+        let scale = self.context.default_scale();
+
+        for source in &target.sources {
+            // Parse the source file
+            let file = File::open(source)
+                .map_err(|e| format!("Failed to open {}: {}", source.display(), e))?;
+            let reader = BufReader::new(file);
+            let parse_result = parse_stream(reader);
+
+            // Build palette registry and collect sprites
+            let mut registry = PaletteRegistry::new();
+            let mut sprites = Vec::new();
+
+            for obj in parse_result.objects {
+                match obj {
+                    TtpObject::Palette(p) => {
+                        registry.register(p);
+                    }
+                    TtpObject::Sprite(s) => {
+                        sprites.push(s);
+                    }
+                    _ => {
+                        // Ignore animations, compositions, etc. for atlas building
+                    }
+                }
+            }
+
+            // Render each sprite and add to inputs
+            for sprite in sprites {
+                // Resolve palette for sprite
+                let resolved = if self.context.is_strict() {
+                    registry.resolve_strict(&sprite).map_err(|e| {
+                        format!(
+                            "Failed to resolve palette for '{}' in {}: {}",
+                            sprite.name,
+                            source.display(),
+                            e
+                        )
+                    })?
+                } else {
+                    let result = registry.resolve_lenient(&sprite);
+                    if let Some(warning) = result.warning {
+                        if self.context.is_verbose() {
+                            eprintln!("Warning: {}", warning.message);
+                        }
+                    }
+                    result.palette
+                };
+
+                // Render the sprite
+                let (image, render_warnings) = render_sprite(&sprite, &resolved.colors);
+
+                // Handle render warnings
+                if !render_warnings.is_empty() {
+                    if self.context.is_strict() {
+                        let warnings: Vec<String> =
+                            render_warnings.iter().map(|w| w.message.clone()).collect();
+                        return Err(format!(
+                            "Render warnings for '{}': {}",
+                            sprite.name,
+                            warnings.join("; ")
+                        ));
+                    } else if self.context.is_verbose() {
+                        for warning in &render_warnings {
+                            eprintln!("Warning: sprite '{}': {}", sprite.name, warning.message);
+                        }
+                    }
+                }
+
+                // Apply scale if configured
+                let final_image = if scale > 1 {
+                    image::imageops::resize(
+                        &image,
+                        image.width() * scale,
+                        image.height() * scale,
+                        image::imageops::FilterType::Nearest,
+                    )
+                } else {
+                    image
+                };
+
+                // Extract metadata (origin and boxes)
+                let origin = sprite.metadata.as_ref().and_then(|m| m.origin);
+                let boxes = sprite.metadata.as_ref().and_then(|m| {
+                    m.boxes.as_ref().map(|b| {
+                        b.iter()
+                            .map(|(name, cb)| {
+                                (
+                                    name.clone(),
+                                    AtlasBox { x: cb.x, y: cb.y, w: cb.w, h: cb.h },
+                                )
+                            })
+                            .collect::<HashMap<_, _>>()
+                    })
+                });
+
+                // Create sprite input with file-qualified name to avoid collisions
+                let file_stem =
+                    source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
+                let qualified_name = if target.sources.len() > 1 {
+                    format!("{}:{}", file_stem, sprite.name)
+                } else {
+                    sprite.name.clone()
+                };
+
+                sprite_inputs.push(SpriteInput {
+                    name: qualified_name,
+                    image: final_image,
+                    origin,
+                    boxes,
+                });
+            }
+        }
+
+        if sprite_inputs.is_empty() {
+            return Err(format!(
+                "No sprites found in source files for atlas '{}'",
+                target.name
+            ));
+        }
+
+        // Pack sprites into atlas
+        let base_name = target
+            .output
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&target.name);
+        let result = pack_atlas(&sprite_inputs, &packer_config, base_name);
+
+        if result.atlases.is_empty() {
+            return Err("Failed to pack any sprites into atlas".to_string());
+        }
+
+        // Save atlas images and metadata
+        let mut outputs = Vec::new();
+        let out_dir = target.output.parent().unwrap_or_else(|| std::path::Path::new("."));
+
+        for (image, metadata) in &result.atlases {
+            // Save the PNG
+            let png_path = out_dir.join(&metadata.image);
+            image
+                .save(&png_path)
+                .map_err(|e| format!("Failed to save atlas PNG {}: {}", png_path.display(), e))?;
+            outputs.push(png_path);
+
+            // Save the JSON metadata
+            let json_name = metadata.image.replace(".png", ".json");
+            let json_path = out_dir.join(&json_name);
+            let json_content = serde_json::to_string_pretty(&metadata)
+                .map_err(|e| format!("Failed to serialize atlas metadata: {}", e))?;
+            fs::write(&json_path, json_content)
+                .map_err(|e| format!("Failed to write atlas JSON {}: {}", json_path.display(), e))?;
+            outputs.push(json_path);
+        }
+
+        Ok(outputs)
     }
 
     /// Build an animation target.
@@ -628,5 +806,258 @@ mod tests {
         let img = image::open(&output_file).expect("Should open as valid PNG");
         assert_eq!(img.width(), 2);
         assert_eq!(img.height(), 2);
+    }
+
+    fn create_atlas_test_context(atlas_name: &str, sources: Vec<&str>) -> (TempDir, BuildContext) {
+        use crate::config::{AtlasConfig as ConfigAtlas, PxlConfig, ProjectConfig};
+
+        let temp = TempDir::new().unwrap();
+
+        // Create a config with an atlas definition
+        let mut atlases = std::collections::HashMap::new();
+        atlases.insert(
+            atlas_name.to_string(),
+            ConfigAtlas {
+                sources: sources.into_iter().map(String::from).collect(),
+                max_size: [1024, 1024],
+                padding: Some(0),
+                power_of_two: false,
+                nine_slice: false,
+            },
+        );
+
+        let config = PxlConfig {
+            project: ProjectConfig {
+                name: "test".to_string(),
+                version: "0.1.0".to_string(),
+                src: std::path::PathBuf::from("src/pxl"),
+                out: std::path::PathBuf::from("build"),
+            },
+            atlases,
+            ..default_config()
+        };
+
+        let ctx = BuildContext::new(config, temp.path().to_path_buf());
+
+        // Create source directory
+        let src_dir = temp.path().join("src/pxl");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        (temp, ctx)
+    }
+
+    #[test]
+    fn test_build_atlas_single_sprite() {
+        let (temp, ctx) = create_atlas_test_context("test_atlas", vec!["sprites/*.pxl"]);
+
+        // Create source directory and sprite file
+        let src_dir = temp.path().join("src/pxl/sprites");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        let sprite_file = src_dir.join("red.pxl");
+        let sprite_content = r##"{"type": "sprite", "name": "red", "palette": {"{r}": "#FF0000"}, "grid": ["{r}{r}", "{r}{r}"]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("test_atlas.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "test_atlas".to_string(),
+            vec![sprite_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // Verify PNG was created
+        let png_path = out_dir.join("test_atlas.png");
+        assert!(png_path.exists(), "Atlas PNG should exist");
+
+        let img = image::open(&png_path).expect("Should open as valid PNG");
+        assert_eq!(img.width(), 2);
+        assert_eq!(img.height(), 2);
+
+        // Verify JSON metadata was created
+        let json_path = out_dir.join("test_atlas.json");
+        assert!(json_path.exists(), "Atlas JSON should exist");
+
+        let json_content = fs::read_to_string(&json_path).expect("Should read JSON");
+        assert!(json_content.contains("\"red\""), "JSON should contain sprite name");
+        assert!(json_content.contains("\"frames\""), "JSON should contain frames");
+    }
+
+    #[test]
+    fn test_build_atlas_multiple_sprites() {
+        let (temp, ctx) = create_atlas_test_context("chars", vec!["**/*.pxl"]);
+
+        // Create source files
+        let src_dir = temp.path().join("src/pxl");
+
+        let red_file = src_dir.join("red.pxl");
+        let red_content = r##"{"type": "sprite", "name": "red", "palette": {"{r}": "#FF0000"}, "grid": ["{r}"]}"##;
+        File::create(&red_file).unwrap().write_all(red_content.as_bytes()).unwrap();
+
+        let green_file = src_dir.join("green.pxl");
+        let green_content = r##"{"type": "sprite", "name": "green", "palette": {"{g}": "#00FF00"}, "grid": ["{g}"]}"##;
+        File::create(&green_file).unwrap().write_all(green_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("chars.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "chars".to_string(),
+            vec![red_file, green_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // Verify PNG was created
+        let png_path = out_dir.join("chars.png");
+        assert!(png_path.exists(), "Atlas PNG should exist");
+
+        // Verify JSON contains both sprites
+        let json_path = out_dir.join("chars.json");
+        assert!(json_path.exists(), "Atlas JSON should exist");
+
+        let json_content = fs::read_to_string(&json_path).expect("Should read JSON");
+        // With multiple source files, names are qualified
+        assert!(json_content.contains("red"), "JSON should contain red sprite");
+        assert!(json_content.contains("green"), "JSON should contain green sprite");
+    }
+
+    #[test]
+    fn test_build_atlas_with_metadata() {
+        let (temp, ctx) = create_atlas_test_context("player", vec!["*.pxl"]);
+
+        // Create source file with metadata
+        let src_dir = temp.path().join("src/pxl");
+        let sprite_file = src_dir.join("player.pxl");
+        let sprite_content = r##"{"type": "sprite", "name": "player", "palette": {"{r}": "#FF0000"}, "grid": ["{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}"], "metadata": {"origin": [2, 4], "boxes": {"hurt": {"x": 0, "y": 0, "w": 4, "h": 4}}}}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("player.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "player".to_string(),
+            vec![sprite_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // Verify JSON contains metadata
+        let json_path = out_dir.join("player.json");
+        let json_content = fs::read_to_string(&json_path).expect("Should read JSON");
+
+        assert!(json_content.contains("\"origin\""), "JSON should contain origin");
+        assert!(json_content.contains("\"boxes\""), "JSON should contain boxes");
+        assert!(json_content.contains("\"hurt\""), "JSON should contain hurt box");
+    }
+
+    #[test]
+    fn test_build_atlas_no_sprites_error() {
+        let (temp, ctx) = create_atlas_test_context("empty", vec!["*.pxl"]);
+
+        // Create source file with only a palette (no sprites)
+        let src_dir = temp.path().join("src/pxl");
+        let palette_file = src_dir.join("colors.pxl");
+        let palette_content = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("empty.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "empty".to_string(),
+            vec![palette_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_failure(), "Should fail when no sprites found");
+    }
+
+    #[test]
+    fn test_build_atlas_power_of_two() {
+        use crate::config::{AtlasConfig as ConfigAtlas, PxlConfig, ProjectConfig};
+
+        let temp = TempDir::new().unwrap();
+
+        // Create a config with power_of_two enabled
+        let mut atlases = std::collections::HashMap::new();
+        atlases.insert(
+            "pot".to_string(),
+            ConfigAtlas {
+                sources: vec!["*.pxl".to_string()],
+                max_size: [1024, 1024],
+                padding: Some(0),
+                power_of_two: true,
+                nine_slice: false,
+            },
+        );
+
+        let config = PxlConfig {
+            project: ProjectConfig {
+                name: "test".to_string(),
+                version: "0.1.0".to_string(),
+                src: std::path::PathBuf::from("src/pxl"),
+                out: std::path::PathBuf::from("build"),
+            },
+            atlases,
+            ..default_config()
+        };
+
+        let ctx = BuildContext::new(config, temp.path().to_path_buf());
+
+        // Create source file (3x3 sprite, should become 4x4 with PoT)
+        let src_dir = temp.path().join("src/pxl");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        let sprite_file = src_dir.join("small.pxl");
+        let sprite_content = r##"{"type": "sprite", "name": "small", "palette": {"{r}": "#FF0000"}, "grid": ["{r}{r}{r}", "{r}{r}{r}", "{r}{r}{r}"]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("pot.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "pot".to_string(),
+            vec![sprite_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // Verify PNG has power-of-two dimensions
+        let png_path = out_dir.join("pot.png");
+        let img = image::open(&png_path).expect("Should open as valid PNG");
+        assert_eq!(img.width(), 4, "Width should be power of 2 (4)");
+        assert_eq!(img.height(), 4, "Height should be power of 2 (4)");
     }
 }
