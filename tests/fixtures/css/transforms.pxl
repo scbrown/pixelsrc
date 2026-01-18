@@ -1,0 +1,17 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF", "{w}": "#FFFFFF"}}
+
+{"type": "sprite", "name": "arrow", "palette": "colors", "grid": ["{_}{r}{_}", "{_}{r}{_}", "{r}{r}{r}"]}
+
+{"type": "sprite", "name": "arrow_rotated_90", "palette": "colors", "source": "arrow", "transform": ["rotate:90"]}
+
+{"type": "sprite", "name": "arrow_flipped_h", "palette": "colors", "source": "arrow", "transform": ["mirror-h"]}
+
+{"type": "sprite", "name": "arrow_flipped_v", "palette": "colors", "source": "arrow", "transform": ["mirror-v"]}
+
+{"type": "sprite", "name": "arrow_scaled_2x", "palette": "colors", "source": "arrow", "transform": ["scale:2.0,2.0"]}
+
+{"type": "sprite", "name": "arrow_shifted", "palette": "colors", "source": "arrow", "transform": ["shift:2,1"]}
+
+{"type": "sprite", "name": "pixel", "palette": "colors", "grid": ["{w}"]}
+
+{"type": "sprite", "name": "pixel_scaled_3x", "palette": "colors", "source": "pixel", "transform": ["scale:3.0,3.0"]}

@@ -1224,6 +1224,442 @@ fn get_i32_param(
 }
 
 // ============================================================================
+// CSS Transform Parsing (CSS-14)
+// ============================================================================
+
+/// CSS transform representation for parsing CSS-style transform strings.
+///
+/// Supports CSS transform functions: `translate()`, `rotate()`, `scale()`, `flip()`.
+/// Multiple transforms can be chained in a single string.
+///
+/// # Example
+///
+/// ```
+/// use pixelsrc::transforms::{parse_css_transform, CssTransform};
+///
+/// let transform = parse_css_transform("translate(10, 5) rotate(90deg) scale(2)").unwrap();
+/// assert_eq!(transform.translate, Some((10, 5)));
+/// assert_eq!(transform.rotate, Some(90.0));
+/// assert_eq!(transform.scale, Some((2.0, 2.0)));
+/// ```
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CssTransform {
+    /// Translation offset (x, y) in pixels
+    pub translate: Option<(i32, i32)>,
+    /// Rotation in degrees (positive = clockwise)
+    pub rotate: Option<f64>,
+    /// Scale factors (x, y)
+    pub scale: Option<(f64, f64)>,
+    /// Flip horizontally
+    pub flip_x: bool,
+    /// Flip vertically
+    pub flip_y: bool,
+}
+
+/// Error type for CSS transform parsing failures
+#[derive(Debug, Clone, PartialEq)]
+pub enum CssTransformError {
+    /// Unknown transform function
+    UnknownFunction(String),
+    /// Invalid parameter value
+    InvalidParameter { func: String, message: String },
+    /// Missing required parameter
+    MissingParameter { func: String, param: String },
+    /// Invalid rotation value (for pixel art, must be 90, 180, or 270)
+    InvalidRotation(f64),
+    /// Syntax error
+    SyntaxError(String),
+}
+
+impl fmt::Display for CssTransformError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CssTransformError::UnknownFunction(func) => {
+                write!(f, "unknown CSS transform function: {}", func)
+            }
+            CssTransformError::InvalidParameter { func, message } => {
+                write!(f, "invalid parameter for {}(): {}", func, message)
+            }
+            CssTransformError::MissingParameter { func, param } => {
+                write!(f, "missing required parameter for {}(): {}", func, param)
+            }
+            CssTransformError::InvalidRotation(deg) => {
+                write!(
+                    f,
+                    "invalid rotation: {}deg (pixel art requires 90, 180, or 270)",
+                    deg
+                )
+            }
+            CssTransformError::SyntaxError(msg) => {
+                write!(f, "CSS transform syntax error: {}", msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for CssTransformError {}
+
+impl CssTransform {
+    /// Create a new empty CSS transform
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Convert this CSS transform into a sequence of Transform operations.
+    ///
+    /// The order of operations follows CSS transform order: translate, rotate, scale, flip.
+    /// For pixel art, rotation is restricted to 90, 180, or 270 degrees.
+    ///
+    /// # Returns
+    ///
+    /// A Vec of Transform operations that can be applied to a sprite grid.
+    pub fn to_transforms(&self) -> Result<Vec<Transform>, CssTransformError> {
+        let mut transforms = Vec::new();
+
+        // Apply in CSS order: translate → rotate → scale → flip
+        if let Some((x, y)) = self.translate {
+            transforms.push(Transform::Shift { x, y });
+        }
+
+        if let Some(degrees) = self.rotate {
+            // For pixel art, we only support 90, 180, 270 degree rotations
+            let deg_normalized = degrees.rem_euclid(360.0);
+            let deg_i32 = deg_normalized.round() as i32;
+            match deg_i32 {
+                0 => {} // No rotation needed
+                90 => transforms.push(Transform::Rotate { degrees: 90 }),
+                180 => transforms.push(Transform::Rotate { degrees: 180 }),
+                270 => transforms.push(Transform::Rotate { degrees: 270 }),
+                _ => return Err(CssTransformError::InvalidRotation(degrees)),
+            }
+        }
+
+        if let Some((x, y)) = self.scale {
+            transforms.push(Transform::Scale {
+                x: x as f32,
+                y: y as f32,
+            });
+        }
+
+        if self.flip_x {
+            transforms.push(Transform::MirrorH);
+        }
+        if self.flip_y {
+            transforms.push(Transform::MirrorV);
+        }
+
+        Ok(transforms)
+    }
+
+    /// Check if this transform is empty (no operations)
+    pub fn is_empty(&self) -> bool {
+        self.translate.is_none()
+            && self.rotate.is_none()
+            && self.scale.is_none()
+            && !self.flip_x
+            && !self.flip_y
+    }
+}
+
+/// Parse a CSS transform string into a CssTransform struct.
+///
+/// Supports CSS transform functions:
+/// - `translate(x, y)` - Translation in pixels (integers)
+/// - `rotate(deg)` - Rotation in degrees (90, 180, or 270 for pixel art)
+/// - `scale(n)` or `scale(x, y)` - Uniform or non-uniform scaling
+/// - `flip(x)` or `flip(y)` - Horizontal or vertical flip
+///
+/// # Arguments
+///
+/// * `css` - CSS transform string, e.g., "translate(10, 5) rotate(90deg)"
+///
+/// # Returns
+///
+/// A CssTransform struct with parsed values, or an error if parsing fails.
+///
+/// # Example
+///
+/// ```
+/// use pixelsrc::transforms::parse_css_transform;
+///
+/// // Single transform
+/// let t = parse_css_transform("rotate(90deg)").unwrap();
+/// assert_eq!(t.rotate, Some(90.0));
+///
+/// // Multiple transforms
+/// let t = parse_css_transform("translate(5, 10) scale(2)").unwrap();
+/// assert_eq!(t.translate, Some((5, 10)));
+/// assert_eq!(t.scale, Some((2.0, 2.0)));
+///
+/// // Flip transforms
+/// let t = parse_css_transform("flip(x) flip(y)").unwrap();
+/// assert!(t.flip_x);
+/// assert!(t.flip_y);
+/// ```
+pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError> {
+    let mut result = CssTransform::new();
+    let css = css.trim();
+
+    if css.is_empty() {
+        return Ok(result);
+    }
+
+    // Parse CSS transform functions: func(args) func(args) ...
+    // Use a simple state machine to extract function calls
+    let mut pos = 0;
+    let chars: Vec<char> = css.chars().collect();
+
+    while pos < chars.len() {
+        // Skip whitespace
+        while pos < chars.len() && chars[pos].is_whitespace() {
+            pos += 1;
+        }
+        if pos >= chars.len() {
+            break;
+        }
+
+        // Read function name
+        let func_start = pos;
+        while pos < chars.len() && chars[pos] != '(' && !chars[pos].is_whitespace() {
+            pos += 1;
+        }
+        let func_name: String = chars[func_start..pos].iter().collect();
+        let func_name = func_name.to_lowercase();
+
+        // Skip whitespace before '('
+        while pos < chars.len() && chars[pos].is_whitespace() {
+            pos += 1;
+        }
+
+        // Expect '('
+        if pos >= chars.len() || chars[pos] != '(' {
+            return Err(CssTransformError::SyntaxError(format!(
+                "expected '(' after '{}', got '{}'",
+                func_name,
+                if pos < chars.len() {
+                    chars[pos].to_string()
+                } else {
+                    "end of string".to_string()
+                }
+            )));
+        }
+        pos += 1; // Skip '('
+
+        // Find matching ')'
+        let args_start = pos;
+        let mut paren_depth = 1;
+        while pos < chars.len() && paren_depth > 0 {
+            match chars[pos] {
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                _ => {}
+            }
+            if paren_depth > 0 {
+                pos += 1;
+            }
+        }
+
+        if paren_depth != 0 {
+            return Err(CssTransformError::SyntaxError(
+                "unmatched parentheses".to_string(),
+            ));
+        }
+
+        let args: String = chars[args_start..pos].iter().collect();
+        pos += 1; // Skip ')'
+
+        // Parse the function
+        match func_name.as_str() {
+            "translate" => {
+                let (x, y) = parse_css_translate(&args)?;
+                result.translate = Some((x, y));
+            }
+            "rotate" => {
+                let deg = parse_css_rotate(&args)?;
+                result.rotate = Some(deg);
+            }
+            "scale" | "scalex" | "scaley" => {
+                let (x, y) = parse_css_scale(&func_name, &args)?;
+                result.scale = Some((x, y));
+            }
+            "flip" | "flipx" | "flipy" => {
+                let (fx, fy) = parse_css_flip(&func_name, &args)?;
+                if fx {
+                    result.flip_x = true;
+                }
+                if fy {
+                    result.flip_y = true;
+                }
+            }
+            _ => {
+                return Err(CssTransformError::UnknownFunction(func_name));
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+/// Parse translate(x, y) arguments
+fn parse_css_translate(args: &str) -> Result<(i32, i32), CssTransformError> {
+    let args = args.trim();
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    if parts.is_empty() || parts[0].is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: "translate".to_string(),
+            param: "x".to_string(),
+        });
+    }
+
+    let x = parse_css_length(parts[0]).map_err(|_| CssTransformError::InvalidParameter {
+        func: "translate".to_string(),
+        message: format!("cannot parse '{}' as x offset", parts[0]),
+    })?;
+
+    let y = if parts.len() > 1 {
+        parse_css_length(parts[1]).map_err(|_| CssTransformError::InvalidParameter {
+            func: "translate".to_string(),
+            message: format!("cannot parse '{}' as y offset", parts[1]),
+        })?
+    } else {
+        0 // CSS defaults to 0 if y is not specified
+    };
+
+    Ok((x, y))
+}
+
+/// Parse rotate(deg) argument
+fn parse_css_rotate(args: &str) -> Result<f64, CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: "rotate".to_string(),
+            param: "angle".to_string(),
+        });
+    }
+
+    // Remove 'deg' suffix if present
+    let num_str = if args.to_lowercase().ends_with("deg") {
+        &args[..args.len() - 3]
+    } else {
+        args
+    };
+
+    num_str
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| CssTransformError::InvalidParameter {
+            func: "rotate".to_string(),
+            message: format!("cannot parse '{}' as angle", args),
+        })
+}
+
+/// Parse scale(n) or scale(x, y) arguments
+fn parse_css_scale(func: &str, args: &str) -> Result<(f64, f64), CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: func.to_string(),
+            param: "factor".to_string(),
+        });
+    }
+
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    match func {
+        "scalex" => {
+            let x = parts[0]
+                .parse::<f64>()
+                .map_err(|_| CssTransformError::InvalidParameter {
+                    func: "scaleX".to_string(),
+                    message: format!("cannot parse '{}' as scale factor", parts[0]),
+                })?;
+            Ok((x, 1.0))
+        }
+        "scaley" => {
+            let y = parts[0]
+                .parse::<f64>()
+                .map_err(|_| CssTransformError::InvalidParameter {
+                    func: "scaleY".to_string(),
+                    message: format!("cannot parse '{}' as scale factor", parts[0]),
+                })?;
+            Ok((1.0, y))
+        }
+        _ => {
+            // "scale"
+            let x = parts[0]
+                .parse::<f64>()
+                .map_err(|_| CssTransformError::InvalidParameter {
+                    func: "scale".to_string(),
+                    message: format!("cannot parse '{}' as scale factor", parts[0]),
+                })?;
+
+            let y = if parts.len() > 1 {
+                parts[1]
+                    .parse::<f64>()
+                    .map_err(|_| CssTransformError::InvalidParameter {
+                        func: "scale".to_string(),
+                        message: format!("cannot parse '{}' as y scale factor", parts[1]),
+                    })?
+            } else {
+                x // Uniform scaling if only one value
+            };
+
+            if x <= 0.0 || y <= 0.0 {
+                return Err(CssTransformError::InvalidParameter {
+                    func: "scale".to_string(),
+                    message: "scale factors must be positive".to_string(),
+                });
+            }
+
+            Ok((x, y))
+        }
+    }
+}
+
+/// Parse flip(x) or flip(y) arguments
+fn parse_css_flip(func: &str, args: &str) -> Result<(bool, bool), CssTransformError> {
+    let args = args.trim().to_lowercase();
+
+    match func {
+        "flipx" => Ok((true, false)),
+        "flipy" => Ok((false, true)),
+        "flip" => {
+            if args.is_empty() {
+                return Err(CssTransformError::MissingParameter {
+                    func: "flip".to_string(),
+                    param: "axis (x or y)".to_string(),
+                });
+            }
+            match args.as_str() {
+                "x" | "h" | "horizontal" => Ok((true, false)),
+                "y" | "v" | "vertical" => Ok((false, true)),
+                _ => Err(CssTransformError::InvalidParameter {
+                    func: "flip".to_string(),
+                    message: format!("unknown axis '{}', expected 'x' or 'y'", args),
+                }),
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+/// Parse a CSS length value (with optional 'px' suffix)
+fn parse_css_length(s: &str) -> Result<i32, std::num::ParseIntError> {
+    let s = s.trim();
+    // Remove 'px' suffix if present
+    let num_str = if s.to_lowercase().ends_with("px") {
+        &s[..s.len() - 2]
+    } else {
+        s
+    };
+    num_str.trim().parse::<i32>()
+}
+
+// ============================================================================
 // Animation Transform Application Functions
 // ============================================================================
 
@@ -4193,5 +4629,423 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], "{_}{_}");
         assert_eq!(result[1], "{_}{_}");
+    }
+
+    // =========================================================================
+    // CSS Transform Parsing Tests (CSS-14)
+    // =========================================================================
+
+    #[test]
+    fn test_parse_css_transform_empty() {
+        let result = parse_css_transform("").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_css_transform_whitespace() {
+        let result = parse_css_transform("   ").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_css_translate_basic() {
+        let result = parse_css_transform("translate(10, 5)").unwrap();
+        assert_eq!(result.translate, Some((10, 5)));
+        assert_eq!(result.rotate, None);
+        assert_eq!(result.scale, None);
+        assert!(!result.flip_x);
+        assert!(!result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_translate_with_px() {
+        let result = parse_css_transform("translate(10px, 5px)").unwrap();
+        assert_eq!(result.translate, Some((10, 5)));
+    }
+
+    #[test]
+    fn test_parse_css_translate_negative() {
+        let result = parse_css_transform("translate(-5, -10)").unwrap();
+        assert_eq!(result.translate, Some((-5, -10)));
+    }
+
+    #[test]
+    fn test_parse_css_translate_single_value() {
+        let result = parse_css_transform("translate(10)").unwrap();
+        assert_eq!(result.translate, Some((10, 0)));
+    }
+
+    #[test]
+    fn test_parse_css_rotate_with_deg() {
+        let result = parse_css_transform("rotate(90deg)").unwrap();
+        assert_eq!(result.rotate, Some(90.0));
+    }
+
+    #[test]
+    fn test_parse_css_rotate_without_deg() {
+        let result = parse_css_transform("rotate(180)").unwrap();
+        assert_eq!(result.rotate, Some(180.0));
+    }
+
+    #[test]
+    fn test_parse_css_rotate_270() {
+        let result = parse_css_transform("rotate(270deg)").unwrap();
+        assert_eq!(result.rotate, Some(270.0));
+    }
+
+    #[test]
+    fn test_parse_css_scale_uniform() {
+        let result = parse_css_transform("scale(2)").unwrap();
+        assert_eq!(result.scale, Some((2.0, 2.0)));
+    }
+
+    #[test]
+    fn test_parse_css_scale_non_uniform() {
+        let result = parse_css_transform("scale(2, 1.5)").unwrap();
+        assert_eq!(result.scale, Some((2.0, 1.5)));
+    }
+
+    #[test]
+    fn test_parse_css_scale_fractional() {
+        let result = parse_css_transform("scale(0.5, 0.25)").unwrap();
+        assert_eq!(result.scale, Some((0.5, 0.25)));
+    }
+
+    #[test]
+    fn test_parse_css_scalex() {
+        let result = parse_css_transform("scaleX(2)").unwrap();
+        assert_eq!(result.scale, Some((2.0, 1.0)));
+    }
+
+    #[test]
+    fn test_parse_css_scaley() {
+        let result = parse_css_transform("scaleY(1.5)").unwrap();
+        assert_eq!(result.scale, Some((1.0, 1.5)));
+    }
+
+    #[test]
+    fn test_parse_css_flip_x() {
+        let result = parse_css_transform("flip(x)").unwrap();
+        assert!(result.flip_x);
+        assert!(!result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_flip_y() {
+        let result = parse_css_transform("flip(y)").unwrap();
+        assert!(!result.flip_x);
+        assert!(result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_flip_horizontal() {
+        let result = parse_css_transform("flip(horizontal)").unwrap();
+        assert!(result.flip_x);
+        assert!(!result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_flip_vertical() {
+        let result = parse_css_transform("flip(vertical)").unwrap();
+        assert!(!result.flip_x);
+        assert!(result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_flipx() {
+        let result = parse_css_transform("flipX()").unwrap();
+        assert!(result.flip_x);
+        assert!(!result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_flipy() {
+        let result = parse_css_transform("flipY()").unwrap();
+        assert!(!result.flip_x);
+        assert!(result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_multiple_transforms() {
+        let result = parse_css_transform("translate(10, 5) rotate(90deg) scale(2)").unwrap();
+        assert_eq!(result.translate, Some((10, 5)));
+        assert_eq!(result.rotate, Some(90.0));
+        assert_eq!(result.scale, Some((2.0, 2.0)));
+    }
+
+    #[test]
+    fn test_parse_css_all_transforms() {
+        let result = parse_css_transform("translate(5, 10) rotate(180deg) scale(1.5) flip(x) flip(y)").unwrap();
+        assert_eq!(result.translate, Some((5, 10)));
+        assert_eq!(result.rotate, Some(180.0));
+        assert_eq!(result.scale, Some((1.5, 1.5)));
+        assert!(result.flip_x);
+        assert!(result.flip_y);
+    }
+
+    #[test]
+    fn test_parse_css_case_insensitive() {
+        let result = parse_css_transform("TRANSLATE(5, 5) ROTATE(90DEG)").unwrap();
+        assert_eq!(result.translate, Some((5, 5)));
+        assert_eq!(result.rotate, Some(90.0));
+    }
+
+    #[test]
+    fn test_parse_css_extra_whitespace() {
+        let result = parse_css_transform("  translate( 10 , 5 )   rotate( 90deg )  ").unwrap();
+        assert_eq!(result.translate, Some((10, 5)));
+        assert_eq!(result.rotate, Some(90.0));
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_unknown_function() {
+        let result = parse_css_transform("unknown(1, 2)");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::UnknownFunction(func) => assert_eq!(func, "unknown"),
+            _ => panic!("Expected UnknownFunction error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_missing_paren() {
+        let result = parse_css_transform("translate 10, 5");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CssTransformError::SyntaxError(_)));
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_unmatched_paren() {
+        let result = parse_css_transform("translate(10, 5");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CssTransformError::SyntaxError(_)));
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_scale_zero() {
+        let result = parse_css_transform("scale(0)");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::InvalidParameter { func, .. } => assert_eq!(func, "scale"),
+            _ => panic!("Expected InvalidParameter error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_scale_negative() {
+        let result = parse_css_transform("scale(-1)");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_flip_invalid_axis() {
+        let result = parse_css_transform("flip(z)");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::InvalidParameter { func, .. } => assert_eq!(func, "flip"),
+            _ => panic!("Expected InvalidParameter error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_flip_empty() {
+        let result = parse_css_transform("flip()");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CssTransformError::MissingParameter { .. }));
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_translate_invalid() {
+        let result = parse_css_transform("translate(abc, def)");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::InvalidParameter { func, .. } => assert_eq!(func, "translate"),
+            _ => panic!("Expected InvalidParameter error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_css_transform_error_rotate_invalid() {
+        let result = parse_css_transform("rotate(abc)");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::InvalidParameter { func, .. } => assert_eq!(func, "rotate"),
+            _ => panic!("Expected InvalidParameter error"),
+        }
+    }
+
+    // =========================================================================
+    // CssTransform::to_transforms Tests
+    // =========================================================================
+
+    #[test]
+    fn test_css_transform_to_transforms_empty() {
+        let css = CssTransform::new();
+        let transforms = css.to_transforms().unwrap();
+        assert!(transforms.is_empty());
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_translate() {
+        let mut css = CssTransform::new();
+        css.translate = Some((10, 5));
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::Shift { x: 10, y: 5 }));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_90() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(90.0);
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::Rotate { degrees: 90 }));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_180() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(180.0);
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::Rotate { degrees: 180 }));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_270() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(270.0);
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::Rotate { degrees: 270 }));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_0() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(0.0);
+        let transforms = css.to_transforms().unwrap();
+        assert!(transforms.is_empty()); // 0 degrees = no rotation
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_360() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(360.0);
+        let transforms = css.to_transforms().unwrap();
+        assert!(transforms.is_empty()); // 360 degrees = 0 degrees = no rotation
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_rotate_invalid() {
+        let mut css = CssTransform::new();
+        css.rotate = Some(45.0);
+        let result = css.to_transforms();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CssTransformError::InvalidRotation(deg) => assert!((deg - 45.0).abs() < 0.001),
+            _ => panic!("Expected InvalidRotation error"),
+        }
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_scale() {
+        let mut css = CssTransform::new();
+        css.scale = Some((2.0, 1.5));
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        match &transforms[0] {
+            Transform::Scale { x, y } => {
+                assert!((x - 2.0).abs() < 0.001);
+                assert!((y - 1.5).abs() < 0.001);
+            }
+            _ => panic!("Expected Scale transform"),
+        }
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_flip_x() {
+        let mut css = CssTransform::new();
+        css.flip_x = true;
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::MirrorH));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_flip_y() {
+        let mut css = CssTransform::new();
+        css.flip_y = true;
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 1);
+        assert!(matches!(transforms[0], Transform::MirrorV));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_flip_both() {
+        let mut css = CssTransform::new();
+        css.flip_x = true;
+        css.flip_y = true;
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 2);
+        assert!(matches!(transforms[0], Transform::MirrorH));
+        assert!(matches!(transforms[1], Transform::MirrorV));
+    }
+
+    #[test]
+    fn test_css_transform_to_transforms_all() {
+        let mut css = CssTransform::new();
+        css.translate = Some((10, 5));
+        css.rotate = Some(90.0);
+        css.scale = Some((2.0, 2.0));
+        css.flip_x = true;
+        css.flip_y = true;
+        let transforms = css.to_transforms().unwrap();
+        assert_eq!(transforms.len(), 5);
+        // Order: translate → rotate → scale → flip_x → flip_y
+        assert!(matches!(transforms[0], Transform::Shift { .. }));
+        assert!(matches!(transforms[1], Transform::Rotate { .. }));
+        assert!(matches!(transforms[2], Transform::Scale { .. }));
+        assert!(matches!(transforms[3], Transform::MirrorH));
+        assert!(matches!(transforms[4], Transform::MirrorV));
+    }
+
+    #[test]
+    fn test_css_transform_is_empty() {
+        let css = CssTransform::new();
+        assert!(css.is_empty());
+
+        let mut css2 = CssTransform::new();
+        css2.translate = Some((0, 0));
+        assert!(!css2.is_empty());
+
+        let mut css3 = CssTransform::new();
+        css3.flip_x = true;
+        assert!(!css3.is_empty());
+    }
+
+    #[test]
+    fn test_css_transform_error_display() {
+        let err = CssTransformError::UnknownFunction("foo".to_string());
+        assert_eq!(err.to_string(), "unknown CSS transform function: foo");
+
+        let err = CssTransformError::InvalidParameter {
+            func: "scale".to_string(),
+            message: "must be positive".to_string(),
+        };
+        assert_eq!(err.to_string(), "invalid parameter for scale(): must be positive");
+
+        let err = CssTransformError::MissingParameter {
+            func: "translate".to_string(),
+            param: "x".to_string(),
+        };
+        assert_eq!(err.to_string(), "missing required parameter for translate(): x");
+
+        let err = CssTransformError::InvalidRotation(45.0);
+        assert_eq!(err.to_string(), "invalid rotation: 45deg (pixel art requires 90, 180, or 270)");
+
+        let err = CssTransformError::SyntaxError("bad syntax".to_string());
+        assert_eq!(err.to_string(), "CSS transform syntax error: bad syntax");
     }
 }

@@ -594,8 +594,8 @@ mod tests {
     }
 
     #[test]
-    fn test_color_mix_white_black() {
-        // 50% white + 50% black = gray
+    fn test_color_mix_white_black_srgb() {
+        // 50% white + 50% black = gray (srgb space)
         let gray = parse_color("color-mix(in srgb, white, black)").unwrap();
         // Should be approximately (128, 128, 128)
         assert!(gray.0[0] > 100 && gray.0[0] < 150);
