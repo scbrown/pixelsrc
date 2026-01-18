@@ -57,8 +57,8 @@ use crate::output::{generate_output_path, save_png, scale_image};
 use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
 use crate::palettes;
 use crate::parser::parse_stream;
-use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette};
-use crate::renderer::render_sprite;
+use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette, SpriteRegistry};
+use crate::renderer::{render_resolved, render_sprite};
 use crate::spritesheet::render_spritesheet;
 use crate::transforms::{
     apply_crop, apply_mirror_horizontal, apply_mirror_vertical, apply_outline, apply_pad,
@@ -859,8 +859,9 @@ fn run_render(
         return ExitCode::from(EXIT_ERROR);
     }
 
-    // Build palette registry and collect sprites, animations, and compositions
+    // Build palette registry and sprite registry, and collect sprites, animations, and compositions
     let mut registry = PaletteRegistry::new();
+    let mut sprite_registry = SpriteRegistry::new();
     let mut sprites_by_name: std::collections::HashMap<String, Sprite> =
         std::collections::HashMap::new();
     let mut animations_by_name: std::collections::HashMap<String, Animation> =
@@ -885,6 +886,7 @@ fn run_render(
                         return ExitCode::from(EXIT_ERROR);
                     }
                 }
+                sprite_registry.register_sprite(sprite.clone());
                 sprites_by_name.insert(sprite.name.clone(), sprite);
             }
             TtpObject::Animation(anim) => {
@@ -915,9 +917,9 @@ fn run_render(
                 }
                 compositions_by_name.insert(comp.name.clone(), comp);
             }
-            TtpObject::Variant(_) => {
-                // Variant rendering in CLI is handled by resolving to sprites
-                // The variant will be processed when rendering sprites
+            TtpObject::Variant(variant) => {
+                // Register variant with sprite registry for transform resolution
+                sprite_registry.register_variant(variant);
             }
             TtpObject::Particle(_) => {
                 // Particle systems are runtime constructs, not rendered statically
@@ -938,6 +940,7 @@ fn run_render(
             output,
             &animations_by_name,
             &sprites_by_name,
+            &sprite_registry,
             &registry,
             input_dir,
             &mut include_visited,
@@ -957,6 +960,7 @@ fn run_render(
                 output,
                 &sprites_by_name,
                 &animations_by_name,
+                &sprite_registry,
                 &registry,
                 input_dir,
                 &mut include_visited,
@@ -982,6 +986,7 @@ fn run_render(
             comp_name,
             &compositions_by_name,
             &sprites_by_name,
+            &sprite_registry,
             &registry,
             input_dir,
             &mut include_visited,
@@ -1022,60 +1027,82 @@ fn run_render(
     // Render each sprite
     if render_sprites {
         for sprite in &sprites {
-            // Resolve palette - handle @include: syntax specially
-            let resolved = match &sprite.palette {
-                PaletteRef::Named(name) if is_include_ref(name) => {
-                    // Handle @include:path syntax
-                    let include_path = extract_include_path(name).unwrap();
-                    match resolve_include_with_detection(
-                        include_path,
-                        input_dir,
-                        &mut include_visited,
-                    ) {
-                        Ok(palette) => ResolvedPalette {
-                            colors: palette.colors,
-                            source: PaletteSource::Named(format!("@include:{}", include_path)),
-                        },
-                        Err(e) => {
-                            if strict {
-                                eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                                return ExitCode::from(EXIT_ERROR);
-                            }
-                            all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                            // Fallback to empty palette in lenient mode
-                            ResolvedPalette {
-                                colors: std::collections::HashMap::new(),
-                                source: PaletteSource::Fallback,
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    // Normal palette resolution via registry
-                    match registry.resolve(sprite, strict) {
-                        Ok(result) => {
-                            if let Some(warning) = result.warning {
-                                all_warnings
-                                    .push(format!("sprite '{}': {}", sprite.name, warning.message));
-                                if strict {
-                                    for warning in &all_warnings {
-                                        eprintln!("Error: {}", warning);
-                                    }
-                                    return ExitCode::from(EXIT_ERROR);
-                                }
-                            }
-                            result.palette
-                        }
-                        Err(e) => {
+            // TRF-9: Use sprite registry to resolve transforms
+            // Check if sprite uses @include: palette (needs special handling)
+            let uses_include_palette = matches!(&sprite.palette, PaletteRef::Named(name) if is_include_ref(name));
+
+            // For @include: palettes, resolve palette first, then apply transforms
+            // For normal palettes, use sprite_registry.resolve() which handles both
+            let (final_grid, final_palette) = if uses_include_palette {
+                // Handle @include: palette specially
+                let include_path = if let PaletteRef::Named(name) = &sprite.palette {
+                    extract_include_path(name).unwrap()
+                } else {
+                    unreachable!()
+                };
+
+                let palette_colors = match resolve_include_with_detection(
+                    include_path,
+                    input_dir,
+                    &mut include_visited,
+                ) {
+                    Ok(palette) => palette.colors,
+                    Err(e) => {
+                        if strict {
                             eprintln!("Error: sprite '{}': {}", sprite.name, e);
                             return ExitCode::from(EXIT_ERROR);
                         }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        std::collections::HashMap::new()
                     }
-                }
+                };
+
+                // Still use sprite registry to get transformed grid
+                let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        if strict {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        continue;
+                    }
+                };
+                // Use transformed grid but with include-resolved palette
+                (resolved.grid, palette_colors)
+            } else {
+                // Normal path: sprite_registry handles both transforms and palette
+                let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
+                    Ok(r) => {
+                        for warning in &r.warnings {
+                            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        if strict {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                        continue;
+                    }
+                };
+                (resolved.grid, resolved.palette)
             };
 
-            // Render sprite
-            let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+            // Create resolved sprite for rendering
+            let render_sprite_data = crate::registry::ResolvedSprite {
+                name: sprite.name.clone(),
+                size: sprite.size,
+                grid: final_grid,
+                palette: final_palette,
+                warnings: vec![],
+            };
+
+            // Render the resolved sprite (transforms already applied)
+            let (image, render_warnings) = render_resolved(&render_sprite_data);
 
             // Apply scaling if requested
             let image = scale_image(image, scale);
@@ -1109,10 +1136,11 @@ fn run_render(
     // Render compositions (when no --sprite filter is active)
     if render_compositions {
         for (comp_name, comp) in &compositions_by_name {
-            // Render the composition
+            // Render the composition with sprite registry for transform support (TRF-9)
             let result = render_composition_to_image(
                 comp,
                 &sprites_by_name,
+                &sprite_registry,
                 &registry,
                 input_dir,
                 &mut include_visited,
@@ -1159,6 +1187,7 @@ fn run_render(
 }
 
 /// Render a specific composition
+/// TRF-9: Now uses SpriteRegistry for transform support
 #[allow(clippy::too_many_arguments)]
 fn run_composition_render(
     input: &std::path::Path,
@@ -1166,7 +1195,8 @@ fn run_composition_render(
     comp_name: &str,
     compositions: &std::collections::HashMap<String, Composition>,
     sprites: &std::collections::HashMap<String, Sprite>,
-    registry: &PaletteRegistry,
+    sprite_registry: &SpriteRegistry,
+    palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
     all_warnings: &mut Vec<String>,
@@ -1186,11 +1216,12 @@ fn run_composition_render(
         }
     };
 
-    // Render the composition
+    // Render the composition with sprite registry for transform support
     let result = render_composition_to_image(
         comp,
         sprites,
-        registry,
+        sprite_registry,
+        palette_registry,
         input_dir,
         include_visited,
         all_warnings,
@@ -1233,11 +1264,13 @@ fn run_composition_render(
 }
 
 /// Render a composition to an image buffer
+/// TRF-9: Now uses SpriteRegistry to resolve sprites with transforms applied
 #[allow(clippy::too_many_arguments)]
 fn render_composition_to_image(
     comp: &Composition,
     sprites: &std::collections::HashMap<String, Sprite>,
-    registry: &PaletteRegistry,
+    sprite_registry: &SpriteRegistry,
+    palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
     all_warnings: &mut Vec<String>,
@@ -1258,17 +1291,27 @@ fn render_composition_to_image(
         required_sprites.insert(sprite_name.clone());
     }
 
-    // Render all required sprites
+    // Render all required sprites using sprite registry for transform resolution (TRF-9)
     let mut rendered_sprites: std::collections::HashMap<String, RgbaImage> =
         std::collections::HashMap::new();
 
     for sprite_name in &required_sprites {
-        let sprite = match sprites.get(sprite_name) {
-            Some(s) => s,
-            None => {
+        // First check if sprite exists in the raw sprites map (for @include: handling)
+        let original_sprite = sprites.get(sprite_name);
+
+        // Use sprite registry to resolve the sprite with transforms applied
+        let resolved_sprite = match sprite_registry.resolve(sprite_name, palette_registry, strict) {
+            Ok(resolved) => {
+                // Collect any sprite warnings
+                for warning in &resolved.warnings {
+                    all_warnings.push(format!("sprite '{}': {}", sprite_name, warning.message));
+                }
+                resolved
+            }
+            Err(e) => {
                 let warning_msg = format!(
-                    "composition '{}': sprite '{}' not found",
-                    comp.name, sprite_name
+                    "composition '{}': sprite '{}' resolution failed: {}",
+                    comp.name, sprite_name, e
                 );
                 if strict {
                     eprintln!("Error: {}", warning_msg);
@@ -1279,54 +1322,51 @@ fn render_composition_to_image(
             }
         };
 
-        // Resolve palette for the sprite
-        let resolved = match &sprite.palette {
-            PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path = extract_include_path(name).unwrap();
-                match resolve_include_with_detection(include_path, input_dir, include_visited) {
-                    Ok(palette) => ResolvedPalette {
-                        colors: palette.colors,
-                        source: PaletteSource::Named(format!("@include:{}", include_path)),
-                    },
-                    Err(e) => {
-                        if strict {
-                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                            return Err(ExitCode::from(EXIT_ERROR));
-                        }
-                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                        ResolvedPalette {
-                            colors: std::collections::HashMap::new(),
-                            source: PaletteSource::Fallback,
-                        }
-                    }
-                }
-            }
-            _ => match registry.resolve(sprite, strict) {
-                Ok(result) => {
-                    if let Some(warning) = result.warning {
-                        all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
-                        if strict {
-                            for w in all_warnings.iter() {
-                                eprintln!("Error: {}", w);
+        // Check if we need to handle @include: syntax for palette
+        let final_palette = if resolved_sprite.palette.is_empty() {
+            if let Some(sprite) = original_sprite {
+                if let PaletteRef::Named(name) = &sprite.palette {
+                    if is_include_ref(name) {
+                        let include_path = extract_include_path(name).unwrap();
+                        match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                            Ok(palette) => palette.colors,
+                            Err(e) => {
+                                if strict {
+                                    eprintln!("Error: sprite '{}': {}", sprite_name, e);
+                                    return Err(ExitCode::from(EXIT_ERROR));
+                                }
+                                all_warnings.push(format!("sprite '{}': {}", sprite_name, e));
+                                std::collections::HashMap::new()
                             }
-                            return Err(ExitCode::from(EXIT_ERROR));
                         }
+                    } else {
+                        resolved_sprite.palette.clone()
                     }
-                    result.palette
+                } else {
+                    resolved_sprite.palette.clone()
                 }
-                Err(e) => {
-                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                    return Err(ExitCode::from(EXIT_ERROR));
-                }
-            },
+            } else {
+                resolved_sprite.palette.clone()
+            }
+        } else {
+            resolved_sprite.palette.clone()
         };
 
-        // Render the sprite
-        let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+        // Create resolved sprite with final palette for rendering
+        let render_sprite_data = crate::registry::ResolvedSprite {
+            name: resolved_sprite.name.clone(),
+            size: resolved_sprite.size,
+            grid: resolved_sprite.grid.clone(),
+            palette: final_palette,
+            warnings: vec![],
+        };
+
+        // Render the resolved sprite (transforms already applied)
+        let (image, render_warnings) = render_resolved(&render_sprite_data);
 
         // Collect render warnings
         for warning in render_warnings {
-            all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+            all_warnings.push(format!("sprite '{}': {}", sprite_name, warning.message));
         }
 
         if strict && !all_warnings.is_empty() {
@@ -1358,13 +1398,15 @@ fn render_composition_to_image(
 }
 
 /// Render an animation as GIF or spritesheet
+/// TRF-9: Now uses SpriteRegistry for transform support
 #[allow(clippy::too_many_arguments)]
 fn run_animation_render(
     input: &std::path::Path,
     output: Option<&std::path::Path>,
     animations: &std::collections::HashMap<String, Animation>,
     sprites: &std::collections::HashMap<String, Sprite>,
-    registry: &PaletteRegistry,
+    sprite_registry: &SpriteRegistry,
+    palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
     all_warnings: &mut Vec<String>,
@@ -1465,7 +1507,7 @@ fn run_animation_render(
                     }
                 }
             }
-            _ => match registry.resolve(sprite, strict) {
+            _ => match palette_registry.resolve(sprite, strict) {
                 Ok(result) => {
                     if let Some(warning) = result.warning {
                         all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
@@ -1538,7 +1580,7 @@ fn run_animation_render(
                         }
                     }
                 }
-                _ => match registry.resolve(sprite, strict) {
+                _ => match palette_registry.resolve(sprite, strict) {
                     Ok(result) => {
                         if let Some(warning) = result.warning {
                             all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
@@ -1667,7 +1709,8 @@ fn run_atlas_render(
     output: Option<&std::path::Path>,
     sprites: &std::collections::HashMap<String, Sprite>,
     animations: &std::collections::HashMap<String, Animation>,
-    registry: &PaletteRegistry,
+    sprite_registry: &SpriteRegistry,
+    palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
     all_warnings: &mut Vec<String>,
@@ -1717,7 +1760,7 @@ fn run_atlas_render(
                     }
                 }
             }
-            _ => match registry.resolve(sprite, strict) {
+            _ => match palette_registry.resolve(sprite, strict) {
                 Ok(result) => {
                     if let Some(warning) = result.warning {
                         all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
