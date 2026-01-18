@@ -11,5 +11,6 @@ Output format demonstrations.
 | `gif_animated.jsonl` | Animated GIF |
 | `spritesheet_horizontal.jsonl` | Horizontal strip |
 | `spritesheet_grid.jsonl` | Grid layout |
+| `spritesheet_padding.jsonl` | Varying frame sizes with padding |
 | `atlas_godot.jsonl` | Godot .tres format |
 | `atlas_unity.jsonl` | Unity JSON format |

@@ -1,0 +1,7 @@
+{"type": "sprite", "name": "coin1", "size": [6, 6], "palette": {".": "#00000000", "y": "#FFD700", "o": "#B8860B"}, "grid": ["..yy..", ".yyyy.", "yyyyyy", "yyyyyy", ".yyyy.", "..yy.."]}
+{"type": "sprite", "name": "coin2", "size": [6, 6], "palette": {".": "#00000000", "y": "#FFD700", "o": "#B8860B"}, "grid": ["..oo..", ".oooo.", "oooooo", "oooooo", ".oooo.", "..oo.."]}
+{"type": "sprite", "name": "coin3", "size": [6, 6], "palette": {".": "#00000000", "y": "#FFD700", "o": "#B8860B"}, "grid": ["..yy..", ".yooy.", "yooooy", "yooooy", ".yooy.", "..yy.."]}
+{"type": "sprite", "name": "coin4", "size": [6, 6], "palette": {".": "#00000000", "o": "#B8860B", "Y": "#FFEC8B"}, "grid": ["..oo..", ".oYYo.", "oYYYYo", "oYYYYo", ".oYYo.", "..oo.."]}
+{"type": "sprite", "name": "coin5", "size": [6, 6], "palette": {".": "#00000000", "y": "#FFD700", "o": "#B8860B"}, "grid": ["..yy..", ".yyyy.", "yyyyyy", "yyyyyy", ".yyyy.", "..yy.."]}
+{"type": "sprite", "name": "coin6", "size": [6, 6], "palette": {".": "#00000000", "y": "#FFD700", "o": "#B8860B"}, "grid": ["..oo..", ".oooo.", "oooooo", "oooooo", ".oooo.", "..oo.."]}
+{"type": "animation", "name": "coin_spin", "fps": 10, "frames": ["coin1", "coin2", "coin3", "coin4", "coin5", "coin6"]}
