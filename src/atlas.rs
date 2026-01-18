@@ -3,7 +3,7 @@
 //! Implements shelf bin packing for efficient sprite arrangement.
 
 use image::{Rgba, RgbaImage};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Configuration for atlas packing
@@ -24,7 +24,7 @@ impl Default for AtlasConfig {
 }
 
 /// A collision box in atlas export format
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasBox {
     pub x: i32,
     pub y: i32,
@@ -33,7 +33,7 @@ pub struct AtlasBox {
 }
 
 /// A sprite's position and size within an atlas
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasFrame {
     pub x: u32,
     pub y: u32,
@@ -48,7 +48,7 @@ pub struct AtlasFrame {
 }
 
 /// Animation metadata for atlas export
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasAnimation {
     pub frames: Vec<String>,
     pub fps: u32,
@@ -57,7 +57,7 @@ pub struct AtlasAnimation {
 }
 
 /// A tag within an animation (frame range)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasTag {
     pub from: u32,
     pub to: u32,
@@ -66,12 +66,12 @@ pub struct AtlasTag {
 }
 
 /// Complete atlas metadata
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasMetadata {
     pub image: String,
     pub size: [u32; 2],
     pub frames: HashMap<String, AtlasFrame>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub animations: HashMap<String, AtlasAnimation>,
 }
 

@@ -532,9 +532,106 @@ impl BuildPipeline {
     }
 
     /// Build an export target.
+    ///
+    /// Export targets transform atlas metadata into game engine-specific formats.
+    /// The target ID format is "export:{format}:{atlas_name}".
     fn build_export(&self, target: &BuildTarget) -> Result<Vec<std::path::PathBuf>, String> {
-        // Export building will be implemented by downstream tasks
-        Ok(vec![target.output.clone()])
+        use crate::atlas::AtlasMetadata;
+        use crate::export::{
+            godot::{GodotExportOptions, GodotExporter},
+            libgdx::{LibGdxExportOptions, LibGdxExporter},
+            unity::{UnityExportOptions, UnityExporter, UnityFilterMode},
+        };
+
+        // Parse format from target ID (export:format:name)
+        let parts: Vec<&str> = target.id.split(':').collect();
+        if parts.len() < 3 {
+            return Err(format!("Invalid export target ID: {}", target.id));
+        }
+        let format = parts[1];
+        let atlas_name = parts[2];
+
+        // Find the atlas JSON metadata file
+        let atlas_json_path = self.context.out_dir().join(format!("{}.json", atlas_name));
+        if !atlas_json_path.exists() {
+            return Err(format!(
+                "Atlas metadata not found: {}. Build the atlas first.",
+                atlas_json_path.display()
+            ));
+        }
+
+        // Load the atlas metadata
+        let json_content = fs::read_to_string(&atlas_json_path)
+            .map_err(|e| format!("Failed to read atlas metadata: {}", e))?;
+        let metadata: AtlasMetadata = serde_json::from_str(&json_content)
+            .map_err(|e| format!("Failed to parse atlas metadata: {}", e))?;
+
+        // Ensure output directory exists
+        if let Some(parent) = target.output.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create output directory: {}", e))?;
+        }
+
+        // Export based on format
+        let outputs = match format {
+            "godot" => {
+                let config = &self.context.config().exports.godot;
+                let exporter = GodotExporter::new()
+                    .with_resource_path(&config.resource_path)
+                    .with_sprite_frames(config.sprite_frames)
+                    .with_animation_player(config.animation_player);
+
+                let options = GodotExportOptions {
+                    resource_path: config.resource_path.clone(),
+                    sprite_frames: config.sprite_frames,
+                    animation_player: config.animation_player,
+                    atlas_textures: true,
+                    ..Default::default()
+                };
+
+                // Godot exports to a directory, not a single file
+                let output_dir =
+                    target.output.parent().unwrap_or_else(|| std::path::Path::new("."));
+
+                exporter
+                    .export_godot(&metadata, output_dir, &options)
+                    .map_err(|e| format!("Godot export failed: {}", e))?
+            }
+            "unity" => {
+                let config = &self.context.config().exports.unity;
+                let filter_mode = UnityFilterMode::from_config(&config.filter_mode);
+                let exporter = UnityExporter::new()
+                    .with_pixels_per_unit(config.pixels_per_unit)
+                    .with_filter_mode(filter_mode);
+
+                let options = UnityExportOptions {
+                    pixels_per_unit: config.pixels_per_unit,
+                    filter_mode,
+                    ..Default::default()
+                };
+
+                exporter
+                    .export_unity(&metadata, &target.output, &options)
+                    .map_err(|e| format!("Unity export failed: {}", e))?;
+
+                vec![target.output.clone()]
+            }
+            "libgdx" => {
+                let exporter = LibGdxExporter::new();
+                let options = LibGdxExportOptions::default();
+
+                exporter
+                    .export_libgdx(&metadata, &target.output, &options)
+                    .map_err(|e| format!("libGDX export failed: {}", e))?;
+
+                vec![target.output.clone()]
+            }
+            _ => {
+                return Err(format!("Unknown export format: {}", format));
+            }
+        };
+
+        Ok(outputs)
     }
 }
 
