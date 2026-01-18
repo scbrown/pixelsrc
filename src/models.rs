@@ -3,6 +3,88 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// A value that can be either a literal value or a CSS variable reference.
+///
+/// Used for composition layer properties like `opacity` and `blend` that can
+/// use `var()` syntax to reference CSS custom properties.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::models::VarOr;
+///
+/// // Can be deserialized from either a literal or a var() string
+/// let literal: VarOr<f64> = serde_json::from_str("0.5").unwrap();
+/// let var_ref: VarOr<f64> = serde_json::from_str("\"var(--opacity)\"").unwrap();
+///
+/// assert!(matches!(literal, VarOr::Value(0.5)));
+/// assert!(matches!(var_ref, VarOr::Var(_)));
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum VarOr<T> {
+    /// A literal value
+    Value(T),
+    /// A CSS variable reference (e.g., "var(--name)" or "var(--name, fallback)")
+    Var(String),
+}
+
+impl<T: Default> Default for VarOr<T> {
+    fn default() -> Self {
+        VarOr::Value(T::default())
+    }
+}
+
+impl<T> VarOr<T> {
+    /// Returns true if this is a var() reference
+    pub fn is_var(&self) -> bool {
+        matches!(self, VarOr::Var(_))
+    }
+
+    /// Returns true if this is a literal value
+    pub fn is_value(&self) -> bool {
+        matches!(self, VarOr::Value(_))
+    }
+
+    /// Returns the literal value if present
+    pub fn as_value(&self) -> Option<&T> {
+        match self {
+            VarOr::Value(v) => Some(v),
+            VarOr::Var(_) => None,
+        }
+    }
+
+    /// Returns the var() string if present
+    pub fn as_var(&self) -> Option<&str> {
+        match self {
+            VarOr::Value(_) => None,
+            VarOr::Var(s) => Some(s),
+        }
+    }
+}
+
+impl<T: Copy> VarOr<T> {
+    /// Get the value, returning None if it's a var() reference
+    pub fn value(&self) -> Option<T> {
+        match self {
+            VarOr::Value(v) => Some(*v),
+            VarOr::Var(_) => None,
+        }
+    }
+}
+
+impl From<f64> for VarOr<f64> {
+    fn from(v: f64) -> Self {
+        VarOr::Value(v)
+    }
+}
+
+impl From<String> for VarOr<f64> {
+    fn from(s: String) -> Self {
+        VarOr::Var(s)
+    }
+}
+
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
@@ -343,11 +425,14 @@ pub struct CompositionLayer {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub transform: Option<Vec<TransformSpec>>,
     /// Blend mode for this layer (ATF-10). Default: "normal"
+    /// Supports var() syntax for CSS variable references (CSS-9).
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub blend: Option<String>,
     /// Layer opacity from 0.0 (transparent) to 1.0 (opaque). Default: 1.0
+    /// Supports var() syntax for CSS variable references (CSS-9).
+    /// Can be a number (0.5) or a var() string ("var(--layer-opacity)").
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub opacity: Option<f64>,
+    pub opacity: Option<VarOr<f64>>,
 }
 
 /// A composition that layers sprites onto a canvas.

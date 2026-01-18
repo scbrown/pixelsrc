@@ -1380,7 +1380,8 @@ fn render_composition_to_image(
     }
 
     // Render the composition
-    let result = render_composition(comp, &rendered_sprites, strict);
+    // TODO(CSS-9): Pass variable registry when available from palette parsing
+    let result = render_composition(comp, &rendered_sprites, strict, None);
 
     match result {
         Ok((image, comp_warnings)) => {

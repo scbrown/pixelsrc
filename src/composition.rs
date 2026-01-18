@@ -1,6 +1,7 @@
 //! Composition rendering - layering sprites onto a canvas
 
-use crate::models::Composition;
+use crate::models::{Composition, VarOr};
+use crate::variables::VariableRegistry;
 use image::{Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -70,6 +71,113 @@ impl BlendMode {
             BlendMode::Difference => (base - blend).abs(),
             BlendMode::Darken => base.min(blend),
             BlendMode::Lighten => base.max(blend),
+        }
+    }
+}
+
+// ============================================================================
+// CSS Variable Resolution (CSS-9)
+// ============================================================================
+
+/// Resolve a blend mode string, potentially containing a var() reference.
+///
+/// Returns the resolved blend mode and any warning if resolution failed.
+pub fn resolve_blend_mode(
+    blend: Option<&str>,
+    registry: Option<&VariableRegistry>,
+) -> (BlendMode, Option<Warning>) {
+    let Some(blend_str) = blend else {
+        return (BlendMode::Normal, None);
+    };
+
+    // Check if it contains var() and we have a registry
+    let resolved = if blend_str.contains("var(") {
+        if let Some(reg) = registry {
+            match reg.resolve(blend_str) {
+                Ok(resolved) => resolved,
+                Err(e) => {
+                    return (
+                        BlendMode::Normal,
+                        Some(Warning::new(format!(
+                            "Failed to resolve blend mode variable '{}': {}, using normal",
+                            blend_str, e
+                        ))),
+                    );
+                }
+            }
+        } else {
+            // No registry provided but var() used - warn and use default
+            return (
+                BlendMode::Normal,
+                Some(Warning::new(format!(
+                    "Blend mode '{}' contains var() but no variable registry provided, using normal",
+                    blend_str
+                ))),
+            );
+        }
+    } else {
+        blend_str.to_string()
+    };
+
+    // Parse the resolved string
+    match BlendMode::from_str(&resolved) {
+        Some(mode) => (mode, None),
+        None => (
+            BlendMode::Normal,
+            Some(Warning::new(format!(
+                "Unknown blend mode '{}', using normal",
+                resolved
+            ))),
+        ),
+    }
+}
+
+/// Resolve an opacity value, potentially containing a var() reference.
+///
+/// Returns the resolved opacity (clamped to 0.0-1.0) and any warning if resolution failed.
+pub fn resolve_opacity(
+    opacity: Option<&VarOr<f64>>,
+    registry: Option<&VariableRegistry>,
+) -> (f64, Option<Warning>) {
+    let Some(opacity_val) = opacity else {
+        return (1.0, None);
+    };
+
+    match opacity_val {
+        VarOr::Value(v) => (*v, None),
+        VarOr::Var(var_str) => {
+            if let Some(reg) = registry {
+                match reg.resolve(var_str) {
+                    Ok(resolved) => {
+                        // Try to parse the resolved string as f64
+                        match resolved.trim().parse::<f64>() {
+                            Ok(v) => (v.clamp(0.0, 1.0), None),
+                            Err(_) => (
+                                1.0,
+                                Some(Warning::new(format!(
+                                    "Opacity variable '{}' resolved to '{}' which is not a valid number, using 1.0",
+                                    var_str, resolved
+                                ))),
+                            ),
+                        }
+                    }
+                    Err(e) => (
+                        1.0,
+                        Some(Warning::new(format!(
+                            "Failed to resolve opacity variable '{}': {}, using 1.0",
+                            var_str, e
+                        ))),
+                    ),
+                }
+            } else {
+                (
+                    1.0,
+                    Some(Warning::new(format!(
+                        "Opacity '{}' contains var() but no variable registry provided, using 1.0",
+                        var_str
+                    ))),
+                )
+            }
         }
     }
 }
@@ -201,16 +309,32 @@ impl std::error::Error for CompositionError {}
 ///
 /// # Examples
 ///
+/// # CSS Variable Support (CSS-9)
+///
+/// Layer `blend` and `opacity` properties can use CSS variable syntax:
+/// ```json
+/// {
+///   "blend": "var(--layer-blend)",
+///   "opacity": "var(--layer-opacity, 0.8)"
+/// }
+/// ```
+///
+/// Pass a `VariableRegistry` to resolve these references before rendering.
+///
 /// ```ignore
 /// use pixelsrc::composition::render_composition;
 /// use pixelsrc::models::Composition;
+/// use pixelsrc::variables::VariableRegistry;
 /// use std::collections::HashMap;
 /// use image::RgbaImage;
 ///
 /// let comp = Composition { /* ... */ };
 /// let sprites: HashMap<String, RgbaImage> = HashMap::new();
-/// // Lenient mode
-/// let result = render_composition(&comp, &sprites, false);
+/// let mut registry = VariableRegistry::new();
+/// registry.define("--layer-opacity", "0.5");
+///
+/// // Lenient mode with variable registry
+/// let result = render_composition(&comp, &sprites, false, Some(&registry));
 /// assert!(result.is_ok());
 /// let (image, warnings) = result.unwrap();
 /// ```
@@ -218,6 +342,7 @@ pub fn render_composition(
     comp: &Composition,
     sprites: &HashMap<String, RgbaImage>,
     strict: bool,
+    variables: Option<&VariableRegistry>,
 ) -> Result<(RgbaImage, Vec<Warning>), CompositionError> {
     let mut warnings = Vec::new();
 
@@ -306,13 +431,18 @@ pub fn render_composition(
 
     // Render each layer (bottom to top)
     for layer in &comp.layers {
-        // Parse layer blend mode and opacity (ATF-10)
-        let blend_mode = layer
-            .blend
-            .as_ref()
-            .and_then(|s| BlendMode::from_str(s))
-            .unwrap_or(BlendMode::Normal);
-        let opacity = layer.opacity.unwrap_or(1.0);
+        // Parse layer blend mode and opacity with CSS variable resolution (ATF-10, CSS-9)
+        let (blend_mode, blend_warning) =
+            resolve_blend_mode(layer.blend.as_deref(), variables);
+        if let Some(w) = blend_warning {
+            warnings.push(w);
+        }
+
+        let (opacity, opacity_warning) =
+            resolve_opacity(layer.opacity.as_ref(), variables);
+        if let Some(w) = opacity_warning {
+            warnings.push(w);
+        }
 
         if let Some(ref map) = layer.map {
             // Validate map dimensions match expected grid (only when cell_size > [1,1])
@@ -569,7 +699,7 @@ mod tests {
         };
         let sprites = HashMap::new();
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert_eq!(image.width(), 8);
         assert_eq!(image.height(), 8);
@@ -603,7 +733,7 @@ mod tests {
 
         let sprites = HashMap::from([("red_pixel".to_string(), red_sprite)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 2);
@@ -651,7 +781,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         assert!(!warnings.is_empty());
         assert!(warnings[0].message.contains("Unknown sprite key"));
@@ -674,7 +804,7 @@ mod tests {
         };
 
         // Empty sprites map - sprite not provided
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         assert!(!warnings.is_empty());
         assert!(warnings[0].message.contains("not found"));
@@ -718,7 +848,7 @@ mod tests {
         pixel.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
         let sprites = HashMap::from([("pixel".to_string(), pixel)]);
 
-        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, _) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should infer 2x2 from map
         assert_eq!(image.width(), 2);
@@ -767,7 +897,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0) should be blue (layer 2 overwrites layer 1)
@@ -820,7 +950,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0) should be red (from layer 1)
@@ -886,7 +1016,7 @@ mod tests {
             ("blue_pixel".to_string(), blue_sprite),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0): red -> green -> blue = blue
@@ -932,7 +1062,7 @@ mod tests {
 
         let sprites = HashMap::from([("red_pixel".to_string(), red_sprite)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // All pixels should still be red (empty layer didn't erase anything)
@@ -972,7 +1102,7 @@ mod tests {
         pixel.put_pixel(1, 1, Rgba([255, 0, 0, 255]));
         let sprites = HashMap::from([("pixel".to_string(), pixel)]);
 
-        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // No size mismatch warnings
         assert!(warnings.is_empty());
@@ -1003,7 +1133,7 @@ mod tests {
         pixel.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
         let sprites = HashMap::from([("pixel".to_string(), pixel)]);
 
-        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
     }
@@ -1041,7 +1171,7 @@ mod tests {
         }
         let sprites = HashMap::from([("big_sprite".to_string(), big_sprite)]);
 
-        let result = render_composition(&comp, &sprites, false);
+        let result = render_composition(&comp, &sprites, false, None);
 
         // Should succeed in lenient mode
         assert!(result.is_ok());
@@ -1092,7 +1222,7 @@ mod tests {
         }
         let sprites = HashMap::from([("big_sprite".to_string(), big_sprite)]);
 
-        let result = render_composition(&comp, &sprites, true);
+        let result = render_composition(&comp, &sprites, true, None);
 
         // Should fail in strict mode
         assert!(result.is_err());
@@ -1172,7 +1302,7 @@ mod tests {
             ("blue".to_string(), blue),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should have 1 size mismatch warning
         assert_eq!(warnings.len(), 1);
@@ -1216,7 +1346,7 @@ mod tests {
         }
         let sprites = HashMap::from([("wide_sprite".to_string(), wide_sprite)]);
 
-        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].message.contains("4x2"));
@@ -1255,7 +1385,7 @@ mod tests {
         }
         let sprites = HashMap::from([("tall_sprite".to_string(), tall_sprite)]);
 
-        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].message.contains("2x4"));
@@ -1302,7 +1432,7 @@ mod tests {
 
         let sprites = HashMap::from([("big_a".to_string(), big_a), ("big_b".to_string(), big_b)]);
 
-        let (_, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should have 2 warnings
         assert_eq!(warnings.len(), 2);
@@ -1362,7 +1492,7 @@ mod tests {
 
         let sprites = HashMap::from([("red".to_string(), red), ("green".to_string(), green)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 4);
@@ -1424,7 +1554,7 @@ mod tests {
             ("tile_b".to_string(), tile_b),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 16);
@@ -1489,7 +1619,7 @@ mod tests {
 
         let sprites = HashMap::from([("grass".to_string(), grass), ("water".to_string(), water)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 48);
@@ -1543,7 +1673,7 @@ mod tests {
 
         let sprites = HashMap::from([("wide_tile".to_string(), wide_tile)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 24);
@@ -1606,7 +1736,7 @@ mod tests {
 
         let sprites = HashMap::from([("hero".to_string(), hero), ("hat".to_string(), hat)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // Canvas size should be inferred from base sprite (8x8)
@@ -1639,7 +1769,7 @@ mod tests {
 
         let sprites = HashMap::from([("base".to_string(), base)]);
 
-        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, _) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should use explicit size, not base size
         assert_eq!(image.width(), 10);
@@ -1686,7 +1816,7 @@ mod tests {
             ("tile".to_string(), tile),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // The key assertion: base sprite size (16x20) takes priority over layer-inferred (8x8)
         assert_eq!(image.width(), 16);
@@ -1726,7 +1856,7 @@ mod tests {
 
         let sprites = HashMap::from([("tile".to_string(), tile)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // Inferred: 3 cols * 8 = 24, 2 rows * 8 = 16
@@ -1759,7 +1889,7 @@ mod tests {
 
         let sprites = HashMap::from([("tile".to_string(), tile)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should have warning about missing base
         assert!(!warnings.is_empty());
@@ -1811,7 +1941,7 @@ mod tests {
 
         let sprites = HashMap::from([("bg".to_string(), bg), ("overlay".to_string(), overlay)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
 
@@ -1898,7 +2028,7 @@ mod tests {
             ("hero_red".to_string(), variant_img),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         assert_eq!(image.width(), 4);
@@ -1943,7 +2073,7 @@ mod tests {
                 ..Default::default()}],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No divisibility warnings
         let div_warnings: Vec<_> = warnings
@@ -1970,7 +2100,7 @@ mod tests {
             }],
         };
 
-        let result = render_composition(&comp, &HashMap::new(), false);
+        let result = render_composition(&comp, &HashMap::new(), false, None);
 
         // Should succeed in lenient mode
         assert!(result.is_ok());
@@ -2003,7 +2133,7 @@ mod tests {
             }],
         };
 
-        let result = render_composition(&comp, &HashMap::new(), true);
+        let result = render_composition(&comp, &HashMap::new(), true, None);
 
         // Should fail in strict mode
         assert!(result.is_err());
@@ -2041,7 +2171,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No dimension warnings
         let dim_warnings: Vec<_> = warnings
@@ -2069,7 +2199,7 @@ mod tests {
             }],
         };
 
-        let result = render_composition(&comp, &HashMap::new(), false);
+        let result = render_composition(&comp, &HashMap::new(), false, None);
 
         // Should succeed in lenient mode
         assert!(result.is_ok());
@@ -2104,7 +2234,7 @@ mod tests {
             }],
         };
 
-        let result = render_composition(&comp, &HashMap::new(), true);
+        let result = render_composition(&comp, &HashMap::new(), true, None);
 
         // Should fail in strict mode
         assert!(result.is_err());
@@ -2143,7 +2273,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // Should have warning mentioning unnamed layer
         let dim_warnings: Vec<_> = warnings
@@ -2171,7 +2301,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No divisibility or dimension warnings for cell_size [1,1]
         let validation_warnings: Vec<_> = warnings
@@ -2200,7 +2330,7 @@ mod tests {
             }],
         };
 
-        let (_, warnings) = render_composition(&comp, &HashMap::new(), false).unwrap();
+        let (_, warnings) = render_composition(&comp, &HashMap::new(), false, None).unwrap();
 
         // No validation warnings
         let validation_warnings: Vec<_> = warnings
@@ -2417,7 +2547,7 @@ mod tests {
             ("shadow".to_string(), shadow),
         ]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // (0,0) should be darkened (white * gray = gray)
@@ -2455,7 +2585,7 @@ mod tests {
                     fill: None,
                     map: Some(vec!["R".to_string()]),
                     blend: None,
-                    opacity: Some(0.5), // 50% opacity
+                    opacity: Some(VarOr::Value(0.5)), // 50% opacity
                     transform: None,
                 },
             ],
@@ -2469,7 +2599,7 @@ mod tests {
 
         let sprites = HashMap::from([("blue".to_string(), blue), ("red".to_string(), red)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // Should be a mix of red and blue (purple-ish)
@@ -2518,7 +2648,7 @@ mod tests {
 
         let sprites = HashMap::from([("blue".to_string(), blue), ("red".to_string(), red)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // Add mode: blue + red = magenta
@@ -2551,7 +2681,7 @@ mod tests {
 
         let sprites = HashMap::from([("red".to_string(), red)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
 
         assert!(warnings.is_empty());
         // Should be full red
@@ -2581,9 +2711,253 @@ mod tests {
 
         let sprites = HashMap::from([("red".to_string(), red)]);
 
-        let (image, _) = render_composition(&comp, &sprites, false).unwrap();
+        let (image, _) = render_composition(&comp, &sprites, false, None).unwrap();
 
         // Should still work, falling back to normal blend
         assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    // ========================================================================
+    // CSS Variable Tests (CSS-9)
+    // ========================================================================
+
+    #[test]
+    fn test_resolve_blend_mode_with_var() {
+        let mut registry = VariableRegistry::new();
+        registry.define("--blend", "multiply");
+
+        let (mode, warning) = resolve_blend_mode(Some("var(--blend)"), Some(&registry));
+        assert_eq!(mode, BlendMode::Multiply);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_resolve_blend_mode_with_var_fallback() {
+        let registry = VariableRegistry::new();
+
+        // Missing variable with fallback
+        let (mode, warning) = resolve_blend_mode(Some("var(--missing, screen)"), Some(&registry));
+        assert_eq!(mode, BlendMode::Screen);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_resolve_blend_mode_undefined_var() {
+        let registry = VariableRegistry::new();
+
+        // Missing variable without fallback
+        let (mode, warning) = resolve_blend_mode(Some("var(--undefined)"), Some(&registry));
+        assert_eq!(mode, BlendMode::Normal);
+        assert!(warning.is_some());
+        assert!(warning.unwrap().message.contains("Failed to resolve"));
+    }
+
+    #[test]
+    fn test_resolve_blend_mode_no_registry() {
+        // var() used but no registry provided
+        let (mode, warning) = resolve_blend_mode(Some("var(--blend)"), None);
+        assert_eq!(mode, BlendMode::Normal);
+        assert!(warning.is_some());
+        assert!(warning.unwrap().message.contains("no variable registry"));
+    }
+
+    #[test]
+    fn test_resolve_opacity_with_var() {
+        let mut registry = VariableRegistry::new();
+        registry.define("--opacity", "0.5");
+
+        let var_opacity = VarOr::Var("var(--opacity)".to_string());
+        let (opacity, warning) = resolve_opacity(Some(&var_opacity), Some(&registry));
+        assert!((opacity - 0.5).abs() < 0.001);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_resolve_opacity_with_var_fallback() {
+        let registry = VariableRegistry::new();
+
+        // Missing variable with numeric fallback
+        let var_opacity = VarOr::Var("var(--missing, 0.75)".to_string());
+        let (opacity, warning) = resolve_opacity(Some(&var_opacity), Some(&registry));
+        assert!((opacity - 0.75).abs() < 0.001);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_resolve_opacity_literal() {
+        let registry = VariableRegistry::new();
+
+        // Literal value (not var)
+        let literal_opacity = VarOr::Value(0.3);
+        let (opacity, warning) = resolve_opacity(Some(&literal_opacity), Some(&registry));
+        assert!((opacity - 0.3).abs() < 0.001);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_resolve_opacity_clamps_values() {
+        let mut registry = VariableRegistry::new();
+        registry.define("--over", "2.0");
+        registry.define("--under", "-0.5");
+
+        // Value over 1.0 should clamp to 1.0
+        let over = VarOr::Var("var(--over)".to_string());
+        let (opacity, _) = resolve_opacity(Some(&over), Some(&registry));
+        assert!((opacity - 1.0).abs() < 0.001);
+
+        // Value under 0.0 should clamp to 0.0
+        let under = VarOr::Var("var(--under)".to_string());
+        let (opacity, _) = resolve_opacity(Some(&under), Some(&registry));
+        assert!(opacity.abs() < 0.001);
+    }
+
+    #[test]
+    fn test_resolve_opacity_invalid_number() {
+        let mut registry = VariableRegistry::new();
+        registry.define("--invalid", "not-a-number");
+
+        let var_opacity = VarOr::Var("var(--invalid)".to_string());
+        let (opacity, warning) = resolve_opacity(Some(&var_opacity), Some(&registry));
+        assert!((opacity - 1.0).abs() < 0.001); // Falls back to 1.0
+        assert!(warning.is_some());
+        assert!(warning.unwrap().message.contains("not a valid number"));
+    }
+
+    #[test]
+    fn test_resolve_opacity_no_registry() {
+        let var_opacity = VarOr::Var("var(--opacity)".to_string());
+        let (opacity, warning) = resolve_opacity(Some(&var_opacity), None);
+        assert!((opacity - 1.0).abs() < 0.001); // Falls back to 1.0
+        assert!(warning.is_some());
+        assert!(warning.unwrap().message.contains("no variable registry"));
+    }
+
+    #[test]
+    fn test_composition_with_var_opacity() {
+        // Full integration test with composition rendering
+        let mut registry = VariableRegistry::new();
+        registry.define("--layer-opacity", "0.5");
+
+        let comp = Composition {
+            name: "var_opacity_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([("R".to_string(), Some("red".to_string()))]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["R".to_string()]),
+                blend: None,
+                opacity: Some(VarOr::Var("var(--layer-opacity)".to_string())),
+                transform: None,
+            }],
+        };
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        let sprites = HashMap::from([("red".to_string(), red)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
+        assert!(warnings.is_empty());
+
+        // With 50% opacity on transparent background, the alpha should be 127/128
+        let pixel = image.get_pixel(0, 0);
+        assert_eq!(pixel[0], 255); // Red channel full
+        assert!(pixel[3] < 200); // Alpha reduced due to opacity
+    }
+
+    #[test]
+    fn test_composition_with_var_blend_mode() {
+        let mut registry = VariableRegistry::new();
+        registry.define("--layer-blend", "add");
+
+        let comp = Composition {
+            name: "var_blend_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([("R".to_string(), Some("red".to_string()))]),
+            layers: vec![
+                // Base layer
+                CompositionLayer {
+                    name: Some("base".to_string()),
+                    fill: None,
+                    map: Some(vec!["R".to_string()]),
+                    blend: None,
+                    opacity: Some(VarOr::Value(1.0)),
+                    transform: None,
+                },
+                // Top layer with var blend
+                CompositionLayer {
+                    name: Some("top".to_string()),
+                    fill: None,
+                    map: Some(vec!["R".to_string()]),
+                    blend: Some("var(--layer-blend)".to_string()),
+                    opacity: Some(VarOr::Value(1.0)),
+                    transform: None,
+                },
+            ],
+        };
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([128, 0, 0, 255]));
+        let sprites = HashMap::from([("red".to_string(), red)]);
+
+        let (image, warnings) = render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
+        assert!(warnings.is_empty());
+
+        // With additive blend mode, 128 + 128 = 255 (clamped)
+        let pixel = image.get_pixel(0, 0);
+        assert_eq!(pixel[0], 255); // Red should be clamped at 255
+    }
+
+    #[test]
+    fn test_composition_var_without_registry_warns() {
+        let comp = Composition {
+            name: "no_registry_test".to_string(),
+            base: None,
+            size: Some([1, 1]),
+            cell_size: Some([1, 1]),
+            sprites: HashMap::from([("R".to_string(), Some("red".to_string()))]),
+            layers: vec![CompositionLayer {
+                name: None,
+                fill: None,
+                map: Some(vec!["R".to_string()]),
+                blend: Some("var(--blend)".to_string()),
+                opacity: Some(VarOr::Var("var(--opacity)".to_string())),
+                transform: None,
+            }],
+        };
+
+        let mut red = RgbaImage::new(1, 1);
+        red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        let sprites = HashMap::from([("red".to_string(), red)]);
+
+        // No registry passed
+        let (_, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
+
+        // Should have warnings for both blend and opacity
+        assert_eq!(warnings.len(), 2);
+        assert!(warnings.iter().any(|w| w.message.contains("blend")));
+        assert!(warnings.iter().any(|w| w.message.contains("Opacity")));
+    }
+
+    #[test]
+    fn test_var_or_deserialization() {
+        // Test that VarOr<f64> deserializes correctly from JSON
+        use serde_json;
+
+        // Number value
+        let num: VarOr<f64> = serde_json::from_str("0.5").unwrap();
+        assert!(matches!(num, VarOr::Value(v) if (v - 0.5).abs() < 0.001));
+
+        // String var() reference
+        let var: VarOr<f64> = serde_json::from_str(r#""var(--opacity)""#).unwrap();
+        assert!(matches!(var, VarOr::Var(s) if s == "var(--opacity)"));
+
+        // String var() with fallback
+        let var_fb: VarOr<f64> = serde_json::from_str(r#""var(--opacity, 0.5)""#).unwrap();
+        assert!(matches!(var_fb, VarOr::Var(s) if s == "var(--opacity, 0.5)"));
     }
 }
