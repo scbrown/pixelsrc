@@ -277,6 +277,56 @@ When deploying WASM-based features, verify:
 - **IE11**: Not supported (no WebAssembly)
 - **Some corporate proxies**: May block `.wasm` file downloads
 
+## Chronicle Integration
+
+[Chronicle](https://git.lan/stiwi/chronicle) is a narrative engine for games and graphic novels that uses pixelsrc as its asset rendering layer.
+
+### How Chronicle Uses Pixelsrc
+
+Chronicle embeds pixelsrc WASM internally to:
+- Pre-render character sprites (all emotions/variants)
+- Pre-render location backgrounds
+- Generate animation frames for portraits
+- Compose scenes (background + positioned characters)
+- Render comic panels
+
+Game clients interact with Chronicle, not pixelsrc directly:
+
+```
+Game Client → Chronicle (WASM) → Pixelsrc (embedded)
+                  │
+                  └─► Pre-rendered PNGs
+```
+
+### Asset Flow
+
+1. Game generates pixelsrc JSONL (via AI or authoring)
+2. Chronicle receives: `createCharacter(def, pixelsrc_jsonl)`
+3. Chronicle stores the JSONL
+4. Chronicle calls pixelsrc to render → caches PNG
+5. Later: Chronicle returns cached PNG on request
+
+### Why Embed vs. Direct Use
+
+Chronicle embeds pixelsrc rather than exposing it to clients because:
+- **Pre-rendering**: Assets rendered once at creation, not on demand
+- **Caching**: Chronicle manages the render cache
+- **Simplicity**: Clients only deal with PNGs, not JSONL
+- **Consistency**: All rendering goes through one path
+
+### Generating Assets for Chronicle
+
+When generating assets for use with Chronicle, follow the standard pixelsrc format:
+
+```jsonl
+{"type": "palette", "name": "hero_colors", "{skin}": "#FFDAB9", "{hair}": "#8B4513", "{armor}": "#4682B4"}
+{"type": "sprite", "name": "hero_neutral", "palette": "hero_colors", "grid": [...]}
+{"type": "sprite", "name": "hero_happy", "palette": "hero_colors", "grid": [...]}
+{"type": "animation", "name": "hero_talk", "frames": ["hero_talk_1", "hero_talk_2"], "duration": 100}
+```
+
+Chronicle will parse this JSONL and render each sprite/animation to its cache.
+
 ## Related
 
 - [Web Editor](web-editor.md) - Browser-based editor using WASM
