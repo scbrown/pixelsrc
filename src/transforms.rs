@@ -1239,11 +1239,7 @@ impl fmt::Display for CssTransformError {
                 write!(f, "missing required parameter for {}(): {}", func, param)
             }
             CssTransformError::InvalidRotation(deg) => {
-                write!(
-                    f,
-                    "invalid rotation: {}deg (pixel art requires 90, 180, or 270)",
-                    deg
-                )
+                write!(f, "invalid rotation: {}deg (pixel art requires 90, 180, or 270)", deg)
             }
             CssTransformError::SyntaxError(msg) => {
                 write!(f, "CSS transform syntax error: {}", msg)
@@ -1290,10 +1286,7 @@ impl CssTransform {
         }
 
         if let Some((x, y)) = self.scale {
-            transforms.push(Transform::Scale {
-                x: x as f32,
-                y: y as f32,
-            });
+            transforms.push(Transform::Scale { x: x as f32, y: y as f32 });
         }
 
         if self.flip_x {
@@ -1415,9 +1408,7 @@ pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError>
         }
 
         if paren_depth != 0 {
-            return Err(CssTransformError::SyntaxError(
-                "unmatched parentheses".to_string(),
-            ));
+            return Err(CssTransformError::SyntaxError("unmatched parentheses".to_string()));
         }
 
         let args: String = chars[args_start..pos].iter().collect();
@@ -1496,19 +1487,12 @@ fn parse_css_rotate(args: &str) -> Result<f64, CssTransformError> {
     }
 
     // Remove 'deg' suffix if present
-    let num_str = if args.to_lowercase().ends_with("deg") {
-        &args[..args.len() - 3]
-    } else {
-        args
-    };
+    let num_str = if args.to_lowercase().ends_with("deg") { &args[..args.len() - 3] } else { args };
 
-    num_str
-        .trim()
-        .parse::<f64>()
-        .map_err(|_| CssTransformError::InvalidParameter {
-            func: "rotate".to_string(),
-            message: format!("cannot parse '{}' as angle", args),
-        })
+    num_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+        func: "rotate".to_string(),
+        message: format!("cannot parse '{}' as angle", args),
+    })
 }
 
 /// Parse scale(n) or scale(x, y) arguments
@@ -1526,39 +1510,31 @@ fn parse_css_scale(func: &str, args: &str) -> Result<(f64, f64), CssTransformErr
 
     match func {
         "scalex" => {
-            let x = parts[0]
-                .parse::<f64>()
-                .map_err(|_| CssTransformError::InvalidParameter {
-                    func: "scaleX".to_string(),
-                    message: format!("cannot parse '{}' as scale factor", parts[0]),
-                })?;
+            let x = parts[0].parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+                func: "scaleX".to_string(),
+                message: format!("cannot parse '{}' as scale factor", parts[0]),
+            })?;
             Ok((x, 1.0))
         }
         "scaley" => {
-            let y = parts[0]
-                .parse::<f64>()
-                .map_err(|_| CssTransformError::InvalidParameter {
-                    func: "scaleY".to_string(),
-                    message: format!("cannot parse '{}' as scale factor", parts[0]),
-                })?;
+            let y = parts[0].parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+                func: "scaleY".to_string(),
+                message: format!("cannot parse '{}' as scale factor", parts[0]),
+            })?;
             Ok((1.0, y))
         }
         _ => {
             // "scale"
-            let x = parts[0]
-                .parse::<f64>()
-                .map_err(|_| CssTransformError::InvalidParameter {
-                    func: "scale".to_string(),
-                    message: format!("cannot parse '{}' as scale factor", parts[0]),
-                })?;
+            let x = parts[0].parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+                func: "scale".to_string(),
+                message: format!("cannot parse '{}' as scale factor", parts[0]),
+            })?;
 
             let y = if parts.len() > 1 {
-                parts[1]
-                    .parse::<f64>()
-                    .map_err(|_| CssTransformError::InvalidParameter {
-                        func: "scale".to_string(),
-                        message: format!("cannot parse '{}' as y scale factor", parts[1]),
-                    })?
+                parts[1].parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+                    func: "scale".to_string(),
+                    message: format!("cannot parse '{}' as y scale factor", parts[1]),
+                })?
             } else {
                 x // Uniform scaling if only one value
             };
@@ -1606,11 +1582,7 @@ fn parse_css_flip(func: &str, args: &str) -> Result<(bool, bool), CssTransformEr
 fn parse_css_length(s: &str) -> Result<i32, std::num::ParseIntError> {
     let s = s.trim();
     // Remove 'px' suffix if present
-    let num_str = if s.to_lowercase().ends_with("px") {
-        &s[..s.len() - 2]
-    } else {
-        s
-    };
+    let num_str = if s.to_lowercase().ends_with("px") { &s[..s.len() - 2] } else { s };
     num_str.trim().parse::<i32>()
 }
 
@@ -4430,7 +4402,9 @@ mod tests {
 
     #[test]
     fn test_parse_css_all_transforms() {
-        let result = parse_css_transform("translate(5, 10) rotate(180deg) scale(1.5) flip(x) flip(y)").unwrap();
+        let result =
+            parse_css_transform("translate(5, 10) rotate(180deg) scale(1.5) flip(x) flip(y)")
+                .unwrap();
         assert_eq!(result.translate, Some((5, 10)));
         assert_eq!(result.rotate, Some(180.0));
         assert_eq!(result.scale, Some((1.5, 1.5)));

@@ -59,12 +59,7 @@ fn assert_renders_successfully(fixture_path: &str) {
         stderr
     );
 
-    assert!(
-        !stderr.contains("Warning:"),
-        "Unexpected warnings for {}: {}",
-        fixture_path,
-        stderr
-    );
+    assert!(!stderr.contains("Warning:"), "Unexpected warnings for {}: {}", fixture_path, stderr);
 }
 
 // ============================================================================
@@ -126,11 +121,7 @@ fn test_keyframes_animation_output() {
         .expect("Failed to execute pxl");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "Keyframes render failed: {}",
-        stderr
-    );
+    assert!(output.status.success(), "Keyframes render failed: {}", stderr);
 }
 
 // ============================================================================
@@ -155,14 +146,9 @@ fn test_transforms_all_rotations() {
     fs::create_dir_all(&output_dir).ok();
 
     // Render each sprite variant
-    for sprite in &[
-        "arrow",
-        "arrow_rot90",
-        "arrow_rot180",
-        "arrow_rot270",
-        "arrow_flip_h",
-        "arrow_flip_v",
-    ] {
+    for sprite in
+        &["arrow", "arrow_rot90", "arrow_rot180", "arrow_rot270", "arrow_flip_h", "arrow_flip_v"]
+    {
         let output_path = output_dir.join(format!("{}.png", sprite));
 
         let output = Command::new(pxl_binary())
@@ -176,12 +162,7 @@ fn test_transforms_all_rotations() {
             .expect("Failed to execute pxl");
 
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            output.status.success(),
-            "Failed to render sprite '{}': {}",
-            sprite,
-            stderr
-        );
+        assert!(output.status.success(), "Failed to render sprite '{}': {}", sprite, stderr);
     }
 }
 
@@ -202,13 +183,7 @@ fn test_integrated_variables_and_color_mix() {
     fs::create_dir_all(&output_dir).ok();
 
     // Render specific sprites that use the combined features
-    for sprite in &[
-        "button_normal",
-        "button_hover",
-        "icon_base",
-        "icon_muted",
-        "panel_bg",
-    ] {
+    for sprite in &["button_normal", "button_hover", "icon_base", "icon_muted", "panel_bg"] {
         let output_path = output_dir.join(format!("{}.png", sprite));
 
         let output = Command::new(pxl_binary())
@@ -250,19 +225,11 @@ fn test_all_css_fixtures_render() {
         let path = entry.path();
 
         // Test both .jsonl and .pxl files
-        if path
-            .extension()
-            .map_or(false, |e| e == "jsonl" || e == "pxl")
-        {
+        if path.extension().map_or(false, |e| e == "jsonl" || e == "pxl") {
             let output = run_pxl_render(&path);
             let stderr = String::from_utf8_lossy(&output.stderr);
 
-            assert!(
-                output.status.success(),
-                "CSS fixture {:?} failed to render: {}",
-                path,
-                stderr
-            );
+            assert!(output.status.success(), "CSS fixture {:?} failed to render: {}", path, stderr);
 
             assert!(
                 !stderr.contains("Error:"),
@@ -275,16 +242,9 @@ fn test_all_css_fixtures_render() {
         }
     }
 
-    assert!(
-        files_tested >= 4,
-        "Expected at least 4 CSS fixtures, found {}",
-        files_tested
-    );
+    assert!(files_tested >= 4, "Expected at least 4 CSS fixtures, found {}", files_tested);
 
-    println!(
-        "All {} CSS fixtures in tests/fixtures/css/ rendered successfully",
-        files_tested
-    );
+    println!("All {} CSS fixtures in tests/fixtures/css/ rendered successfully", files_tested);
 }
 
 // ============================================================================
@@ -299,10 +259,7 @@ fn test_css_fixtures_pass_strict_mode() {
         let entry = entry.expect("Cannot read directory entry");
         let path = entry.path();
 
-        if path
-            .extension()
-            .map_or(false, |e| e == "jsonl" || e == "pxl")
-        {
+        if path.extension().map_or(false, |e| e == "jsonl" || e == "pxl") {
             let output_dir = std::env::temp_dir().join("pxl_css_strict_test");
             fs::create_dir_all(&output_dir).ok();
 

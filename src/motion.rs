@@ -1197,7 +1197,7 @@ mod tests {
         // CSS allows y values outside [0,1] for spring-like effects
         // Use a more aggressive overshoot curve
         let bezier = Interpolation::Bezier {
-            p1: (0.2, 2.0),  // High y1 creates strong overshoot early
+            p1: (0.2, 2.0), // High y1 creates strong overshoot early
             p2: (0.8, 1.0),
         };
 
@@ -1222,7 +1222,7 @@ mod tests {
     fn test_ease_bezier_undershoot() {
         // y values < 0 create anticipation/undershoot
         let bezier = Interpolation::Bezier {
-            p1: (0.5, -0.5),  // y < 0 creates undershoot
+            p1: (0.5, -0.5), // y < 0 creates undershoot
             p2: (0.5, 0.5),
         };
 
@@ -1246,20 +1246,14 @@ mod tests {
     fn test_ease_bezier_standard_curves() {
         // CSS standard "ease" curve: cubic-bezier(0.25, 0.1, 0.25, 1.0)
         // This curve has a slight ease-in at start then accelerates
-        let ease_curve = Interpolation::Bezier {
-            p1: (0.25, 0.1),
-            p2: (0.25, 1.0),
-        };
+        let ease_curve = Interpolation::Bezier { p1: (0.25, 0.1), p2: (0.25, 1.0) };
         // The CSS "ease" starts slow but then accelerates quickly
         // At t=0.1, the output should be less than t (slow start)
         let very_early = ease(0.1, &ease_curve);
         assert!(very_early < 0.15, "ease curve should start slow, got {} at t=0.1", very_early);
 
         // CSS "ease-in-out" curve: cubic-bezier(0.42, 0, 0.58, 1)
-        let ease_in_out_curve = Interpolation::Bezier {
-            p1: (0.42, 0.0),
-            p2: (0.58, 1.0),
-        };
+        let ease_in_out_curve = Interpolation::Bezier { p1: (0.42, 0.0), p2: (0.58, 1.0) };
         // Should pass through ~0.5 at t=0.5 (symmetric curve)
         let mid = ease(0.5, &ease_in_out_curve);
         assert!((mid - 0.5).abs() < 0.15, "ease-in-out should be ~0.5 at midpoint, got {}", mid);
@@ -1274,10 +1268,7 @@ mod tests {
         // Typical sprite sheet scenario: 8 frames, each frame shows for equal time
         // With steps(8, jump-end), frame indices are 0-7
         // Input t=0.0 to 1.0, output should map to frame indices 0-7
-        let steps = Interpolation::Steps {
-            count: 8,
-            position: StepPosition::JumpEnd,
-        };
+        let steps = Interpolation::Steps { count: 8, position: StepPosition::JumpEnd };
 
         // Frame 0: t in [0, 0.125)
         assert!((ease(0.0, &steps) * 8.0).floor() == 0.0);
@@ -1299,10 +1290,7 @@ mod tests {
     fn test_steps_sprite_animation_jump_start() {
         // With jump-start, the first visible frame is frame 1 (not 0)
         // Useful for animations where you don't want to show the "idle" frame
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpStart,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpStart };
 
         // At t=0 (before animation starts), output is 0
         assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
@@ -1318,10 +1306,7 @@ mod tests {
     fn test_steps_jump_none_3_steps() {
         // jump-none with 3 steps gives outputs: 0, 0.5, 1.0
         // Useful when you want both ends to hold
-        let steps = Interpolation::Steps {
-            count: 3,
-            position: StepPosition::JumpNone,
-        };
+        let steps = Interpolation::Steps { count: 3, position: StepPosition::JumpNone };
 
         // 3 steps with jump-none = 2 intervals
         // Interval 1: [0, 0.5) -> output 0
@@ -1339,10 +1324,7 @@ mod tests {
     fn test_steps_jump_both_3_steps() {
         // jump-both with 3 steps gives outputs: 0.25, 0.5, 0.75 in intervals, then 1.0
         // 3 intervals, 4 output values including start/end
-        let steps = Interpolation::Steps {
-            count: 3,
-            position: StepPosition::JumpBoth,
-        };
+        let steps = Interpolation::Steps { count: 3, position: StepPosition::JumpBoth };
 
         // At t=0, we're already at first step (1/4 = 0.25)
         assert!((ease(0.0, &steps) - 0.25).abs() < 0.001);
@@ -1378,7 +1360,8 @@ mod tests {
             ControlPoint::with_control(100.0, 0.0, 75.0, 50.0),
         ];
 
-        let mid = interpolate_path(&keyframes, 0.5, &MotionPath::Bezier(vec![]), &Interpolation::Linear);
+        let mid =
+            interpolate_path(&keyframes, 0.5, &MotionPath::Bezier(vec![]), &Interpolation::Linear);
 
         // Should be at midpoint x-wise, with some y offset from control points
         assert!((mid.x - 50.0).abs() < 5.0);
@@ -1422,10 +1405,7 @@ mod tests {
         assert!((ease(1.5, &Interpolation::Linear) - 1.0).abs() < 0.001);
 
         // Same for steps
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpEnd,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpEnd };
         assert!((ease(-0.5, &steps) - 0.0).abs() < 0.001);
         assert!((ease(1.5, &steps) - 1.0).abs() < 0.001);
     }
@@ -1491,21 +1471,24 @@ mod tests {
     #[test]
     fn test_generate_motion_frames_empty() {
         let keyframes: Vec<(u32, Point2D)> = vec![];
-        let frames = generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
+        let frames =
+            generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
         assert!(frames.is_empty());
     }
 
     #[test]
     fn test_generate_motion_frames_zero_frames() {
         let keyframes = vec![(0, Point2D::new(0.0, 0.0))];
-        let frames = generate_motion_frames(&keyframes, 0, &MotionPath::Linear, &Interpolation::Linear);
+        let frames =
+            generate_motion_frames(&keyframes, 0, &MotionPath::Linear, &Interpolation::Linear);
         assert!(frames.is_empty());
     }
 
     #[test]
     fn test_generate_motion_frames_single_keyframe() {
         let keyframes = vec![(5, Point2D::new(50.0, 50.0))];
-        let frames = generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
+        let frames =
+            generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
         assert_eq!(frames.len(), 10);
 
         // All frames should be at the single keyframe position
@@ -1517,19 +1500,18 @@ mod tests {
 
     #[test]
     fn test_generate_motion_frames_with_easing() {
-        let keyframes = vec![
-            (0, Point2D::new(0.0, 0.0)),
-            (10, Point2D::new(100.0, 0.0)),
-        ];
+        let keyframes = vec![(0, Point2D::new(0.0, 0.0)), (10, Point2D::new(100.0, 0.0))];
 
         // With ease-in, motion should be slower at start
-        let frames_ease_in = generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseIn);
+        let frames_ease_in =
+            generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseIn);
 
         // Frame 2 (t=0.2) should have moved less than 20 pixels with ease-in
         assert!(frames_ease_in[2].x < 20.0);
 
         // With ease-out, motion should be faster at start
-        let frames_ease_out = generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseOut);
+        let frames_ease_out =
+            generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseOut);
 
         // Frame 2 (t=0.2) should have moved more than 20 pixels with ease-out
         assert!(frames_ease_out[2].x > 20.0);
@@ -1560,17 +1542,14 @@ mod tests {
         let v2 = ease(0.2, &interp);
 
         assert!((v0 - 0.0).abs() < 0.001);
-        assert!((v1 - 0.0).abs() < 0.001);  // Still in first step
-        assert!((v2 - 0.2).abs() < 0.001);  // Jumped to second step
+        assert!((v1 - 0.0).abs() < 0.001); // Still in first step
+        assert!((v2 - 0.2).abs() < 0.001); // Jumped to second step
     }
 
     #[test]
     fn test_steps_with_interpolate_value() {
         // Sprite frame selection: map animation progress to frame index
-        let steps = Interpolation::Steps {
-            count: 4,
-            position: StepPosition::JumpEnd,
-        };
+        let steps = Interpolation::Steps { count: 4, position: StepPosition::JumpEnd };
 
         // Map [0, 1] to frame indices [0, 3]
         let frame_at_start = interpolate_value(0.0, 3.0, 0.0, &steps).round() as i32;

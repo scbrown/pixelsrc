@@ -124,10 +124,7 @@ pub fn resolve_blend_mode(
         Some(mode) => (mode, None),
         None => (
             BlendMode::Normal,
-            Some(Warning::new(format!(
-                "Unknown blend mode '{}', using normal",
-                resolved
-            ))),
+            Some(Warning::new(format!("Unknown blend mode '{}', using normal", resolved))),
         ),
     }
 }
@@ -2805,7 +2802,8 @@ mod tests {
         red.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
         let sprites = HashMap::from([("red".to_string(), red)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
+        let (image, warnings) =
+            render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
         assert!(warnings.is_empty());
 
         // With 50% opacity on transparent background, the alpha should be 127/128
@@ -2851,7 +2849,8 @@ mod tests {
         red.put_pixel(0, 0, Rgba([128, 0, 0, 255]));
         let sprites = HashMap::from([("red".to_string(), red)]);
 
-        let (image, warnings) = render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
+        let (image, warnings) =
+            render_composition(&comp, &sprites, false, Some(&registry)).unwrap();
         assert!(warnings.is_empty());
 
         // With additive blend mode, 128 + 128 = 255 (clamped)

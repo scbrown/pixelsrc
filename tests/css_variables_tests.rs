@@ -398,8 +398,8 @@ fn test_color_mix_with_var_percentages() {
 #[test]
 fn test_color_mix_with_hex_vars() {
     let raw = make_palette(&[
-        ("--color1", "#ff6347"),  // coral/tomato
-        ("--color2", "#4682b4"),  // steelblue
+        ("--color1", "#ff6347"), // coral/tomato
+        ("--color2", "#4682b4"), // steelblue
         ("{blend}", "color-mix(in srgb, var(--color1), var(--color2))"),
     ]);
 
@@ -432,7 +432,7 @@ fn test_color_mix_with_fallback_vars() {
 fn test_color_mix_realistic_shadow_generation() {
     // Real-world use case: generating shadow/highlight variants from base colors
     let raw = make_palette(&[
-        ("--base", "#4169E1"),  // Royal blue
+        ("--base", "#4169E1"), // Royal blue
         ("{base}", "var(--base)"),
         ("{shadow}", "color-mix(in oklch, var(--base) 70%, black)"),
         ("{highlight}", "color-mix(in oklch, var(--base) 70%, white)"),
@@ -450,19 +450,28 @@ fn test_color_mix_realistic_shadow_generation() {
     // Shadow should be darker than base
     let base_brightness = (base.0[0] as u32 + base.0[1] as u32 + base.0[2] as u32) / 3;
     let shadow_brightness = (shadow.0[0] as u32 + shadow.0[1] as u32 + shadow.0[2] as u32) / 3;
-    assert!(shadow_brightness < base_brightness, "Shadow should be darker: base={} shadow={}", base_brightness, shadow_brightness);
+    assert!(
+        shadow_brightness < base_brightness,
+        "Shadow should be darker: base={} shadow={}",
+        base_brightness,
+        shadow_brightness
+    );
 
     // Highlight should be lighter than base
-    let highlight_brightness = (highlight.0[0] as u32 + highlight.0[1] as u32 + highlight.0[2] as u32) / 3;
-    assert!(highlight_brightness > base_brightness, "Highlight should be lighter: base={} highlight={}", base_brightness, highlight_brightness);
+    let highlight_brightness =
+        (highlight.0[0] as u32 + highlight.0[1] as u32 + highlight.0[2] as u32) / 3;
+    assert!(
+        highlight_brightness > base_brightness,
+        "Highlight should be lighter: base={} highlight={}",
+        base_brightness,
+        highlight_brightness
+    );
 }
 
 #[test]
 fn test_color_mix_undefined_var_strict_mode() {
     // Strict mode should fail if var() in color-mix is undefined
-    let raw = make_palette(&[
-        ("{mixed}", "color-mix(in oklch, var(--undefined), blue)"),
-    ]);
+    let raw = make_palette(&[("{mixed}", "color-mix(in oklch, var(--undefined), blue)")]);
 
     let parser = PaletteParser::new();
     let result = parser.parse(&raw, ParseMode::Strict);
@@ -473,9 +482,7 @@ fn test_color_mix_undefined_var_strict_mode() {
 #[test]
 fn test_color_mix_undefined_var_lenient_mode() {
     // Lenient mode should use magenta when var() is undefined (no fallback)
-    let raw = make_palette(&[
-        ("{mixed}", "color-mix(in oklch, var(--undefined), blue)"),
-    ]);
+    let raw = make_palette(&[("{mixed}", "color-mix(in oklch, var(--undefined), blue)")]);
 
     let parser = PaletteParser::new();
     let result = parser.parse(&raw, ParseMode::Lenient).unwrap();

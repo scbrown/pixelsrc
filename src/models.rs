@@ -158,11 +158,7 @@ fn parse_css_duration(s: &str) -> Option<u32> {
     if let Some(ms_str) = s.strip_suffix("ms") {
         ms_str.trim().parse::<f64>().ok().map(|v| v as u32)
     } else if let Some(s_str) = s.strip_suffix('s') {
-        s_str
-            .trim()
-            .parse::<f64>()
-            .ok()
-            .map(|v| (v * 1000.0) as u32)
+        s_str.trim().parse::<f64>().ok().map(|v| (v * 1000.0) as u32)
     } else {
         // Try parsing as raw number (assume milliseconds)
         s.parse::<f64>().ok().map(|v| v as u32)
@@ -577,11 +573,7 @@ impl Animation {
             "to" => Some(1.0),
             _ => {
                 if let Some(pct_str) = key.strip_suffix('%') {
-                    pct_str
-                        .trim()
-                        .parse::<f64>()
-                        .ok()
-                        .map(|v| (v / 100.0).clamp(0.0, 1.0))
+                    pct_str.trim().parse::<f64>().ok().map(|v| (v / 100.0).clamp(0.0, 1.0))
                 } else {
                     None
                 }
@@ -2101,9 +2093,18 @@ mod tests {
         let anim = Animation {
             name: "test".to_string(),
             keyframes: Some(HashMap::from([
-                ("100%".to_string(), CssKeyframe { sprite: Some("c".to_string()), ..Default::default() }),
-                ("0%".to_string(), CssKeyframe { sprite: Some("a".to_string()), ..Default::default() }),
-                ("50%".to_string(), CssKeyframe { sprite: Some("b".to_string()), ..Default::default() }),
+                (
+                    "100%".to_string(),
+                    CssKeyframe { sprite: Some("c".to_string()), ..Default::default() },
+                ),
+                (
+                    "0%".to_string(),
+                    CssKeyframe { sprite: Some("a".to_string()), ..Default::default() },
+                ),
+                (
+                    "50%".to_string(),
+                    CssKeyframe { sprite: Some("b".to_string()), ..Default::default() },
+                ),
             ])),
             ..Default::default()
         };
@@ -2134,8 +2135,14 @@ mod tests {
         match obj {
             TtpObject::Animation(anim) => {
                 let keyframes = anim.css_keyframes().unwrap();
-                assert_eq!(keyframes.get("0%").unwrap().transform, Some("rotate(0deg)".to_string()));
-                assert_eq!(keyframes.get("100%").unwrap().transform, Some("rotate(360deg)".to_string()));
+                assert_eq!(
+                    keyframes.get("0%").unwrap().transform,
+                    Some("rotate(0deg)".to_string())
+                );
+                assert_eq!(
+                    keyframes.get("100%").unwrap().transform,
+                    Some("rotate(360deg)".to_string())
+                );
                 assert_eq!(anim.timing_function, Some("linear".to_string()));
             }
             _ => panic!("Expected animation"),
@@ -2171,16 +2178,22 @@ mod tests {
         let anim = Animation {
             name: "test_kf".to_string(),
             keyframes: Some(HashMap::from([
-                ("0%".to_string(), CssKeyframe {
-                    sprite: Some("start".to_string()),
-                    opacity: Some(0.0),
-                    ..Default::default()
-                }),
-                ("100%".to_string(), CssKeyframe {
-                    sprite: Some("end".to_string()),
-                    opacity: Some(1.0),
-                    ..Default::default()
-                }),
+                (
+                    "0%".to_string(),
+                    CssKeyframe {
+                        sprite: Some("start".to_string()),
+                        opacity: Some(0.0),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "100%".to_string(),
+                    CssKeyframe {
+                        sprite: Some("end".to_string()),
+                        opacity: Some(1.0),
+                        ..Default::default()
+                    },
+                ),
             ])),
             duration: Some(Duration::CssString("500ms".to_string())),
             timing_function: Some("ease".to_string()),
