@@ -41,6 +41,7 @@ pub mod terminal;
 pub mod tokenizer;
 pub mod transforms;
 pub mod validate;
+pub mod variables;
 pub mod watch;
 
 #[cfg(feature = "wasm")]
