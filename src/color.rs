@@ -20,6 +20,8 @@ pub enum ColorError {
     InvalidLength(usize),
     /// Contains non-hex characters
     InvalidHex(char),
+    /// CSS parsing error from lightningcss
+    CssParse(String),
 }
 
 impl fmt::Display for ColorError {
@@ -31,11 +33,18 @@ impl fmt::Display for ColorError {
                 write!(f, "invalid color length {}, expected 3, 4, 6, or 8", len)
             }
             ColorError::InvalidHex(c) => write!(f, "invalid hex character '{}'", c),
+            ColorError::CssParse(msg) => write!(f, "CSS parse error: {}", msg),
         }
     }
 }
 
 impl std::error::Error for ColorError {}
+
+impl<T: std::fmt::Display> From<lightningcss::error::Error<T>> for ColorError {
+    fn from(e: lightningcss::error::Error<T>) -> Self {
+        ColorError::CssParse(e.to_string())
+    }
+}
 
 /// Parse a hex color string into an RGBA color.
 ///
@@ -247,5 +256,20 @@ mod tests {
 
         // {d}: #F00F -> red with alpha (short form)
         assert_eq!(parse_color("#F00F").unwrap(), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_css_parse_error_display() {
+        let err = ColorError::CssParse("unexpected token".to_string());
+        assert_eq!(err.to_string(), "CSS parse error: unexpected token");
+    }
+
+    #[test]
+    fn test_css_parse_error_equality() {
+        let err1 = ColorError::CssParse("test".to_string());
+        let err2 = ColorError::CssParse("test".to_string());
+        let err3 = ColorError::CssParse("different".to_string());
+        assert_eq!(err1, err2);
+        assert_ne!(err1, err3);
     }
 }
