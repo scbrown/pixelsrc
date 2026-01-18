@@ -2016,6 +2016,216 @@ pub fn apply_rotate(grid: &[String], degrees: u16) -> Vec<String> {
     }
 }
 
+/// Apply tile transform to a grid.
+///
+/// Repeats the grid w times horizontally and h times vertically,
+/// creating a tiled pattern.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `w` - Number of horizontal tiles
+/// * `h` - Number of vertical tiles
+///
+/// # Returns
+/// A new grid with the original pattern tiled
+///
+/// # Example
+/// A 2x2 grid tiled with w=2, h=2 becomes 4x4:
+/// ```text
+/// AB    ABAB
+/// CD -> CDCD
+///       ABAB
+///       CDCD
+/// ```
+pub fn apply_tile(grid: &[String], w: u32, h: u32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if grid.is_empty() || w == 0 || h == 0 {
+        return Vec::new();
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let src_height = parsed.len();
+    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    if src_width == 0 {
+        return grid.to_vec();
+    }
+
+    // Build the tiled grid
+    let mut result: Vec<String> = Vec::with_capacity(src_height * h as usize);
+
+    for _tile_y in 0..h {
+        for src_y in 0..src_height {
+            let mut new_row = String::new();
+            let src_row = &parsed[src_y];
+
+            for _tile_x in 0..w {
+                for x in 0..src_width {
+                    if x < src_row.len() {
+                        new_row.push_str(&src_row[x]);
+                    } else {
+                        new_row.push_str(TRANSPARENT_TOKEN);
+                    }
+                }
+            }
+
+            result.push(new_row);
+        }
+    }
+
+    result
+}
+
+/// Apply pad transform to a grid.
+///
+/// Adds padding of transparent pixels around all sides of the grid.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `size` - Number of transparent pixels to add on each side
+///
+/// # Returns
+/// A new grid with padding added
+///
+/// # Example
+/// A 2x2 grid with size=1 padding becomes 4x4:
+/// ```text
+/// AB    ____
+///    -> _AB_
+/// CD    _CD_
+///       ____
+/// ```
+pub fn apply_pad(grid: &[String], size: u32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if size == 0 {
+        return grid.to_vec();
+    }
+
+    if grid.is_empty() {
+        // Return a grid of just transparent padding
+        let pad_token = TRANSPARENT_TOKEN.repeat(size as usize * 2);
+        return vec![pad_token; size as usize * 2];
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let src_height = parsed.len();
+    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
+
+    let new_width = src_width + (size as usize * 2);
+    let new_height = src_height + (size as usize * 2);
+
+    // Build the padded grid
+    let mut result: Vec<String> = Vec::with_capacity(new_height);
+
+    // Create a row of all transparent tokens
+    let transparent_row = TRANSPARENT_TOKEN.repeat(new_width);
+    let side_padding = TRANSPARENT_TOKEN.repeat(size as usize);
+
+    // Top padding rows
+    for _ in 0..size {
+        result.push(transparent_row.clone());
+    }
+
+    // Content rows with side padding
+    for src_y in 0..src_height {
+        let mut new_row = side_padding.clone();
+        let src_row = &parsed[src_y];
+
+        for x in 0..src_width {
+            if x < src_row.len() {
+                new_row.push_str(&src_row[x]);
+            } else {
+                new_row.push_str(TRANSPARENT_TOKEN);
+            }
+        }
+
+        new_row.push_str(&side_padding);
+        result.push(new_row);
+    }
+
+    // Bottom padding rows
+    for _ in 0..size {
+        result.push(transparent_row.clone());
+    }
+
+    result
+}
+
+/// Apply crop transform to a grid.
+///
+/// Extracts a rectangular region from the grid.
+///
+/// # Arguments
+/// * `grid` - The grid of token rows
+/// * `x` - Starting X coordinate (column)
+/// * `y` - Starting Y coordinate (row)
+/// * `w` - Width of the crop region
+/// * `h` - Height of the crop region
+///
+/// # Returns
+/// A new grid containing only the specified region.
+/// Out-of-bounds areas are filled with transparent pixels.
+///
+/// # Example
+/// Cropping region (1,1,2,2) from a 4x4 grid:
+/// ```text
+/// ABCD
+/// EFGH -> FG
+/// IJKL    JK
+/// MNOP
+/// ```
+pub fn apply_crop(grid: &[String], x: u32, y: u32, w: u32, h: u32) -> Vec<String> {
+    use crate::tokenizer::tokenize;
+
+    if w == 0 || h == 0 {
+        return Vec::new();
+    }
+
+    if grid.is_empty() {
+        // Return transparent grid of the requested size
+        let transparent_row = TRANSPARENT_TOKEN.repeat(w as usize);
+        return vec![transparent_row; h as usize];
+    }
+
+    // Parse grid into 2D token array
+    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
+
+    let src_height = parsed.len();
+
+    // Build the cropped grid
+    let mut result: Vec<String> = Vec::with_capacity(h as usize);
+
+    for dst_y in 0..h {
+        let mut new_row = String::new();
+        let src_y = (y + dst_y) as usize;
+
+        for dst_x in 0..w {
+            let src_x = (x + dst_x) as usize;
+
+            if src_y < src_height {
+                let src_row = &parsed[src_y];
+                if src_x < src_row.len() {
+                    new_row.push_str(&src_row[src_x]);
+                } else {
+                    new_row.push_str(TRANSPARENT_TOKEN);
+                }
+            } else {
+                new_row.push_str(TRANSPARENT_TOKEN);
+            }
+        }
+
+        result.push(new_row);
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3796,5 +4006,192 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], "{_}{a}");
         assert_eq!(result[1], "{b}{_}");
+    }
+
+    // =========================================================================
+    // apply_tile tests
+    // =========================================================================
+
+    #[test]
+    fn test_apply_tile_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_tile(&grid, 2, 2);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_apply_tile_zero_dimensions() {
+        let grid = vec!["{a}{b}".to_string()];
+        assert!(apply_tile(&grid, 0, 1).is_empty());
+        assert!(apply_tile(&grid, 1, 0).is_empty());
+        assert!(apply_tile(&grid, 0, 0).is_empty());
+    }
+
+    #[test]
+    fn test_apply_tile_identity() {
+        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
+        let result = apply_tile(&grid, 1, 1);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{a}{b}");
+        assert_eq!(result[1], "{c}{d}");
+    }
+
+    #[test]
+    fn test_apply_tile_horizontal() {
+        let grid = vec!["{a}{b}".to_string()];
+        let result = apply_tile(&grid, 2, 1);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "{a}{b}{a}{b}");
+    }
+
+    #[test]
+    fn test_apply_tile_vertical() {
+        let grid = vec!["{a}".to_string(), "{b}".to_string()];
+        let result = apply_tile(&grid, 1, 2);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], "{a}");
+        assert_eq!(result[1], "{b}");
+        assert_eq!(result[2], "{a}");
+        assert_eq!(result[3], "{b}");
+    }
+
+    #[test]
+    fn test_apply_tile_2x2() {
+        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
+        let result = apply_tile(&grid, 2, 2);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], "{a}{b}{a}{b}");
+        assert_eq!(result[1], "{c}{d}{c}{d}");
+        assert_eq!(result[2], "{a}{b}{a}{b}");
+        assert_eq!(result[3], "{c}{d}{c}{d}");
+    }
+
+    // =========================================================================
+    // apply_pad tests
+    // =========================================================================
+
+    #[test]
+    fn test_apply_pad_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_pad(&grid, 2);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], "{_}{_}{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_pad_zero() {
+        let grid = vec!["{a}{b}".to_string()];
+        let result = apply_pad(&grid, 0);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "{a}{b}");
+    }
+
+    #[test]
+    fn test_apply_pad_one() {
+        let grid = vec!["{x}".to_string()];
+        let result = apply_pad(&grid, 1);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "{_}{_}{_}");
+        assert_eq!(result[1], "{_}{x}{_}");
+        assert_eq!(result[2], "{_}{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_pad_2x2_with_padding_2() {
+        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
+        let result = apply_pad(&grid, 2);
+        assert_eq!(result.len(), 6);
+        assert_eq!(result[0], "{_}{_}{_}{_}{_}{_}");
+        assert_eq!(result[1], "{_}{_}{_}{_}{_}{_}");
+        assert_eq!(result[2], "{_}{_}{a}{b}{_}{_}");
+        assert_eq!(result[3], "{_}{_}{c}{d}{_}{_}");
+        assert_eq!(result[4], "{_}{_}{_}{_}{_}{_}");
+        assert_eq!(result[5], "{_}{_}{_}{_}{_}{_}");
+    }
+
+    // =========================================================================
+    // apply_crop tests
+    // =========================================================================
+
+    #[test]
+    fn test_apply_crop_empty_grid() {
+        let grid: Vec<String> = vec![];
+        let result = apply_crop(&grid, 0, 0, 2, 2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{_}{_}");
+        assert_eq!(result[1], "{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_crop_zero_dimensions() {
+        let grid = vec!["{a}{b}".to_string()];
+        assert!(apply_crop(&grid, 0, 0, 0, 1).is_empty());
+        assert!(apply_crop(&grid, 0, 0, 1, 0).is_empty());
+    }
+
+    #[test]
+    fn test_apply_crop_full_grid() {
+        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
+        let result = apply_crop(&grid, 0, 0, 2, 2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{a}{b}");
+        assert_eq!(result[1], "{c}{d}");
+    }
+
+    #[test]
+    fn test_apply_crop_top_left() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let result = apply_crop(&grid, 0, 0, 2, 2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{a}{b}");
+        assert_eq!(result[1], "{d}{e}");
+    }
+
+    #[test]
+    fn test_apply_crop_center() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let result = apply_crop(&grid, 1, 1, 1, 1);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "{e}");
+    }
+
+    #[test]
+    fn test_apply_crop_bottom_right() {
+        let grid = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let result = apply_crop(&grid, 1, 1, 2, 2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{e}{f}");
+        assert_eq!(result[1], "{h}{i}");
+    }
+
+    #[test]
+    fn test_apply_crop_out_of_bounds() {
+        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
+        let result = apply_crop(&grid, 1, 1, 3, 3);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "{d}{_}{_}");
+        assert_eq!(result[1], "{_}{_}{_}");
+        assert_eq!(result[2], "{_}{_}{_}");
+    }
+
+    #[test]
+    fn test_apply_crop_completely_outside() {
+        let grid = vec!["{a}{b}".to_string()];
+        let result = apply_crop(&grid, 10, 10, 2, 2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "{_}{_}");
+        assert_eq!(result[1], "{_}{_}");
     }
 }
