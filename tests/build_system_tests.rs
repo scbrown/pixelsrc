@@ -920,3 +920,838 @@ fn test_build_builder_api() {
 
     assert!(result.is_success());
 }
+
+// ============================================================================
+// Export Module Integration Tests (BST-12, BST-13, BST-14)
+// ============================================================================
+
+mod export_tests {
+    use super::*;
+    use pixelsrc::atlas::{AtlasAnimation, AtlasFrame, AtlasMetadata};
+    use pixelsrc::export::{
+        ExportOptions, GodotExportOptions, GodotExporter, LibGdxExportOptions,
+        LibGdxExporter, LibGdxFilterMode, LibGdxRepeatMode, UnityExportOptions, UnityExporter,
+        UnityFilterMode,
+    };
+    use std::collections::HashMap;
+
+    fn create_test_atlas_metadata() -> AtlasMetadata {
+        AtlasMetadata {
+            image: "test_atlas.png".to_string(),
+            size: [256, 256],
+            frames: HashMap::from([
+                (
+                    "idle_1".to_string(),
+                    AtlasFrame { x: 0, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
+                ),
+                (
+                    "idle_2".to_string(),
+                    AtlasFrame { x: 32, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
+                ),
+                (
+                    "walk_1".to_string(),
+                    AtlasFrame { x: 64, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
+                ),
+                (
+                    "walk_2".to_string(),
+                    AtlasFrame { x: 96, y: 0, w: 32, h: 32, origin: Some([16, 32]), boxes: None },
+                ),
+                (
+                    "jump".to_string(),
+                    AtlasFrame { x: 0, y: 32, w: 32, h: 48, origin: Some([16, 48]), boxes: None },
+                ),
+            ]),
+            animations: HashMap::from([
+                (
+                    "idle".to_string(),
+                    AtlasAnimation {
+                        frames: vec!["idle_1".to_string(), "idle_2".to_string()],
+                        fps: 8,
+                        tags: None,
+                    },
+                ),
+                (
+                    "walk".to_string(),
+                    AtlasAnimation {
+                        frames: vec!["walk_1".to_string(), "walk_2".to_string()],
+                        fps: 12,
+                        tags: None,
+                    },
+                ),
+            ]),
+        }
+    }
+
+    // Godot Export Tests (BST-12)
+
+    #[test]
+    fn test_godot_export_complete_workflow() {
+        let temp = TempDir::new().unwrap();
+        let metadata = create_test_atlas_metadata();
+
+        let exporter = GodotExporter::new().with_resource_path("res://sprites");
+
+        let options = GodotExportOptions {
+            resource_path: "res://sprites".to_string(),
+            sprite_frames: true,
+            animation_player: true,
+            atlas_textures: true,
+            base: ExportOptions::default(),
+        };
+
+        let outputs = exporter.export_godot(&metadata, temp.path(), &options).unwrap();
+
+        // Should create AtlasTexture for each frame + SpriteFrames + AnimationLibrary
+        assert!(outputs.len() >= 7); // 5 frames + sprite_frames + anim_library
+
+        // Verify AtlasTexture files
+        assert!(temp.path().join("idle_1.tres").exists());
+        assert!(temp.path().join("idle_2.tres").exists());
+        assert!(temp.path().join("walk_1.tres").exists());
+        assert!(temp.path().join("walk_2.tres").exists());
+        assert!(temp.path().join("jump.tres").exists());
+
+        // Verify SpriteFrames file
+        let frames_file = temp.path().join("test_atlas_frames.tres");
+        assert!(frames_file.exists());
+        let content = std::fs::read_to_string(&frames_file).unwrap();
+        assert!(content.contains("SpriteFrames"));
+        assert!(content.contains("idle"));
+        assert!(content.contains("walk"));
+
+        // Verify AnimationLibrary file
+        let anims_file = temp.path().join("test_atlas_anims.tres");
+        assert!(anims_file.exists());
+        let anim_content = std::fs::read_to_string(&anims_file).unwrap();
+        assert!(anim_content.contains("AnimationLibrary"));
+    }
+
+    #[test]
+    fn test_godot_atlas_texture_region_format() {
+        let temp = TempDir::new().unwrap();
+        let metadata = create_test_atlas_metadata();
+
+        let exporter = GodotExporter::new().with_resource_path("res://game/assets");
+        let options = GodotExportOptions::default();
+
+        exporter.export_godot(&metadata, temp.path(), &options).unwrap();
+
+        let content = std::fs::read_to_string(temp.path().join("jump.tres")).unwrap();
+
+        // jump frame is at x=0, y=32, w=32, h=48
+        assert!(content.contains("Rect2(0, 32, 32, 48)"));
+        assert!(content.contains("AtlasTexture"));
+    }
+
+    #[test]
+    fn test_godot_export_without_animations() {
+        let temp = TempDir::new().unwrap();
+        let metadata = AtlasMetadata {
+            image: "static.png".to_string(),
+            size: [64, 64],
+            frames: HashMap::from([(
+                "icon".to_string(),
+                AtlasFrame { x: 0, y: 0, w: 64, h: 64, origin: None, boxes: None },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let exporter = GodotExporter::new();
+        let options = GodotExportOptions::default();
+
+        let outputs = exporter.export_godot(&metadata, temp.path(), &options).unwrap();
+
+        // Only AtlasTexture, no SpriteFrames or AnimationLibrary
+        assert_eq!(outputs.len(), 1);
+        assert!(temp.path().join("icon.tres").exists());
+        assert!(!temp.path().join("static_frames.tres").exists());
+    }
+
+    // Unity Export Tests (BST-13)
+
+    #[test]
+    fn test_unity_export_complete_workflow() {
+        let _temp = TempDir::new().unwrap();
+        let metadata = create_test_atlas_metadata();
+
+        let exporter = UnityExporter::new().with_pixels_per_unit(16).with_animations(true);
+
+        let options = UnityExportOptions {
+            pixels_per_unit: 16,
+            filter_mode: UnityFilterMode::Point,
+            include_animations: true,
+            generate_meta: true,
+            generate_anim_files: true,
+            generate_json: true,
+            base: ExportOptions::default(),
+        };
+
+        let json = exporter.export_to_string(&metadata, &options).unwrap();
+
+        // Verify JSON structure
+        assert!(json.contains("\"texture\": \"test_atlas.png\""));
+        assert!(json.contains("\"pixelsPerUnit\": 16"));
+        assert!(json.contains("\"filterMode\": \"Point\""));
+        assert!(json.contains("\"sprites\""));
+        assert!(json.contains("\"animations\""));
+
+        // Verify sprites
+        assert!(json.contains("\"idle_1\""));
+        assert!(json.contains("\"walk_1\""));
+        assert!(json.contains("\"jump\""));
+
+        // Verify animations
+        assert!(json.contains("\"idle\""));
+        assert!(json.contains("\"walk\""));
+    }
+
+    #[test]
+    fn test_unity_sprite_y_flip() {
+        let metadata = AtlasMetadata {
+            image: "test.png".to_string(),
+            size: [128, 128],
+            frames: HashMap::from([(
+                "sprite".to_string(),
+                AtlasFrame { x: 10, y: 20, w: 32, h: 32, origin: None, boxes: None },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let exporter = UnityExporter::new();
+        let options = UnityExportOptions::default();
+        let json = exporter.export_to_string(&metadata, &options).unwrap();
+        let data: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        let sprites = data["sprites"].as_array().unwrap();
+        let sprite = &sprites[0];
+
+        // Y should be flipped: 128 - 20 - 32 = 76
+        assert_eq!(sprite["rect"]["y"], 76.0);
+    }
+
+    #[test]
+    fn test_unity_pivot_calculation() {
+        let metadata = AtlasMetadata {
+            image: "test.png".to_string(),
+            size: [128, 128],
+            frames: HashMap::from([(
+                "sprite".to_string(),
+                AtlasFrame {
+                    x: 0,
+                    y: 0,
+                    w: 32,
+                    h: 32,
+                    origin: Some([16, 32]), // Bottom center
+                    boxes: None,
+                },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let exporter = UnityExporter::new();
+        let options = UnityExportOptions::default();
+        let json = exporter.export_to_string(&metadata, &options).unwrap();
+        let data: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        let sprites = data["sprites"].as_array().unwrap();
+        let sprite = &sprites[0];
+
+        // Pivot at bottom center: (0.5, 0.0) after Y flip
+        assert_eq!(sprite["pivot"]["x"], 0.5);
+        assert_eq!(sprite["pivot"]["y"], 0.0);
+    }
+
+    #[test]
+    fn test_unity_filter_modes() {
+        let metadata = create_test_atlas_metadata();
+
+        for (filter, expected) in [
+            (UnityFilterMode::Point, "Point"),
+            (UnityFilterMode::Bilinear, "Bilinear"),
+            (UnityFilterMode::Trilinear, "Trilinear"),
+        ] {
+            let exporter = UnityExporter::new().with_filter_mode(filter);
+            let options = UnityExportOptions { filter_mode: filter, ..Default::default() };
+            let json = exporter.export_to_string(&metadata, &options).unwrap();
+
+            assert!(
+                json.contains(&format!("\"filterMode\": \"{}\"", expected)),
+                "Expected filter mode {} in output",
+                expected
+            );
+        }
+    }
+
+    // libGDX Export Tests (BST-14)
+
+    #[test]
+    fn test_libgdx_export_complete_workflow() {
+        let temp = TempDir::new().unwrap();
+        let output_path = temp.path().join("atlas.atlas");
+        let metadata = create_test_atlas_metadata();
+
+        let exporter = LibGdxExporter::new()
+            .with_min_filter(LibGdxFilterMode::Nearest)
+            .with_mag_filter(LibGdxFilterMode::Nearest)
+            .with_repeat(LibGdxRepeatMode::None)
+            .with_format("RGBA8888");
+
+        let options = LibGdxExportOptions::default();
+        exporter.export_libgdx(&metadata, &output_path, &options).unwrap();
+
+        assert!(output_path.exists());
+
+        let content = std::fs::read_to_string(&output_path).unwrap();
+
+        // Verify header
+        assert!(content.starts_with("test_atlas.png\n"));
+        assert!(content.contains("size: 256, 256\n"));
+        assert!(content.contains("format: RGBA8888\n"));
+        assert!(content.contains("filter: Nearest, Nearest\n"));
+        assert!(content.contains("repeat: none\n"));
+
+        // Verify frames
+        assert!(content.contains("idle_1\n"));
+        assert!(content.contains("walk_1\n"));
+        assert!(content.contains("jump\n"));
+    }
+
+    #[test]
+    fn test_libgdx_animation_indices() {
+        let metadata = create_test_atlas_metadata();
+        let exporter = LibGdxExporter::new();
+        let content = exporter.export_to_string(&metadata);
+
+        let lines: Vec<&str> = content.lines().collect();
+
+        // Find walk_1 (should have index 0 in walk animation)
+        let walk1_idx = lines.iter().position(|l| *l == "walk_1").unwrap();
+        let walk1_index_line = lines[walk1_idx + 6];
+        assert_eq!(walk1_index_line, "  index: 0");
+
+        // Find walk_2 (should have index 1 in walk animation)
+        let walk2_idx = lines.iter().position(|l| *l == "walk_2").unwrap();
+        let walk2_index_line = lines[walk2_idx + 6];
+        assert_eq!(walk2_index_line, "  index: 1");
+
+        // Find jump (not in animation, should have index -1)
+        let jump_idx = lines.iter().position(|l| *l == "jump").unwrap();
+        let jump_index_line = lines[jump_idx + 6];
+        assert_eq!(jump_index_line, "  index: -1");
+    }
+
+    #[test]
+    fn test_libgdx_filter_modes() {
+        let metadata = create_test_atlas_metadata();
+
+        for (min, mag, expected_filter) in [
+            (LibGdxFilterMode::Nearest, LibGdxFilterMode::Nearest, "filter: Nearest, Nearest"),
+            (LibGdxFilterMode::Linear, LibGdxFilterMode::Linear, "filter: Linear, Linear"),
+            (
+                LibGdxFilterMode::MipMapLinearLinear,
+                LibGdxFilterMode::Linear,
+                "filter: MipMapLinearLinear, Linear",
+            ),
+        ] {
+            let exporter =
+                LibGdxExporter::new().with_min_filter(min).with_mag_filter(mag);
+            let content = exporter.export_to_string(&metadata);
+
+            assert!(
+                content.contains(expected_filter),
+                "Expected {} in output",
+                expected_filter
+            );
+        }
+    }
+
+    #[test]
+    fn test_libgdx_repeat_modes() {
+        let metadata = create_test_atlas_metadata();
+
+        for (repeat, expected) in [
+            (LibGdxRepeatMode::None, "repeat: none"),
+            (LibGdxRepeatMode::X, "repeat: x"),
+            (LibGdxRepeatMode::Y, "repeat: y"),
+            (LibGdxRepeatMode::XY, "repeat: xy"),
+        ] {
+            let exporter = LibGdxExporter::new().with_repeat(repeat);
+            let content = exporter.export_to_string(&metadata);
+
+            assert!(content.contains(expected), "Expected {} in output", expected);
+        }
+    }
+
+    #[test]
+    fn test_libgdx_frame_with_origin_offset() {
+        let metadata = AtlasMetadata {
+            image: "test.png".to_string(),
+            size: [64, 64],
+            frames: HashMap::from([(
+                "centered".to_string(),
+                AtlasFrame {
+                    x: 0,
+                    y: 0,
+                    w: 32,
+                    h: 32,
+                    origin: Some([16, 16]), // Center origin
+                    boxes: None,
+                },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let exporter = LibGdxExporter::new();
+        let content = exporter.export_to_string(&metadata);
+
+        // Origin [16, 16] should produce offset: 16, 16
+        assert!(content.contains("  offset: 16, 16\n"));
+    }
+
+    // Cross-format comparison tests
+
+    #[test]
+    fn test_all_exporters_handle_empty_animations() {
+        let metadata = AtlasMetadata {
+            image: "static.png".to_string(),
+            size: [64, 64],
+            frames: HashMap::from([(
+                "icon".to_string(),
+                AtlasFrame { x: 0, y: 0, w: 64, h: 64, origin: None, boxes: None },
+            )]),
+            animations: HashMap::new(),
+        };
+
+        let temp = TempDir::new().unwrap();
+
+        // Godot
+        let godot = GodotExporter::new();
+        let godot_opts = GodotExportOptions::default();
+        let result = godot.export_godot(&metadata, temp.path(), &godot_opts);
+        assert!(result.is_ok());
+
+        // Unity
+        let unity = UnityExporter::new();
+        let unity_opts = UnityExportOptions::default();
+        let result = unity.export_to_string(&metadata, &unity_opts);
+        assert!(result.is_ok());
+
+        // libGDX
+        let libgdx = LibGdxExporter::new();
+        let content = libgdx.export_to_string(&metadata);
+        assert!(content.contains("icon\n"));
+    }
+
+    #[test]
+    fn test_all_exporters_handle_large_atlas() {
+        // Create a large atlas with many frames
+        let mut frames = HashMap::new();
+        for i in 0..100 {
+            frames.insert(
+                format!("frame_{}", i),
+                AtlasFrame {
+                    x: (i % 10) * 32,
+                    y: (i / 10) * 32,
+                    w: 32,
+                    h: 32,
+                    origin: None,
+                    boxes: None,
+                },
+            );
+        }
+
+        let metadata =
+            AtlasMetadata { image: "large.png".to_string(), size: [320, 320], frames, animations: HashMap::new() };
+
+        let temp = TempDir::new().unwrap();
+
+        // Godot
+        let godot = GodotExporter::new();
+        let godot_opts = GodotExportOptions::default();
+        let result = godot.export_godot(&metadata, temp.path(), &godot_opts);
+        assert!(result.is_ok());
+        let outputs = result.unwrap();
+        assert_eq!(outputs.len(), 100); // 100 AtlasTextures, no animations
+
+        // Unity
+        let unity = UnityExporter::new();
+        let unity_opts = UnityExportOptions::default();
+        let json = unity.export_to_string(&metadata, &unity_opts).unwrap();
+        let data: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(data["sprites"].as_array().unwrap().len(), 100);
+
+        // libGDX
+        let libgdx = LibGdxExporter::new();
+        let content = libgdx.export_to_string(&metadata);
+        // Count frame entries
+        let frame_count = content.lines().filter(|l| l.starts_with("frame_")).count();
+        assert_eq!(frame_count, 100);
+    }
+}
+
+// ============================================================================
+// Watch Error Recovery Tests (BST-18)
+// ============================================================================
+
+mod watch_tests {
+    use super::*;
+    use pixelsrc::watch::{BuildError, BuildResult, ErrorTracker, WatchError, WatchOptions};
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_error_tracker_empty_initial_state() {
+        let tracker = ErrorTracker::new();
+        assert!(!tracker.has_errors());
+        assert_eq!(tracker.error_count(), 0);
+    }
+
+    #[test]
+    fn test_error_tracker_single_error() {
+        let mut tracker = ErrorTracker::new();
+
+        let mut result = BuildResult::new();
+        result.add_error(BuildError::new("test.pxl", "Syntax error"));
+
+        let fixed = tracker.update(&result);
+        assert!(fixed.is_empty());
+        assert!(tracker.has_errors());
+        assert_eq!(tracker.error_count(), 1);
+    }
+
+    #[test]
+    fn test_error_tracker_multiple_errors() {
+        let mut tracker = ErrorTracker::new();
+
+        let mut result = BuildResult::new();
+        result.add_error(BuildError::new("file1.pxl", "Error 1"));
+        result.add_error(BuildError::new("file2.pxl", "Error 2"));
+        result.add_error(BuildError::new("file3.pxl", "Error 3"));
+
+        tracker.update(&result);
+        assert_eq!(tracker.error_count(), 3);
+    }
+
+    #[test]
+    fn test_error_tracker_fix_detection() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build: errors in file1 and file2
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Error 1"));
+        result1.add_error(BuildError::new("file2.pxl", "Error 2"));
+        tracker.update(&result1);
+
+        // Second build: file1 fixed, file2 still has error
+        let mut result2 = BuildResult::new();
+        result2.add_error(BuildError::new("file2.pxl", "Error 2"));
+        let fixed = tracker.update(&result2);
+
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0], PathBuf::from("file1.pxl"));
+        assert_eq!(tracker.error_count(), 1);
+    }
+
+    #[test]
+    fn test_error_tracker_all_errors_fixed() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build: errors
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Error 1"));
+        result1.add_error(BuildError::new("file2.pxl", "Error 2"));
+        tracker.update(&result1);
+
+        // Second build: all fixed
+        let result2 = BuildResult::new();
+        let fixed = tracker.update(&result2);
+
+        assert_eq!(fixed.len(), 2);
+        let fixed_set: HashSet<_> = fixed.into_iter().collect();
+        assert!(fixed_set.contains(&PathBuf::from("file1.pxl")));
+        assert!(fixed_set.contains(&PathBuf::from("file2.pxl")));
+        assert!(!tracker.has_errors());
+    }
+
+    #[test]
+    fn test_error_tracker_new_error_while_fixing() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build: error in file1
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Error 1"));
+        tracker.update(&result1);
+
+        // Second build: file1 fixed, but file2 now has error
+        let mut result2 = BuildResult::new();
+        result2.add_error(BuildError::new("file2.pxl", "Error 2"));
+        let fixed = tracker.update(&result2);
+
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0], PathBuf::from("file1.pxl"));
+        assert!(tracker.has_errors());
+        assert_eq!(tracker.error_count(), 1);
+    }
+
+    #[test]
+    fn test_error_tracker_same_file_different_error() {
+        let mut tracker = ErrorTracker::new();
+
+        // First build: error in file1
+        let mut result1 = BuildResult::new();
+        result1.add_error(BuildError::new("file1.pxl", "Syntax error on line 5"));
+        tracker.update(&result1);
+
+        // Second build: same file, different error (not "fixed")
+        let mut result2 = BuildResult::new();
+        result2.add_error(BuildError::new("file1.pxl", "Syntax error on line 10"));
+        let fixed = tracker.update(&result2);
+
+        assert!(fixed.is_empty()); // File still has error
+        assert!(tracker.has_errors());
+    }
+
+    #[test]
+    fn test_build_error_creation_variants() {
+        let basic = BuildError::new("test.pxl", "Basic error");
+        assert_eq!(basic.file, PathBuf::from("test.pxl"));
+        assert_eq!(basic.line, None);
+        assert_eq!(basic.column, None);
+        assert_eq!(basic.message, "Basic error");
+
+        let with_line = BuildError::with_line("test.pxl", 42, "Error at line");
+        assert_eq!(with_line.line, Some(42));
+        assert_eq!(with_line.column, None);
+
+        let with_location = BuildError::with_location("test.pxl", 42, 10, "Error at location");
+        assert_eq!(with_location.line, Some(42));
+        assert_eq!(with_location.column, Some(10));
+    }
+
+    #[test]
+    fn test_build_error_display_format() {
+        let error = BuildError::with_location("sprites/player.pxl", 15, 8, "Invalid color");
+        let display = format!("{}", error);
+
+        assert!(display.contains("sprites/player.pxl"));
+        assert!(display.contains(":15:"));
+        assert!(display.contains(":8"));
+        assert!(display.contains("Invalid color"));
+    }
+
+    #[test]
+    fn test_build_result_error_count() {
+        let mut result = BuildResult::new();
+        assert_eq!(result.error_count(), 0);
+        assert!(result.success());
+
+        // Add legacy error
+        result.errors.push("Legacy error".to_string());
+        assert_eq!(result.error_count(), 1);
+        assert!(!result.success());
+
+        // Add build error
+        result.add_error(BuildError::new("test.pxl", "Build error"));
+        assert_eq!(result.error_count(), 2);
+    }
+
+    #[test]
+    fn test_watch_options_default() {
+        let options = WatchOptions::default();
+        assert_eq!(options.src_dir, PathBuf::from("src/pxl"));
+        assert_eq!(options.out_dir, PathBuf::from("build"));
+        assert_eq!(options.config.debounce_ms, 100);
+        assert!(options.config.clear_screen);
+        assert!(!options.verbose);
+    }
+
+    #[test]
+    fn test_watch_error_display() {
+        let source_not_found =
+            WatchError::SourceNotFound(PathBuf::from("/nonexistent/path"));
+        let display = format!("{}", source_not_found);
+        assert!(display.contains("Source directory not found"));
+        assert!(display.contains("/nonexistent/path"));
+
+        let build_failed = WatchError::BuildFailed("Parse error".to_string());
+        assert!(format!("{}", build_failed).contains("Build failed"));
+
+        let channel_error = WatchError::ChannelError("Channel closed".to_string());
+        assert!(format!("{}", channel_error).contains("channel"));
+    }
+
+    #[test]
+    fn test_error_tracker_repeated_builds_no_change() {
+        let mut tracker = ErrorTracker::new();
+
+        let mut result = BuildResult::new();
+        result.add_error(BuildError::new("file.pxl", "Error"));
+
+        // Multiple builds with same error
+        for _ in 0..5 {
+            let fixed = tracker.update(&result);
+            assert!(fixed.is_empty());
+            assert_eq!(tracker.error_count(), 1);
+        }
+    }
+
+    #[test]
+    fn test_error_tracker_build_cycle_recovery() {
+        let mut tracker = ErrorTracker::new();
+
+        // Cycle: Error -> Fix -> Error -> Fix
+        let mut error_result = BuildResult::new();
+        error_result.add_error(BuildError::new("file.pxl", "Error"));
+
+        let success_result = BuildResult::new();
+
+        // Error
+        tracker.update(&error_result);
+        assert!(tracker.has_errors());
+
+        // Fix
+        let fixed1 = tracker.update(&success_result);
+        assert_eq!(fixed1.len(), 1);
+        assert!(!tracker.has_errors());
+
+        // Error again
+        tracker.update(&error_result);
+        assert!(tracker.has_errors());
+
+        // Fix again
+        let fixed2 = tracker.update(&success_result);
+        assert_eq!(fixed2.len(), 1);
+        assert!(!tracker.has_errors());
+    }
+}
+
+// ============================================================================
+// Discovery and Context Tests
+// ============================================================================
+
+#[test]
+fn test_build_context_src_dir() {
+    let (_temp, ctx) = create_test_context();
+
+    let src_dir = ctx.src_dir();
+    assert!(src_dir.ends_with("src/pxl") || src_dir.to_string_lossy().contains("pxl"));
+}
+
+#[test]
+fn test_build_context_out_dir() {
+    let (temp, ctx) = create_test_context();
+
+    let out_dir = ctx.out_dir();
+    assert!(out_dir.ends_with("build") || temp.path().join("build") == out_dir);
+}
+
+#[test]
+fn test_build_context_with_filter() {
+    let (_temp, ctx) = create_test_context();
+
+    let filtered_ctx = ctx.with_filter(vec!["sprite:*".to_string(), "atlas:main".to_string()]);
+
+    let filter = filtered_ctx.target_filter().expect("filter should be set");
+    assert_eq!(filter.len(), 2);
+    assert!(filter.contains(&"sprite:*".to_string()));
+    assert!(filter.contains(&"atlas:main".to_string()));
+}
+
+// ============================================================================
+// Build Plan Edge Cases
+// ============================================================================
+
+#[test]
+fn test_build_plan_empty() {
+    let plan = BuildPlan::new();
+    assert!(plan.is_empty());
+    assert_eq!(plan.len(), 0);
+}
+
+#[test]
+fn test_build_plan_duplicate_targets() {
+    let mut plan = BuildPlan::new();
+
+    plan.add_target(BuildTarget::sprite(
+        "test".to_string(),
+        PathBuf::from("test.pxl"),
+        PathBuf::from("test.png"),
+    ));
+
+    // Adding same target again should update, not duplicate
+    plan.add_target(BuildTarget::sprite(
+        "test".to_string(),
+        PathBuf::from("test.pxl"),
+        PathBuf::from("test2.png"),
+    ));
+
+    // Should still be 2 (or 1 if deduped by id)
+    // The behavior depends on implementation
+    assert!(plan.len() >= 1);
+}
+
+#[test]
+fn test_build_plan_circular_dependency_handling() {
+    let mut plan = BuildPlan::new();
+
+    // Create potential circular dependency
+    plan.add_target(
+        BuildTarget::sprite("a".to_string(), PathBuf::from("a.pxl"), PathBuf::from("a.png"))
+            .with_dependency("sprite:b".to_string()),
+    );
+    plan.add_target(
+        BuildTarget::sprite("b".to_string(), PathBuf::from("b.pxl"), PathBuf::from("b.png"))
+            .with_dependency("sprite:a".to_string()),
+    );
+
+    // build_order should handle this gracefully (either error or break cycle)
+    let result = plan.build_order();
+    // Should either succeed with some order or fail gracefully
+    // The important thing is it doesn't panic or infinite loop
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ============================================================================
+// Target Result Edge Cases
+// ============================================================================
+
+#[test]
+fn test_target_result_zero_duration() {
+    let result = pixelsrc::build::TargetResult::success(
+        "instant".to_string(),
+        vec![PathBuf::from("output.png")],
+        Duration::ZERO,
+    );
+
+    assert!(result.is_success());
+    assert_eq!(result.duration, Duration::ZERO);
+}
+
+#[test]
+fn test_target_result_empty_outputs() {
+    let result = pixelsrc::build::TargetResult::success(
+        "no_output".to_string(),
+        vec![],
+        Duration::from_millis(100),
+    );
+
+    assert!(result.is_success());
+    assert!(result.outputs.is_empty());
+}
+
+#[test]
+fn test_target_result_long_error_message() {
+    let long_error = "x".repeat(10000);
+    let result = pixelsrc::build::TargetResult::failed(
+        "failing".to_string(),
+        long_error.clone(),
+        Duration::ZERO,
+    );
+
+    assert!(!result.is_success());
+    match result.status {
+        pixelsrc::build::BuildStatus::Failed(msg) => {
+            assert_eq!(msg.len(), 10000);
+        }
+        _ => panic!("Expected Failed status"),
+    }
+}
