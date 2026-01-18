@@ -187,17 +187,13 @@ fn discover_animation_sources(ctx: &BuildContext) -> Result<Vec<PathBuf>, Discov
 }
 
 /// Add export targets for an atlas.
+///
+/// Note: Generic JSON export is NOT added here because `build_atlas` already
+/// produces JSON alongside PNG as the native atlas format. The exports here
+/// are for engine-specific formats that transform the atlas metadata.
 fn add_export_targets(plan: &mut BuildPlan, ctx: &BuildContext, atlas_name: &str) {
     let out_dir = ctx.out_dir();
     let exports = &ctx.config().exports;
-
-    // Generic JSON export
-    if exports.generic.enabled {
-        let output = out_dir.join(format!("{}.json", atlas_name));
-        let target = BuildTarget::export(atlas_name.to_string(), "json".to_string(), output)
-            .with_dependency(format!("atlas:{}", atlas_name));
-        plan.add_target(target);
-    }
 
     // Godot export
     if exports.godot.enabled {
