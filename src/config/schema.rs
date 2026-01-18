@@ -220,6 +220,15 @@ pub struct UnityExportConfig {
     /// Texture filter mode
     #[serde(default)]
     pub filter_mode: FilterMode,
+    /// Generate texture .meta file with sprite slice data
+    #[serde(default = "default_true")]
+    pub generate_meta: bool,
+    /// Generate .anim files for animations
+    #[serde(default = "default_true")]
+    pub generate_anim: bool,
+    /// Generate JSON metadata (for custom import scripts)
+    #[serde(default = "default_true")]
+    pub generate_json: bool,
 }
 
 fn default_unity_format() -> String {
