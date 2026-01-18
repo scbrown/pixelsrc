@@ -2,6 +2,7 @@
 //!
 //! Provides LSP support for .pxl files in editors like VS Code, Neovim, etc.
 
+use crate::color::parse_color;
 use crate::motion::{ease, parse_timing_function, Interpolation, StepPosition};
 use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
@@ -37,6 +38,20 @@ struct TimingFunctionInfo {
     function_str: String,
     /// Parsed interpolation
     interpolation: Interpolation,
+}
+
+/// Information about a color found in the document
+#[derive(Debug, Clone)]
+struct ColorMatch {
+    /// The original color string as it appears in the document
+    #[allow(dead_code)]
+    original: String,
+    /// The resolved RGBA values (0.0-1.0 range)
+    rgba: (f32, f32, f32, f32),
+    /// Start position in the line
+    start: u32,
+    /// End position in the line
+    end: u32,
 }
 
 /// The Pixelsrc Language Server
@@ -687,6 +702,176 @@ impl PixelsrcLanguageServer {
             interpolation,
         })
     }
+
+    /// Extract all colors from a palette line
+    ///
+    /// Finds color values in palette definitions and resolves var() references.
+    fn extract_colors_from_line(
+        line: &str,
+        line_num: u32,
+        var_registry: &VariableRegistry,
+    ) -> Vec<(ColorMatch, u32)> {
+        let mut matches = Vec::new();
+
+        // Try to parse as JSON
+        let obj: Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => return matches,
+        };
+
+        let obj = match obj.as_object() {
+            Some(o) => o,
+            None => return matches,
+        };
+
+        // Check if it's a palette
+        let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+            Some(t) => t,
+            None => return matches,
+        };
+
+        if obj_type != "palette" {
+            return matches;
+        }
+
+        // Get the colors object
+        let colors = match obj.get("colors").and_then(|c| c.as_object()) {
+            Some(c) => c,
+            None => return matches,
+        };
+
+        // Find the "colors" key position in the line
+        let colors_key_pos = match line.find("\"colors\"") {
+            Some(pos) => pos,
+            None => return matches,
+        };
+
+        // Find each color value in the colors object
+        for (key, value) in colors {
+            let color_str = match value.as_str() {
+                Some(s) => s,
+                None => continue,
+            };
+
+            // Skip CSS variable definitions (they're not colors themselves)
+            if key.starts_with("--") {
+                continue;
+            }
+
+            // Find the position of this color value in the line
+            // We search for the pattern "key": "value"
+            let search_pattern = format!("\"{}\": \"{}\"", key, color_str);
+            let alt_pattern = format!("\"{}\":\"{}\"", key, color_str);
+
+            let value_start = if let Some(pos) = line[colors_key_pos..].find(&search_pattern) {
+                let key_start = colors_key_pos + pos;
+                // Find the start of the value string (after ": ")
+                key_start + key.len() + 5 // ": " + opening quote
+            } else if let Some(pos) = line[colors_key_pos..].find(&alt_pattern) {
+                let key_start = colors_key_pos + pos;
+                key_start + key.len() + 4 // ":" + opening quote
+            } else {
+                continue;
+            };
+
+            let value_end = value_start + color_str.len();
+
+            // Resolve var() references if present
+            let resolved_value = if color_str.contains("var(") {
+                match var_registry.resolve(color_str) {
+                    Ok(resolved) => resolved,
+                    Err(_) => color_str.to_string(),
+                }
+            } else {
+                color_str.to_string()
+            };
+
+            // Try to parse the resolved color
+            if let Ok(rgba) = parse_color(&resolved_value) {
+                matches.push((
+                    ColorMatch {
+                        original: color_str.to_string(),
+                        rgba: (
+                            rgba.0[0] as f32 / 255.0,
+                            rgba.0[1] as f32 / 255.0,
+                            rgba.0[2] as f32 / 255.0,
+                            rgba.0[3] as f32 / 255.0,
+                        ),
+                        start: value_start as u32,
+                        end: value_end as u32,
+                    },
+                    line_num,
+                ));
+            }
+        }
+
+        matches
+    }
+
+    /// Convert RGBA values (0.0-1.0) to hex string
+    fn rgba_to_hex(r: f32, g: f32, b: f32, a: f32) -> String {
+        let r = (r * 255.0).round() as u8;
+        let g = (g * 255.0).round() as u8;
+        let b = (b * 255.0).round() as u8;
+        let a = (a * 255.0).round() as u8;
+
+        if a == 255 {
+            format!("#{:02X}{:02X}{:02X}", r, g, b)
+        } else {
+            format!("#{:02X}{:02X}{:02X}{:02X}", r, g, b, a)
+        }
+    }
+
+    /// Convert RGBA values (0.0-1.0) to rgb() or rgba() string
+    fn rgba_to_rgb_functional(r: f32, g: f32, b: f32, a: f32) -> String {
+        let r = (r * 255.0).round() as u8;
+        let g = (g * 255.0).round() as u8;
+        let b = (b * 255.0).round() as u8;
+
+        if a >= 0.999 {
+            format!("rgb({}, {}, {})", r, g, b)
+        } else {
+            format!("rgba({}, {}, {}, {:.2})", r, g, b, a)
+        }
+    }
+
+    /// Convert RGBA values (0.0-1.0) to hsl() or hsla() string
+    fn rgba_to_hsl(r: f32, g: f32, b: f32, a: f32) -> String {
+        // Convert RGB to HSL
+        let max = r.max(g).max(b);
+        let min = r.min(g).min(b);
+        let l = (max + min) / 2.0;
+
+        if (max - min).abs() < 0.0001 {
+            // Achromatic
+            if a >= 0.999 {
+                format!("hsl(0, 0%, {}%)", (l * 100.0).round() as u32)
+            } else {
+                format!("hsla(0, 0%, {}%, {:.2})", (l * 100.0).round() as u32, a)
+            }
+        } else {
+            let d = max - min;
+            let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+
+            let h = if (max - r).abs() < 0.0001 {
+                ((g - b) / d + if g < b { 6.0 } else { 0.0 }) / 6.0
+            } else if (max - g).abs() < 0.0001 {
+                ((b - r) / d + 2.0) / 6.0
+            } else {
+                ((r - g) / d + 4.0) / 6.0
+            };
+
+            let h_deg = (h * 360.0).round() as u32;
+            let s_pct = (s * 100.0).round() as u32;
+            let l_pct = (l * 100.0).round() as u32;
+
+            if a >= 0.999 {
+                format!("hsl({}, {}%, {}%)", h_deg, s_pct, l_pct)
+            } else {
+                format!("hsla({}, {}%, {}%, {:.2})", h_deg, s_pct, l_pct, a)
+            }
+        }
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -708,6 +893,7 @@ impl LanguageServer for PixelsrcLanguageServer {
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                color_provider: Some(ColorProviderCapability::Simple(true)),
                 ..Default::default()
             },
         })
@@ -1055,6 +1241,99 @@ impl LanguageServer for PixelsrcLanguageServer {
             .collect();
 
         Ok(Some(DocumentSymbolResponse::Flat(symbols)))
+    }
+
+    async fn document_color(&self, params: DocumentColorParams) -> Result<Vec<ColorInformation>> {
+        let uri = &params.text_document.uri;
+
+        // Get the document content
+        let documents = self.documents.read().unwrap();
+        let content = match documents.get(uri) {
+            Some(c) => c.clone(),
+            None => return Ok(Vec::new()),
+        };
+        drop(documents);
+
+        // Build variable registry from all palettes for var() resolution
+        let var_registry = Self::build_variable_registry(&content);
+
+        // Extract all colors from palette definitions
+        let mut colors = Vec::new();
+
+        for (line_num, line) in content.lines().enumerate() {
+            let line_colors = Self::extract_colors_from_line(line, line_num as u32, &var_registry);
+            for (color_match, line_idx) in line_colors {
+                colors.push(ColorInformation {
+                    range: Range {
+                        start: Position {
+                            line: line_idx,
+                            character: color_match.start,
+                        },
+                        end: Position {
+                            line: line_idx,
+                            character: color_match.end,
+                        },
+                    },
+                    color: Color {
+                        red: color_match.rgba.0,
+                        green: color_match.rgba.1,
+                        blue: color_match.rgba.2,
+                        alpha: color_match.rgba.3,
+                    },
+                });
+            }
+        }
+
+        Ok(colors)
+    }
+
+    async fn color_presentation(
+        &self,
+        params: ColorPresentationParams,
+    ) -> Result<Vec<ColorPresentation>> {
+        let color = params.color;
+        let r = color.red;
+        let g = color.green;
+        let b = color.blue;
+        let a = color.alpha;
+
+        // Provide multiple format options when user picks a color
+        let mut presentations = Vec::new();
+
+        // Hex format (most common for pixel art)
+        let hex = Self::rgba_to_hex(r, g, b, a);
+        presentations.push(ColorPresentation {
+            label: hex.clone(),
+            text_edit: Some(TextEdit {
+                range: params.range,
+                new_text: hex,
+            }),
+            additional_text_edits: None,
+        });
+
+        // RGB functional format
+        let rgb = Self::rgba_to_rgb_functional(r, g, b, a);
+        presentations.push(ColorPresentation {
+            label: rgb.clone(),
+            text_edit: Some(TextEdit {
+                range: params.range,
+                new_text: rgb,
+            }),
+            additional_text_edits: None,
+        });
+
+        // HSL format
+        let hsl = Self::rgba_to_hsl(r, g, b, a);
+        presentations.push(ColorPresentation {
+            label: hsl.clone(),
+            text_edit: Some(TextEdit {
+                range: params.range,
+                new_text: hsl,
+            }),
+            additional_text_edits: None,
+        });
+
+        Ok(presentations)
     }
 
     async fn goto_definition(
@@ -1775,5 +2054,140 @@ also not json"##;
             }),
             "steps(4, jump-both)"
         );
+    }
+
+    // === Color Provider Tests ===
+
+    #[test]
+    fn test_extract_colors_from_line_hex() {
+        let line = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}"##;
+        let registry = crate::variables::VariableRegistry::new();
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
+
+        assert_eq!(colors.len(), 2);
+        // Check that we found the colors
+        let has_red = colors.iter().any(|(c, _)| {
+            (c.rgba.0 - 1.0).abs() < 0.01 && c.rgba.1.abs() < 0.01 && c.rgba.2.abs() < 0.01
+        });
+        let has_blue = colors.iter().any(|(c, _)| {
+            c.rgba.0.abs() < 0.01 && c.rgba.1.abs() < 0.01 && (c.rgba.2 - 1.0).abs() < 0.01
+        });
+        assert!(has_red, "Should find red color");
+        assert!(has_blue, "Should find blue color");
+    }
+
+    #[test]
+    fn test_extract_colors_from_line_css_functions() {
+        let line = r##"{"type": "palette", "name": "test", "colors": {"{red}": "rgb(255, 0, 0)", "{green}": "hsl(120, 100%, 50%)"}}"##;
+        let registry = crate::variables::VariableRegistry::new();
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
+
+        assert_eq!(colors.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_colors_from_line_with_vars() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000", "{red}": "var(--primary)"}}"##;
+        let registry = PixelsrcLanguageServer::build_variable_registry(content);
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(content, 0, &registry);
+
+        // Should have 1 color (the {red} token, --primary is skipped as a variable definition)
+        assert_eq!(colors.len(), 1);
+        // The resolved color should be red
+        let (color, _) = &colors[0];
+        assert!((color.rgba.0 - 1.0).abs() < 0.01, "Red component should be 1.0");
+        assert!(color.rgba.1.abs() < 0.01, "Green component should be 0.0");
+        assert!(color.rgba.2.abs() < 0.01, "Blue component should be 0.0");
+    }
+
+    #[test]
+    fn test_extract_colors_from_line_color_mix() {
+        let line = r##"{"type": "palette", "name": "test", "colors": {"{purple}": "color-mix(in srgb, red 50%, blue)"}}"##;
+        let registry = crate::variables::VariableRegistry::new();
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
+
+        assert_eq!(colors.len(), 1);
+        // Color should be a purple-ish mix
+        let (color, _) = &colors[0];
+        assert!(color.rgba.0 > 0.4, "Should have red component");
+        assert!(color.rgba.2 > 0.4, "Should have blue component");
+    }
+
+    #[test]
+    fn test_extract_colors_from_line_not_palette() {
+        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}"]}"#;
+        let registry = crate::variables::VariableRegistry::new();
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
+
+        assert!(colors.is_empty(), "Should not extract colors from sprites");
+    }
+
+    #[test]
+    fn test_extract_colors_skips_css_vars() {
+        let line = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
+        let registry = crate::variables::VariableRegistry::new();
+        let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
+
+        // CSS variable definitions should be skipped
+        assert!(colors.is_empty(), "Should skip CSS variable definitions");
+    }
+
+    #[test]
+    fn test_rgba_to_hex_no_alpha() {
+        let hex = PixelsrcLanguageServer::rgba_to_hex(1.0, 0.0, 0.0, 1.0);
+        assert_eq!(hex, "#FF0000");
+
+        let hex = PixelsrcLanguageServer::rgba_to_hex(0.0, 1.0, 0.0, 1.0);
+        assert_eq!(hex, "#00FF00");
+
+        let hex = PixelsrcLanguageServer::rgba_to_hex(0.0, 0.0, 1.0, 1.0);
+        assert_eq!(hex, "#0000FF");
+    }
+
+    #[test]
+    fn test_rgba_to_hex_with_alpha() {
+        let hex = PixelsrcLanguageServer::rgba_to_hex(1.0, 0.0, 0.0, 0.5);
+        assert_eq!(hex, "#FF000080");
+
+        let hex = PixelsrcLanguageServer::rgba_to_hex(1.0, 1.0, 1.0, 0.0);
+        assert_eq!(hex, "#FFFFFF00");
+    }
+
+    #[test]
+    fn test_rgba_to_rgb_functional() {
+        let rgb = PixelsrcLanguageServer::rgba_to_rgb_functional(1.0, 0.0, 0.0, 1.0);
+        assert_eq!(rgb, "rgb(255, 0, 0)");
+
+        let rgba = PixelsrcLanguageServer::rgba_to_rgb_functional(1.0, 0.0, 0.0, 0.5);
+        assert_eq!(rgba, "rgba(255, 0, 0, 0.50)");
+    }
+
+    #[test]
+    fn test_rgba_to_hsl() {
+        // Pure red
+        let hsl = PixelsrcLanguageServer::rgba_to_hsl(1.0, 0.0, 0.0, 1.0);
+        assert_eq!(hsl, "hsl(0, 100%, 50%)");
+
+        // Pure green
+        let hsl = PixelsrcLanguageServer::rgba_to_hsl(0.0, 1.0, 0.0, 1.0);
+        assert_eq!(hsl, "hsl(120, 100%, 50%)");
+
+        // Pure blue
+        let hsl = PixelsrcLanguageServer::rgba_to_hsl(0.0, 0.0, 1.0, 1.0);
+        assert_eq!(hsl, "hsl(240, 100%, 50%)");
+
+        // White
+        let hsl = PixelsrcLanguageServer::rgba_to_hsl(1.0, 1.0, 1.0, 1.0);
+        assert_eq!(hsl, "hsl(0, 0%, 100%)");
+
+        // Black
+        let hsl = PixelsrcLanguageServer::rgba_to_hsl(0.0, 0.0, 0.0, 1.0);
+        assert_eq!(hsl, "hsl(0, 0%, 0%)");
+    }
+
+    #[test]
+    fn test_rgba_to_hsl_with_alpha() {
+        let hsla = PixelsrcLanguageServer::rgba_to_hsl(1.0, 0.0, 0.0, 0.5);
+        assert_eq!(hsla, "hsla(0, 100%, 50%, 0.50)");
     }
 }
