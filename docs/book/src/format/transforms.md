@@ -1,8 +1,172 @@
 # Transforms
 
-Transforms modify sprites at render time without changing the source definition. They're applied via the `transform` array on a sprite.
+Transforms modify sprites at render time without changing the source definition. Pixelsrc supports two transform systems:
 
-## Basic Syntax
+- **CSS Transforms**: Translate, rotate, scale, and flip with CSS-like syntax (used in keyframe animations)
+- **Effect Transforms**: Dithering, selective outline, squash/stretch (applied via transform arrays)
+
+---
+
+## CSS Transforms
+
+CSS transforms use familiar web syntax and are primarily used within keyframe animations. They're designed for pixel art with specific considerations for crisp rendering.
+
+### Syntax
+
+```json
+{
+  "type": "animation",
+  "name": "example",
+  "keyframes": {
+    "0%": { "sprite": "star", "transform": "translate(0, 0) rotate(0deg)" },
+    "100%": { "sprite": "star", "transform": "translate(10, -5) rotate(90deg)" }
+  },
+  "duration": "1s"
+}
+```
+
+Multiple transforms can be combined in a single string, separated by spaces.
+
+### Transform Functions
+
+| Function | Syntax | Description |
+|----------|--------|-------------|
+| `translate` | `translate(x, y)` | Move by x, y pixels |
+| `rotate` | `rotate(deg)` | Rotate clockwise |
+| `scale` | `scale(n)` or `scale(x, y)` | Scale uniformly or non-uniformly |
+| `flip` | `flip(x)` or `flip(y)` | Horizontal or vertical flip |
+
+### translate(x, y)
+
+Move the sprite by the specified pixel offset.
+
+```json
+"transform": "translate(10, 5)"      // Move right 10, down 5
+"transform": "translate(-5, 0)"      // Move left 5
+"transform": "translate(10px, 5px)"  // Optional px suffix
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `x` | integer | Horizontal offset (positive = right) |
+| `y` | integer | Vertical offset (positive = down, optional, defaults to 0) |
+
+### rotate(deg)
+
+Rotate the sprite clockwise by the specified angle.
+
+```json
+"transform": "rotate(90deg)"   // Quarter turn clockwise
+"transform": "rotate(180)"     // Half turn (deg suffix optional)
+"transform": "rotate(270deg)"  // Three-quarter turn
+```
+
+**Pixel Art Considerations:**
+
+For crisp pixel art, use 90-degree increments (0, 90, 180, 270). Other angles work but may produce anti-aliased edges:
+
+| Angle | Result |
+|-------|--------|
+| 0, 90, 180, 270 | Pixel-perfect rotation |
+| 45, 135, 225, 315 | Diagonal, some blurring |
+| Other values | Arbitrary rotation with anti-aliasing |
+
+### scale(n) or scale(x, y)
+
+Scale the sprite uniformly or non-uniformly.
+
+```json
+"transform": "scale(2)"        // Double size (uniform)
+"transform": "scale(2, 1)"     // Double width only
+"transform": "scale(1, 0.5)"   // Half height
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `n` | float | Uniform scale factor (must be positive) |
+| `x, y` | float | Non-uniform scale factors |
+
+Alternative syntax:
+
+```json
+"transform": "scaleX(2)"       // Scale width only
+"transform": "scaleY(0.5)"     // Scale height only
+```
+
+**Pixel Art Considerations:**
+
+Integer scale factors (2, 3, 4) maintain pixel-perfect appearance. Fractional scales may blur:
+
+| Scale | Result |
+|-------|--------|
+| 1, 2, 3, 4... | Pixel-perfect scaling |
+| 1.5, 2.5... | Blended pixels |
+| 0.5, 0.25... | Reduced resolution |
+
+### flip(x) or flip(y)
+
+Mirror the sprite horizontally or vertically.
+
+```json
+"transform": "flip(x)"         // Horizontal mirror
+"transform": "flip(y)"         // Vertical mirror
+"transform": "flip(x) flip(y)" // Both axes
+```
+
+Alternative syntax:
+
+```json
+"transform": "flipX()"         // Same as flip(x)
+"transform": "flipY()"         // Same as flip(y)
+"transform": "flip(h)"         // Horizontal (alias)
+"transform": "flip(v)"         // Vertical (alias)
+```
+
+Flipping is always pixel-perfect with no quality loss.
+
+### Transform Order
+
+Transforms apply in CSS order: translate → rotate → scale → flip.
+
+```json
+"transform": "translate(10, 0) rotate(90deg) scale(2)"
+```
+
+This translates first, then rotates, then scales.
+
+### Complete Examples
+
+**Spinning animation:**
+
+```json
+{"type": "animation", "name": "spin", "keyframes": {"0%": {"sprite": "star", "transform": "rotate(0deg)"}, "100%": {"sprite": "star", "transform": "rotate(360deg)"}}, "duration": 1000, "timing_function": "linear"}
+```
+
+**Pulsing scale effect:**
+
+```json
+{"type": "animation", "name": "pulse", "keyframes": {"0%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "star", "transform": "scale(1.5)", "opacity": 0.5}, "100%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}}, "duration": "2s", "timing_function": "ease-in-out"}
+```
+
+**Bouncing with translation:**
+
+```json
+{"type": "animation", "name": "bounce", "keyframes": {"0%": {"sprite": "ball", "transform": "translate(0, 0)"}, "50%": {"sprite": "ball", "transform": "translate(0, -10)"}, "100%": {"sprite": "ball", "transform": "translate(0, 0)"}}, "duration": "500ms", "timing_function": "ease-in-out"}
+```
+
+**Flip on hover (walk cycle):**
+
+```json
+{"type": "sprite", "name": "walk_left", "source": "walk_right", "transform": [{"op": "mirror-h"}]}
+```
+
+---
+
+## Effect Transforms
+
+Effect transforms modify sprite appearance through arrays of operations. They're applied via the `transform` array on a sprite definition.
+
+### Basic Syntax
 
 ```json
 {
