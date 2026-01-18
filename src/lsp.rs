@@ -210,6 +210,55 @@ impl PixelsrcLanguageServer {
 
         None
     }
+
+    /// Collect all defined tokens from palettes in the document
+    ///
+    /// Returns a list of (token, color) pairs from all palette definitions.
+    fn collect_defined_tokens(content: &str) -> Vec<(String, String)> {
+        let mut tokens = Vec::new();
+
+        for line in content.lines() {
+            // Try to parse as JSON
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Check if it's a palette
+            let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+                Some(t) => t,
+                None => continue,
+            };
+
+            if obj_type != "palette" {
+                continue;
+            }
+
+            // Get the colors object
+            let colors = match obj.get("colors").and_then(|c| c.as_object()) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            // Extract tokens (keys starting with '{' and ending with '}')
+            for (key, value) in colors {
+                if key.starts_with('{') && key.ends_with('}') {
+                    let color_str = match value.as_str() {
+                        Some(s) => s.to_string(),
+                        None => continue,
+                    };
+                    tokens.push((key.clone(), color_str));
+                }
+            }
+        }
+
+        tokens
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -225,6 +274,10 @@ impl LanguageServer for PixelsrcLanguageServer {
                     TextDocumentSyncKind::FULL,
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec!["{".to_string()]),
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
         })
@@ -343,6 +396,58 @@ impl LanguageServer for PixelsrcLanguageServer {
         }
 
         Ok(None)
+    }
+
+    async fn completion(
+        &self,
+        params: CompletionParams,
+    ) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
+
+        // Get the document content
+        let documents = self.documents.read().unwrap();
+        let content = match documents.get(uri) {
+            Some(c) => c.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+
+        // Collect defined tokens from the document
+        let defined_tokens = Self::collect_defined_tokens(&content);
+
+        // Build completion items
+        let mut completions: Vec<CompletionItem> = Vec::new();
+
+        // Add built-in transparent token
+        completions.push(CompletionItem {
+            label: "{_}".to_string(),
+            detail: Some("Transparent (built-in)".to_string()),
+            kind: Some(CompletionItemKind::COLOR),
+            insert_text: Some("{_}".to_string()),
+            ..Default::default()
+        });
+
+        // Add the standard dot token for transparent
+        completions.push(CompletionItem {
+            label: ".".to_string(),
+            detail: Some("Transparent (shorthand)".to_string()),
+            kind: Some(CompletionItemKind::COLOR),
+            insert_text: Some(".".to_string()),
+            ..Default::default()
+        });
+
+        // Add defined tokens from palettes
+        for (token, color) in defined_tokens {
+            completions.push(CompletionItem {
+                label: token.clone(),
+                detail: Some(color),
+                kind: Some(CompletionItemKind::COLOR),
+                insert_text: Some(token),
+                ..Default::default()
+            });
+        }
+
+        Ok(Some(CompletionResponse::Array(completions)))
     }
 }
 
@@ -469,5 +574,40 @@ mod tests {
         // Position before the grid array
         let info = PixelsrcLanguageServer::parse_grid_context(line, 10);
         assert!(info.is_none());
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_single_palette() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "--var": "100"}}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2); // Only {a} and {b}, not --var
+        assert!(tokens.iter().any(|(t, c)| t == "{a}" && c == "#FF0000"));
+        assert!(tokens.iter().any(|(t, c)| t == "{b}" && c == "#00FF00"));
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_multiple_palettes() {
+        let content = r##"{"type": "palette", "name": "p1", "colors": {"{red}": "#FF0000"}}
+{"type": "palette", "name": "p2", "colors": {"{blue}": "#0000FF"}}
+{"type": "sprite", "name": "s", "grid": ["{red}{blue}"]}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2);
+        assert!(tokens.iter().any(|(t, _)| t == "{red}"));
+        assert!(tokens.iter().any(|(t, _)| t == "{blue}"));
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_no_palettes() {
+        let content = r#"{"type": "sprite", "name": "s", "grid": ["{a}{b}"]}"#;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+        assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_empty_content() {
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens("");
+        assert!(tokens.is_empty());
     }
 }
