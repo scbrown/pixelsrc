@@ -1,0 +1,10 @@
+{"type": "palette", "name": "steps_demo", "colors": {".": "#00000000", "{f1}": "#ff6b6b", "{f2}": "#ffd93d", "{f3}": "#6bcb77", "{f4}": "#4d96ff"}}
+{"type": "sprite", "name": "step1", "palette": "steps_demo", "grid": ["{f1}{f1}", "{f1}{f1}"]}
+{"type": "sprite", "name": "step2", "palette": "steps_demo", "grid": ["{f2}{f2}", "{f2}{f2}"]}
+{"type": "sprite", "name": "step3", "palette": "steps_demo", "grid": ["{f3}{f3}", "{f3}{f3}"]}
+{"type": "sprite", "name": "step4", "palette": "steps_demo", "grid": ["{f4}{f4}", "{f4}{f4}"]}
+{"type": "animation", "name": "steps_4", "keyframes": {"0%": {"sprite": "step1"}, "25%": {"sprite": "step2"}, "50%": {"sprite": "step3"}, "75%": {"sprite": "step4"}, "100%": {"sprite": "step1"}}, "duration": "1s", "timing_function": "steps(4)"}
+{"type": "animation", "name": "steps_jump_start", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}, "duration": "1s", "timing_function": "steps(4, jump-start)"}
+{"type": "animation", "name": "steps_jump_end", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}, "duration": "1s", "timing_function": "steps(4, jump-end)"}
+{"type": "animation", "name": "step_start_instant", "keyframes": {"from": {"sprite": "step1", "opacity": 0.0}, "to": {"sprite": "step1", "opacity": 1.0}}, "duration": "500ms", "timing_function": "step-start"}
+{"type": "animation", "name": "step_end_delayed", "keyframes": {"from": {"sprite": "step1", "opacity": 0.0}, "to": {"sprite": "step1", "opacity": 1.0}}, "duration": "500ms", "timing_function": "step-end"}

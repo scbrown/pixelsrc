@@ -726,4 +726,132 @@ mod tests {
 
         assert_eq!(pulse.timing_function.as_deref(), Some("ease-in-out"));
     }
+
+    // ========================================================================
+    // CSS Timing Function Tests (DT-11)
+    // ========================================================================
+
+    /// @demo format/css/timing#named
+    /// @title Named Timing Functions
+    /// @description Animation easing using named timing functions: linear, ease, ease-in, ease-out, ease-in-out.
+    #[test]
+    fn test_css_timing_named() {
+        let jsonl = include_str!("../../examples/demos/css/timing/named.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify all sprites can be resolved
+        for sprite_name in ["box_left", "box_center", "box_right"] {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
+        }
+
+        // Test linear timing
+        let linear = animations.get("linear_slide").expect("Animation 'linear_slide' not found");
+        assert!(linear.is_css_keyframes(), "linear_slide should use CSS keyframes");
+        assert_eq!(linear.timing_function.as_deref(), Some("linear"));
+        assert_eq!(linear.duration_ms(), 500);
+
+        // Test ease (same as ease-in-out)
+        let ease = animations.get("ease_slide").expect("Animation 'ease_slide' not found");
+        assert_eq!(ease.timing_function.as_deref(), Some("ease"));
+
+        // Test ease-in
+        let ease_in = animations.get("ease_in_slide").expect("Animation 'ease_in_slide' not found");
+        assert_eq!(ease_in.timing_function.as_deref(), Some("ease-in"));
+
+        // Test ease-out
+        let ease_out = animations.get("ease_out_slide").expect("Animation 'ease_out_slide' not found");
+        assert_eq!(ease_out.timing_function.as_deref(), Some("ease-out"));
+
+        // Test ease-in-out
+        let ease_in_out = animations.get("ease_in_out_slide").expect("Animation 'ease_in_out_slide' not found");
+        assert_eq!(ease_in_out.timing_function.as_deref(), Some("ease-in-out"));
+    }
+
+    /// @demo format/css/timing#cubic_bezier
+    /// @title Cubic Bezier Timing
+    /// @description Custom easing curves using cubic-bezier(x1, y1, x2, y2).
+    #[test]
+    fn test_css_timing_cubic_bezier() {
+        let jsonl = include_str!("../../examples/demos/css/timing/cubic_bezier.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify all sprites can be resolved
+        for sprite_name in ["ball_top", "ball_middle", "ball_bottom"] {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
+        }
+
+        // Test bounce-like cubic bezier
+        let bounce = animations.get("bounce_fall").expect("Animation 'bounce_fall' not found");
+        assert!(bounce.is_css_keyframes(), "bounce_fall should use CSS keyframes");
+        assert_eq!(bounce.timing_function.as_deref(), Some("cubic-bezier(0.5, 0, 0.5, 1)"));
+        assert_eq!(bounce.duration_ms(), 800);
+
+        // Verify keyframes
+        let kf = bounce.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 3, "bounce_fall should have 3 keyframes");
+        assert!(kf.contains_key("0%"));
+        assert!(kf.contains_key("50%"));
+        assert!(kf.contains_key("100%"));
+
+        // Test snap easing with overshoot
+        let snap = animations.get("snap_ease").expect("Animation 'snap_ease' not found");
+        assert_eq!(snap.timing_function.as_deref(), Some("cubic-bezier(0.68, -0.55, 0.27, 1.55)"));
+
+        // Test smooth deceleration
+        let smooth = animations.get("smooth_decel").expect("Animation 'smooth_decel' not found");
+        assert_eq!(smooth.timing_function.as_deref(), Some("cubic-bezier(0.25, 0.1, 0.25, 1.0)"));
+    }
+
+    /// @demo format/css/timing#steps
+    /// @title Steps Timing Function
+    /// @description Discrete step-based timing using steps(n) and step-start/step-end.
+    #[test]
+    fn test_css_timing_steps() {
+        let jsonl = include_str!("../../examples/demos/css/timing/steps.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify all sprites can be resolved
+        for sprite_name in ["step1", "step2", "step3", "step4"] {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
+        }
+
+        // Test basic steps(4)
+        let steps4 = animations.get("steps_4").expect("Animation 'steps_4' not found");
+        assert!(steps4.is_css_keyframes(), "steps_4 should use CSS keyframes");
+        assert_eq!(steps4.timing_function.as_deref(), Some("steps(4)"));
+        assert_eq!(steps4.duration_ms(), 1000);
+
+        // Verify 5 keyframes (0%, 25%, 50%, 75%, 100%)
+        let kf = steps4.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 5, "steps_4 should have 5 keyframes");
+
+        // Test steps with jump-start
+        let jump_start = animations.get("steps_jump_start").expect("Animation 'steps_jump_start' not found");
+        assert_eq!(jump_start.timing_function.as_deref(), Some("steps(4, jump-start)"));
+
+        // Test steps with jump-end
+        let jump_end = animations.get("steps_jump_end").expect("Animation 'steps_jump_end' not found");
+        assert_eq!(jump_end.timing_function.as_deref(), Some("steps(4, jump-end)"));
+
+        // Test step-start (instant jump to final value)
+        let step_start = animations.get("step_start_instant").expect("Animation 'step_start_instant' not found");
+        assert_eq!(step_start.timing_function.as_deref(), Some("step-start"));
+        assert_eq!(step_start.duration_ms(), 500);
+
+        // Test step-end (delayed jump to final value)
+        let step_end = animations.get("step_end_delayed").expect("Animation 'step_end_delayed' not found");
+        assert_eq!(step_end.timing_function.as_deref(), Some("step-end"));
+    }
 }
