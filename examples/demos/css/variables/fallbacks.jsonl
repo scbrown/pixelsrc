@@ -1,0 +1,6 @@
+{"type": "palette", "name": "simple_fallback", "colors": {"--defined": "#FF0000", ".": "#00000000", "{has_var}": "var(--defined)", "{uses_fallback}": "var(--undefined, #00FF00)"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "grid": ["{has_var}{has_var}", "{uses_fallback}{uses_fallback}"]}
+{"type": "palette", "name": "nested_fallback", "colors": {"--last": "#0000FF", ".": "#00000000", "{deep}": "var(--a, var(--b, var(--c, var(--last))))"}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "grid": ["{deep}{deep}"]}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"--known": "red", ".": "#00000000", "{mixed}": "color-mix(in oklch, var(--known), var(--unknown, blue))"}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "grid": ["{mixed}{mixed}"]}

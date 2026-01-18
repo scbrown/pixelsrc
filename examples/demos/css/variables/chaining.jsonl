@@ -1,0 +1,6 @@
+{"type": "palette", "name": "basic_chain", "colors": {"--base": "#FF0000", "--level2": "var(--base)", "--level3": "var(--level2)", ".": "#00000000", "{final}": "var(--level3)"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "grid": ["{final}{final}"]}
+{"type": "palette", "name": "deep_chain", "colors": {"--l1": "#00FF00", "--l2": "var(--l1)", "--l3": "var(--l2)", "--l4": "var(--l3)", "--l5": "var(--l4)", ".": "#00000000", "{deep}": "var(--l5)"}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "grid": ["{deep}{deep}"]}
+{"type": "palette", "name": "color_mix_chain", "colors": {"--base": "#4169E1", "--shadow": "color-mix(in oklch, var(--base) 70%, black)", "--highlight": "color-mix(in oklch, var(--base) 70%, white)", ".": "#00000000", "{b}": "var(--base)", "{s}": "var(--shadow)", "{h}": "var(--highlight)"}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "grid": ["{h}{h}{b}", "{h}{b}{s}", "{b}{s}{s}"]}

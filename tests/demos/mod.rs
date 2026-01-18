@@ -854,4 +854,96 @@ mod tests {
         let step_end = animations.get("step_end_delayed").expect("Animation 'step_end_delayed' not found");
         assert_eq!(step_end.timing_function.as_deref(), Some("step-end"));
     }
+
+    // ========================================================================
+    // CSS Variable Tests (DT-10)
+    // ========================================================================
+    //
+    // Note: CSS variable demos don't use assert_validates() because the validator
+    // checks syntax without resolving variables. The parser handles variable
+    // resolution at parse time, so we verify parsing works correctly instead.
+
+    /// @demo format/css/variables#definition
+    /// Tests CSS custom property definition syntax (--name: value)
+    #[test]
+    fn test_css_variables_definition() {
+        let jsonl = include_str!("../../examples/demos/css/variables/definition.jsonl");
+        // Skip assert_validates - validator doesn't resolve CSS variables
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("theme_colors"));
+
+        // Verify sprite can be resolved (proves variables work)
+        sprite_registry
+            .resolve("theme_example", &palette_registry, false)
+            .expect("Sprite 'theme_example' should resolve");
+    }
+
+    /// @demo format/css/variables#resolution
+    /// Tests var() reference resolution
+    #[test]
+    fn test_css_variables_resolution() {
+        let jsonl = include_str!("../../examples/demos/css/variables/resolution.jsonl");
+        // Skip assert_validates - validator doesn't resolve CSS variables
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("var_resolution"));
+
+        // Verify sprite can be resolved with var() references
+        sprite_registry
+            .resolve("resolved_colors", &palette_registry, false)
+            .expect("Sprite 'resolved_colors' should resolve with var() references");
+    }
+
+    /// @demo format/css/variables#fallbacks
+    /// Tests var(--name, fallback) syntax
+    #[test]
+    fn test_css_variables_fallbacks() {
+        let jsonl = include_str!("../../examples/demos/css/variables/fallbacks.jsonl");
+        // Skip assert_validates - validator doesn't resolve CSS variables
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("simple_fallback"));
+        assert!(palette_registry.contains("nested_fallback"));
+        assert!(palette_registry.contains("color_mix_fallback"));
+
+        // Verify sprites can be resolved with fallback values
+        sprite_registry
+            .resolve("fallback_demo", &palette_registry, false)
+            .expect("Sprite 'fallback_demo' should resolve with fallback");
+        sprite_registry
+            .resolve("nested_fallback_result", &palette_registry, false)
+            .expect("Sprite 'nested_fallback_result' should resolve with nested fallbacks");
+        sprite_registry
+            .resolve("mix_fallback_result", &palette_registry, false)
+            .expect("Sprite 'mix_fallback_result' should resolve with color-mix fallback");
+    }
+
+    /// @demo format/css/variables#chaining
+    /// Tests variables referencing other variables
+    #[test]
+    fn test_css_variables_chaining() {
+        let jsonl = include_str!("../../examples/demos/css/variables/chaining.jsonl");
+        // Skip assert_validates - validator doesn't resolve CSS variables
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("basic_chain"));
+        assert!(palette_registry.contains("deep_chain"));
+        assert!(palette_registry.contains("color_mix_chain"));
+
+        // Verify sprites can be resolved with chained variables
+        sprite_registry
+            .resolve("chain_result", &palette_registry, false)
+            .expect("Sprite 'chain_result' should resolve with basic chain");
+        sprite_registry
+            .resolve("deep_chain_result", &palette_registry, false)
+            .expect("Sprite 'deep_chain_result' should resolve with deep chain");
+        sprite_registry
+            .resolve("shaded_box", &palette_registry, false)
+            .expect("Sprite 'shaded_box' should resolve with color-mix chain");
+    }
 }

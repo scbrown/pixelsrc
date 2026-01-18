@@ -1,0 +1,4 @@
+{"type": "palette", "name": "theme_colors", "colors": {"--primary": "#4169E1", "--secondary": "#8B4513", "--accent": "#FFD700", "--bg": "#1a1a2e", "--fg": "#ffffff", ".": "#00000000", "{pri}": "#4169E1", "{sec}": "#8B4513", "{acc}": "#FFD700"}}
+{"type": "palette", "name": "component_values", "colors": {"--red": "200", "--green": "100", "--blue": "50", "--alpha": "0.8", "{sample}": "rgba(200, 100, 50, 0.8)"}}
+{"type": "palette", "name": "hsl_components", "colors": {"--hue": "240", "--sat": "100%", "--light": "50%", "{blue}": "hsl(240, 100%, 50%)"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "grid": ["{pri}{pri}{sec}", "{pri}{acc}{sec}", "{sec}{sec}{sec}"]}
