@@ -5,6 +5,8 @@
 use std::fs;
 use std::path::Path;
 
+use crate::templates::justfile::{generate_justfile, JustfileTemplate};
+
 /// Error during project initialization
 #[derive(Debug)]
 pub enum InitError {
@@ -116,6 +118,10 @@ fn init_minimal(path: &Path, name: &str) -> Result<(), InitError> {
     let gitignore = generate_gitignore();
     write_file(&path.join(".gitignore"), &gitignore)?;
 
+    // Write justfile
+    let justfile = generate_justfile(JustfileTemplate::Minimal, name);
+    write_file(&path.join("justfile"), &justfile)?;
+
     // Write example palette
     let palette = generate_main_palette();
     write_file(&path.join("src/pxl/palettes/main.pxl"), &palette)?;
@@ -201,6 +207,10 @@ fn init_artist(path: &Path, name: &str) -> Result<(), InitError> {
     // Write .gitignore
     let gitignore = generate_gitignore();
     write_file(&path.join(".gitignore"), &gitignore)?;
+
+    // Write justfile
+    let justfile = generate_justfile(JustfileTemplate::Artist, name);
+    write_file(&path.join("justfile"), &justfile)?;
 
     // Write palettes
     let main_palette = generate_main_palette();
@@ -297,7 +307,7 @@ fn init_animator(path: &Path, name: &str) -> Result<(), InitError> {
     write_file(&path.join(".gitignore"), &gitignore)?;
 
     // Write justfile
-    let justfile = generate_animator_justfile();
+    let justfile = generate_justfile(JustfileTemplate::Animator, name);
     write_file(&path.join("justfile"), &justfile)?;
 
     // Write palette
@@ -340,43 +350,6 @@ clear_screen = true
 "#,
         name
     )
-}
-
-/// Generate animator justfile.
-fn generate_animator_justfile() -> String {
-    r#"# Pixelsrc animation project commands
-
-default: preview
-
-# Generate preview GIFs for all animations
-preview:
-    pxl render src/pxl/animations/*.pxl --gif -o build/preview/
-
-# Watch for changes and regenerate previews
-watch:
-    pxl build --watch
-
-# Render all sprites at 2x scale
-render:
-    pxl render src/pxl/sprites/*.pxl --scale 2 -o build/
-
-# Render specific animation as GIF
-gif name:
-    pxl render src/pxl/animations/{{name}}.pxl --gif -o build/preview/{{name}}.gif
-
-# Render animation as spritesheet
-sheet name:
-    pxl render src/pxl/animations/{{name}}.pxl --spritesheet -o build/{{name}}_sheet.png
-
-# Validate all source files
-validate:
-    pxl validate src/pxl/ --strict
-
-# Clean build directory
-clean:
-    rm -rf build/*
-"#
-    .to_string()
 }
 
 /// Generate animation frame sprites.
@@ -423,7 +396,7 @@ fn init_game(path: &Path, name: &str) -> Result<(), InitError> {
     write_file(&path.join(".gitignore"), &gitignore)?;
 
     // Write justfile
-    let justfile = generate_game_justfile();
+    let justfile = generate_justfile(JustfileTemplate::Game, name);
     write_file(&path.join("justfile"), &justfile)?;
 
     // Write palettes
@@ -499,60 +472,6 @@ clear_screen = true
 "#,
         name
     )
-}
-
-/// Generate game justfile.
-fn generate_game_justfile() -> String {
-    r#"# Pixelsrc game project commands
-
-default: build
-
-# Build all assets
-build: validate
-    pxl build
-
-# Validate all source files
-validate:
-    pxl validate src/pxl/ --strict
-
-# Watch for changes and rebuild
-watch:
-    pxl build --watch
-
-# Generate preview GIFs for animations
-preview:
-    pxl render src/pxl/animations/*.pxl --gif -o build/preview/
-
-# Build sprites atlas only
-atlas-sprites:
-    pxl build --atlas sprites
-
-# Build UI atlas only
-atlas-ui:
-    pxl build --atlas ui
-
-# Clean build directory
-clean:
-    rm -rf build/*
-    mkdir -p build/atlases build/preview
-
-# Show project stats
-stats:
-    pxl analyze src/pxl/
-
-# Format all source files
-fmt:
-    pxl fmt src/pxl/
-
-# Check formatting without changes
-fmt-check:
-    pxl fmt src/pxl/ --check
-
-# Full CI build
-ci: fmt-check validate build
-    @echo "CI build complete"
-"#
-    .to_string()
 }
 
 /// Generate UI palette file content.
@@ -640,9 +559,23 @@ mod tests {
         // Check files exist
         assert!(project_path.join("pxl.toml").exists());
         assert!(project_path.join(".gitignore").exists());
+        assert!(project_path.join("justfile").exists());
         assert!(project_path.join("src/pxl/palettes/main.pxl").exists());
         assert!(project_path.join("src/pxl/sprites/example.pxl").exists());
         assert!(project_path.join("build/.gitkeep").exists());
+    }
+
+    #[test]
+    fn test_init_minimal_justfile_content() {
+        let temp = TempDir::new().unwrap();
+        let project_path = temp.path().join("test");
+
+        init_project(&project_path, "test", "minimal").unwrap();
+
+        let justfile = fs::read_to_string(project_path.join("justfile")).unwrap();
+        assert!(justfile.contains("render:"));
+        assert!(justfile.contains("validate:"));
+        assert!(justfile.contains("clean:"));
     }
 
     #[test]
@@ -761,10 +694,25 @@ mod tests {
         // Check files
         assert!(project_path.join("pxl.toml").exists());
         assert!(project_path.join(".gitignore").exists());
+        assert!(project_path.join("justfile").exists());
         assert!(project_path.join("src/pxl/palettes/main.pxl").exists());
         assert!(project_path.join("src/pxl/palettes/alt.pxl").exists());
         assert!(project_path.join("src/pxl/sprites/character.pxl").exists());
         assert!(project_path.join("src/pxl/variants/character_alt.pxl").exists());
+    }
+
+    #[test]
+    fn test_init_artist_justfile_content() {
+        let temp = TempDir::new().unwrap();
+        let project_path = temp.path().join("art");
+
+        init_project(&project_path, "art", "artist").unwrap();
+
+        let justfile = fs::read_to_string(project_path.join("justfile")).unwrap();
+        assert!(justfile.contains("render:"));
+        assert!(justfile.contains("variants:"));
+        assert!(justfile.contains("scales:"));
+        assert!(justfile.contains("clean:"));
     }
 
     #[test]
