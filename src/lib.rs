@@ -28,6 +28,7 @@ pub mod motion;
 pub mod onion;
 pub mod output;
 pub mod palette_cycle;
+pub mod palette_parser;
 pub mod palettes;
 pub mod parser;
 pub mod prime;
