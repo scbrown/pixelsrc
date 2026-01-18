@@ -1,0 +1,14 @@
+{"type": "palette", "name": "transform_colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF", "{w}": "#FFFFFF", "{shadow}": "color-mix(in oklch, #FF0000 70%, black)"}}
+{"type": "sprite", "name": "arrow", "palette": "transform_colors", "grid": ["{_}{r}{_}", "{_}{r}{_}", "{r}{r}{r}"]}
+{"type": "sprite", "name": "arrow_rot90", "palette": "transform_colors", "source": "arrow", "transform": ["rotate:90"]}
+{"type": "sprite", "name": "arrow_rot180", "palette": "transform_colors", "source": "arrow", "transform": ["rotate:180"]}
+{"type": "sprite", "name": "arrow_rot270", "palette": "transform_colors", "source": "arrow", "transform": ["rotate:270"]}
+{"type": "sprite", "name": "arrow_flip_h", "palette": "transform_colors", "source": "arrow", "transform": ["mirror-h"]}
+{"type": "sprite", "name": "arrow_flip_v", "palette": "transform_colors", "source": "arrow", "transform": ["mirror-v"]}
+{"type": "sprite", "name": "arrow_flip_both", "palette": "transform_colors", "source": "arrow", "transform": ["mirror-h", "mirror-v"]}
+{"type": "sprite", "name": "arrow_scale_2x", "palette": "transform_colors", "source": "arrow", "transform": ["scale:2.0,2.0"]}
+{"type": "sprite", "name": "arrow_scale_stretch", "palette": "transform_colors", "source": "arrow", "transform": ["scale:2.0,1.0"]}
+{"type": "sprite", "name": "arrow_shift", "palette": "transform_colors", "source": "arrow", "transform": ["shift:1,1"]}
+{"type": "sprite", "name": "arrow_combo", "palette": "transform_colors", "source": "arrow", "transform": ["rotate:90", "mirror-h", "scale:1.5,1.5"]}
+{"type": "sprite", "name": "l_shape", "palette": "transform_colors", "grid": ["{g}{_}", "{g}{_}", "{g}{g}"]}
+{"type": "sprite", "name": "l_rotations", "palette": "transform_colors", "source": "l_shape", "transform": ["rotate:90"]}
