@@ -21,43 +21,26 @@
 //! ```
 
 use std::collections::{HashMap, HashSet};
-use std::fmt;
+use thiserror::Error;
 
 use crate::registry::Registry;
 
 /// Error type for variable resolution failures
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum VariableError {
     /// Variable is not defined and no fallback was provided
+    #[error("undefined variable '{0}' with no fallback")]
     Undefined(String),
     /// Circular dependency detected in variable resolution
+    #[error("circular dependency: {}", .0.join(" -> "))]
     Circular(Vec<String>),
     /// Invalid variable syntax
+    #[error("invalid variable syntax: {0}")]
     InvalidSyntax(String),
     /// Maximum recursion depth exceeded
+    #[error("maximum variable resolution depth exceeded")]
     MaxDepthExceeded,
 }
-
-impl fmt::Display for VariableError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            VariableError::Undefined(name) => {
-                write!(f, "undefined variable '{}' with no fallback", name)
-            }
-            VariableError::Circular(chain) => {
-                write!(f, "circular dependency: {}", chain.join(" -> "))
-            }
-            VariableError::InvalidSyntax(msg) => {
-                write!(f, "invalid variable syntax: {}", msg)
-            }
-            VariableError::MaxDepthExceeded => {
-                write!(f, "maximum variable resolution depth exceeded")
-            }
-        }
-    }
-}
-
-impl std::error::Error for VariableError {}
 
 /// Maximum depth for variable resolution to prevent stack overflow
 const MAX_RESOLUTION_DEPTH: usize = 100;

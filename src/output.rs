@@ -4,44 +4,17 @@ use image::imageops::FilterType;
 use image::RgbaImage;
 use std::io;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 
 /// Error type for output operations
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OutputError {
     /// IO error during file operations
-    Io(io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
     /// Image encoding error
-    Image(image::ImageError),
-}
-
-impl std::fmt::Display for OutputError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputError::Io(e) => write!(f, "IO error: {}", e),
-            OutputError::Image(e) => write!(f, "Image error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for OutputError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            OutputError::Io(e) => Some(e),
-            OutputError::Image(e) => Some(e),
-        }
-    }
-}
-
-impl From<io::Error> for OutputError {
-    fn from(e: io::Error) -> Self {
-        OutputError::Io(e)
-    }
-}
-
-impl From<image::ImageError> for OutputError {
-    fn from(e: image::ImageError) -> Self {
-        OutputError::Image(e)
-    }
+    #[error("Image error: {0}")]
+    Image(#[from] image::ImageError),
 }
 
 /// Save an RGBA image to a PNG file.

@@ -16,47 +16,20 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 /// Error during build execution.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum BuildError {
     /// Discovery error
-    Discovery(crate::build::DiscoveryError),
+    #[error("Discovery error: {0}")]
+    Discovery(#[from] crate::build::DiscoveryError),
     /// Build order error (circular dependencies)
-    BuildOrder(crate::build::target::BuildOrderError),
+    #[error("Build order error: {0}")]
+    BuildOrder(#[from] crate::build::target::BuildOrderError),
     /// IO error
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
     /// Generic build error
+    #[error("Build error: {0}")]
     Build(String),
-}
-
-impl std::fmt::Display for BuildError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BuildError::Discovery(e) => write!(f, "Discovery error: {}", e),
-            BuildError::BuildOrder(e) => write!(f, "Build order error: {}", e),
-            BuildError::Io(e) => write!(f, "IO error: {}", e),
-            BuildError::Build(e) => write!(f, "Build error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for BuildError {}
-
-impl From<crate::build::DiscoveryError> for BuildError {
-    fn from(e: crate::build::DiscoveryError) -> Self {
-        BuildError::Discovery(e)
-    }
-}
-
-impl From<crate::build::target::BuildOrderError> for BuildError {
-    fn from(e: crate::build::target::BuildOrderError) -> Self {
-        BuildError::BuildOrder(e)
-    }
-}
-
-impl From<std::io::Error> for BuildError {
-    fn from(e: std::io::Error) -> Self {
-        BuildError::Io(e)
-    }
 }
 
 /// Build pipeline for executing builds.

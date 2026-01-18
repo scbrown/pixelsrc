@@ -26,31 +26,18 @@ use crate::color::{parse_color, ColorError};
 use crate::variables::{VariableError, VariableRegistry};
 use image::Rgba;
 use std::collections::HashMap;
-use std::fmt;
+use thiserror::Error;
 
 /// Error during palette parsing
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PaletteParseError {
     /// Variable resolution failed
+    #[error("variable error for '{token}': {error}")]
     VariableError { token: String, error: VariableError },
     /// Color parsing failed after variable resolution
+    #[error("color error for '{token}' (value '{value}'): {error}")]
     ColorError { token: String, value: String, error: ColorError },
 }
-
-impl fmt::Display for PaletteParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PaletteParseError::VariableError { token, error } => {
-                write!(f, "variable error for '{}': {}", token, error)
-            }
-            PaletteParseError::ColorError { token, value, error } => {
-                write!(f, "color error for '{}' (value '{}'): {}", token, value, error)
-            }
-        }
-    }
-}
-
-impl std::error::Error for PaletteParseError {}
 
 /// Warning during lenient palette parsing
 #[derive(Debug, Clone, PartialEq, Eq)]

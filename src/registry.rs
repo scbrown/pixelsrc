@@ -8,7 +8,7 @@
 //! Both registries support lenient mode (warnings + fallback) and strict mode (errors).
 
 use std::collections::HashMap;
-use std::fmt;
+use thiserror::Error;
 
 use crate::models::{Palette, PaletteRef, Sprite, TransformSpec, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
@@ -97,26 +97,15 @@ pub enum PaletteSource {
 }
 
 /// Error when resolving a palette in strict mode.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum PaletteError {
     /// Referenced palette name was not found in registry
+    #[error("Palette '{0}' not found")]
     NotFound(String),
     /// Referenced built-in palette (@name) was not found
+    #[error("Built-in palette '{0}' not found")]
     BuiltinNotFound(String),
 }
-
-impl fmt::Display for PaletteError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PaletteError::NotFound(name) => write!(f, "Palette '{}' not found", name),
-            PaletteError::BuiltinNotFound(name) => {
-                write!(f, "Built-in palette '{}' not found", name)
-            }
-        }
-    }
-}
-
-impl std::error::Error for PaletteError {}
 
 /// Warning when resolving a palette in lenient mode.
 #[derive(Debug, Clone, PartialEq)]
@@ -385,46 +374,24 @@ impl Registry<Palette> for PaletteRegistry {
 // ============================================================================
 
 /// Error when resolving a sprite or variant.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum SpriteError {
     /// Referenced sprite/variant was not found
+    #[error("Sprite or variant '{0}' not found")]
     NotFound(String),
     /// Variant references a base sprite that doesn't exist
+    #[error("Variant '{variant}' references unknown base sprite '{base}'")]
     BaseNotFound { variant: String, base: String },
     /// Sprite references a source sprite that doesn't exist
-    SourceNotFound { sprite: String, source: String },
+    #[error("Sprite '{sprite}' references unknown source sprite '{source_name}'")]
+    SourceNotFound { sprite: String, source_name: String },
     /// Circular reference detected during source resolution
+    #[error("Circular reference detected for sprite '{sprite}': {}", chain.join(" -> "))]
     CircularReference { sprite: String, chain: Vec<String> },
     /// Error applying transform
+    #[error("Transform error for sprite '{sprite}': {message}")]
     TransformError { sprite: String, message: String },
 }
-
-impl fmt::Display for SpriteError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SpriteError::NotFound(name) => write!(f, "Sprite or variant '{}' not found", name),
-            SpriteError::BaseNotFound { variant, base } => {
-                write!(f, "Variant '{}' references unknown base sprite '{}'", variant, base)
-            }
-            SpriteError::SourceNotFound { sprite, source } => {
-                write!(f, "Sprite '{}' references unknown source sprite '{}'", sprite, source)
-            }
-            SpriteError::CircularReference { sprite, chain } => {
-                write!(
-                    f,
-                    "Circular reference detected for sprite '{}': {}",
-                    sprite,
-                    chain.join(" -> ")
-                )
-            }
-            SpriteError::TransformError { sprite, message } => {
-                write!(f, "Transform error for sprite '{}': {}", sprite, message)
-            }
-        }
-    }
-}
-
-impl std::error::Error for SpriteError {}
 
 /// Warning when resolving a sprite or variant in lenient mode.
 #[derive(Debug, Clone, PartialEq)]
@@ -1074,7 +1041,7 @@ impl SpriteRegistry {
                     if strict {
                         return Err(SpriteError::SourceNotFound {
                             sprite: sprite.name.clone(),
-                            source: source_name.clone(),
+                            source_name: source_name.clone(),
                         });
                     } else {
                         warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
@@ -2146,9 +2113,9 @@ mod tests {
         let result = sprite_registry.resolve("derived", &palette_registry, true);
         assert!(result.is_err());
         match result.unwrap_err() {
-            SpriteError::SourceNotFound { sprite, source } => {
+            SpriteError::SourceNotFound { sprite, source_name } => {
                 assert_eq!(sprite, "derived");
-                assert_eq!(source, "nonexistent");
+                assert_eq!(source_name, "nonexistent");
             }
             e => panic!("Expected SourceNotFound, got {:?}", e),
         }

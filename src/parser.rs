@@ -5,21 +5,15 @@
 
 use crate::models::{TtpObject, Warning};
 use std::io::Read;
+use thiserror::Error;
 
 /// Error type for parsing failures.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Error)]
+#[error("line {line}: {message}")]
 pub struct ParseError {
     pub message: String,
     pub line: usize,
 }
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "line {}: {}", self.line, self.message)
-    }
-}
-
-impl std::error::Error for ParseError {}
 
 /// Result of parsing a JSON stream.
 #[derive(Debug, Clone, Default)]

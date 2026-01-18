@@ -33,34 +33,20 @@ pub use libgdx::*;
 pub use unity::*;
 
 use std::path::Path;
+use thiserror::Error;
 
 /// Common error type for export operations.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ExportError {
     /// IO error during file writing
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
     /// Serialization error
+    #[error("Serialization error: {0}")]
     Serialization(String),
     /// Invalid configuration
+    #[error("Configuration error: {0}")]
     Config(String),
-}
-
-impl std::fmt::Display for ExportError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExportError::Io(e) => write!(f, "IO error: {}", e),
-            ExportError::Serialization(e) => write!(f, "Serialization error: {}", e),
-            ExportError::Config(e) => write!(f, "Configuration error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for ExportError {}
-
-impl From<std::io::Error> for ExportError {
-    fn from(e: std::io::Error) -> Self {
-        ExportError::Io(e)
-    }
 }
 
 impl From<serde_json::Error> for ExportError {

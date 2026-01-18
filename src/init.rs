@@ -4,38 +4,26 @@
 
 use std::fs;
 use std::path::Path;
+use thiserror::Error;
 
 use crate::templates::justfile::{generate_justfile, JustfileTemplate};
 
 /// Error during project initialization
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum InitError {
     /// Directory already exists
+    #[error("Directory already exists: {0}")]
     DirectoryExists(String),
     /// Failed to create directory
+    #[error("Failed to create directory: {0}")]
     CreateDir(std::io::Error),
     /// Failed to write file
+    #[error("Failed to write file: {0}")]
     WriteFile(std::io::Error),
     /// Unknown preset
+    #[error("Unknown preset '{0}'. Available: minimal, artist, animator, game")]
     UnknownPreset(String),
 }
-
-impl std::fmt::Display for InitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InitError::DirectoryExists(path) => {
-                write!(f, "Directory already exists: {}", path)
-            }
-            InitError::CreateDir(e) => write!(f, "Failed to create directory: {}", e),
-            InitError::WriteFile(e) => write!(f, "Failed to write file: {}", e),
-            InitError::UnknownPreset(preset) => {
-                write!(f, "Unknown preset '{}'. Available: minimal, artist, animator, game", preset)
-            }
-        }
-    }
-}
-
-impl std::error::Error for InitError {}
 
 /// Available project presets
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

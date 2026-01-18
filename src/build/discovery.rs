@@ -10,31 +10,14 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// Error during source discovery.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DiscoveryError {
     /// Invalid glob pattern
+    #[error("Invalid glob pattern '{0}': {1}")]
     InvalidPattern(String, glob::PatternError),
     /// IO error during file enumeration
-    Io(std::io::Error),
-}
-
-impl std::fmt::Display for DiscoveryError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DiscoveryError::InvalidPattern(pattern, err) => {
-                write!(f, "Invalid glob pattern '{}': {}", pattern, err)
-            }
-            DiscoveryError::Io(err) => write!(f, "IO error during discovery: {}", err),
-        }
-    }
-}
-
-impl std::error::Error for DiscoveryError {}
-
-impl From<std::io::Error> for DiscoveryError {
-    fn from(err: std::io::Error) -> Self {
-        DiscoveryError::Io(err)
-    }
+    #[error("IO error during discovery: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 /// Discover source files matching a glob pattern.

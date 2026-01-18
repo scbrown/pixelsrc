@@ -4,47 +4,29 @@
 
 use std::fs;
 use std::path::PathBuf;
+use thiserror::Error;
 
 use crate::config::loader::find_config;
 
 /// Error during asset scaffolding
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ScaffoldError {
     /// File already exists
+    #[error("File already exists: {}", .0.display())]
     FileExists(PathBuf),
     /// Failed to create directory
+    #[error("Failed to create directory: {0}")]
     CreateDir(std::io::Error),
     /// Failed to write file
+    #[error("Failed to write file: {0}")]
     WriteFile(std::io::Error),
     /// Not in a pixelsrc project (no pxl.toml found)
+    #[error("Not in a pixelsrc project (no pxl.toml found)")]
     NotInProject,
     /// Invalid asset name
+    #[error("Invalid asset name '{0}'. Use lowercase letters, numbers, and underscores.")]
     InvalidName(String),
 }
-
-impl std::fmt::Display for ScaffoldError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ScaffoldError::FileExists(path) => {
-                write!(f, "File already exists: {}", path.display())
-            }
-            ScaffoldError::CreateDir(e) => write!(f, "Failed to create directory: {}", e),
-            ScaffoldError::WriteFile(e) => write!(f, "Failed to write file: {}", e),
-            ScaffoldError::NotInProject => {
-                write!(f, "Not in a pixelsrc project (no pxl.toml found)")
-            }
-            ScaffoldError::InvalidName(name) => {
-                write!(
-                    f,
-                    "Invalid asset name '{}'. Use lowercase letters, numbers, and underscores.",
-                    name
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for ScaffoldError {}
 
 /// Validate an asset name.
 ///

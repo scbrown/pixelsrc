@@ -5,7 +5,7 @@ use crate::variables::VariableRegistry;
 use image::{Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
+use thiserror::Error;
 
 // ============================================================================
 // Blend Modes (ATF-10)
@@ -192,9 +192,10 @@ impl Warning {
 }
 
 /// Error when rendering a composition in strict mode.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum CompositionError {
     /// Sprite dimensions exceed cell size
+    #[error("Sprite '{sprite_name}' ({sprite_w}x{sprite_h}) exceeds cell size ({cell_w}x{cell_h}) in composition '{composition_name}'", sprite_w = sprite_size.0, sprite_h = sprite_size.1, cell_w = cell_size.0, cell_h = cell_size.1)]
     SizeMismatch {
         sprite_name: String,
         sprite_size: (u32, u32),
@@ -202,8 +203,10 @@ pub enum CompositionError {
         composition_name: String,
     },
     /// Canvas size is not divisible by cell_size
+    #[error("Size ({size_w}x{size_h}) is not divisible by cell_size ({cell_w}x{cell_h}) in composition '{composition_name}'", size_w = size.0, size_h = size.1, cell_w = cell_size.0, cell_h = cell_size.1)]
     SizeNotDivisible { size: (u32, u32), cell_size: (u32, u32), composition_name: String },
     /// Map dimensions don't match expected grid size
+    #[error("Map dimensions ({actual_w}x{actual_h}) don't match expected grid size ({expected_w}x{expected_h}) for {layer_desc} in composition '{composition_name}'", actual_w = actual_dimensions.0, actual_h = actual_dimensions.1, expected_w = expected_dimensions.0, expected_h = expected_dimensions.1, layer_desc = layer_name.as_ref().map(|n| format!("layer '{}'", n)).unwrap_or_else(|| "unnamed layer".to_string()))]
     MapDimensionMismatch {
         layer_name: Option<String>,
         actual_dimensions: (usize, usize),
@@ -211,56 +214,6 @@ pub enum CompositionError {
         composition_name: String,
     },
 }
-
-impl fmt::Display for CompositionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositionError::SizeMismatch {
-                sprite_name,
-                sprite_size,
-                cell_size,
-                composition_name,
-            } => write!(
-                f,
-                "Sprite '{}' ({}x{}) exceeds cell size ({}x{}) in composition '{}'",
-                sprite_name,
-                sprite_size.0,
-                sprite_size.1,
-                cell_size.0,
-                cell_size.1,
-                composition_name
-            ),
-            CompositionError::SizeNotDivisible { size, cell_size, composition_name } => write!(
-                f,
-                "Size ({}x{}) is not divisible by cell_size ({}x{}) in composition '{}'",
-                size.0, size.1, cell_size.0, cell_size.1, composition_name
-            ),
-            CompositionError::MapDimensionMismatch {
-                layer_name,
-                actual_dimensions,
-                expected_dimensions,
-                composition_name,
-            } => {
-                let layer_desc = layer_name
-                    .as_ref()
-                    .map(|n| format!("layer '{}'", n))
-                    .unwrap_or_else(|| "unnamed layer".to_string());
-                write!(
-                    f,
-                    "Map dimensions ({}x{}) don't match expected grid size ({}x{}) for {} in composition '{}'",
-                    actual_dimensions.0,
-                    actual_dimensions.1,
-                    expected_dimensions.0,
-                    expected_dimensions.1,
-                    layer_desc,
-                    composition_name
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for CompositionError {}
 
 /// Render a composition to an RGBA image buffer.
 ///

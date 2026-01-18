@@ -8,38 +8,27 @@
 use image::Rgba;
 use lightningcss::traits::Parse;
 use lightningcss::values::color::CssColor;
-use std::fmt;
+use thiserror::Error;
 
 /// Error type for color parsing failures
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ColorError {
     /// Input string was empty
+    #[error("empty color string")]
     Empty,
     /// Input string doesn't start with '#'
+    #[error("color must start with '#'")]
     MissingHash,
     /// Invalid length (must be 3, 4, 6, or 8 hex chars after #)
+    #[error("invalid color length {0}, expected 3, 4, 6, or 8")]
     InvalidLength(usize),
     /// Contains non-hex characters
+    #[error("invalid hex character '{0}'")]
     InvalidHex(char),
     /// CSS parsing error from lightningcss
+    #[error("CSS parse error: {0}")]
     CssParse(String),
 }
-
-impl fmt::Display for ColorError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ColorError::Empty => write!(f, "empty color string"),
-            ColorError::MissingHash => write!(f, "color must start with '#'"),
-            ColorError::InvalidLength(len) => {
-                write!(f, "invalid color length {}, expected 3, 4, 6, or 8", len)
-            }
-            ColorError::InvalidHex(c) => write!(f, "invalid hex character '{}'", c),
-            ColorError::CssParse(msg) => write!(f, "CSS parse error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for ColorError {}
 
 impl<T: std::fmt::Display> From<lightningcss::error::Error<T>> for ColorError {
     fn from(e: lightningcss::error::Error<T>) -> Self {

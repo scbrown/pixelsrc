@@ -8,40 +8,30 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
+use thiserror::Error;
 
 use crate::build::{BuildContext, BuildPipeline, BuildStatus, IncrementalBuild, IncrementalStats};
 use crate::config::schema::WatchConfig;
 
 /// Error during watch mode
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum WatchError {
     /// Failed to initialize file watcher
+    #[error("Failed to initialize file watcher: {0}")]
     WatcherInit(notify::Error),
     /// Failed to add watch path
+    #[error("Failed to watch path: {0}")]
     WatchPath(notify::Error),
     /// Channel receive error
+    #[error("Watch channel error: {0}")]
     ChannelError(String),
     /// Build failed (non-fatal, continues watching)
+    #[error("Build failed: {0}")]
     BuildFailed(String),
     /// Source directory not found
+    #[error("Source directory not found: {}", .0.display())]
     SourceNotFound(PathBuf),
 }
-
-impl std::fmt::Display for WatchError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WatchError::WatcherInit(e) => write!(f, "Failed to initialize file watcher: {}", e),
-            WatchError::WatchPath(e) => write!(f, "Failed to watch path: {}", e),
-            WatchError::ChannelError(msg) => write!(f, "Watch channel error: {}", msg),
-            WatchError::BuildFailed(msg) => write!(f, "Build failed: {}", msg),
-            WatchError::SourceNotFound(path) => {
-                write!(f, "Source directory not found: {}", path.display())
-            }
-        }
-    }
-}
-
-impl std::error::Error for WatchError {}
 
 /// A detailed build error with file location information
 #[derive(Debug, Clone)]

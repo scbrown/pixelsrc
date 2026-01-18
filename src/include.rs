@@ -7,43 +7,27 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 
 use crate::models::{Palette, TtpObject};
 use crate::parser::parse_stream;
 
 /// Error type for include resolution failures.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum IncludeError {
     /// Circular include detected
+    #[error("Circular include detected: {}", .0.display())]
     CircularInclude(PathBuf),
     /// File not found
+    #[error("Include file not found '{}': {1}", .0.display())]
     FileNotFound(PathBuf, String),
     /// No palette found in included file
+    #[error("No palette found in included file: {}", .0.display())]
     NoPaletteFound(PathBuf),
     /// IO error reading file
+    #[error("Error reading include file '{}': {1}", .0.display())]
     IoError(PathBuf, String),
 }
-
-impl std::fmt::Display for IncludeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            IncludeError::CircularInclude(path) => {
-                write!(f, "Circular include detected: {}", path.display())
-            }
-            IncludeError::FileNotFound(path, msg) => {
-                write!(f, "Include file not found '{}': {}", path.display(), msg)
-            }
-            IncludeError::NoPaletteFound(path) => {
-                write!(f, "No palette found in included file: {}", path.display())
-            }
-            IncludeError::IoError(path, msg) => {
-                write!(f, "Error reading include file '{}': {}", path.display(), msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for IncludeError {}
 
 /// The prefix for include syntax
 pub const INCLUDE_PREFIX: &str = "@include:";

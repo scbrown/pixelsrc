@@ -5,7 +5,6 @@
 
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt;
 
 // ============================================================================
 // Dither Patterns (ATF-8)
@@ -239,65 +238,40 @@ impl GradientDirection {
 }
 
 /// Errors that can occur during transform parsing or application
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum TransformError {
     /// Unknown transform operation
+    #[error("unknown transform operation: {0}")]
     UnknownOperation(String),
 
     /// Invalid parameter value
+    #[error("invalid parameter for {op}: {message}")]
     InvalidParameter { op: String, message: String },
 
     /// Missing required parameter
+    #[error("missing required parameter for {op}: {param}")]
     MissingParameter { op: String, param: String },
 
     /// Invalid rotation degrees (must be 90, 180, or 270)
+    #[error("invalid rotation degrees: {0} (must be 90, 180, or 270)")]
     InvalidRotation(u16),
 
     /// Invalid tile dimensions
+    #[error("invalid tile dimensions: {0}")]
     InvalidTileDimensions(String),
 
     /// Invalid crop region
+    #[error("invalid crop region: {0}")]
     InvalidCropRegion(String),
 
     /// Invalid shift values
+    #[error("invalid shift values: {0}")]
     InvalidShift(String),
 
     /// General parse error
+    #[error("parse error: {0}")]
     ParseError(String),
 }
-
-impl fmt::Display for TransformError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TransformError::UnknownOperation(op) => {
-                write!(f, "unknown transform operation: {}", op)
-            }
-            TransformError::InvalidParameter { op, message } => {
-                write!(f, "invalid parameter for {}: {}", op, message)
-            }
-            TransformError::MissingParameter { op, param } => {
-                write!(f, "missing required parameter for {}: {}", op, param)
-            }
-            TransformError::InvalidRotation(degrees) => {
-                write!(f, "invalid rotation degrees: {} (must be 90, 180, or 270)", degrees)
-            }
-            TransformError::InvalidTileDimensions(dims) => {
-                write!(f, "invalid tile dimensions: {}", dims)
-            }
-            TransformError::InvalidCropRegion(region) => {
-                write!(f, "invalid crop region: {}", region)
-            }
-            TransformError::InvalidShift(shift) => {
-                write!(f, "invalid shift values: {}", shift)
-            }
-            TransformError::ParseError(msg) => {
-                write!(f, "parse error: {}", msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for TransformError {}
 
 /// A single transform operation with optional parameters
 #[derive(Debug, Clone, PartialEq)]
@@ -1212,43 +1186,24 @@ pub struct CssTransform {
 }
 
 /// Error type for CSS transform parsing failures
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum CssTransformError {
     /// Unknown transform function
+    #[error("unknown CSS transform function: {0}")]
     UnknownFunction(String),
     /// Invalid parameter value
+    #[error("invalid parameter for {func}(): {message}")]
     InvalidParameter { func: String, message: String },
     /// Missing required parameter
+    #[error("missing required parameter for {func}(): {param}")]
     MissingParameter { func: String, param: String },
     /// Invalid rotation value (for pixel art, must be 90, 180, or 270)
+    #[error("invalid rotation: {0}deg (pixel art requires 90, 180, or 270)")]
     InvalidRotation(f64),
     /// Syntax error
+    #[error("CSS transform syntax error: {0}")]
     SyntaxError(String),
 }
-
-impl fmt::Display for CssTransformError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CssTransformError::UnknownFunction(func) => {
-                write!(f, "unknown CSS transform function: {}", func)
-            }
-            CssTransformError::InvalidParameter { func, message } => {
-                write!(f, "invalid parameter for {}(): {}", func, message)
-            }
-            CssTransformError::MissingParameter { func, param } => {
-                write!(f, "missing required parameter for {}(): {}", func, param)
-            }
-            CssTransformError::InvalidRotation(deg) => {
-                write!(f, "invalid rotation: {}deg (pixel art requires 90, 180, or 270)", deg)
-            }
-            CssTransformError::SyntaxError(msg) => {
-                write!(f, "CSS transform syntax error: {}", msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for CssTransformError {}
 
 impl CssTransform {
     /// Create a new empty CSS transform

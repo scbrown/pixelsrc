@@ -66,41 +66,19 @@ const MANIFEST_VERSION: u32 = 2;
 pub const MANIFEST_FILENAME: &str = ".pxl-manifest.json";
 
 /// Error during manifest operations.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
     /// IO error
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
     /// JSON parsing error
-    Json(serde_json::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
     /// Version mismatch
+    #[error("Manifest version mismatch: expected {expected}, found {found}")]
     VersionMismatch { expected: u32, found: u32 },
 }
 
-impl std::fmt::Display for ManifestError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ManifestError::Io(e) => write!(f, "IO error: {}", e),
-            ManifestError::Json(e) => write!(f, "JSON error: {}", e),
-            ManifestError::VersionMismatch { expected, found } => {
-                write!(f, "Manifest version mismatch: expected {}, found {}", expected, found)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ManifestError {}
-
-impl From<std::io::Error> for ManifestError {
-    fn from(e: std::io::Error) -> Self {
-        ManifestError::Io(e)
-    }
-}
-
-impl From<serde_json::Error> for ManifestError {
-    fn from(e: serde_json::Error) -> Self {
-        ManifestError::Json(e)
-    }
-}
 
 /// Build manifest tracking all built targets.
 #[derive(Debug, Clone, Serialize, Deserialize)]

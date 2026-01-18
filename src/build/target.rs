@@ -234,23 +234,12 @@ impl BuildPlan {
 }
 
 /// Error during build order calculation.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum BuildOrderError {
     /// Circular dependency detected
+    #[error("Circular dependency detected involving target '{0}'")]
     CyclicDependency(String),
 }
-
-impl std::fmt::Display for BuildOrderError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BuildOrderError::CyclicDependency(id) => {
-                write!(f, "Circular dependency detected involving target '{}'", id)
-            }
-        }
-    }
-}
-
-impl std::error::Error for BuildOrderError {}
 
 #[cfg(test)]
 mod tests {

@@ -517,41 +517,25 @@ pub fn parse_motion_path(s: &str) -> Option<MotionPath> {
 }
 
 /// Error type for timing function parsing
-#[derive(Debug, Clone, PartialEq)]
+/// Error type for timing function parsing failures
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum TimingFunctionError {
     /// Empty input string
+    #[error("empty timing function")]
     Empty,
     /// Unknown timing function name
+    #[error("unknown timing function: {0}")]
     UnknownFunction(String),
     /// Invalid cubic-bezier parameters
+    #[error("invalid cubic-bezier: {0}")]
     InvalidBezier(String),
     /// Invalid steps parameters
+    #[error("invalid steps: {0}")]
     InvalidSteps(String),
     /// Syntax error in function call
+    #[error("syntax error: {0}")]
     Syntax(String),
 }
-
-impl fmt::Display for TimingFunctionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TimingFunctionError::Empty => write!(f, "empty timing function"),
-            TimingFunctionError::UnknownFunction(name) => {
-                write!(f, "unknown timing function: {}", name)
-            }
-            TimingFunctionError::InvalidBezier(msg) => {
-                write!(f, "invalid cubic-bezier: {}", msg)
-            }
-            TimingFunctionError::InvalidSteps(msg) => {
-                write!(f, "invalid steps: {}", msg)
-            }
-            TimingFunctionError::Syntax(msg) => {
-                write!(f, "syntax error: {}", msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for TimingFunctionError {}
 
 /// Parse a CSS timing function string.
 ///

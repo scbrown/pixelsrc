@@ -10,46 +10,20 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 
 /// Configuration loading error
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ConfigError {
     /// File I/O error
-    Io(std::io::Error),
+    #[error("Failed to read config: {0}")]
+    Io(#[from] std::io::Error),
     /// TOML parsing error
-    Parse(toml::de::Error),
+    #[error("Failed to parse pxl.toml: {0}")]
+    Parse(#[from] toml::de::Error),
     /// Validation error
+    #[error("Config validation failed:\n{}", .0.iter().map(|e| format!("  - {}", e)).collect::<Vec<_>>().join("\n"))]
     Validation(Vec<String>),
-}
-
-impl std::fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConfigError::Io(e) => write!(f, "Failed to read config: {}", e),
-            ConfigError::Parse(e) => write!(f, "Failed to parse pxl.toml: {}", e),
-            ConfigError::Validation(errors) => {
-                writeln!(f, "Config validation failed:")?;
-                for err in errors {
-                    writeln!(f, "  - {}", err)?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-impl std::error::Error for ConfigError {}
-
-impl From<std::io::Error> for ConfigError {
-    fn from(e: std::io::Error) -> Self {
-        ConfigError::Io(e)
-    }
-}
-
-impl From<toml::de::Error> for ConfigError {
-    fn from(e: toml::de::Error) -> Self {
-        ConfigError::Parse(e)
-    }
 }
 
 /// CLI arguments that can override config values
