@@ -49,6 +49,8 @@
 - [build](cli/build.md)
 - [new](cli/new.md)
 - [init](cli/init.md)
+- [alias](cli/alias.md)
+- [sketch](cli/sketch.md)
 
 # Export Formats
 
