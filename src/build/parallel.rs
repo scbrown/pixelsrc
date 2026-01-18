@@ -26,8 +26,10 @@
 use crate::build::{
     BuildContext, BuildError, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult,
 };
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -223,7 +225,7 @@ impl ParallelBuild {
         Ok(result)
     }
 
-    /// Execute a single level of targets in parallel.
+    /// Execute a single level of targets in parallel using Rayon.
     fn execute_level(
         &self,
         targets: &[&BuildTarget],
@@ -238,51 +240,50 @@ impl ParallelBuild {
             return Ok(targets.iter().map(|t| self.execute_target(t)).collect());
         }
 
-        // Execute in parallel using scoped threads
-        let results = Arc::new(Mutex::new(Vec::new()));
-        let context = &self.context;
+        // Use atomic for faster fail-fast checking
+        let failed_atomic = AtomicBool::new(*failed.lock().unwrap());
         let fail_fast = self.fail_fast;
-        let next_idx = std::sync::atomic::AtomicUsize::new(0);
+        let context = &self.context;
 
-        std::thread::scope(|s| {
-            // Spawn worker threads
-            let num_workers = self.jobs.min(targets.len());
+        // Build a custom thread pool with the configured number of threads
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(self.jobs)
+            .build()
+            .map_err(|e| BuildError::Build(format!("Failed to create thread pool: {}", e)))?;
 
-            for _ in 0..num_workers {
-                let results = Arc::clone(&results);
-                let failed = Arc::clone(&failed);
-                let next_idx = &next_idx;
-
-                s.spawn(move || {
-                    loop {
-                        // Check if we should stop
-                        if fail_fast && *failed.lock().unwrap() {
-                            break;
-                        }
-
-                        // Get next work item
-                        let idx = next_idx.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                        if idx >= targets.len() {
-                            break;
-                        }
-
-                        let target = targets[idx];
-                        let result = self.execute_target_internal(target, context);
-
-                        if result.status.is_failure() && fail_fast {
-                            *failed.lock().unwrap() = true;
-                        }
-
-                        results.lock().unwrap().push((idx, result));
+        // Execute in parallel using Rayon's par_iter with index preservation
+        let results: Vec<(usize, TargetResult)> = pool.install(|| {
+            targets
+                .par_iter()
+                .enumerate()
+                .map(|(idx, target)| {
+                    // Check if we should stop early
+                    if fail_fast && failed_atomic.load(Ordering::Relaxed) {
+                        return (
+                            idx,
+                            TargetResult::skipped(target.id.clone()),
+                        );
                     }
-                });
-            }
+
+                    let result = self.execute_target_internal(target, context);
+
+                    // Mark failure for fail-fast mode
+                    if result.status.is_failure() && fail_fast {
+                        failed_atomic.store(true, Ordering::Relaxed);
+                    }
+
+                    (idx, result)
+                })
+                .collect()
         });
 
+        // Update the shared failed state
+        if failed_atomic.load(Ordering::Relaxed) {
+            *failed.lock().unwrap() = true;
+        }
+
         // Sort results by original index to maintain deterministic order
-        let mut results = Arc::try_unwrap(results)
-            .map(|mutex| mutex.into_inner().unwrap())
-            .unwrap_or_else(|arc| arc.lock().unwrap().clone());
+        let mut results = results;
         results.sort_by_key(|(idx, _)| *idx);
 
         Ok(results.into_iter().map(|(_, r)| r).collect())

@@ -8,6 +8,7 @@ use crate::models::TtpObject;
 use crate::parser::parse_stream;
 use crate::registry::PaletteRegistry;
 use crate::renderer::render_sprite;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::BufReader;
@@ -320,8 +321,8 @@ impl BuildPipeline {
 
     /// Build an atlas target.
     ///
-    /// Parses all source files, renders sprites, packs them into a texture atlas,
-    /// and saves the atlas image and metadata JSON.
+    /// Parses all source files, renders sprites in parallel, packs them into a
+    /// texture atlas, and saves the atlas image and metadata JSON.
     fn build_atlas(&self, target: &BuildTarget) -> Result<Vec<std::path::PathBuf>, String> {
         // Validate sources exist
         for source in &target.sources {
@@ -346,9 +347,20 @@ impl BuildPipeline {
             power_of_two: atlas_config.power_of_two,
         };
 
-        // Collect sprites from all source files
-        let mut sprite_inputs: Vec<SpriteInput> = Vec::new();
         let scale = self.context.default_scale();
+        let is_strict = self.context.is_strict();
+        let is_verbose = self.context.is_verbose();
+        let multi_source = target.sources.len() > 1;
+
+        // Phase 1: Parse all source files and collect render tasks
+        // Each render task contains: (sprite, resolved_palette, qualified_name)
+        struct RenderTask {
+            sprite: crate::models::Sprite,
+            colors: HashMap<String, String>,
+            qualified_name: String,
+        }
+
+        let mut render_tasks: Vec<RenderTask> = Vec::new();
 
         for source in &target.sources {
             // Parse the source file
@@ -375,10 +387,12 @@ impl BuildPipeline {
                 }
             }
 
-            // Render each sprite and add to inputs
+            // Create render tasks for each sprite
+            let file_stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
+
             for sprite in sprites {
                 // Resolve palette for sprite
-                let resolved = if self.context.is_strict() {
+                let resolved = if is_strict {
                     registry.resolve_strict(&sprite).map_err(|e| {
                         format!(
                             "Failed to resolve palette for '{}' in {}: {}",
@@ -390,29 +404,47 @@ impl BuildPipeline {
                 } else {
                     let result = registry.resolve_lenient(&sprite);
                     if let Some(warning) = result.warning {
-                        if self.context.is_verbose() {
+                        if is_verbose {
                             eprintln!("Warning: {}", warning.message);
                         }
                     }
                     result.palette
                 };
 
+                let qualified_name = if multi_source {
+                    format!("{}:{}", file_stem, sprite.name)
+                } else {
+                    sprite.name.clone()
+                };
+
+                render_tasks.push(RenderTask {
+                    sprite,
+                    colors: resolved.colors.clone(),
+                    qualified_name,
+                });
+            }
+        }
+
+        // Phase 2: Render sprites in parallel using Rayon
+        let render_results: Vec<Result<SpriteInput, String>> = render_tasks
+            .into_par_iter()
+            .map(|task| {
                 // Render the sprite
-                let (image, render_warnings) = render_sprite(&sprite, &resolved.colors);
+                let (image, render_warnings) = render_sprite(&task.sprite, &task.colors);
 
                 // Handle render warnings
                 if !render_warnings.is_empty() {
-                    if self.context.is_strict() {
+                    if is_strict {
                         let warnings: Vec<String> =
                             render_warnings.iter().map(|w| w.message.clone()).collect();
                         return Err(format!(
                             "Render warnings for '{}': {}",
-                            sprite.name,
+                            task.sprite.name,
                             warnings.join("; ")
                         ));
-                    } else if self.context.is_verbose() {
+                    } else if is_verbose {
                         for warning in &render_warnings {
-                            eprintln!("Warning: sprite '{}': {}", sprite.name, warning.message);
+                            eprintln!("Warning: sprite '{}': {}", task.sprite.name, warning.message);
                         }
                     }
                 }
@@ -430,8 +462,8 @@ impl BuildPipeline {
                 };
 
                 // Extract metadata (origin and boxes)
-                let origin = sprite.metadata.as_ref().and_then(|m| m.origin);
-                let boxes = sprite.metadata.as_ref().and_then(|m| {
+                let origin = task.sprite.metadata.as_ref().and_then(|m| m.origin);
+                let boxes = task.sprite.metadata.as_ref().and_then(|m| {
                     m.boxes.as_ref().map(|b| {
                         b.iter()
                             .map(|(name, cb)| {
@@ -444,23 +476,19 @@ impl BuildPipeline {
                     })
                 });
 
-                // Create sprite input with file-qualified name to avoid collisions
-                let file_stem =
-                    source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
-                let qualified_name = if target.sources.len() > 1 {
-                    format!("{}:{}", file_stem, sprite.name)
-                } else {
-                    sprite.name.clone()
-                };
-
-                sprite_inputs.push(SpriteInput {
-                    name: qualified_name,
+                Ok(SpriteInput {
+                    name: task.qualified_name,
                     image: final_image,
                     origin,
                     boxes,
-                });
-            }
-        }
+                })
+            })
+            .collect();
+
+        // Collect results, propagating any errors
+        let sprite_inputs: Vec<SpriteInput> = render_results
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
 
         if sprite_inputs.is_empty() {
             return Err(format!(

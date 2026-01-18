@@ -30,6 +30,7 @@ notify = "6.1"
 # Note: bundler and visitor features are NOT available in WASM builds
 lightningcss = { version = "1.0.0-alpha.68", default-features = false, features = ["serde"] }
 notify-debouncer-mini = "0.4"
+rayon = "1.10"
 
 [dev-dependencies]
 tempfile = "3"
