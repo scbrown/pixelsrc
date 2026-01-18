@@ -23,6 +23,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
+use crate::registry::Registry;
+
 /// Error type for variable resolution failures
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VariableError {
@@ -308,6 +310,37 @@ impl VariableRegistry {
     }
 }
 
+impl Registry<String> for VariableRegistry {
+    /// Check if a variable with the given name exists.
+    ///
+    /// The name is normalized (-- prefix added if missing) before lookup.
+    fn contains(&self, name: &str) -> bool {
+        let normalized_name = Self::normalize_name(name);
+        self.variables.contains_key(&normalized_name)
+    }
+
+    /// Get a variable's value by name.
+    ///
+    /// The name is normalized (-- prefix added if missing) before lookup.
+    /// Returns the raw value which may contain unresolved `var()` references.
+    fn get(&self, name: &str) -> Option<&String> {
+        let normalized_name = Self::normalize_name(name);
+        self.variables.get(&normalized_name)
+    }
+
+    fn len(&self) -> usize {
+        self.variables.len()
+    }
+
+    fn clear(&mut self) {
+        self.variables.clear();
+    }
+
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_> {
+        Box::new(self.variables.keys())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -569,5 +602,80 @@ mod tests {
     fn test_default_trait() {
         let reg = VariableRegistry::default();
         assert!(reg.is_empty());
+    }
+
+    // ========== Registry Trait Tests ==========
+
+    #[test]
+    fn test_registry_trait_get() {
+        let mut reg = VariableRegistry::new();
+        reg.define("--primary", "#FF0000");
+
+        // Registry trait get returns Option<&String>
+        let value = Registry::<String>::get(&reg, "--primary");
+        assert!(value.is_some());
+        assert_eq!(value.unwrap(), "#FF0000");
+
+        // Name normalization works through trait
+        let value = Registry::<String>::get(&reg, "primary");
+        assert!(value.is_some());
+        assert_eq!(value.unwrap(), "#FF0000");
+    }
+
+    #[test]
+    fn test_registry_trait_contains() {
+        let mut reg = VariableRegistry::new();
+        reg.define("--test", "value");
+
+        assert!(Registry::<String>::contains(&reg, "--test"));
+        assert!(Registry::<String>::contains(&reg, "test"));
+        assert!(!Registry::<String>::contains(&reg, "--missing"));
+    }
+
+    #[test]
+    fn test_registry_trait_len() {
+        let mut reg = VariableRegistry::new();
+        assert_eq!(Registry::<String>::len(&reg), 0);
+
+        reg.define("--a", "1");
+        assert_eq!(Registry::<String>::len(&reg), 1);
+
+        reg.define("--b", "2");
+        assert_eq!(Registry::<String>::len(&reg), 2);
+    }
+
+    #[test]
+    fn test_registry_trait_clear() {
+        let mut reg = VariableRegistry::new();
+        reg.define("--a", "1");
+        reg.define("--b", "2");
+        assert_eq!(Registry::<String>::len(&reg), 2);
+
+        Registry::<String>::clear(&mut reg);
+        assert!(Registry::<String>::is_empty(&reg));
+    }
+
+    #[test]
+    fn test_registry_trait_names() {
+        let mut reg = VariableRegistry::new();
+        reg.define("--a", "1");
+        reg.define("--b", "2");
+
+        let names: Vec<_> = Registry::<String>::names(&reg).collect();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&&"--a".to_string()));
+        assert!(names.contains(&&"--b".to_string()));
+    }
+
+    #[test]
+    fn test_registry_trait_via_generic() {
+        fn check_registry<V>(reg: &impl Registry<V>) -> usize {
+            reg.len()
+        }
+
+        let mut reg = VariableRegistry::new();
+        reg.define("--a", "1");
+        reg.define("--b", "2");
+        assert_eq!(check_registry::<String>(&reg), 2);
     }
 }

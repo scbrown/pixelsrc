@@ -1,9 +1,11 @@
-//! Palette registry for resolving palette references
+//! Registry traits and implementations for named items.
 //!
-//! The registry stores named palettes and resolves palette references for sprites.
-//! Supports both lenient mode (warnings + fallback) and strict mode (errors).
+//! This module provides:
+//! - A unified `Registry` trait for consistent registry interfaces
+//! - `PaletteRegistry` for storing named palettes and resolving palette references
+//! - `SpriteRegistry` for storing sprites and variants with transform support
 //!
-//! Also handles sprite resolution including source references and transform application.
+//! Both registries support lenient mode (warnings + fallback) and strict mode (errors).
 
 use std::collections::HashMap;
 use std::fmt;
@@ -12,6 +14,64 @@ use crate::models::{Palette, PaletteRef, Sprite, TransformSpec, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
 use crate::transforms::{self, Transform, TransformError};
+
+// ============================================================================
+// Registry Trait
+// ============================================================================
+
+/// Common trait for registries that store named items.
+///
+/// This trait provides a unified interface for registries that map string names to values.
+/// It defines common operations like checking existence, retrieving items, and counting entries.
+///
+/// # Type Parameters
+///
+/// * `V` - The type of value stored in the registry
+///
+/// # Example
+///
+/// ```
+/// use pixelsrc::registry::{Registry, PaletteRegistry};
+/// use pixelsrc::models::Palette;
+/// use std::collections::HashMap;
+///
+/// let mut registry = PaletteRegistry::new();
+/// let palette = Palette {
+///     name: "mono".to_string(),
+///     colors: HashMap::from([("{on}".to_string(), "#FFFFFF".to_string())]),
+/// };
+/// registry.register(palette);
+///
+/// assert!(registry.contains("mono"));
+/// assert_eq!(registry.len(), 1);
+/// ```
+pub trait Registry<V> {
+    /// Check if an item with the given name exists in the registry.
+    fn contains(&self, name: &str) -> bool;
+
+    /// Get an item by name.
+    ///
+    /// Returns `None` if no item with the given name exists.
+    fn get(&self, name: &str) -> Option<&V>;
+
+    /// Get the number of items in the registry.
+    fn len(&self) -> usize;
+
+    /// Check if the registry is empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Clear all items from the registry.
+    fn clear(&mut self);
+
+    /// Get an iterator over all names in the registry.
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_>;
+}
+
+// ============================================================================
+// Palette Registry
+// ============================================================================
 
 /// Magenta fallback color for missing palettes/tokens
 pub const MAGENTA_FALLBACK: &str = "#FF00FF";
@@ -270,6 +330,53 @@ impl PaletteRegistry {
         } else {
             Ok(self.resolve_lenient(sprite))
         }
+    }
+
+    /// Get the number of palettes in the registry.
+    pub fn len(&self) -> usize {
+        self.palettes.len()
+    }
+
+    /// Check if the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        self.palettes.is_empty()
+    }
+
+    /// Clear all palettes from the registry.
+    pub fn clear(&mut self) {
+        self.palettes.clear();
+    }
+
+    /// Get an iterator over all palette names.
+    pub fn names(&self) -> impl Iterator<Item = &String> {
+        self.palettes.keys()
+    }
+
+    /// Iterate over all palettes in the registry.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Palette)> {
+        self.palettes.iter()
+    }
+}
+
+impl Registry<Palette> for PaletteRegistry {
+    fn contains(&self, name: &str) -> bool {
+        self.palettes.contains_key(name)
+    }
+
+    fn get(&self, name: &str) -> Option<&Palette> {
+        self.palettes.get(name)
+    }
+
+    fn len(&self) -> usize {
+        self.palettes.len()
+    }
+
+    fn clear(&mut self) {
+        self.palettes.clear();
+    }
+
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_> {
+        Box::new(self.palettes.keys())
     }
 }
 
@@ -1173,6 +1280,86 @@ impl SpriteRegistry {
     pub fn names(&self) -> impl Iterator<Item = &String> {
         self.sprites.keys().chain(self.variants.keys())
     }
+
+    /// Get the total number of sprites and variants in the registry.
+    pub fn len(&self) -> usize {
+        self.sprites.len() + self.variants.len()
+    }
+
+    /// Check if the registry is empty (no sprites or variants).
+    pub fn is_empty(&self) -> bool {
+        self.sprites.is_empty() && self.variants.is_empty()
+    }
+
+    /// Clear all sprites and variants from the registry.
+    pub fn clear(&mut self) {
+        self.sprites.clear();
+        self.variants.clear();
+    }
+
+    /// Get the number of sprites (excluding variants).
+    pub fn sprite_count(&self) -> usize {
+        self.sprites.len()
+    }
+
+    /// Get the number of variants (excluding sprites).
+    pub fn variant_count(&self) -> usize {
+        self.variants.len()
+    }
+
+    /// Iterate over all sprites in the registry.
+    pub fn sprites(&self) -> impl Iterator<Item = (&String, &Sprite)> {
+        self.sprites.iter()
+    }
+
+    /// Iterate over all variants in the registry.
+    pub fn variants(&self) -> impl Iterator<Item = (&String, &Variant)> {
+        self.variants.iter()
+    }
+}
+
+impl Registry<Sprite> for SpriteRegistry {
+    fn contains(&self, name: &str) -> bool {
+        self.sprites.contains_key(name)
+    }
+
+    fn get(&self, name: &str) -> Option<&Sprite> {
+        self.sprites.get(name)
+    }
+
+    fn len(&self) -> usize {
+        self.sprites.len()
+    }
+
+    fn clear(&mut self) {
+        self.sprites.clear();
+    }
+
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_> {
+        Box::new(self.sprites.keys())
+    }
+}
+
+impl Registry<Variant> for SpriteRegistry {
+    fn contains(&self, name: &str) -> bool {
+        self.variants.contains_key(name)
+    }
+
+    fn get(&self, name: &str) -> Option<&Variant> {
+        self.variants.get(name)
+    }
+
+    fn len(&self) -> usize {
+        self.variants.len()
+    }
+
+    fn clear(&mut self) {
+        self.variants.clear();
+    }
+
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_> {
+        Box::new(self.variants.keys())
+    }
 }
 
 #[cfg(test)]
@@ -2063,5 +2250,126 @@ mod tests {
         assert_eq!(result.palette.get("{a}").unwrap(), "#0000FF");
         // Original color for {b} should be from base
         assert_eq!(result.palette.get("{b}").unwrap(), "#00FF00");
+    }
+
+    // ========== Registry Trait Tests ==========
+
+    #[test]
+    fn test_palette_registry_trait_len_and_empty() {
+        let mut registry = PaletteRegistry::new();
+        assert!(registry.is_empty());
+        assert_eq!(registry.len(), 0);
+
+        registry.register(mono_palette());
+        assert!(!registry.is_empty());
+        assert_eq!(registry.len(), 1);
+
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+        });
+        assert_eq!(registry.len(), 2);
+
+        registry.clear();
+        assert!(registry.is_empty());
+    }
+
+    #[test]
+    fn test_palette_registry_trait_names() {
+        let mut registry = PaletteRegistry::new();
+        registry.register(mono_palette());
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+        });
+
+        let names: Vec<_> = registry.names().collect();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&&"mono".to_string()));
+        assert!(names.contains(&&"other".to_string()));
+    }
+
+    #[test]
+    fn test_palette_registry_trait_via_generic() {
+        fn check_registry<V>(reg: &impl Registry<V>) -> usize {
+            reg.len()
+        }
+
+        let mut registry = PaletteRegistry::new();
+        registry.register(mono_palette());
+        assert_eq!(check_registry::<Palette>(&registry), 1);
+    }
+
+    #[test]
+    fn test_sprite_registry_len_and_empty() {
+        let mut registry = SpriteRegistry::new();
+        assert!(registry.is_empty());
+        assert_eq!(registry.len(), 0);
+
+        registry.register_sprite(hero_sprite());
+        assert!(!registry.is_empty());
+        assert_eq!(registry.len(), 1);
+        assert_eq!(registry.sprite_count(), 1);
+        assert_eq!(registry.variant_count(), 0);
+
+        registry.register_variant(hero_red_variant());
+        assert_eq!(registry.len(), 2);
+        assert_eq!(registry.sprite_count(), 1);
+        assert_eq!(registry.variant_count(), 1);
+
+        registry.clear();
+        assert!(registry.is_empty());
+    }
+
+    #[test]
+    fn test_sprite_registry_sprite_trait_via_generic() {
+        fn check_registry<V>(reg: &impl Registry<V>) -> usize {
+            reg.len()
+        }
+
+        let mut registry = SpriteRegistry::new();
+        registry.register_sprite(hero_sprite());
+        registry.register_variant(hero_red_variant());
+
+        // Via the Sprite trait, only sprites count
+        assert_eq!(check_registry::<Sprite>(&registry), 1);
+        // Via the Variant trait, only variants count
+        assert_eq!(check_registry::<Variant>(&registry), 1);
+    }
+
+    #[test]
+    fn test_sprite_registry_trait_contains() {
+        let mut registry = SpriteRegistry::new();
+        registry.register_sprite(hero_sprite());
+        registry.register_variant(hero_red_variant());
+
+        // Registry<Sprite> contains checks sprites only
+        assert!(Registry::<Sprite>::contains(&registry, "hero"));
+        assert!(!Registry::<Sprite>::contains(&registry, "hero_red"));
+
+        // Registry<Variant> contains checks variants only
+        assert!(!Registry::<Variant>::contains(&registry, "hero"));
+        assert!(Registry::<Variant>::contains(&registry, "hero_red"));
+
+        // The regular contains method checks both
+        assert!(registry.contains("hero"));
+        assert!(registry.contains("hero_red"));
+    }
+
+    #[test]
+    fn test_sprite_registry_trait_get() {
+        let mut registry = SpriteRegistry::new();
+        registry.register_sprite(hero_sprite());
+        registry.register_variant(hero_red_variant());
+
+        // Registry<Sprite>::get returns sprites
+        let sprite = Registry::<Sprite>::get(&registry, "hero");
+        assert!(sprite.is_some());
+        assert_eq!(sprite.unwrap().name, "hero");
+
+        // Registry<Variant>::get returns variants
+        let variant = Registry::<Variant>::get(&registry, "hero_red");
+        assert!(variant.is_some());
+        assert_eq!(variant.unwrap().name, "hero_red");
     }
 }
