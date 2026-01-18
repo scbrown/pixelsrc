@@ -363,3 +363,140 @@ fn test_whitespace_in_var_reference() {
     // {b} uses defined --color, not fallback
     assert_eq!(result.colors.get("{b}"), Some(&Rgba([255, 0, 0, 255])));
 }
+
+// ========== CSS-12: color-mix() with var() tests ==========
+
+#[test]
+fn test_color_mix_with_var_references() {
+    // color-mix() using CSS variables for colors
+    let raw = make_palette(&[
+        ("--primary", "red"),
+        ("--secondary", "blue"),
+        ("{mixed}", "color-mix(in oklch, var(--primary), var(--secondary))"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    // Should successfully parse color-mix with variable-resolved colors
+    assert!(result.warnings.is_empty(), "Should have no warnings: {:?}", result.warnings);
+    let mixed = result.colors.get("{mixed}").expect("Should have {mixed} color");
+    // Should be a purple-ish color (red + blue)
+    assert!(mixed.0[0] > 100, "Should have red component: {:?}", mixed);
+    assert!(mixed.0[2] > 100, "Should have blue component: {:?}", mixed);
+}
+
+#[test]
+fn test_color_mix_with_var_percentages() {
+    // color-mix() with variable colors and percentages
+    let raw = make_palette(&[
+        ("--bg", "#000000"),
+        ("--fg", "#ffffff"),
+        ("{light_bg}", "color-mix(in oklch, var(--bg) 70%, var(--fg))"),
+        ("{dark_fg}", "color-mix(in oklch, var(--fg) 30%, var(--bg))"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    assert!(result.warnings.is_empty(), "Should have no warnings: {:?}", result.warnings);
+
+    // {light_bg} is 70% black + 30% white = dark gray
+    let light_bg = result.colors.get("{light_bg}").expect("Should have {light_bg}");
+    assert!(light_bg.0[0] < 128, "70% black should be dark: {:?}", light_bg);
+
+    // {dark_fg} is 30% white + 70% black = very dark gray
+    let dark_fg = result.colors.get("{dark_fg}").expect("Should have {dark_fg}");
+    assert!(dark_fg.0[0] < 128, "30% white should be dark: {:?}", dark_fg);
+}
+
+#[test]
+fn test_color_mix_with_hex_vars() {
+    let raw = make_palette(&[
+        ("--color1", "#ff6347"),  // coral/tomato
+        ("--color2", "#4682b4"),  // steelblue
+        ("{blend}", "color-mix(in srgb, var(--color1), var(--color2))"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    assert!(result.warnings.is_empty());
+    assert!(result.colors.contains_key("{blend}"));
+}
+
+#[test]
+fn test_color_mix_with_fallback_vars() {
+    // color-mix() with undefined variable using fallback
+    let raw = make_palette(&[
+        ("--known", "red"),
+        ("{mixed}", "color-mix(in oklch, var(--known), var(--unknown, blue))"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    // Fallback should work - var(--unknown, blue) resolves to blue
+    assert!(result.warnings.is_empty(), "Fallback should work: {:?}", result.warnings);
+    let mixed = result.colors.get("{mixed}").expect("Should have {mixed}");
+    // Should be purple (red + blue)
+    assert!(mixed.0[0] > 100 && mixed.0[2] > 100, "Should be purple: {:?}", mixed);
+}
+
+#[test]
+fn test_color_mix_realistic_shadow_generation() {
+    // Real-world use case: generating shadow/highlight variants from base colors
+    let raw = make_palette(&[
+        ("--base", "#4169E1"),  // Royal blue
+        ("{base}", "var(--base)"),
+        ("{shadow}", "color-mix(in oklch, var(--base) 70%, black)"),
+        ("{highlight}", "color-mix(in oklch, var(--base) 70%, white)"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    assert!(result.warnings.is_empty());
+
+    let base = result.colors.get("{base}").unwrap();
+    let shadow = result.colors.get("{shadow}").unwrap();
+    let highlight = result.colors.get("{highlight}").unwrap();
+
+    // Shadow should be darker than base
+    let base_brightness = (base.0[0] as u32 + base.0[1] as u32 + base.0[2] as u32) / 3;
+    let shadow_brightness = (shadow.0[0] as u32 + shadow.0[1] as u32 + shadow.0[2] as u32) / 3;
+    assert!(shadow_brightness < base_brightness, "Shadow should be darker: base={} shadow={}", base_brightness, shadow_brightness);
+
+    // Highlight should be lighter than base
+    let highlight_brightness = (highlight.0[0] as u32 + highlight.0[1] as u32 + highlight.0[2] as u32) / 3;
+    assert!(highlight_brightness > base_brightness, "Highlight should be lighter: base={} highlight={}", base_brightness, highlight_brightness);
+}
+
+#[test]
+fn test_color_mix_undefined_var_strict_mode() {
+    // Strict mode should fail if var() in color-mix is undefined
+    let raw = make_palette(&[
+        ("{mixed}", "color-mix(in oklch, var(--undefined), blue)"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Strict);
+
+    assert!(result.is_err(), "Should fail in strict mode for undefined variable");
+}
+
+#[test]
+fn test_color_mix_undefined_var_lenient_mode() {
+    // Lenient mode should use magenta when var() is undefined (no fallback)
+    let raw = make_palette(&[
+        ("{mixed}", "color-mix(in oklch, var(--undefined), blue)"),
+    ]);
+
+    let parser = PaletteParser::new();
+    let result = parser.parse(&raw, ParseMode::Lenient).unwrap();
+
+    // Should have a warning
+    assert!(!result.warnings.is_empty(), "Should have warning for undefined var");
+    // Color should be magenta fallback
+    assert_eq!(result.colors.get("{mixed}"), Some(&MAGENTA));
+}

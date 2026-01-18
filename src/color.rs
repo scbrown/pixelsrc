@@ -327,6 +327,138 @@ mod tests {
         assert_ne!(err1, err3);
     }
 
+    // CSS-12: color-mix() tests
+
+    #[test]
+    fn test_color_mix_oklch_basic() {
+        // color-mix in oklch with 50/50 split (default)
+        let result = parse_color("color-mix(in oklch, red, blue)");
+        assert!(result.is_ok(), "color-mix(in oklch, red, blue) should parse");
+        let color = result.unwrap();
+        // Should be a purple-ish color (mixing red and blue)
+        assert!(color.0[0] > 100, "Should have significant red component");
+        assert!(color.0[2] > 100, "Should have significant blue component");
+    }
+
+    #[test]
+    fn test_color_mix_oklch_percentages() {
+        // 70% red, 30% blue
+        let result = parse_color("color-mix(in oklch, red 70%, blue)");
+        assert!(result.is_ok(), "color-mix with percentages should parse");
+        let color = result.unwrap();
+        // Should be more red than blue
+        assert!(color.0[0] > color.0[2], "70% red should dominate");
+
+        // 30% red, 70% blue
+        let result2 = parse_color("color-mix(in oklch, red 30%, blue)");
+        assert!(result2.is_ok());
+        let color2 = result2.unwrap();
+        // Should be more blue than red
+        assert!(color2.0[2] > color2.0[0], "70% blue should dominate");
+    }
+
+    #[test]
+    fn test_color_mix_srgb() {
+        // color-mix in sRGB color space
+        let result = parse_color("color-mix(in srgb, #ff0000 50%, #0000ff)");
+        assert!(result.is_ok(), "color-mix(in srgb, ...) should parse");
+        let color = result.unwrap();
+        // In sRGB, 50/50 red and blue should give purple with equal R and B
+        assert!(color.0[0] > 100, "Should have red component");
+        assert!(color.0[2] > 100, "Should have blue component");
+    }
+
+    #[test]
+    fn test_color_mix_hsl() {
+        // color-mix in HSL color space
+        let result = parse_color("color-mix(in hsl, red, blue)");
+        assert!(result.is_ok(), "color-mix(in hsl, ...) should parse");
+    }
+
+    #[test]
+    fn test_color_mix_with_named_colors() {
+        let result = parse_color("color-mix(in oklch, coral, steelblue)");
+        assert!(result.is_ok(), "color-mix with named colors should work");
+    }
+
+    #[test]
+    fn test_color_mix_with_hex() {
+        let result = parse_color("color-mix(in oklch, #ff6347, #4682b4)");
+        assert!(result.is_ok(), "color-mix with hex colors should work");
+    }
+
+    #[test]
+    fn test_color_mix_with_rgb_functional() {
+        let result = parse_color("color-mix(in oklch, rgb(255, 0, 0), rgb(0, 0, 255))");
+        assert!(result.is_ok(), "color-mix with rgb() should work");
+    }
+
+    #[test]
+    fn test_color_mix_with_hsl_functional() {
+        let result = parse_color("color-mix(in oklch, hsl(0, 100%, 50%), hsl(240, 100%, 50%))");
+        assert!(result.is_ok(), "color-mix with hsl() should work");
+    }
+
+    #[test]
+    fn test_color_mix_white_black() {
+        // Mixing white and black should give gray
+        let result = parse_color("color-mix(in oklch, white, black)");
+        assert!(result.is_ok());
+        let color = result.unwrap();
+        // Should be grayish (R, G, B roughly equal)
+        let diff_rg = (color.0[0] as i16 - color.0[1] as i16).abs();
+        let diff_rb = (color.0[0] as i16 - color.0[2] as i16).abs();
+        assert!(diff_rg < 30, "R and G should be similar for gray");
+        assert!(diff_rb < 30, "R and B should be similar for gray");
+    }
+
+    #[test]
+    fn test_color_mix_100_percent() {
+        // 100% of one color should just give that color
+        let result = parse_color("color-mix(in oklch, red 100%, blue)");
+        assert!(result.is_ok());
+        let color = result.unwrap();
+        // Should be close to pure red
+        assert!(color.0[0] > 250, "100% red should be pure red");
+        assert!(color.0[2] < 10, "100% red should have no blue");
+    }
+
+    #[test]
+    fn test_color_mix_0_percent() {
+        // 0% of one color is effectively 100% of the other
+        let result = parse_color("color-mix(in oklch, red 0%, blue)");
+        assert!(result.is_ok());
+        let color = result.unwrap();
+        // Note: CSS color-mix with 0% may have different behavior across implementations
+        // In oklch, the resulting color should be predominantly blue
+        // Being lenient here to account for different interpretations
+        assert!(color.0[2] > color.0[0], "0% red should be more blue than red: {:?}", color);
+    }
+
+    #[test]
+    fn test_color_mix_with_alpha() {
+        // color-mix should work with semi-transparent colors
+        let result = parse_color("color-mix(in oklch, rgba(255, 0, 0, 0.5), rgba(0, 0, 255, 0.5))");
+        assert!(result.is_ok(), "color-mix with alpha should work");
+        let color = result.unwrap();
+        // Alpha should be preserved/mixed
+        assert!(color.0[3] < 255, "Mixed alpha should be less than 255");
+    }
+
+    #[test]
+    fn test_color_mix_oklch_longer_hue() {
+        // Test longer hue interpolation (goes the long way around the color wheel)
+        let result = parse_color("color-mix(in oklch longer hue, red, blue)");
+        assert!(result.is_ok(), "color-mix with longer hue should parse");
+    }
+
+    #[test]
+    fn test_color_mix_oklch_shorter_hue() {
+        // Test shorter hue interpolation (default, goes the short way)
+        let result = parse_color("color-mix(in oklch shorter hue, red, blue)");
+        assert!(result.is_ok(), "color-mix with shorter hue should parse");
+    }
+
     // CSS Color Format Tests (CSS-3)
 
     #[test]
