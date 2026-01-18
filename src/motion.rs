@@ -1288,4 +1288,442 @@ mod tests {
         let err = TimingFunctionError::Syntax("missing paren".to_string());
         assert_eq!(format!("{}", err), "syntax error: missing paren");
     }
+
+    // ========================================================================
+    // Bounce and Elastic Easing Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_ease_bounce() {
+        // Bounce easing should start at 0 and end at 1
+        assert!((ease(0.0, &Interpolation::Bounce) - 0.0).abs() < 0.001);
+        assert!((ease(1.0, &Interpolation::Bounce) - 1.0).abs() < 0.001);
+
+        // Bounce is a "bounce in" style - fast at start, bouncing effect at end
+        // The mid value varies based on implementation
+        let mid = ease(0.5, &Interpolation::Bounce);
+        assert!(mid >= 0.0 && mid <= 1.0, "Bounce mid should be in valid range");
+
+        // Values should stay in reasonable range (no extreme overshoot)
+        for i in 0..=10 {
+            let t = i as f64 / 10.0;
+            let val = ease(t, &Interpolation::Bounce);
+            assert!(val >= -0.1 && val <= 1.1, "Bounce at t={} gave {}", t, val);
+        }
+    }
+
+    #[test]
+    fn test_ease_elastic() {
+        // Elastic easing should start at 0 and end at 1
+        assert!((ease(0.0, &Interpolation::Elastic) - 0.0).abs() < 0.001);
+        assert!((ease(1.0, &Interpolation::Elastic) - 1.0).abs() < 0.001);
+
+        // Elastic overshoots - at some point before t=1 the value should be > 1
+        let mut has_overshoot = false;
+        for i in 1..100 {
+            let t = i as f64 / 100.0;
+            let val = ease(t, &Interpolation::Elastic);
+            if val > 1.0 || val < 0.0 {
+                has_overshoot = true;
+                break;
+            }
+        }
+        assert!(has_overshoot, "Elastic easing should overshoot");
+    }
+
+    // ========================================================================
+    // Cubic Bezier Edge Cases (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_ease_bezier_overshoot() {
+        // CSS allows y values outside [0,1] for spring-like effects
+        // Use a more aggressive overshoot curve
+        let bezier = Interpolation::Bezier {
+            p1: (0.2, 2.0),  // High y1 creates strong overshoot early
+            p2: (0.8, 1.0),
+        };
+
+        // Should still start and end correctly
+        assert!((ease(0.0, &bezier) - 0.0).abs() < 0.01);
+        assert!((ease(1.0, &bezier) - 1.0).abs() < 0.01);
+
+        // Should have values > 1 at some point (overshoot)
+        let mut max_val = 0.0;
+        for i in 1..100 {
+            let t = i as f64 / 100.0;
+            let val = ease(t, &bezier);
+            if val > max_val {
+                max_val = val;
+            }
+        }
+        // With y1=2.0, we should see values exceeding 1.0
+        assert!(max_val > 1.0, "Bezier with y1=2.0 should overshoot, max was {}", max_val);
+    }
+
+    #[test]
+    fn test_ease_bezier_undershoot() {
+        // y values < 0 create anticipation/undershoot
+        let bezier = Interpolation::Bezier {
+            p1: (0.5, -0.5),  // y < 0 creates undershoot
+            p2: (0.5, 0.5),
+        };
+
+        assert!((ease(0.0, &bezier) - 0.0).abs() < 0.01);
+        assert!((ease(1.0, &bezier) - 1.0).abs() < 0.01);
+
+        // Should have values < 0 at some point (undershoot)
+        let mut has_undershoot = false;
+        for i in 1..100 {
+            let t = i as f64 / 100.0;
+            let val = ease(t, &bezier);
+            if val < 0.0 {
+                has_undershoot = true;
+                break;
+            }
+        }
+        assert!(has_undershoot, "Bezier with y1<0 should undershoot");
+    }
+
+    #[test]
+    fn test_ease_bezier_standard_curves() {
+        // CSS standard "ease" curve: cubic-bezier(0.25, 0.1, 0.25, 1.0)
+        // This curve has a slight ease-in at start then accelerates
+        let ease_curve = Interpolation::Bezier {
+            p1: (0.25, 0.1),
+            p2: (0.25, 1.0),
+        };
+        // The CSS "ease" starts slow but then accelerates quickly
+        // At t=0.1, the output should be less than t (slow start)
+        let very_early = ease(0.1, &ease_curve);
+        assert!(very_early < 0.15, "ease curve should start slow, got {} at t=0.1", very_early);
+
+        // CSS "ease-in-out" curve: cubic-bezier(0.42, 0, 0.58, 1)
+        let ease_in_out_curve = Interpolation::Bezier {
+            p1: (0.42, 0.0),
+            p2: (0.58, 1.0),
+        };
+        // Should pass through ~0.5 at t=0.5 (symmetric curve)
+        let mid = ease(0.5, &ease_in_out_curve);
+        assert!((mid - 0.5).abs() < 0.15, "ease-in-out should be ~0.5 at midpoint, got {}", mid);
+    }
+
+    // ========================================================================
+    // Steps Sprite Animation Semantics (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_steps_sprite_animation_8_frames() {
+        // Typical sprite sheet scenario: 8 frames, each frame shows for equal time
+        // With steps(8, jump-end), frame indices are 0-7
+        // Input t=0.0 to 1.0, output should map to frame indices 0-7
+        let steps = Interpolation::Steps {
+            count: 8,
+            position: StepPosition::JumpEnd,
+        };
+
+        // Frame 0: t in [0, 0.125)
+        assert!((ease(0.0, &steps) * 8.0).floor() == 0.0);
+        assert!((ease(0.12, &steps) * 8.0).floor() == 0.0);
+
+        // Frame 1: t in [0.125, 0.25)
+        assert!((ease(0.125, &steps) * 8.0).floor() == 1.0);
+        assert!((ease(0.24, &steps) * 8.0).floor() == 1.0);
+
+        // Frame 7: t in [0.875, 1.0)
+        assert!((ease(0.875, &steps) * 8.0).floor() == 7.0);
+        assert!((ease(0.99, &steps) * 8.0).floor() == 7.0);
+
+        // At exactly t=1.0, we get output 1.0 (end of last frame)
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_steps_sprite_animation_jump_start() {
+        // With jump-start, the first visible frame is frame 1 (not 0)
+        // Useful for animations where you don't want to show the "idle" frame
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpStart,
+        };
+
+        // At t=0 (before animation starts), output is 0
+        assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
+
+        // Immediately after start, we're at first step (0.25)
+        assert!((ease(0.001, &steps) - 0.25).abs() < 0.001);
+
+        // We reach 1.0 (last frame) in the final interval
+        assert!((ease(0.76, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_steps_jump_none_3_steps() {
+        // jump-none with 3 steps gives outputs: 0, 0.5, 1.0
+        // Useful when you want both ends to hold
+        let steps = Interpolation::Steps {
+            count: 3,
+            position: StepPosition::JumpNone,
+        };
+
+        // 3 steps with jump-none = 2 intervals
+        // Interval 1: [0, 0.5) -> output 0
+        // Interval 2: [0.5, 1.0) -> output 0.5
+        // At 1.0 -> output 1.0
+
+        assert!((ease(0.0, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(0.49, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(0.5, &steps) - 0.5).abs() < 0.001);
+        assert!((ease(0.99, &steps) - 0.5).abs() < 0.001);
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_steps_jump_both_3_steps() {
+        // jump-both with 3 steps gives outputs: 0.25, 0.5, 0.75 in intervals, then 1.0
+        // 3 intervals, 4 output values including start/end
+        let steps = Interpolation::Steps {
+            count: 3,
+            position: StepPosition::JumpBoth,
+        };
+
+        // At t=0, we're already at first step (1/4 = 0.25)
+        assert!((ease(0.0, &steps) - 0.25).abs() < 0.001);
+
+        // At t=1, we reach 1.0
+        assert!((ease(1.0, &steps) - 1.0).abs() < 0.001);
+    }
+
+    // ========================================================================
+    // Interpolate Path Edge Cases (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_interpolate_path_empty_keyframes() {
+        let keyframes: Vec<ControlPoint> = vec![];
+        let result = interpolate_path(&keyframes, 0.5, &MotionPath::Linear, &Interpolation::Linear);
+        assert!((result.x - 0.0).abs() < 0.001);
+        assert!((result.y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_interpolate_path_single_keyframe() {
+        let keyframes = vec![ControlPoint::new(42.0, 17.0)];
+        let result = interpolate_path(&keyframes, 0.5, &MotionPath::Linear, &Interpolation::Linear);
+        assert!((result.x - 42.0).abs() < 0.001);
+        assert!((result.y - 17.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_interpolate_path_bezier() {
+        let keyframes = vec![
+            ControlPoint::with_control(0.0, 0.0, 25.0, 50.0),
+            ControlPoint::with_control(100.0, 0.0, 75.0, 50.0),
+        ];
+
+        let mid = interpolate_path(&keyframes, 0.5, &MotionPath::Bezier(vec![]), &Interpolation::Linear);
+
+        // Should be at midpoint x-wise, with some y offset from control points
+        assert!((mid.x - 50.0).abs() < 5.0);
+        // Y should be influenced by control points (which are at y=50)
+        assert!(mid.y > 0.0);
+    }
+
+    // ========================================================================
+    // Interpolate Point Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_interpolate_point_with_easing() {
+        let start = Point2D::new(0.0, 0.0);
+        let end = Point2D::new(100.0, 100.0);
+
+        // With ease-in, at t=0.5 we should be less than halfway
+        let mid_ease_in = interpolate_point(&start, &end, 0.5, &Interpolation::EaseIn);
+        assert!(mid_ease_in.x < 50.0);
+        assert!(mid_ease_in.y < 50.0);
+
+        // With ease-out, at t=0.5 we should be more than halfway
+        let mid_ease_out = interpolate_point(&start, &end, 0.5, &Interpolation::EaseOut);
+        assert!(mid_ease_out.x > 50.0);
+        assert!(mid_ease_out.y > 50.0);
+
+        // With linear, we should be exactly halfway
+        let mid_linear = interpolate_point(&start, &end, 0.5, &Interpolation::Linear);
+        assert!((mid_linear.x - 50.0).abs() < 0.001);
+        assert!((mid_linear.y - 50.0).abs() < 0.001);
+    }
+
+    // ========================================================================
+    // Clamping Behavior Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_ease_clamps_input() {
+        // Values outside [0, 1] should be clamped
+        assert!((ease(-0.5, &Interpolation::Linear) - 0.0).abs() < 0.001);
+        assert!((ease(1.5, &Interpolation::Linear) - 1.0).abs() < 0.001);
+
+        // Same for steps
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpEnd,
+        };
+        assert!((ease(-0.5, &steps) - 0.0).abs() < 0.001);
+        assert!((ease(1.5, &steps) - 1.0).abs() < 0.001);
+    }
+
+    // ========================================================================
+    // Default Implementations Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_interpolation_default() {
+        assert_eq!(Interpolation::default(), Interpolation::Linear);
+    }
+
+    #[test]
+    fn test_motion_path_default() {
+        assert_eq!(MotionPath::default(), MotionPath::Linear);
+    }
+
+    // ========================================================================
+    // Control Point Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_control_point_new() {
+        let cp = ControlPoint::new(10.0, 20.0);
+        assert!((cp.position.x - 10.0).abs() < 0.001);
+        assert!((cp.position.y - 20.0).abs() < 0.001);
+        assert!(cp.control.is_none());
+    }
+
+    #[test]
+    fn test_control_point_with_control() {
+        let cp = ControlPoint::with_control(10.0, 20.0, 15.0, 30.0);
+        assert!((cp.position.x - 10.0).abs() < 0.001);
+        assert!((cp.position.y - 20.0).abs() < 0.001);
+        assert!(cp.control.is_some());
+        let ctrl = cp.control.unwrap();
+        assert!((ctrl.x - 15.0).abs() < 0.001);
+        assert!((ctrl.y - 30.0).abs() < 0.001);
+    }
+
+    // ========================================================================
+    // Value Interpolation with Easing (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_interpolate_value_with_easing() {
+        // Opacity fade with ease-out (fast start, slow end)
+        let start = 0.0;
+        let end = 1.0;
+
+        let mid_ease_out = interpolate_value(start, end, 0.5, &Interpolation::EaseOut);
+        assert!(mid_ease_out > 0.5, "ease-out should be > 0.5 at midpoint");
+
+        let mid_ease_in = interpolate_value(start, end, 0.5, &Interpolation::EaseIn);
+        assert!(mid_ease_in < 0.5, "ease-in should be < 0.5 at midpoint");
+    }
+
+    // ========================================================================
+    // Generate Motion Frames Edge Cases (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_generate_motion_frames_empty() {
+        let keyframes: Vec<(u32, Point2D)> = vec![];
+        let frames = generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
+        assert!(frames.is_empty());
+    }
+
+    #[test]
+    fn test_generate_motion_frames_zero_frames() {
+        let keyframes = vec![(0, Point2D::new(0.0, 0.0))];
+        let frames = generate_motion_frames(&keyframes, 0, &MotionPath::Linear, &Interpolation::Linear);
+        assert!(frames.is_empty());
+    }
+
+    #[test]
+    fn test_generate_motion_frames_single_keyframe() {
+        let keyframes = vec![(5, Point2D::new(50.0, 50.0))];
+        let frames = generate_motion_frames(&keyframes, 10, &MotionPath::Linear, &Interpolation::Linear);
+        assert_eq!(frames.len(), 10);
+
+        // All frames should be at the single keyframe position
+        for frame in &frames {
+            assert!((frame.x - 50.0).abs() < 0.001);
+            assert!((frame.y - 50.0).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn test_generate_motion_frames_with_easing() {
+        let keyframes = vec![
+            (0, Point2D::new(0.0, 0.0)),
+            (10, Point2D::new(100.0, 0.0)),
+        ];
+
+        // With ease-in, motion should be slower at start
+        let frames_ease_in = generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseIn);
+
+        // Frame 2 (t=0.2) should have moved less than 20 pixels with ease-in
+        assert!(frames_ease_in[2].x < 20.0);
+
+        // With ease-out, motion should be faster at start
+        let frames_ease_out = generate_motion_frames(&keyframes, 11, &MotionPath::Linear, &Interpolation::EaseOut);
+
+        // Frame 2 (t=0.2) should have moved more than 20 pixels with ease-out
+        assert!(frames_ease_out[2].x > 20.0);
+    }
+
+    // ========================================================================
+    // CSS Timing Function Integration Tests (CSS-10)
+    // ========================================================================
+
+    #[test]
+    fn test_parse_and_ease_cubic_bezier() {
+        // Parse a cubic-bezier and verify it produces expected easing
+        let interp = parse_timing_function("cubic-bezier(0, 0, 1, 1)").unwrap();
+
+        // (0,0,1,1) should be approximately linear
+        let mid = ease(0.5, &interp);
+        assert!((mid - 0.5).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_parse_and_ease_steps() {
+        // Parse steps and verify easing behavior
+        let interp = parse_timing_function("steps(5, jump-end)").unwrap();
+
+        // Should have 5 discrete levels
+        let v0 = ease(0.0, &interp);
+        let v1 = ease(0.19, &interp);
+        let v2 = ease(0.2, &interp);
+
+        assert!((v0 - 0.0).abs() < 0.001);
+        assert!((v1 - 0.0).abs() < 0.001);  // Still in first step
+        assert!((v2 - 0.2).abs() < 0.001);  // Jumped to second step
+    }
+
+    #[test]
+    fn test_steps_with_interpolate_value() {
+        // Sprite frame selection: map animation progress to frame index
+        let steps = Interpolation::Steps {
+            count: 4,
+            position: StepPosition::JumpEnd,
+        };
+
+        // Map [0, 1] to frame indices [0, 3]
+        let frame_at_start = interpolate_value(0.0, 3.0, 0.0, &steps).round() as i32;
+        let frame_at_quarter = interpolate_value(0.0, 3.0, 0.26, &steps).round() as i32;
+        let frame_at_half = interpolate_value(0.0, 3.0, 0.51, &steps).round() as i32;
+        let frame_at_end = interpolate_value(0.0, 3.0, 1.0, &steps).round() as i32;
+
+        assert_eq!(frame_at_start, 0);
+        assert_eq!(frame_at_quarter, 1);
+        assert_eq!(frame_at_half, 2);
+        assert_eq!(frame_at_end, 3);
+    }
 }
