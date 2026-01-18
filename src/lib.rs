@@ -24,6 +24,7 @@ pub mod import;
 pub mod include;
 pub mod init;
 pub mod lsp;
+pub mod lsp_agent_client;
 pub mod models;
 pub mod motion;
 pub mod onion;
