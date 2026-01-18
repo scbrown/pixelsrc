@@ -424,6 +424,9 @@ mod tests {
                 sources: std::collections::HashMap::new(),
                 outputs: vec![],
                 built_at: "2024-01-01T00:00:00Z".to_string(),
+                output_checksums: std::collections::HashMap::new(),
+                output_sizes: std::collections::HashMap::new(),
+                duration_ms: None,
             },
         );
 
