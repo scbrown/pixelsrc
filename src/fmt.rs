@@ -6,8 +6,8 @@
 //! - Keeping palettes, animations, and variants as single-line JSON
 
 use crate::models::{
-    Animation, Composition, CompositionLayer, Duration, Palette, PaletteRef, Particle, Sprite,
-    TtpObject, Variant,
+    Animation, Composition, CompositionLayer, Palette, PaletteRef, Particle, Sprite, TtpObject,
+    Variant,
 };
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -420,6 +420,7 @@ fn escape_json_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::Duration;
 
     #[test]
     fn test_format_palette_single_line() {

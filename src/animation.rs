@@ -1,6 +1,6 @@
 //! Animation validation - validate animation references
 
-use crate::models::{Animation, Duration, FrameTag, Sprite};
+use crate::models::{Animation, FrameTag, Sprite};
 use std::collections::HashMap;
 
 /// A warning generated during animation validation
@@ -124,7 +124,7 @@ pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::PaletteRef;
+    use crate::models::{Duration, PaletteRef};
     use std::collections::HashMap;
 
     fn make_sprite(name: &str) -> Sprite {

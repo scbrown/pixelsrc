@@ -4,7 +4,7 @@
 //! rotate through a set of palette tokens, creating effects like shimmering
 //! water, flickering fire, or pulsing energy without needing multiple sprite frames.
 
-use crate::models::{Animation, Duration, PaletteCycle, Sprite};
+use crate::models::{Animation, PaletteCycle, Sprite};
 use crate::renderer::render_sprite;
 use image::RgbaImage;
 use std::collections::HashMap;
@@ -160,7 +160,7 @@ pub fn get_cycle_duration(animation: &Animation) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::PaletteRef;
+    use crate::models::{Duration, PaletteRef};
 
     fn make_palette(colors: &[(&str, &str)]) -> HashMap<String, String> {
         colors.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()

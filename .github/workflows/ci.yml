@@ -45,6 +45,7 @@ jobs:
             -A clippy::useless_vec \
             -A clippy::derivable_impls \
             -A clippy::unnecessary_unwrap \
+            -A clippy::manual_range_contains \
             -D warnings
 
       - name: Build

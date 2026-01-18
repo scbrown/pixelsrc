@@ -225,7 +225,7 @@ fn test_all_css_fixtures_render() {
         let path = entry.path();
 
         // Test both .jsonl and .pxl files
-        if path.extension().map_or(false, |e| e == "jsonl" || e == "pxl") {
+        if path.extension().is_some_and(|e| e == "jsonl" || e == "pxl") {
             let output = run_pxl_render(&path);
             let stderr = String::from_utf8_lossy(&output.stderr);
 
@@ -259,7 +259,7 @@ fn test_css_fixtures_pass_strict_mode() {
         let entry = entry.expect("Cannot read directory entry");
         let path = entry.path();
 
-        if path.extension().map_or(false, |e| e == "jsonl" || e == "pxl") {
+        if path.extension().is_some_and(|e| e == "jsonl" || e == "pxl") {
             let output_dir = std::env::temp_dir().join("pxl_css_strict_test");
             fs::create_dir_all(&output_dir).ok();
 
