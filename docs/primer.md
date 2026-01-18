@@ -30,7 +30,7 @@ Pixelsrc is a GenAI-native pixel art format. It's text-based JSONL that you gene
 ```
 
 - Token format: `{name}` - always use curly braces
-- Color format: `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`
+- Color format: `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`, or CSS colors (see [colors.md](colors.md))
 - `{_}` is the conventional transparent token
 
 ### Sprite
@@ -204,14 +204,15 @@ Sprite references palette that hasn't been defined yet.
 
 **Wrong:**
 ```json
-{"colors": {"{red}": "red", "{blue}": "#GGG"}}
+{"colors": {"{bad}": "#GGG", "{worse}": "notacolor"}}
 ```
-Color names and invalid hex won't work.
+Invalid hex characters and unknown color names render as magenta in lenient mode.
 
 **Right:**
 ```json
-{"colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}
+{"colors": {"{red}": "#FF0000", "{blue}": "blue", "{skin}": "peachpuff"}}
 ```
+Hex colors and [CSS named colors](colors.md) both work.
 
 ## Output Commands
 

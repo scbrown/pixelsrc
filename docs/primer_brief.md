@@ -44,7 +44,7 @@ Text-based JSONL format for pixel art. Generate text, render to PNG with `pxl re
 
 - **Row mismatch**: All rows need same token count
 - **Undefined token**: Every `{token}` must be in palette
-- **Invalid color**: Use `#RGB`, `#RRGGBB`, `#RRGGBBAA`
+- **Invalid color**: Use `#RGB`, `#RRGGBB`, `#RRGGBBAA`, or CSS colors (`red`, `rgb()`, `hsl()`)
 - **Forward reference**: Palette must come before sprite
 
 ## Commands
