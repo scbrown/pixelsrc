@@ -1,0 +1,3 @@
+{"type": "sprite", "name": "base_square", "palette": {"{.}": "#00000000", "{r}": "#FF4444", "{g}": "#44FF44", "{b}": "#4444FF"}, "grid": ["{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}", "{g}{g}{g}{g}{g}{g}", "{g}{g}{g}{g}{g}{g}", "{b}{b}{b}{b}{b}{b}", "{b}{b}{b}{b}{b}{b}"]}
+{"type": "sprite", "name": "semi_white", "palette": {"{.}": "#00000000", "{w}": "#FFFFFF80"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{.}{w}{w}{.}{.}", "{.}{.}{w}{w}{.}{.}", "{.}{.}{w}{w}{.}{.}", "{.}{.}{w}{w}{.}{.}", "{.}{.}{.}{.}{.}{.}"]}
+{"type": "composition", "name": "blend_normal_demo", "size": [6, 6], "sprites": {"B": "base_square", "W": "semi_white"}, "layers": [{"map": ["B"]}, {"map": ["W"], "blend": "normal"}]}
