@@ -32,6 +32,8 @@ atty = "0.2"
 lightningcss = { version = "1.0.0-alpha.68", default-features = false, features = ["serde"] }
 notify-debouncer-mini = "0.4"
 rayon = "1.10"
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"] }
 
 [dev-dependencies]
 tempfile = "3"

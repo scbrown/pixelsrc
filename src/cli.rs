@@ -508,6 +508,10 @@ pub enum Commands {
         #[arg(long)]
         allow_large: bool,
     },
+
+    /// Start the Language Server Protocol server (for editor integration)
+    #[command(hide = true)]
+    Lsp,
 }
 
 #[derive(Subcommand)]
@@ -648,7 +652,31 @@ pub fn run() -> ExitCode {
             stdin,
             allow_large,
         ),
+        #[cfg(not(target_arch = "wasm32"))]
+        Commands::Lsp => run_lsp(),
+        #[cfg(target_arch = "wasm32")]
+        Commands::Lsp => {
+            eprintln!("Error: LSP is not available in WASM builds");
+            ExitCode::from(EXIT_ERROR)
+        }
     }
+}
+
+/// Execute the LSP server command
+#[cfg(not(target_arch = "wasm32"))]
+fn run_lsp() -> ExitCode {
+    use tokio::runtime::Runtime;
+
+    let rt = match Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Error: Failed to create async runtime: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    rt.block_on(crate::lsp::run_server());
+    ExitCode::from(EXIT_SUCCESS)
 }
 
 // Embedded prompt templates
