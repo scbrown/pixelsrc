@@ -1,0 +1,6 @@
+{"type": "palette", "name": "hex_short", "colors": {"{r}": "#F00", "{g}": "#0F0", "{b}": "#00F", "{_}": "#0000"}}
+{"type": "sprite", "name": "rgb_short", "palette": "hex_short", "grid": ["{r}{g}{b}"]}
+{"type": "palette", "name": "hex_full", "colors": {"{red}": "#FF0000", "{green}": "#00FF00", "{blue}": "#0000FF", "{_}": "#00000000"}}
+{"type": "sprite", "name": "rgb_full", "palette": "hex_full", "grid": ["{red}{green}{blue}"]}
+{"type": "palette", "name": "hex_alpha", "colors": {"{solid}": "#FF0000FF", "{half}": "#FF000080", "{quarter}": "#FF000040", "{_}": "#00000000"}}
+{"type": "sprite", "name": "alpha_gradient", "palette": "hex_alpha", "grid": ["{solid}{half}{quarter}{_}"]}

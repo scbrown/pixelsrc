@@ -946,4 +946,161 @@ mod tests {
             .resolve("shaded_box", &palette_registry, false)
             .expect("Sprite 'shaded_box' should resolve with color-mix chain");
     }
+
+    // ========================================================================
+    // CSS Color Tests (DT-9)
+    // ========================================================================
+
+    /// @demo format/css/colors#hex
+    /// Tests hex color formats: #rgb, #rrggbb, #rrggbbaa
+    #[test]
+    fn test_css_colors_hex() {
+        let jsonl = include_str!("../../examples/demos/css/colors/hex.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("hex_short"));
+        assert!(palette_registry.contains("hex_full"));
+        assert!(palette_registry.contains("hex_alpha"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("rgb_short", &palette_registry, false)
+            .expect("Sprite 'rgb_short' should resolve");
+        sprite_registry
+            .resolve("alpha_gradient", &palette_registry, false)
+            .expect("Sprite 'alpha_gradient' should resolve");
+    }
+
+    /// @demo format/css/colors#rgb
+    /// Tests rgb() and rgba() color functions
+    #[test]
+    fn test_css_colors_rgb() {
+        let jsonl = include_str!("../../examples/demos/css/colors/rgb.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("rgb_basic"));
+        assert!(palette_registry.contains("rgba_alpha"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("rgb_demo", &palette_registry, false)
+            .expect("Sprite 'rgb_demo' should resolve");
+        sprite_registry
+            .resolve("rgba_gradient", &palette_registry, false)
+            .expect("Sprite 'rgba_gradient' should resolve");
+    }
+
+    /// @demo format/css/colors#hsl
+    /// Tests hsl() and hsla() color functions
+    #[test]
+    fn test_css_colors_hsl() {
+        let jsonl = include_str!("../../examples/demos/css/colors/hsl.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("hsl_basic"));
+        assert!(palette_registry.contains("hsl_saturation"));
+        assert!(palette_registry.contains("hsl_lightness"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("hsl_demo", &palette_registry, false)
+            .expect("Sprite 'hsl_demo' should resolve");
+        sprite_registry
+            .resolve("saturation_demo", &palette_registry, false)
+            .expect("Sprite 'saturation_demo' should resolve");
+    }
+
+    /// @demo format/css/colors#oklch
+    /// Tests oklch() color function (perceptually uniform)
+    #[test]
+    fn test_css_colors_oklch() {
+        let jsonl = include_str!("../../examples/demos/css/colors/oklch.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("oklch_basic"));
+        assert!(palette_registry.contains("oklch_lightness"));
+        assert!(palette_registry.contains("oklch_chroma"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("oklch_demo", &palette_registry, false)
+            .expect("Sprite 'oklch_demo' should resolve");
+    }
+
+    /// @demo format/css/colors#hwb
+    /// Tests hwb() color function (hue-whiteness-blackness)
+    #[test]
+    fn test_css_colors_hwb() {
+        let jsonl = include_str!("../../examples/demos/css/colors/hwb.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("hwb_basic"));
+        assert!(palette_registry.contains("hwb_whiteness"));
+        assert!(palette_registry.contains("hwb_blackness"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("hwb_demo", &palette_registry, false)
+            .expect("Sprite 'hwb_demo' should resolve");
+    }
+
+    /// @demo format/css/colors#named
+    /// Tests CSS named colors (red, blue, coral, etc.)
+    #[test]
+    fn test_css_colors_named() {
+        let jsonl = include_str!("../../examples/demos/css/colors/named.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("named_basic"));
+        assert!(palette_registry.contains("named_warm"));
+        assert!(palette_registry.contains("named_cool"));
+        assert!(palette_registry.contains("named_neutral"));
+
+        // Verify sprites resolve
+        sprite_registry
+            .resolve("named_demo", &palette_registry, false)
+            .expect("Sprite 'named_demo' should resolve");
+        sprite_registry
+            .resolve("grayscale", &palette_registry, false)
+            .expect("Sprite 'grayscale' should resolve");
+    }
+
+    /// @demo format/css/colors#color_mix
+    /// Tests color-mix() function for blending colors
+    #[test]
+    fn test_css_colors_color_mix() {
+        let jsonl = include_str!("../../examples/demos/css/colors/color_mix.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, _animations) = parse_content(jsonl);
+
+        // Verify palettes are registered
+        assert!(palette_registry.contains("color_mix_basic"));
+        assert!(palette_registry.contains("shadows_oklch"));
+        assert!(palette_registry.contains("highlights_srgb"));
+        assert!(palette_registry.contains("skin_tones"));
+
+        // Verify sprite resolves with color-mix
+        sprite_registry
+            .resolve("shaded_square", &palette_registry, false)
+            .expect("Sprite 'shaded_square' should resolve with color-mix");
+    }
 }

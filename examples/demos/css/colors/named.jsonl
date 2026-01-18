@@ -1,0 +1,8 @@
+{"type": "palette", "name": "named_basic", "colors": {"{r}": "red", "{g}": "green", "{b}": "blue", "{_}": "transparent"}}
+{"type": "sprite", "name": "named_demo", "palette": "named_basic", "grid": ["{r}{g}{b}"]}
+{"type": "palette", "name": "named_warm", "colors": {"{coral}": "coral", "{salmon}": "salmon", "{tomato}": "tomato", "{orange}": "orange", "{gold}": "gold"}}
+{"type": "sprite", "name": "warm_colors", "palette": "named_warm", "grid": ["{coral}{salmon}{tomato}{orange}{gold}"]}
+{"type": "palette", "name": "named_cool", "colors": {"{navy}": "navy", "{teal}": "teal", "{cyan}": "cyan", "{aqua}": "aqua", "{turquoise}": "turquoise"}}
+{"type": "sprite", "name": "cool_colors", "palette": "named_cool", "grid": ["{navy}{teal}{cyan}{aqua}{turquoise}"]}
+{"type": "palette", "name": "named_neutral", "colors": {"{white}": "white", "{silver}": "silver", "{gray}": "gray", "{dimgray}": "dimgray", "{black}": "black"}}
+{"type": "sprite", "name": "grayscale", "palette": "named_neutral", "grid": ["{white}{silver}{gray}{dimgray}{black}"]}

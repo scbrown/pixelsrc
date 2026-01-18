@@ -1,0 +1,6 @@
+{"type": "palette", "name": "oklch_basic", "colors": {"{red}": "oklch(0.628 0.258 29.23)", "{green}": "oklch(0.866 0.295 142.5)", "{blue}": "oklch(0.452 0.313 264.05)", "{_}": "oklch(0 0 0 / 0)"}}
+{"type": "sprite", "name": "oklch_demo", "palette": "oklch_basic", "grid": ["{red}{green}{blue}"]}
+{"type": "palette", "name": "oklch_lightness", "colors": {"{light}": "oklch(0.9 0.15 29)", "{medium}": "oklch(0.6 0.15 29)", "{dark}": "oklch(0.3 0.15 29)"}}
+{"type": "sprite", "name": "oklch_lightness_demo", "palette": "oklch_lightness", "grid": ["{light}{medium}{dark}"]}
+{"type": "palette", "name": "oklch_chroma", "colors": {"{vivid}": "oklch(0.6 0.3 29)", "{muted}": "oklch(0.6 0.15 29)", "{gray}": "oklch(0.6 0 29)"}}
+{"type": "sprite", "name": "oklch_chroma_demo", "palette": "oklch_chroma", "grid": ["{vivid}{muted}{gray}"]}
