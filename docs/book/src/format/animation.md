@@ -1,8 +1,124 @@
 # Animation
 
-Animations define sequences of sprites that play over time. Pixelsrc supports frame-based animations, palette cycling, frame tags, and secondary motion (attachments).
+Animations define sequences of sprites that play over time. Pixelsrc supports two animation formats:
 
-## Basic Syntax
+- **CSS Keyframes** (recommended): Percentage-based keyframes with CSS timing functions
+- **Frame Array** (legacy): Simple list of sprite names
+
+Both formats support palette cycling, frame tags, and secondary motion (attachments).
+
+---
+
+## CSS Keyframes Format
+
+The CSS keyframes format uses percentage-based keyframes, familiar to web developers and AI models. This is the recommended approach for new animations.
+
+### Syntax
+
+```json
+{
+  "type": "animation",
+  "name": "string (required)",
+  "keyframes": {
+    "0%": { "sprite": "...", "opacity": 0.0 },
+    "50%": { "sprite": "...", "opacity": 1.0 },
+    "100%": { "sprite": "...", "opacity": 0.0 }
+  },
+  "duration": "500ms",
+  "timing_function": "ease-in-out"
+}
+```
+
+### Keyframe Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `type` | Yes | - | Must be `"animation"` |
+| `name` | Yes | - | Unique identifier |
+| `keyframes` | Yes | - | Map of percentage keys to keyframe objects |
+| `duration` | No | `100` | Total animation duration (ms or CSS time string) |
+| `timing_function` | No | `"linear"` | CSS timing function for easing |
+| `loop` | No | `true` | Whether animation loops |
+
+### Keyframe Object Fields
+
+Each keyframe can specify any combination of these properties:
+
+| Field | Description |
+|-------|-------------|
+| `sprite` | Sprite name to display at this keyframe |
+| `opacity` | Opacity from 0.0 (transparent) to 1.0 (opaque) |
+| `offset` | Position offset `[x, y]` in pixels |
+| `transform` | CSS transform string (e.g., `"rotate(45deg)"`) |
+
+### Percentage Keys
+
+Keyframe keys are percentages of the total animation duration:
+
+- `"0%"` - Start of animation
+- `"50%"` - Halfway through
+- `"100%"` - End of animation
+- `"from"` - Alias for `"0%"`
+- `"to"` - Alias for `"100%"`
+
+### Duration Format
+
+Duration accepts both raw milliseconds and CSS time strings:
+
+```json
+"duration": 500         // 500 milliseconds
+"duration": "500ms"     // 500 milliseconds
+"duration": "1s"        // 1000 milliseconds
+"duration": "0.5s"      // 500 milliseconds
+```
+
+### Timing Functions
+
+The `timing_function` field accepts CSS easing functions:
+
+| Function | Description |
+|----------|-------------|
+| `linear` | Constant speed (default) |
+| `ease` | Smooth acceleration and deceleration |
+| `ease-in` | Slow start, fast end |
+| `ease-out` | Fast start, slow end |
+| `ease-in-out` | Slow start and end |
+| `cubic-bezier(x1,y1,x2,y2)` | Custom bezier curve |
+| `steps(n, position)` | Discrete steps |
+
+### Examples
+
+**Fade in animation:**
+
+```json
+{"type": "animation", "name": "fade_in", "keyframes": {"from": {"sprite": "dot", "opacity": 0.0}, "to": {"sprite": "dot", "opacity": 1.0}}, "duration": "1s", "timing_function": "ease"}
+```
+
+**Walk cycle with opacity:**
+
+```json
+{"type": "animation", "name": "fade_walk", "keyframes": {"0%": {"sprite": "walk_1", "opacity": 0.0}, "50%": {"sprite": "walk_2", "opacity": 1.0}, "100%": {"sprite": "walk_1", "opacity": 0.0}}, "duration": "500ms", "timing_function": "ease-in-out"}
+```
+
+**Rotating animation:**
+
+```json
+{"type": "animation", "name": "spin", "keyframes": {"0%": {"sprite": "star", "transform": "rotate(0deg)"}, "100%": {"sprite": "star", "transform": "rotate(360deg)"}}, "duration": 1000, "timing_function": "linear"}
+```
+
+**Pulsing scale effect:**
+
+```json
+{"type": "animation", "name": "pulse", "keyframes": {"0%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "star", "transform": "scale(1.5)", "opacity": 0.5}, "100%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}}, "duration": "2s", "timing_function": "ease-in-out"}
+```
+
+---
+
+## Frame Array Format (Legacy)
+
+The frame array format provides a simple list of sprite names. Use this for straightforward frame-by-frame animations.
+
+### Syntax
 
 ```json
 {
@@ -14,7 +130,7 @@ Animations define sequences of sprites that play over time. Pixelsrc supports fr
 }
 ```
 
-## Fields
+### Fields
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
@@ -24,7 +140,7 @@ Animations define sequences of sprites that play over time. Pixelsrc supports fr
 | `duration` | No | 100 | Milliseconds per frame |
 | `loop` | No | true | Whether animation loops |
 
-## Example
+### Example
 
 ```json
 {"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"], "duration": 100, "loop": true}
@@ -194,7 +310,35 @@ You can specify timing using either `duration` (ms per frame) or `fps` (frames p
 
 Both examples create the same 20 FPS animation.
 
-## Complete Example
+## Complete Examples
+
+### CSS Keyframes Example (Recommended)
+
+A blinking light with fade effect:
+
+```json
+{"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FF0", "{off}": "#880"}}
+
+{"type": "sprite", "name": "light_on", "palette": "blink", "grid": [
+  "{_}{on}{on}{_}",
+  "{on}{on}{on}{on}",
+  "{on}{on}{on}{on}",
+  "{_}{on}{on}{_}"
+]}
+
+{"type": "sprite", "name": "light_off", "palette": "blink", "grid": [
+  "{_}{off}{off}{_}",
+  "{off}{off}{off}{off}",
+  "{off}{off}{off}{off}",
+  "{_}{off}{off}{_}"
+]}
+
+{"type": "animation", "name": "blink_fade", "keyframes": {"0%": {"sprite": "light_on", "opacity": 1.0}, "50%": {"sprite": "light_off", "opacity": 0.5}, "100%": {"sprite": "light_on", "opacity": 1.0}}, "duration": "1s", "timing_function": "ease-in-out"}
+```
+
+### Frame Array Example (Legacy)
+
+A simple blinking light:
 
 ```json
 {"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FF0", "{off}": "#880"}}
@@ -244,3 +388,79 @@ pxl render animation.pxl --format spritesheet -o sheet.png
 # Preview with onion skinning
 pxl show animation.pxl --onion 2
 ```
+
+---
+
+## Migrating from Frames to Keyframes
+
+Converting from the legacy frame array format to CSS keyframes is straightforward:
+
+### Basic Migration
+
+**Before (frames format):**
+
+```json
+{
+  "type": "animation",
+  "name": "walk",
+  "frames": ["walk_1", "walk_2", "walk_3", "walk_4"],
+  "duration": 100,
+  "loop": true
+}
+```
+
+**After (keyframes format):**
+
+```json
+{
+  "type": "animation",
+  "name": "walk",
+  "keyframes": {
+    "0%": {"sprite": "walk_1"},
+    "25%": {"sprite": "walk_2"},
+    "50%": {"sprite": "walk_3"},
+    "75%": {"sprite": "walk_4"}
+  },
+  "duration": "400ms",
+  "loop": true
+}
+```
+
+### Key Differences
+
+| Aspect | Frames Format | Keyframes Format |
+|--------|--------------|------------------|
+| Timing | `duration` is per-frame | `duration` is total animation time |
+| Structure | Flat sprite array | Percentage-keyed objects |
+| Properties | Sprite only | Sprite, opacity, offset, transform |
+| Easing | N/A | `timing_function` for interpolation |
+
+### Migration Steps
+
+1. **Calculate total duration**: Multiply per-frame duration by frame count
+   - 4 frames × 100ms = 400ms total
+
+2. **Convert to percentages**: Divide frame index by total frames
+   - Frame 0 → 0%
+   - Frame 1 → 25% (1/4)
+   - Frame 2 → 50% (2/4)
+   - Frame 3 → 75% (3/4)
+
+3. **Wrap sprites in keyframe objects**: `"walk_1"` becomes `{"sprite": "walk_1"}`
+
+4. **Add timing function** (optional): Use `"timing_function": "linear"` for frame-accurate timing
+
+### When to Migrate
+
+Migrate to keyframes when you need:
+
+- **Opacity changes**: Fade effects between frames
+- **Position offsets**: Screen shake, bouncing
+- **Transforms**: Rotation, scaling effects
+- **CSS timing**: Easing curves for smoother motion
+
+Keep using frames format for:
+
+- Simple frame-by-frame animations with no interpolation
+- Quick prototypes
+- Backwards compatibility with existing files
