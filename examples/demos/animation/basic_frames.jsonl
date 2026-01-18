@@ -1,0 +1,4 @@
+{"type": "sprite", "name": "frame1", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["x..", ".x.", "..x"]}
+{"type": "sprite", "name": "frame2", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": [".x.", ".x.", ".x."]}
+{"type": "sprite", "name": "frame3", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["..x", ".x.", "x.."]}
+{"type": "animation", "name": "blink", "fps": 4, "frames": ["frame1", "frame2", "frame3"]}
