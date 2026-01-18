@@ -96,7 +96,7 @@ echo -e "                ${BOLD}Pixelsrc${NC}"
 echo -e "                ${DIM}GenAI-native pixel art format${NC}"
 echo ""
 echo ""
-echo -e "                ${GREEN}Phases 0-12, 14-16 Complete${NC}"
+echo -e "                ${GREEN}Phases 0-12, 14-16 + CSS + Build System${NC}"
 echo ""
 echo ""
 pause
@@ -492,6 +492,60 @@ echo -e "  ${BOLD}Result:${NC} $DEMO_OUT/walk.gif"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 17b: CSS Variables and color-mix()
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "CSS Variables & color-mix()"
+
+echo -e "  ${CYAN}Define base colors once, derive variants automatically:${NC}"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}CSS Variables:${NC}                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"--gold\"${NC}: ${YELLOW}\"#FFD700\"${NC}                               ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"{gold}\"${NC}: ${CYAN}\"var(--gold)\"${NC}                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}color-mix() for shadows:${NC}                                ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"{shadow}\"${NC}: ${MAGENTA}\"color-mix(in oklch, var(--gold) 70%, black)\"${NC}${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}color-mix() for highlights:${NC}                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"{shine}\"${NC}: ${MAGENTA}\"color-mix(in oklch, var(--gold) 60%, white)\"${NC}${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+echo ""
+echo -e "  ${GREEN}Benefits:${NC}"
+echo -e "  ${DIM}•${NC} Define base colors once, auto-derive shadow/highlight"
+echo -e "  ${DIM}•${NC} OKLCH color space for perceptually uniform blending"
+echo -e "  ${DIM}•${NC} Easy theming: change --base, variants update automatically"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 17c: CSS Keyframes Animation
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "CSS Keyframes Animation"
+
+echo -e "  ${CYAN}Percentage-based animations with CSS timing:${NC}"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}type${NC}:   ${GREEN}animation${NC}                                     ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}name${NC}:   ${GREEN}coin_spin${NC}                                     ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}keyframes${NC}:                                              ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${CYAN}\"0%\"${NC}:   {\"sprite\": \"coin\"}                            ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${CYAN}\"50%\"${NC}:  {\"sprite\": \"coin\", \"transform\": \"scale(0.3,1)\"} ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${CYAN}\"100%\"${NC}: {\"sprite\": \"coin\"}                            ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}duration${NC}:       ${YELLOW}\"600ms\"${NC}                               ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${WHITE}timing_function${NC}: ${YELLOW}\"ease-in-out\"${NC}                        ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+echo ""
+echo -e "  ${GREEN}Supported properties:${NC}"
+echo -e "  ${DIM}•${NC} ${WHITE}sprite${NC}    - Change sprite at keyframe"
+echo -e "  ${DIM}•${NC} ${WHITE}opacity${NC}   - Fade effects (0.0 to 1.0)"
+echo -e "  ${DIM}•${NC} ${WHITE}transform${NC} - scale, rotate, translate, flip"
+echo -e "  ${DIM}•${NC} ${WHITE}offset${NC}    - Position offset [x, y]"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SLIDE 18: Phase 2 - Composition
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Phase 2: Composition"
@@ -704,9 +758,12 @@ echo -e "  ${GREEN}[x]${NC} Phase 12:    Composition Tiling"
 echo -e "  ${GREEN}[x]${NC} Phase 14:    Corpus Analysis (pxl analyze)"
 echo -e "  ${GREEN}[x]${NC} Phase 15:    AI Tools (prime, validate, suggest, diff, explain)"
 echo -e "  ${GREEN}[x]${NC} Phase 16:    .pxl Format (pxl fmt)"
+echo -e "  ${GREEN}[x]${NC} CSS:         Variables, color-mix(), keyframes, timing functions"
+echo -e "  ${GREEN}[x]${NC} Build:       Project discovery, parallel builds, game engine exports"
 echo ""
 echo -e "  ${YELLOW}In Progress:${NC}"
 echo -e "  ${YELLOW}[ ]${NC} Phase 13:    Theming & Branding (favicon, banners, social preview)"
+echo -e "  ${YELLOW}[ ]${NC} Demo tests:  Example-driven test coverage"
 echo ""
 echo -e "  ${BOLD}Tests:${NC} ${GREEN}All passing${NC}"
 echo -e "  ${BOLD}Clippy:${NC} ${GREEN}No warnings${NC}"
@@ -716,24 +773,23 @@ pause
 # ═══════════════════════════════════════════════════════════════════════════════
 # SLIDE 29: What's Next
 # ═══════════════════════════════════════════════════════════════════════════════
-slide "Coming Next: Phase 13 - Branding"
+slide "Coming Next"
 
-echo -e "  ${CYAN}Remaining branding assets:${NC}"
+echo -e "  ${CYAN}Phase 13 - Branding:${NC}"
+echo -e "  ${DIM}•${NC} Favicon (multiple sizes)"
+echo -e "  ${DIM}•${NC} Social preview / Open Graph image"
+echo -e "  ${DIM}•${NC} README and marketing banners"
 echo ""
-echo -e "  ${WHITE}Favicon:${NC}"
-echo -e "  ${DIM}Multiple sizes (16x16, 32x32, etc.)${NC}"
-echo ""
-echo -e "  ${WHITE}Social Preview:${NC}"
-echo -e "  ${DIM}Open Graph image for link sharing${NC}"
-echo ""
-echo -e "  ${WHITE}Banner Assets:${NC}"
-echo -e "  ${DIM}README and marketing banners${NC}"
-echo ""
-echo -e "  ${WHITE}Synthwave Palette:${NC}"
-echo -e "  ${DIM}Additional built-in palette${NC}"
+echo -e "  ${CYAN}Demo Tests:${NC}"
+echo -e "  ${DIM}•${NC} Example-driven test coverage"
+echo -e "  ${DIM}•${NC} CSS variables, timing, keyframes demos"
+echo -e "  ${DIM}•${NC} Export format demos (Godot, Unity)"
 echo ""
 echo -e "  ${CYAN}Future Ideas:${NC}"
-echo -e "  ${DIM}VS Code Extension, Token Efficiency, Inheritance${NC}"
+echo -e "  ${DIM}•${NC} VS Code Extension"
+echo -e "  ${DIM}•${NC} Token Efficiency Optimizations"
+echo -e "  ${DIM}•${NC} Palette Inheritance"
+echo -e "  ${DIM}•${NC} More Built-in Palettes (Synthwave)"
 
 pause
 
@@ -759,6 +815,11 @@ echo ""
 echo -e "  ${BOLD}Formatting:${NC}"
 echo -e "  ${DIM}\$ pxl fmt sprite.pxl           # Auto-format${NC}"
 echo -e "  ${DIM}\$ pxl fmt --check *.jsonl      # CI check${NC}"
+echo ""
+echo -e "  ${BOLD}Build System:${NC}"
+echo -e "  ${DIM}\$ pxl build                    # Build all sprites in project${NC}"
+echo -e "  ${DIM}\$ pxl build --parallel         # Parallel builds${NC}"
+echo -e "  ${DIM}\$ pxl build --watch            # Watch for changes${NC}"
 echo ""
 echo -e "  ${BOLD}Website:${NC}"
 echo -e "  ${DIM}https://scbrown.github.io/pixelsrc/${NC}"
@@ -786,12 +847,13 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 echo ""
-echo -e "                ${BOLD}Phases 0-12, 14-16 Complete${NC}"
+echo -e "                ${BOLD}Phases 0-12, 14-16 + CSS + Build System Complete${NC}"
 echo ""
 echo -e "                ${GREEN}Core: Parse .pxl/.jsonl → Render PNG/GIF${NC}"
-echo -e "                ${GREEN}Web: Website + Obsidian Plugin + WASM${NC}"
+echo -e "                ${GREEN}CSS: Variables, color-mix(), keyframes, timing${NC}"
+echo -e "                ${GREEN}Build: Project discovery, parallel builds, exports${NC}"
 echo -e "                ${GREEN}AI: prime, validate, explain, analyze, suggest${NC}"
-echo -e "                ${GREEN}Format: pxl fmt, .pxl extension support${NC}"
+echo -e "                ${GREEN}Web: Website + Obsidian Plugin + WASM${NC}"
 echo ""
 echo ""
 

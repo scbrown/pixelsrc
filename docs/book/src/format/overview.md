@@ -102,7 +102,7 @@ A complete Pixelsrc file with multiple object types:
 
 ## Color Formats
 
-Colors in Pixelsrc use hexadecimal notation:
+Pixelsrc supports multiple color formats:
 
 | Format | Example | Description |
 |--------|---------|-------------|
@@ -110,8 +110,32 @@ Colors in Pixelsrc use hexadecimal notation:
 | `#RGBA` | `#F00F` | Expands to `#RRGGBBAA` (red, opaque) |
 | `#RRGGBB` | `#FF0000` | Fully opaque color |
 | `#RRGGBBAA` | `#FF000080` | With alpha channel |
+| `rgb()` | `rgb(255, 0, 0)` | CSS RGB notation |
+| `hsl()` | `hsl(0, 100%, 50%)` | CSS HSL notation |
+| Named | `red`, `transparent` | CSS named colors |
 
 The alpha channel controls transparency: `00` = fully transparent, `FF` = fully opaque.
+
+See [Color Formats Reference](../reference/colors.md) for full documentation including `oklch()` and `color-mix()`.
+
+## CSS Variables
+
+Palettes support CSS custom properties for dynamic theming:
+
+```json
+{"type": "palette", "name": "themed", "colors": {
+  "--primary": "#4169E1",
+  "{_}": "transparent",
+  "{main}": "var(--primary)",
+  "{shadow}": "color-mix(in oklch, var(--primary) 70%, black)"
+}}
+```
+
+- **Define variables**: `"--name": "value"`
+- **Reference variables**: `var(--name)` or `var(--name, fallback)`
+- **Generate variants**: `color-mix(in oklch, color 70%, black)` for shadows
+
+See [CSS Variables](css-variables.md) for full documentation.
 
 ## Size Inference
 
