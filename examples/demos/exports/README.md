@@ -14,3 +14,4 @@ Output format demonstrations.
 | `spritesheet_padding.jsonl` | Varying frame sizes with padding |
 | `atlas_godot.jsonl` | Godot .tres format |
 | `atlas_unity.jsonl` | Unity JSON format |
+| `atlas_libgdx.jsonl` | libGDX TextureAtlas format |
