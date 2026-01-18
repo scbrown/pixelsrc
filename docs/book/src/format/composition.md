@@ -35,8 +35,8 @@ A composition layers multiple sprites onto a canvas using a character-based map.
 | `name` | No | Layer identifier (for debugging) |
 | `fill` | No | Sprite name to fill entire layer |
 | `map` | No | Array of strings - character map for sprite placement |
-| `blend` | No | Blend mode (default: `"normal"`) |
-| `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0) |
+| `blend` | No | Blend mode (default: `"normal"`). Supports `var()` syntax. |
+| `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0). Supports `var()` syntax. |
 
 ## Simple Example
 
@@ -160,34 +160,157 @@ Fill an entire layer with a single sprite:
 
 ## Blend Modes
 
-Layer blending for visual effects:
+Layer blending controls how colors combine when layers overlap. Each blend mode applies a mathematical formula to determine the final pixel color.
 
 ```json
 {
   "type": "composition",
   "name": "scene",
   "layers": [
-    {"sprite": "background", "position": [0, 0]},
-    {"sprite": "shadow", "position": [10, 20], "blend": "multiply", "opacity": 0.5},
-    {"sprite": "glow", "position": [5, 5], "blend": "add"},
-    {"sprite": "player", "position": [16, 16]}
+    {"fill": "background"},
+    {"map": ["..S.."], "blend": "multiply", "opacity": 0.5},
+    {"map": ["..G.."], "blend": "add"},
+    {"map": ["..P.."]}
   ]
 }
 ```
 
-### Available Blend Modes
+### Blend Mode Reference
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `normal` | Standard alpha compositing | Default |
-| `multiply` | Darkens underlying colors | Shadows, color tinting |
-| `screen` | Lightens underlying colors | Glows, highlights |
-| `overlay` | Combines multiply/screen | Contrast enhancement |
-| `add` | Additive blending | Glow effects, particles |
-| `subtract` | Subtractive blending | Special effects |
-| `difference` | Color difference | Masks, effects |
-| `darken` | Keeps darker color | Shadows |
-| `lighten` | Keeps lighter color | Highlights |
+| Mode | Formula | Description |
+|------|---------|-------------|
+| `normal` | `src over dst` | Standard alpha compositing. Source replaces destination based on alpha. |
+| `multiply` | `src × dst` | Multiplies color values (0-1 range). Always darkens. Black stays black, white is transparent. |
+| `screen` | `1 - (1-src)(1-dst)` | Inverse of multiply. Always lightens. White stays white, black is transparent. |
+| `overlay` | Multiply if dst < 0.5, else screen | Enhances contrast. Dark areas darken, light areas lighten. |
+| `add` | `src + dst` | Adds color values (clamped). Creates glowing, luminous effects. |
+| `subtract` | `dst - src` | Subtracts source from destination. Can create inverted effects. |
+| `difference` | `|src - dst|` | Absolute difference. Useful for detecting changes between layers. |
+| `darken` | `min(src, dst)` | Keeps the darker color per channel. |
+| `lighten` | `max(src, dst)` | Keeps the lighter color per channel. |
+
+### When to Use Each Mode
+
+**`multiply`** - Shadows, tinting, darkening
+```json
+{"name": "shadow", "map": ["..S.."], "blend": "multiply", "opacity": 0.3}
+```
+Use for drop shadows, color overlays that darken, or simulating light absorption.
+
+**`screen`** - Glows, highlights, lightening
+```json
+{"name": "glow", "map": ["..G.."], "blend": "screen"}
+```
+Use for light sources, specular highlights, or fog/mist effects.
+
+**`add`** - Particles, fire, magical effects
+```json
+{"name": "particles", "map": ["..P.."], "blend": "add"}
+```
+Use for fire, explosions, magic sparkles, or any additive light effect.
+
+**`overlay`** - Contrast, texture application
+```json
+{"name": "texture", "fill": "noise_texture", "blend": "overlay", "opacity": 0.5}
+```
+Use for applying textures while preserving underlying tones.
+
+## CSS Variables in Compositions
+
+Composition layers support CSS variable references for `opacity` and `blend` properties. This enables dynamic theming where layer effects can be controlled via palette variables.
+
+### Variable Syntax
+
+Both `opacity` and `blend` accept `var()` syntax:
+
+```json
+{
+  "type": "composition",
+  "name": "themed_scene",
+  "layers": [
+    {"fill": "background"},
+    {"map": ["..S.."], "blend": "var(--shadow-blend)", "opacity": "var(--shadow-opacity)"},
+    {"map": ["..G.."], "blend": "var(--glow-mode, add)"}
+  ]
+}
+```
+
+Variables are resolved from the palette's variable registry at render time.
+
+### Opacity with Variables
+
+Opacity can be a literal number or a variable reference:
+
+| Syntax | Description |
+|--------|-------------|
+| `0.5` | Literal opacity value |
+| `"var(--opacity)"` | Variable reference |
+| `"var(--opacity, 0.5)"` | Variable with fallback |
+
+```json
+{"name": "shadow", "map": ["..S.."], "opacity": "var(--shadow-alpha, 0.3)"}
+```
+
+Values are clamped to 0.0-1.0 after resolution.
+
+### Blend Mode with Variables
+
+Blend mode can be a literal string or a variable reference:
+
+| Syntax | Description |
+|--------|-------------|
+| `"multiply"` | Literal blend mode |
+| `"var(--blend)"` | Variable reference |
+| `"var(--blend, normal)"` | Variable with fallback |
+
+```json
+{"name": "effect", "fill": "overlay_sprite", "blend": "var(--effect-blend, screen)"}
+```
+
+If the resolved value is not a valid blend mode, `normal` is used with a warning.
+
+### Complete Variable Example
+
+```jsonl
+{"type": "palette", "name": "effects", "colors": {
+  "--shadow-opacity": "0.4",
+  "--shadow-blend": "multiply",
+  "--glow-opacity": "0.8",
+  "--glow-blend": "add",
+  "{_}": "transparent",
+  "{shadow}": "#000000",
+  "{glow}": "#FFFF00"
+}}
+{"type": "sprite", "name": "shadow_sprite", "palette": "effects", "grid": [
+  "{shadow}{shadow}",
+  "{shadow}{shadow}"
+]}
+{"type": "sprite", "name": "glow_sprite", "palette": "effects", "grid": [
+  "{glow}{glow}",
+  "{glow}{glow}"
+]}
+{"type": "composition", "name": "layered", "size": [16, 16], "cell_size": [8, 8],
+  "sprites": {"S": "shadow_sprite", "G": "glow_sprite", ".": null},
+  "layers": [
+    {"name": "shadows", "map": ["S.",".."], "blend": "var(--shadow-blend)", "opacity": "var(--shadow-opacity)"},
+    {"name": "glows", "map": ["..","G."], "blend": "var(--glow-blend)", "opacity": "var(--glow-opacity)"}
+  ]}
+```
+
+This creates a composition where shadow and glow effects are controlled by palette variables, making it easy to adjust effects across multiple compositions by changing a single variable definition.
+
+### Error Handling
+
+When variable resolution fails:
+
+| Error | Behavior |
+|-------|----------|
+| Undefined variable (no fallback) | `opacity`: uses 1.0; `blend`: uses `normal` |
+| Invalid opacity value | Uses 1.0, emits warning |
+| Unknown blend mode | Uses `normal`, emits warning |
+| No variable registry | Uses defaults, emits warning |
+
+In strict mode (`--strict`), variable errors cause the render to fail.
 
 ## Size Inference
 
