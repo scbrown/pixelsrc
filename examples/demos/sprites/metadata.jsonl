@@ -1,0 +1,1 @@
+{"type": "sprite", "name": "player", "palette": {"{_}": "#00000000", "{b}": "#3a4466", "{s}": "#ffcd75"}, "grid": ["{_}{b}{b}{b}{_}", "{b}{s}{b}{s}{b}", "{b}{b}{b}{b}{b}", "{_}{b}{_}{b}{_}"], "metadata": {"origin": [2, 3], "boxes": {"hurt": {"x": 0, "y": 0, "w": 5, "h": 4}, "hit": {"x": 1, "y": 1, "w": 3, "h": 2}}, "attach_in": [2, 0], "attach_out": [2, 4]}}

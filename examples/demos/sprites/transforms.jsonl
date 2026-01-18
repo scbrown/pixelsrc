@@ -1,0 +1,4 @@
+{"type": "sprite", "name": "arrow_right", "palette": {"{_}": "#00000000", "{a}": "#5fcde4"}, "grid": ["{_}{_}{a}", "{a}{a}{a}", "{_}{_}{a}"]}
+{"type": "sprite", "name": "arrow_left", "source": "arrow_right", "palette": {"{_}": "#00000000", "{a}": "#5fcde4"}, "transform": ["mirror-h"]}
+{"type": "sprite", "name": "arrow_down", "source": "arrow_right", "palette": {"{_}": "#00000000", "{a}": "#5fcde4"}, "transform": ["rotate:90"]}
+{"type": "sprite", "name": "arrow_scaled", "source": "arrow_right", "palette": {"{_}": "#00000000", "{a}": "#5fcde4"}, "transform": ["scale:2.0,2.0"]}

@@ -1,0 +1,2 @@
+{"type": "palette", "name": "retro", "colors": {"{_}": "#00000000", "{bg}": "#1a1c2c", "{fg}": "#f4f4f4", "{accent}": "#ffcd75"}}
+{"type": "sprite", "name": "icon", "palette": "retro", "grid": ["{bg}{fg}{bg}", "{fg}{accent}{fg}", "{bg}{fg}{bg}"]}
