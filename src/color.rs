@@ -561,4 +561,67 @@ mod tests {
         assert_eq!(parse_color("RED").unwrap(), Rgba([255, 0, 0, 255]));
         assert_eq!(parse_color("HotPink").unwrap(), Rgba([255, 105, 180, 255]));
     }
+
+    // CSS-12: color-mix() function tests
+    #[test]
+    fn test_color_mix_basic() {
+        // color-mix in srgb: 50% red + 50% blue = purple
+        let purple = parse_color("color-mix(in srgb, red 50%, blue)").unwrap();
+        // Should be approximately (128, 0, 128) - purple
+        assert!(purple.0[0] > 100 && purple.0[0] < 150); // R around 128
+        assert!(purple.0[1] < 20); // G close to 0
+        assert!(purple.0[2] > 100 && purple.0[2] < 150); // B around 128
+        assert_eq!(purple.0[3], 255); // Full alpha
+    }
+
+    #[test]
+    fn test_color_mix_percentages() {
+        // 70% red + 30% black = darker red
+        let dark_red = parse_color("color-mix(in srgb, red 70%, black)").unwrap();
+        // Should be approximately (179, 0, 0) - 70% of 255
+        assert!(dark_red.0[0] > 150 && dark_red.0[0] < 200);
+        assert!(dark_red.0[1] < 10);
+        assert!(dark_red.0[2] < 10);
+    }
+
+    #[test]
+    fn test_color_mix_oklch() {
+        // color-mix in oklch for perceptually uniform blending
+        let result = parse_color("color-mix(in oklch, #FF0000 70%, black)").unwrap();
+        // Should be a darker shade of red
+        assert!(result.0[0] > 100); // Still has red
+        assert!(result.0[0] < 255); // But darker than pure red
+    }
+
+    #[test]
+    fn test_color_mix_white_black() {
+        // 50% white + 50% black = gray
+        let gray = parse_color("color-mix(in srgb, white, black)").unwrap();
+        // Should be approximately (128, 128, 128)
+        assert!(gray.0[0] > 100 && gray.0[0] < 150);
+        assert!(gray.0[1] > 100 && gray.0[1] < 150);
+        assert!(gray.0[2] > 100 && gray.0[2] < 150);
+    }
+
+    #[test]
+    fn test_color_mix_highlight_generation() {
+        // Common pattern: lighten a color for highlight
+        // 70% original + 30% white
+        let highlight = parse_color("color-mix(in srgb, #3366CC 70%, white)").unwrap();
+        // Should be lighter than original
+        assert!(highlight.0[0] > 51); // Original R was 51
+        assert!(highlight.0[1] > 102); // Original G was 102
+        assert!(highlight.0[2] > 204); // Original B was 204
+    }
+
+    #[test]
+    fn test_color_mix_shadow_generation() {
+        // Common pattern: darken a color for shadow
+        // 70% original + 30% black (oklch for perceptual uniformity)
+        let shadow = parse_color("color-mix(in oklch, #FFCC99 70%, black)").unwrap();
+        // Should be darker than original #FFCC99 (255, 204, 153)
+        assert!(shadow.0[0] < 255);
+        assert!(shadow.0[1] < 204);
+        assert!(shadow.0[2] < 153);
+    }
 }

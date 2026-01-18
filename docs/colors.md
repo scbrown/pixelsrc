@@ -14,6 +14,7 @@ Pixelsrc supports a variety of color formats for defining palette colors. All fo
 | HSLA | `hsla(0, 100%, 50%, 0.5)` | With alpha |
 | HWB | `hwb(0 0% 0%)` | Hue, whiteness, blackness |
 | OKLCH | `oklch(0.628 0.258 29.23)` | Perceptually uniform |
+| color-mix | `color-mix(in oklch, red 70%, black)` | Blend two colors |
 | Named | `red`, `blue`, `transparent` | CSS named colors |
 
 ## Hex Colors
@@ -234,6 +235,112 @@ Convention: use `{_}` token mapped to transparent:
 }}
 ```
 
+## color-mix() Function
+
+The `color-mix()` function blends two colors in a specified color space. This is particularly useful for generating shadow and highlight variants from a base color.
+
+### Syntax
+
+```
+color-mix(in <color-space>, <color1> [<percentage>], <color2> [<percentage>])
+```
+
+**Color spaces:**
+- `srgb` - Standard RGB (linear blending)
+- `oklch` - Perceptually uniform (recommended for shadows/highlights)
+- `hsl` - Hue-saturation-lightness
+- `hwb` - Hue-whiteness-blackness
+
+### Basic Examples
+
+```json
+{"colors": {
+  "{purple}": "color-mix(in srgb, red 50%, blue)",
+  "{gray}": "color-mix(in srgb, white, black)",
+  "{teal}": "color-mix(in oklch, blue 60%, green)"
+}}
+```
+
+### Shadow Generation
+
+Create darker variants by mixing with black. Use `oklch` for perceptually uniform darkening:
+
+```json
+{"colors": {
+  "--skin": "#FFCC99",
+  "{skin}": "var(--skin)",
+  "{skin_shadow}": "color-mix(in oklch, var(--skin) 70%, black)",
+  "{skin_deep}": "color-mix(in oklch, var(--skin) 50%, black)"
+}}
+```
+
+| Pattern | Effect |
+|---------|--------|
+| `color-mix(in oklch, <color> 70%, black)` | Light shadow (30% darker) |
+| `color-mix(in oklch, <color> 50%, black)` | Medium shadow |
+| `color-mix(in oklch, <color> 30%, black)` | Deep shadow |
+
+### Highlight Generation
+
+Create lighter variants by mixing with white:
+
+```json
+{"colors": {
+  "--primary": "#3366CC",
+  "{primary}": "var(--primary)",
+  "{primary_light}": "color-mix(in srgb, var(--primary) 70%, white)",
+  "{primary_bright}": "color-mix(in srgb, var(--primary) 50%, white)"
+}}
+```
+
+| Pattern | Effect |
+|---------|--------|
+| `color-mix(in srgb, <color> 70%, white)` | Subtle highlight |
+| `color-mix(in srgb, <color> 50%, white)` | Medium highlight |
+| `color-mix(in srgb, <color> 30%, white)` | Bright highlight |
+
+### Pixel Art Character Palette Example
+
+Complete palette using color-mix for consistent shading:
+
+```jsonl
+{"type": "palette", "name": "character", "colors": {
+  "--skin-base": "#FFCC99",
+  "--hair-base": "#5D3A29",
+  "--shirt-base": "#3366CC",
+
+  "{_}": "transparent",
+  "{outline}": "#222034",
+
+  "{skin}": "var(--skin-base)",
+  "{skin_hi}": "color-mix(in srgb, var(--skin-base) 60%, white)",
+  "{skin_sh}": "color-mix(in oklch, var(--skin-base) 70%, black)",
+
+  "{hair}": "var(--hair-base)",
+  "{hair_hi}": "color-mix(in srgb, var(--hair-base) 60%, white)",
+  "{hair_sh}": "color-mix(in oklch, var(--hair-base) 70%, black)",
+
+  "{shirt}": "var(--shirt-base)",
+  "{shirt_hi}": "color-mix(in srgb, var(--shirt-base) 60%, white)",
+  "{shirt_sh}": "color-mix(in oklch, var(--shirt-base) 70%, black)"
+}}
+```
+
+### Why OKLCH for Shadows?
+
+OKLCH provides perceptually uniform blending - a 30% darkening looks equally dark across all hues. With sRGB, some colors (like yellow) appear to darken more dramatically than others.
+
+```json
+{"colors": {
+  "{yellow_srgb}": "color-mix(in srgb, yellow 70%, black)",
+  "{yellow_oklch}": "color-mix(in oklch, yellow 70%, black)",
+  "{blue_srgb}": "color-mix(in srgb, blue 70%, black)",
+  "{blue_oklch}": "color-mix(in oklch, blue 70%, black)"
+}}
+```
+
+**Recommendation:** Use `oklch` for shadows, `srgb` for highlights.
+
 ## Error Handling
 
 Invalid colors produce a `ColorError`:
@@ -251,7 +358,9 @@ Invalid colors in lenient mode render as magenta (`#FF00FF`) to make them visibl
 
 1. **Use hex for simple colors** - `#F00` is clearer than `rgb(255, 0, 0)`
 2. **Use HSL for variations** - Easy to create light/dark/muted versions
-3. **Use named colors for semantics** - `coral` is more memorable than `#FF7F50`
-4. **Use `transparent` over `#00000000`** - More readable
-5. **Stick to one format per palette** - Consistency aids readability
-6. **Test at 1x scale** - Ensure colors are distinguishable at native size
+3. **Use color-mix for shadows/highlights** - Consistent shading from base colors
+4. **Use oklch for shadows** - Perceptually uniform darkening across all hues
+5. **Use CSS variables with color-mix** - Define base colors once, derive variants
+6. **Use named colors for semantics** - `coral` is more memorable than `#FF7F50`
+7. **Use `transparent` over `#00000000`** - More readable
+8. **Test at 1x scale** - Ensure colors are distinguishable at native size

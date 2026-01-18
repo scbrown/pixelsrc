@@ -1,0 +1,5 @@
+{"type": "palette", "name": "color_mix_basic", "colors": {"{purple}": "color-mix(in srgb, red 50%, blue)", "{gray}": "color-mix(in srgb, white, black)", "{teal}": "color-mix(in oklch, blue 60%, green)"}}
+{"type": "palette", "name": "shadows_oklch", "colors": {"{base}": "#FF6B6B", "{shadow_light}": "color-mix(in oklch, #FF6B6B 70%, black)", "{shadow_medium}": "color-mix(in oklch, #FF6B6B 50%, black)", "{shadow_deep}": "color-mix(in oklch, #FF6B6B 30%, black)"}}
+{"type": "palette", "name": "highlights_srgb", "colors": {"{base}": "#3366CC", "{highlight_subtle}": "color-mix(in srgb, #3366CC 70%, white)", "{highlight_medium}": "color-mix(in srgb, #3366CC 50%, white)", "{highlight_bright}": "color-mix(in srgb, #3366CC 30%, white)"}}
+{"type": "palette", "name": "skin_tones", "colors": {"{_}": "transparent", "{skin}": "#FFCC99", "{skin_hi}": "color-mix(in srgb, #FFCC99 60%, white)", "{skin_sh}": "color-mix(in oklch, #FFCC99 70%, black)"}}
+{"type": "sprite", "name": "shaded_square", "size": [3, 3], "palette": "skin_tones", "grid": ["{skin_hi}{skin_hi}{skin}", "{skin_hi}{skin}{skin_sh}", "{skin}{skin_sh}{skin_sh}"]}

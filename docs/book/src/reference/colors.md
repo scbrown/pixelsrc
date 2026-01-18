@@ -1,19 +1,27 @@
 # Color Formats
 
-Pixelsrc uses hex color notation for defining colors in palettes. All color values must start with `#` and use hexadecimal digits (0-9, A-F, case-insensitive).
+Pixelsrc supports a variety of color formats for defining palette colors. All formats are parsed using a combination of optimized hex parsing and the `lightningcss` library for CSS color notation.
 
-## Supported Formats
+## Quick Reference
 
-| Format | Length | Example | Description |
-|--------|--------|---------|-------------|
-| `#RGB` | 3 digits | `#F00` | Short form, each digit doubled |
-| `#RGBA` | 4 digits | `#F00F` | Short form with alpha |
-| `#RRGGBB` | 6 digits | `#FF0000` | Full form, opaque |
-| `#RRGGBBAA` | 8 digits | `#FF0000FF` | Full form with alpha |
+| Format | Example | Notes |
+|--------|---------|-------|
+| Hex (short) | `#RGB`, `#RGBA` | Each digit doubled |
+| Hex (long) | `#RRGGBB`, `#RRGGBBAA` | Full precision |
+| RGB | `rgb(255, 0, 0)` | Integer or percentage |
+| HSL | `hsl(0, 100%, 50%)` | Hue, saturation, lightness |
+| HWB | `hwb(0 0% 0%)` | Hue, whiteness, blackness |
+| OKLCH | `oklch(0.628 0.258 29.23)` | Perceptually uniform |
+| color-mix | `color-mix(in oklch, red 70%, black)` | Blend two colors |
+| Named | `red`, `blue`, `transparent` | CSS named colors |
 
-## Short Form (#RGB, #RGBA)
+## Hex Colors
 
-In short form, each hex digit is doubled to produce the full value:
+The most common format for pixel art. Fast to parse and easy to read.
+
+### Short Form (`#RGB`, `#RGBA`)
+
+Each digit is doubled to get the full value:
 
 | Short | Expands To | Result |
 |-------|------------|--------|
@@ -23,11 +31,9 @@ In short form, each hex digit is doubled to produce the full value:
 | `#ABC` | `#AABBCC` | (170, 187, 204) |
 | `#F008` | `#FF000088` | Red with ~53% alpha |
 
-The digit doubling rule: `#RGB` → `#RRGGBB` where each letter represents the same digit repeated.
+### Full Form (`#RRGGBB`, `#RRGGBBAA`)
 
-## Full Form (#RRGGBB, #RRGGBBAA)
-
-Full form specifies each color channel with two hex digits (00-FF):
+Full precision hex values:
 
 ```
 #RRGGBB
@@ -38,92 +44,164 @@ Full form specifies each color channel with two hex digits (00-FF):
 
 Without an alpha channel, colors default to fully opaque (alpha = 255).
 
-## Alpha Channel
+## CSS Functional Notation
 
-The alpha channel controls transparency:
-
-| Alpha | Hex | Meaning |
-|-------|-----|---------|
-| 0 | `00` | Fully transparent |
-| 128 | `80` | 50% transparent |
-| 255 | `FF` | Fully opaque |
+### RGB/RGBA
 
 ```json
-{"type": "palette", "name": "alpha_demo", "colors": {
-  "{solid}": "#FF0000",
-  "{half}": "#FF000080",
-  "{clear}": "#FF000000"
+{"colors": {
+  "{red}": "rgb(255, 0, 0)",
+  "{green}": "rgb(0, 255, 0)",
+  "{semi}": "rgba(255, 0, 0, 0.5)",
+  "{modern}": "rgb(255 0 0 / 50%)"
 }}
 ```
 
-## Transparency Convention
+### HSL/HSLA
 
-The token `{_}` is conventionally used for transparent pixels:
+Useful for creating color variations by adjusting lightness:
 
 ```json
-{"type": "palette", "name": "example", "colors": {
-  "{_}": "#00000000",
-  "{fg}": "#FFFFFF"
+{"colors": {
+  "{red}": "hsl(0, 100%, 50%)",
+  "{dark_red}": "hsl(0, 100%, 25%)",
+  "{light_red}": "hsl(0, 100%, 75%)"
 }}
 ```
 
-Using `#0000` (short form) or `#00000000` (full form) creates fully transparent pixels that will not be rendered.
+### OKLCH
 
-## Case Insensitivity
-
-Color values are case-insensitive:
+Perceptually uniform color space. Colors with the same lightness value appear equally bright:
 
 ```json
-{"type": "palette", "name": "case_demo", "colors": {
-  "{a}": "#ff0000",
-  "{b}": "#FF0000",
-  "{c}": "#Ff0000"
+{"colors": {
+  "{red}": "oklch(0.628 0.258 29.23)",
+  "{green}": "oklch(0.866 0.295 142.5)"
 }}
 ```
 
-All three colors above are identical (red).
+## color-mix() Function
 
-## Examples
+Blend two colors in a specified color space. Ideal for generating shadow and highlight variants.
 
-### Basic Colors
+### Syntax
 
-| Color | Hex | Short |
-|-------|-----|-------|
-| Black | `#000000` | `#000` |
-| White | `#FFFFFF` | `#FFF` |
-| Red | `#FF0000` | `#F00` |
-| Green | `#00FF00` | `#0F0` |
-| Blue | `#0000FF` | `#00F` |
-| Yellow | `#FFFF00` | `#FF0` |
-| Cyan | `#00FFFF` | `#0FF` |
-| Magenta | `#FF00FF` | `#F0F` |
+```
+color-mix(in <color-space>, <color1> [<percentage>], <color2> [<percentage>])
+```
 
-### Common Pixel Art Colors
+### Shadow Generation
+
+Use `oklch` for perceptually uniform darkening:
 
 ```json
-{"type": "palette", "name": "pixel_basics", "colors": {
-  "{_}": "#0000",
+{"colors": {
+  "--skin": "#FFCC99",
+  "{skin}": "var(--skin)",
+  "{skin_shadow}": "color-mix(in oklch, var(--skin) 70%, black)",
+  "{skin_deep}": "color-mix(in oklch, var(--skin) 50%, black)"
+}}
+```
+
+| Pattern | Effect |
+|---------|--------|
+| `color-mix(in oklch, <color> 70%, black)` | Light shadow (30% darker) |
+| `color-mix(in oklch, <color> 50%, black)` | Medium shadow |
+| `color-mix(in oklch, <color> 30%, black)` | Deep shadow |
+
+### Highlight Generation
+
+```json
+{"colors": {
+  "--primary": "#3366CC",
+  "{primary}": "var(--primary)",
+  "{primary_light}": "color-mix(in srgb, var(--primary) 70%, white)"
+}}
+```
+
+### Complete Character Palette
+
+```jsonl
+{"type": "palette", "name": "character", "colors": {
+  "--skin-base": "#FFCC99",
+  "--hair-base": "#5D3A29",
+
+  "{_}": "transparent",
   "{outline}": "#222034",
-  "{skin}": "#EABF9C",
-  "{skin_shade}": "#C38B6E",
-  "{hair}": "#5D3A29",
-  "{highlight}": "#FFFBF0"
+
+  "{skin}": "var(--skin-base)",
+  "{skin_hi}": "color-mix(in srgb, var(--skin-base) 60%, white)",
+  "{skin_sh}": "color-mix(in oklch, var(--skin-base) 70%, black)",
+
+  "{hair}": "var(--hair-base)",
+  "{hair_hi}": "color-mix(in srgb, var(--hair-base) 60%, white)",
+  "{hair_sh}": "color-mix(in oklch, var(--hair-base) 70%, black)"
+}}
+```
+
+**Why OKLCH for shadows?** OKLCH provides perceptually uniform blending - a 30% darkening looks equally dark across all hues. With sRGB, some colors darken more dramatically than others.
+
+## Named Colors
+
+All 147 CSS named colors are supported:
+
+| Name | Hex Equivalent |
+|------|----------------|
+| `transparent` | `#00000000` |
+| `black` | `#000000` |
+| `white` | `#FFFFFF` |
+| `red` | `#FF0000` |
+| `green` | `#008000` (not `#00FF00`!) |
+| `blue` | `#0000FF` |
+
+**Warning**: CSS `green` is `#008000`. Use `lime` for pure green (`#00FF00`).
+
+## Transparency
+
+### Fully Transparent
+
+Convention: use `{_}` token:
+
+```json
+{"colors": {
+  "{_}": "transparent",
+  "{_}": "#00000000",
+  "{_}": "rgba(0, 0, 0, 0)"
+}}
+```
+
+### Semi-Transparent
+
+```json
+{"colors": {
+  "{glass}": "#FFFFFF80",
+  "{shadow}": "rgba(0, 0, 0, 0.3)"
 }}
 ```
 
 ## Error Messages
 
-Invalid color formats produce these errors:
-
 | Error | Cause | Example |
 |-------|-------|---------|
 | `empty color string` | Empty value | `""` |
-| `color must start with '#'` | Missing hash | `"FF0000"` |
-| `invalid color length N, expected 3, 4, 6, or 8` | Wrong digit count | `"#FF00"` |
+| `color must start with '#'` | Missing hash (for hex) | `"FF0000"` |
+| `invalid color length N` | Wrong digit count | `"#FF00"` |
 | `invalid hex character 'X'` | Non-hex character | `"#GG0000"` |
+| `CSS parse error: ...` | Invalid CSS syntax | `"notacolor"` |
+
+Invalid colors in lenient mode render as magenta (`#FF00FF`) to make them visible.
+
+## Best Practices
+
+1. **Use hex for simple colors** - `#F00` is clearer than `rgb(255, 0, 0)`
+2. **Use color-mix for shadows/highlights** - Consistent shading from base colors
+3. **Use oklch for shadows** - Perceptually uniform darkening across all hues
+4. **Use CSS variables with color-mix** - Define base colors once, derive variants
+5. **Use `transparent` over `#00000000`** - More readable
+6. **Test at 1x scale** - Ensure colors are distinguishable at native size
 
 ## Related
 
+- [CSS Variables](css-variables.md) - Custom properties and var()
 - [Built-in Palettes](palettes.md) - Pre-defined color sets
 - [Palette Format](../format/palette.md) - Defining custom palettes
-- [validate command](../cli/validate.md) - Check color validity
