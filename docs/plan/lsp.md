@@ -1,4 +1,9 @@
-# Phase 17: LSP Support
+---
+phase: 24
+title: LSP Support
+---
+
+# Phase 24: LSP Support
 
 **Goal:** Enable live validation, grid alignment assistance, and GenAI tooling for Pixelsrc files via Language Server Protocol
 
@@ -10,12 +15,13 @@
 
 ## Scope
 
-Phase 17 adds:
+Phase 24 adds:
 - `pxl lsp` - Hidden command that starts LSP server over stdio
 - Real-time diagnostics from existing `Validator`
 - Grid alignment features specifically designed for GenAI assistance
 - Completion suggestions for tokens and structure
 - Hover information showing grid coordinates and token details
+- **LspAgentClient** - Rust library for GenAI agents to communicate with LSP server programmatically
 - **CSS-aware features** (Wave 6, requires Phase 22):
   - CSS color previews with computed `hsl()`, `oklch()`, `color-mix()` values
   - CSS variable completions and hover resolution
@@ -47,7 +53,7 @@ The LSP becomes a **structured verification API** that agents can use programmat
 ## Task Dependency Diagram
 
 ```
-                          PHASE 17 TASK FLOW
+                          PHASE 24 TASK FLOW
 ═══════════════════════════════════════════════════════════════════
 
 PREREQUISITES
@@ -59,7 +65,7 @@ PREREQUISITES
 WAVE 1 (Foundation)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │   17.1 LSP Server Infrastructure                         │   │
+│  │   24.1 LSP Server Infrastructure                         │   │
 │  │   - tower-lsp integration                                │   │
 │  │   - Basic initialize/shutdown                            │   │
 │  │   - Hidden `pxl lsp` command                             │   │
@@ -70,7 +76,7 @@ WAVE 1 (Foundation)
 WAVE 2 (Validation Bridge)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │   17.2 Diagnostics Integration                           │   │
+│  │   24.2 Diagnostics Integration                           │   │
 │  │   - Wire Validator to LSP diagnostics                    │   │
 │  │   - didOpen/didChange handlers                           │   │
 │  │   - Map ValidationIssue → Diagnostic                     │   │
@@ -81,7 +87,7 @@ WAVE 2 (Validation Bridge)
 WAVE 3 (Grid Alignment - GenAI Focus)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌────────────────────────────┐  ┌──────────────────────────┐  │
-│  │   17.3                     │  │   17.4                   │  │
+│  │   24.3                     │  │   24.4                   │  │
 │  │  Grid Coordinate Hover     │  │  Row Length Diagnostics  │  │
 │  │  (show x,y at cursor)      │  │  (expected vs actual)    │  │
 │  └────────────────────────────┘  └──────────────────────────┘  │
@@ -91,20 +97,28 @@ WAVE 3 (Grid Alignment - GenAI Focus)
 WAVE 4 (Completions & Symbols)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌────────────────────────────┐  ┌──────────────────────────┐  │
-│  │   17.5                     │  │   17.6                   │  │
+│  │   24.5                     │  │   24.6                   │  │
 │  │  Token Completions         │  │  Document Symbols        │  │
 │  │  (suggest {tokens})        │  │  (palette, sprite list)  │  │
 │  └────────────────────────────┘  └──────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
           │
           ▼
-WAVE 5 (GenAI Agent Bridge)
+WAVE 5 (GenAI Agent Integration - CRITICAL)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │   17.7 Agent Bridge Tool                                 │   │
-│  │   - Simple CLI wrapper for LSP                           │   │
-│  │   - `pxl agent-verify <content>` command                 │   │
-│  │   - JSON output for agent consumption                    │   │
+│  │   24.7 LspAgentClient Library                            │   │
+│  │   - Rust crate for agent ↔ LSP communication             │   │
+│  │   - spawn(), verify_content(), get_completions()         │   │
+│  │   - JSON-RPC protocol handling                           │   │
+│  │   - Async/await with tokio                               │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │   24.8 Agent CLI Bridge                                  │   │
+│  │   - `pxl agent-verify` command (thin wrapper)            │   │
+│  │   - Uses LspAgentClient internally                       │   │
+│  │   - JSON output for shell-based agents                   │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
           │
@@ -112,26 +126,26 @@ WAVE 5 (GenAI Agent Bridge)
 WAVE 6 (CSS-Aware Features - Requires Phase 22)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌────────────────────────────┐  ┌──────────────────────────┐  │
-│  │   17.8                     │  │   17.9                   │  │
+│  │   24.9                     │  │   24.10                  │  │
 │  │  CSS Color Provider        │  │  CSS Variable Support    │  │
 │  │  (swatches, color-mix)     │  │  (completions, hover)    │  │
 │  └────────────────────────────┘  └──────────────────────────┘  │
 │                                                                 │
 │  ┌────────────────────────────┐  ┌──────────────────────────┐  │
-│  │   17.10                    │  │   17.11                  │  │
+│  │   24.11                    │  │   24.12                  │  │
 │  │  Timing Function Viz       │  │  Transform Explainer     │  │
 │  │  (easing curve preview)    │  │  (describe effect)       │  │
 │  └────────────────────────────┘  └──────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
           │
           ▼
-WAVE 7 (Agent CSS Bridge)
+WAVE 7 (Agent CSS Extensions)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │   17.12 Agent CSS Tools                                  │   │
-│  │   - `pxl agent-verify --resolve-colors`                  │   │
-│  │   - Show computed values for var(), color-mix()          │   │
-│  │   - JSON with resolved color hex values                  │   │
+│  │   24.13 LspAgentClient CSS Methods                       │   │
+│  │   - resolve_colors() - computed var(), color-mix()       │   │
+│  │   - analyze_timing() - timing function descriptions      │   │
+│  │   - Extend CLI with --resolve-colors, --analyze-timing   │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -139,13 +153,13 @@ WAVE 7 (Agent CSS Bridge)
 
 PARALLELIZATION SUMMARY
 ┌─────────────────────────────────────────────────────────────────┐
-│  Wave 1: 17.1                        (1 task, foundation)       │
-│  Wave 2: 17.2                        (1 task, needs 17.1)       │
-│  Wave 3: 17.3 + 17.4                 (2 tasks in parallel)      │
-│  Wave 4: 17.5 + 17.6                 (2 tasks in parallel)      │
-│  Wave 5: 17.7                        (1 task, agent tooling)    │
-│  Wave 6: 17.8 + 17.9 + 17.10 + 17.11 (4 tasks, needs Phase 22)  │
-│  Wave 7: 17.12                       (1 task, agent CSS tools)  │
+│  Wave 1: 24.1                        (1 task, foundation)       │
+│  Wave 2: 24.2                        (1 task, needs 24.1)       │
+│  Wave 3: 24.3 + 24.4                 (2 tasks in parallel)      │
+│  Wave 4: 24.5 + 24.6                 (2 tasks in parallel)      │
+│  Wave 5: 24.7 → 24.8                 (sequential, 24.8 uses 24.7│
+│  Wave 6: 24.9 + 24.10 + 24.11 + 24.12 (4 tasks, needs Phase 22) │
+│  Wave 7: 24.13                       (1 task, extends 24.7)     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -153,7 +167,7 @@ PARALLELIZATION SUMMARY
 
 ## Tasks
 
-### Task 17.1: LSP Server Infrastructure
+### Task 24.1: LSP Server Infrastructure
 
 **Wave:** 1 (foundation)
 
@@ -240,9 +254,9 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}
 
 ---
 
-### Task 17.2: Diagnostics Integration
+### Task 24.2: Diagnostics Integration
 
-**Wave:** 2 (needs 17.1)
+**Wave:** 2 (needs 24.1)
 
 Wire the existing `Validator` to produce LSP diagnostics.
 
@@ -325,13 +339,13 @@ echo '{"type": "sprite", "name": "test", "grid": ["{a}{a}", "{a}"]}' > /tmp/test
 # Should see diagnostics for undefined token and row mismatch
 ```
 
-**Dependencies:** Task 17.1
+**Dependencies:** Task 24.1
 
 ---
 
-### Task 17.3: Grid Coordinate Hover
+### Task 24.3: Grid Coordinate Hover
 
-**Wave:** 3 (parallel with 17.4)
+**Wave:** 3 (parallel with 24.4)
 
 Show grid coordinates when hovering over tokens - critical for GenAI to understand spatial positions.
 
@@ -404,13 +418,13 @@ Show grid coordinates when hovering over tokens - critical for GenAI to understa
 # Should show: "Grid Position: (3, 2)" etc.
 ```
 
-**Dependencies:** Task 17.2
+**Dependencies:** Task 24.2
 
 ---
 
-### Task 17.4: Row Length Diagnostics
+### Task 24.4: Row Length Diagnostics
 
-**Wave:** 3 (parallel with 17.3)
+**Wave:** 3 (parallel with 24.3)
 
 Enhanced diagnostics specifically for grid alignment issues.
 
@@ -472,13 +486,13 @@ EOF
 # - Row 3: has 5 tokens, expected 4 (remove 1)
 ```
 
-**Dependencies:** Task 17.2
+**Dependencies:** Task 24.2
 
 ---
 
-### Task 17.5: Token Completions
+### Task 24.5: Token Completions
 
-**Wave:** 4 (parallel with 17.6)
+**Wave:** 4 (parallel with 24.6)
 
 Suggest tokens when typing inside grid strings.
 
@@ -532,13 +546,13 @@ Suggest tokens when typing inside grid strings.
 # Should show completion menu with all defined tokens
 ```
 
-**Dependencies:** Task 17.2
+**Dependencies:** Task 24.2
 
 ---
 
-### Task 17.6: Document Symbols
+### Task 24.6: Document Symbols
 
-**Wave:** 4 (parallel with 17.5)
+**Wave:** 4 (parallel with 24.5)
 
 Provide outline view of palettes, sprites, animations.
 
@@ -594,21 +608,393 @@ Provide outline view of palettes, sprites, animations.
 # Should show palettes, sprites, animations as navigable symbols
 ```
 
-**Dependencies:** Task 17.2
+**Dependencies:** Task 24.2
 
 ---
 
-### Task 17.7: Agent Bridge Tool
+### Task 24.7: LspAgentClient Library
 
-**Wave:** 5 (GenAI tooling)
+**Wave:** 5 (GenAI Agent Integration - CRITICAL)
 
-A simplified CLI wrapper that makes LSP features accessible to AI agents without full LSP protocol.
+A Rust library that enables GenAI agents to communicate with the LSP server programmatically via JSON-RPC. This is the **primary interface** for AI agents - the CLI wrapper (24.8) is built on top of this.
+
+**Motivation:**
+
+The LSP server speaks JSON-RPC over stdio. Rather than making agents implement the protocol themselves, we provide `LspAgentClient` - a high-level async Rust API that handles:
+- Process spawning and lifecycle
+- JSON-RPC message framing (Content-Length headers)
+- Request/response correlation
+- Notification handling (diagnostics are pushed, not pulled)
 
 **Deliverables:**
 
-1. Add new CLI command:
+1. Create new crate `pxl-agent` (or module `src/agent_client.rs`):
    ```rust
-   /// Verify pixelsrc content for AI agents (returns JSON diagnostics)
+   use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+   use tokio::process::{Child, Command};
+   use serde_json::{json, Value};
+   use std::process::Stdio;
+
+   /// Client for AI agents to communicate with the pixelsrc LSP server.
+   ///
+   /// # Example
+   /// ```rust
+   /// let mut client = LspAgentClient::spawn("pxl").await?;
+   /// let diagnostics = client.verify_content(sprite_jsonl).await?;
+   /// if diagnostics.is_empty() {
+   ///     println!("Valid!");
+   /// }
+   /// ```
+   pub struct LspAgentClient {
+       child: Child,
+       stdin: tokio::process::ChildStdin,
+       reader: BufReader<tokio::process::ChildStdout>,
+       request_id: u64,
+   }
+
+   impl LspAgentClient {
+       /// Spawn the LSP server and initialize the connection.
+       pub async fn spawn(bin_path: &str) -> anyhow::Result<Self> {
+           let mut child = Command::new(bin_path)
+               .arg("lsp")
+               .stdin(Stdio::piped())
+               .stdout(Stdio::piped())
+               .spawn()?;
+
+           let stdin = child.stdin.take().unwrap();
+           let stdout = child.stdout.take().unwrap();
+           let reader = BufReader::new(stdout);
+
+           let mut client = Self { child, stdin, reader, request_id: 0 };
+           client.initialize().await?;
+           Ok(client)
+       }
+
+       /// Initialize the LSP connection (called automatically by spawn).
+       async fn initialize(&mut self) -> anyhow::Result<()> {
+           self.send_request("initialize", json!({ "capabilities": {} })).await?;
+           self.send_notification("initialized", json!({})).await?;
+           Ok(())
+       }
+
+       /// Validate pixelsrc content and return diagnostics.
+       ///
+       /// Opens a virtual document, waits for diagnostics, then closes it.
+       pub async fn verify_content(&mut self, content: &str) -> anyhow::Result<Vec<Diagnostic>> {
+           let uri = "file:///virtual/check.pxl";
+
+           // Open document
+           self.send_notification("textDocument/didOpen", json!({
+               "textDocument": {
+                   "uri": uri,
+                   "languageId": "pixelsrc",
+                   "version": 1,
+                   "text": content
+               }
+           })).await?;
+
+           // Wait for publishDiagnostics notification
+           let diagnostics = self.wait_for_diagnostics(uri).await?;
+
+           // Close document
+           self.send_notification("textDocument/didClose", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           Ok(diagnostics)
+       }
+
+       /// Get completions at a position in the content.
+       pub async fn get_completions(&mut self, content: &str, line: u32, character: u32) -> anyhow::Result<Vec<CompletionItem>> {
+           let uri = "file:///virtual/complete.pxl";
+
+           self.send_notification("textDocument/didOpen", json!({
+               "textDocument": {
+                   "uri": uri,
+                   "languageId": "pixelsrc",
+                   "version": 1,
+                   "text": content
+               }
+           })).await?;
+
+           let result = self.send_request("textDocument/completion", json!({
+               "textDocument": { "uri": uri },
+               "position": { "line": line, "character": character }
+           })).await?;
+
+           self.send_notification("textDocument/didClose", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           Ok(parse_completions(&result))
+       }
+
+       /// Get document symbols (palettes, sprites, animations).
+       pub async fn get_symbols(&mut self, content: &str) -> anyhow::Result<Vec<Symbol>> {
+           let uri = "file:///virtual/symbols.pxl";
+
+           self.send_notification("textDocument/didOpen", json!({
+               "textDocument": {
+                   "uri": uri,
+                   "languageId": "pixelsrc",
+                   "version": 1,
+                   "text": content
+               }
+           })).await?;
+
+           let result = self.send_request("textDocument/documentSymbol", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           self.send_notification("textDocument/didClose", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           Ok(parse_symbols(&result))
+       }
+
+       /// Get hover information at a position.
+       pub async fn get_hover(&mut self, content: &str, line: u32, character: u32) -> anyhow::Result<Option<String>> {
+           let uri = "file:///virtual/hover.pxl";
+
+           self.send_notification("textDocument/didOpen", json!({
+               "textDocument": {
+                   "uri": uri,
+                   "languageId": "pixelsrc",
+                   "version": 1,
+                   "text": content
+               }
+           })).await?;
+
+           let result = self.send_request("textDocument/hover", json!({
+               "textDocument": { "uri": uri },
+               "position": { "line": line, "character": character }
+           })).await?;
+
+           self.send_notification("textDocument/didClose", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           Ok(result.get("contents").and_then(|c| c.as_str()).map(String::from))
+       }
+
+       /// Shutdown the LSP server gracefully.
+       pub async fn shutdown(mut self) -> anyhow::Result<()> {
+           self.send_request("shutdown", json!(null)).await?;
+           self.send_notification("exit", json!(null)).await?;
+           self.child.wait().await?;
+           Ok(())
+       }
+
+       // --- Internal JSON-RPC helpers ---
+
+       async fn send_request(&mut self, method: &str, params: Value) -> anyhow::Result<Value> {
+           self.request_id += 1;
+           let msg = json!({
+               "jsonrpc": "2.0",
+               "id": self.request_id,
+               "method": method,
+               "params": params
+           });
+           self.send_message(&msg).await?;
+
+           // Wait for response with matching ID
+           loop {
+               let response = self.read_message().await?;
+               if response.get("id") == Some(&json!(self.request_id)) {
+                   return Ok(response.get("result").cloned().unwrap_or(json!(null)));
+               }
+               // It's a notification, ignore and keep waiting
+           }
+       }
+
+       async fn send_notification(&mut self, method: &str, params: Value) -> anyhow::Result<()> {
+           let msg = json!({
+               "jsonrpc": "2.0",
+               "method": method,
+               "params": params
+           });
+           self.send_message(&msg).await
+       }
+
+       async fn send_message(&mut self, msg: &Value) -> anyhow::Result<()> {
+           let body = serde_json::to_string(msg)?;
+           let header = format!("Content-Length: {}\r\n\r\n", body.len());
+           self.stdin.write_all(header.as_bytes()).await?;
+           self.stdin.write_all(body.as_bytes()).await?;
+           self.stdin.flush().await?;
+           Ok(())
+       }
+
+       async fn read_message(&mut self) -> anyhow::Result<Value> {
+           let mut line = String::new();
+           let mut content_length = 0;
+
+           // Read headers
+           loop {
+               line.clear();
+               self.reader.read_line(&mut line).await?;
+               if line == "\r\n" || line.is_empty() { break; }
+               if line.starts_with("Content-Length: ") {
+                   content_length = line.trim_start_matches("Content-Length: ")
+                       .trim().parse::<usize>()?;
+               }
+           }
+
+           // Read body
+           let mut body = vec![0u8; content_length];
+           self.reader.read_exact(&mut body).await?;
+           Ok(serde_json::from_slice(&body)?)
+       }
+
+       async fn wait_for_diagnostics(&mut self, uri: &str) -> anyhow::Result<Vec<Diagnostic>> {
+           loop {
+               let msg = self.read_message().await?;
+               if msg.get("method") == Some(&json!("textDocument/publishDiagnostics")) {
+                   if let Some(params) = msg.get("params") {
+                       if params.get("uri") == Some(&json!(uri)) {
+                           return Ok(parse_diagnostics(params.get("diagnostics")));
+                       }
+                   }
+               }
+           }
+       }
+   }
+
+   // --- Public types ---
+
+   #[derive(Debug, Clone, serde::Serialize)]
+   pub struct Diagnostic {
+       pub line: usize,
+       pub severity: String,
+       pub message: String,
+       pub code: Option<String>,
+   }
+
+   #[derive(Debug, Clone, serde::Serialize)]
+   pub struct CompletionItem {
+       pub label: String,
+       pub detail: Option<String>,
+       pub kind: String,
+   }
+
+   #[derive(Debug, Clone, serde::Serialize)]
+   pub struct Symbol {
+       pub name: String,
+       pub kind: String,  // "palette", "sprite", "animation", "composition"
+       pub line: usize,
+   }
+   ```
+
+2. Add to `Cargo.toml`:
+   ```toml
+   [features]
+   agent-client = ["tokio/process", "tokio/io-util"]
+
+   [dependencies]
+   tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
+   ```
+
+3. Export from library:
+   ```rust
+   // src/lib.rs
+   #[cfg(feature = "agent-client")]
+   pub mod agent_client;
+   #[cfg(feature = "agent-client")]
+   pub use agent_client::LspAgentClient;
+   ```
+
+**Usage Example for AI Agents:**
+
+```rust
+use pxl::LspAgentClient;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Spawn LSP server
+    let mut client = LspAgentClient::spawn("pxl").await?;
+
+    // Validate content
+    let sprite = r#"{"type":"sprite","name":"test","grid":["{a}{a}","{a}"]}"#;
+    let diagnostics = client.verify_content(sprite).await?;
+
+    for d in &diagnostics {
+        println!("Line {}: {} - {}", d.line, d.severity, d.message);
+    }
+
+    // Get completions at position
+    let completions = client.get_completions(sprite, 0, 42).await?;
+    println!("Available tokens: {:?}", completions);
+
+    // Get document structure
+    let symbols = client.get_symbols(sprite).await?;
+    println!("Symbols: {:?}", symbols);
+
+    // Clean shutdown
+    client.shutdown().await?;
+    Ok(())
+}
+```
+
+**Agent Self-Correction Loop:**
+
+```rust
+async fn generate_validated_sprite(prompt: &str, client: &mut LspAgentClient) -> String {
+    let mut content = llm_generate(prompt);
+
+    for _ in 0..3 {  // Max 3 correction attempts
+        let diagnostics = client.verify_content(&content).await.unwrap();
+
+        if diagnostics.iter().all(|d| d.severity != "error") {
+            return content;  // Valid!
+        }
+
+        // Feed errors back to LLM for correction
+        let error_summary: String = diagnostics
+            .iter()
+            .filter(|d| d.severity == "error")
+            .map(|d| format!("Line {}: {}", d.line, d.message))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        content = llm_generate(&format!(
+            "Fix these errors in the sprite:\n{}\n\nOriginal:\n{}",
+            error_summary, content
+        ));
+    }
+
+    content  // Return best effort after 3 attempts
+}
+```
+
+**Verification:**
+```bash
+cargo build --features agent-client
+cargo test agent_client
+
+# Integration test
+cargo run --features agent-client --example agent_verify
+```
+
+**Dependencies:** Task 24.2 (LSP server with diagnostics)
+
+---
+
+### Task 24.8: Agent CLI Bridge
+
+**Wave:** 5 (after 24.7)
+
+A thin CLI wrapper around `LspAgentClient` for shell-based agents and simple scripting.
+
+**Motivation:**
+
+Not all agents are written in Rust. The CLI bridge provides the same capabilities as `LspAgentClient` but via stdin/stdout JSON, usable from Python, shell scripts, or any language.
+
+**Deliverables:**
+
+1. Add CLI command that uses `LspAgentClient` internally:
+   ```rust
+   /// Verify pixelsrc content for AI agents (returns JSON)
    #[command(name = "agent-verify")]
    AgentVerify {
        /// Content to verify (reads from stdin if not provided)
@@ -625,43 +1011,41 @@ A simplified CLI wrapper that makes LSP features accessible to AI agents without
    }
    ```
 
-2. Implement in `src/agent.rs`:
+2. Implementation uses `LspAgentClient`:
    ```rust
-   use serde::Serialize;
+   async fn run_agent_verify(args: AgentVerify) -> anyhow::Result<()> {
+       let content = match args.content {
+           Some(c) => c,
+           None => {
+               let mut buf = String::new();
+               std::io::stdin().read_to_string(&mut buf)?;
+               buf
+           }
+       };
 
-   #[derive(Serialize)]
-   pub struct AgentVerifyResult {
-       pub valid: bool,
-       pub diagnostics: Vec<AgentDiagnostic>,
-       #[serde(skip_serializing_if = "Option::is_none")]
-       pub grid_info: Option<Vec<GridSpriteInfo>>,
-       #[serde(skip_serializing_if = "Option::is_none")]
-       pub available_tokens: Option<Vec<TokenInfo>>,
-   }
+       // Use LspAgentClient internally
+       let mut client = LspAgentClient::spawn("pxl").await?;
+       let diagnostics = client.verify_content(&content).await?;
 
-   #[derive(Serialize)]
-   pub struct AgentDiagnostic {
-       pub line: usize,
-       pub severity: String,  // "error" | "warning"
-       pub message: String,
-       #[serde(skip_serializing_if = "Option::is_none")]
-       pub fix_suggestion: Option<String>,
-   }
+       let mut result = AgentVerifyResult {
+           valid: diagnostics.iter().all(|d| d.severity != "error"),
+           diagnostics: diagnostics.into_iter().map(Into::into).collect(),
+           grid_info: None,
+           available_tokens: None,
+       };
 
-   #[derive(Serialize)]
-   pub struct GridSpriteInfo {
-       pub name: String,
-       pub size: [usize; 2],        // [width, height]
-       pub actual_rows: usize,
-       pub row_widths: Vec<usize>,  // Width of each row
-       pub aligned: bool,           // All rows same width?
-   }
+       if args.grid_info {
+           result.grid_info = Some(extract_grid_info(&content));
+       }
 
-   #[derive(Serialize)]
-   pub struct TokenInfo {
-       pub token: String,
-       pub color: String,
-       pub palette: String,
+       if args.suggest_tokens {
+           let completions = client.get_completions(&content, 0, 0).await?;
+           result.available_tokens = Some(completions.into_iter().map(Into::into).collect());
+       }
+
+       client.shutdown().await?;
+       println!("{}", serde_json::to_string_pretty(&result)?);
+       Ok(())
    }
    ```
 
@@ -682,7 +1066,7 @@ A simplified CLI wrapper that makes LSP features accessible to AI agents without
          "name": "hero",
          "size": [16, 16],
          "actual_rows": 16,
-         "row_widths": [16, 16, 15, 16, ...],
+         "row_widths": [16, 16, 15, 16],
          "aligned": false
        }
      ],
@@ -697,23 +1081,28 @@ A simplified CLI wrapper that makes LSP features accessible to AI agents without
 ```bash
 # Verify content from stdin
 echo '{"type":"sprite","name":"x","grid":["{a}{a}","{a}"]}' | pxl agent-verify
-# Returns JSON with diagnostics
 
 # With grid info
 cat sprite.jsonl | pxl agent-verify --grid-info
-# Returns JSON with grid alignment details
 
-# Full agent workflow
-pxl agent-verify --content '...' --grid-info --suggest-tokens
+# Python usage
+import subprocess, json
+result = subprocess.run(
+    ["pxl", "agent-verify", "--grid-info"],
+    input=sprite_content,
+    capture_output=True,
+    text=True
+)
+data = json.loads(result.stdout)
 ```
 
-**Dependencies:** Tasks 17.2-17.6 (uses same underlying logic)
+**Dependencies:** Task 24.7 (LspAgentClient)
 
 ---
 
-### Task 17.8: CSS Color Provider
+### Task 24.9: CSS Color Provider
 
-**Wave:** 6 (parallel with 17.9-17.11, requires Phase 22)
+**Wave:** 6 (parallel with 24.10-24.12, requires Phase 22)
 
 Implement LSP Color Provider for CSS color syntax - swatches, pickers, and computed previews.
 
@@ -781,13 +1170,13 @@ Implement LSP Color Provider for CSS color syntax - swatches, pickers, and compu
 # color-mix() shows computed result, not the function
 ```
 
-**Dependencies:** Task 17.2, Phase 22 (CSS-3 color parsing)
+**Dependencies:** Task 24.2, Phase 22 (CSS-3 color parsing)
 
 ---
 
-### Task 17.9: CSS Variable Support
+### Task 24.10: CSS Variable Support
 
-**Wave:** 6 (parallel with 17.8, 17.10, 17.11, requires Phase 22)
+**Wave:** 6 (parallel with 24.9, 24.11, 24.12, requires Phase 22)
 
 Completions, hover, and go-to-definition for CSS custom properties.
 
@@ -873,13 +1262,13 @@ Completions, hover, and go-to-definition for CSS custom properties.
 # Circular refs show error squiggle
 ```
 
-**Dependencies:** Task 17.5, Phase 22 (CSS-5, CSS-6 variable registry)
+**Dependencies:** Task 24.5, Phase 22 (CSS-5, CSS-6 variable registry)
 
 ---
 
-### Task 17.10: Timing Function Visualization
+### Task 24.11: Timing Function Visualization
 
-**Wave:** 6 (parallel with 17.8, 17.9, 17.11, requires Phase 22)
+**Wave:** 6 (parallel with 24.9, 24.10, 24.12, requires Phase 22)
 
 Show ASCII easing curve preview when hovering over timing functions.
 
@@ -963,13 +1352,13 @@ Show ASCII easing curve preview when hovering over timing functions.
 # Should show ASCII curve and description
 ```
 
-**Dependencies:** Task 17.3, Phase 22 (CSS-8 timing functions)
+**Dependencies:** Task 24.3, Phase 22 (CSS-8 timing functions)
 
 ---
 
-### Task 17.11: Transform Explainer
+### Task 24.12: Transform Explainer
 
-**Wave:** 6 (parallel with 17.8, 17.9, 17.10, requires Phase 22)
+**Wave:** 6 (parallel with 24.9, 24.10, 24.11, requires Phase 22)
 
 Describe what CSS transforms will do in plain language.
 
@@ -1040,19 +1429,73 @@ Describe what CSS transforms will do in plain language.
 # Should show plain-language explanation
 ```
 
-**Dependencies:** Task 17.3, Phase 22 (CSS-14 transforms)
+**Dependencies:** Task 24.3, Phase 22 (CSS-14 transforms)
 
 ---
 
-### Task 17.12: Agent CSS Tools
+### Task 24.13: LspAgentClient CSS Extensions
 
-**Wave:** 7 (after 17.8-17.11)
+**Wave:** 7 (after 24.9-24.12)
 
-Extend agent-verify to resolve and report CSS computed values.
+Extend `LspAgentClient` with CSS-aware methods for resolving computed values.
 
 **Deliverables:**
 
-1. Extend CLI command:
+1. Add CSS methods to `LspAgentClient`:
+   ```rust
+   impl LspAgentClient {
+       /// Resolve all CSS colors in content to computed hex values.
+       ///
+       /// Resolves var() references and color-mix() functions.
+       pub async fn resolve_colors(&mut self, content: &str) -> anyhow::Result<Vec<ResolvedColor>> {
+           let uri = "file:///virtual/colors.pxl";
+
+           self.send_notification("textDocument/didOpen", json!({
+               "textDocument": {
+                   "uri": uri,
+                   "languageId": "pixelsrc",
+                   "version": 1,
+                   "text": content
+               }
+           })).await?;
+
+           // Use documentColor to get all colors with their resolved values
+           let result = self.send_request("textDocument/documentColor", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           self.send_notification("textDocument/didClose", json!({
+               "textDocument": { "uri": uri }
+           })).await?;
+
+           Ok(parse_resolved_colors(&result, content))
+       }
+
+       /// Analyze timing functions in animations.
+       pub async fn analyze_timing(&mut self, content: &str) -> anyhow::Result<Vec<TimingAnalysis>> {
+           // Parse animations and extract timing function info
+           // Returns human-readable descriptions
+       }
+   }
+
+   #[derive(Debug, Clone, serde::Serialize)]
+   pub struct ResolvedColor {
+       pub token: String,           // "{skin}"
+       pub original: String,        // "var(--skin-tone)"
+       pub resolved: String,        // "#FFCC99"
+       pub palette: String,
+   }
+
+   #[derive(Debug, Clone, serde::Serialize)]
+   pub struct TimingAnalysis {
+       pub animation: String,
+       pub timing_function: String,
+       pub description: String,
+       pub curve_type: String,      // "smooth" | "stepped" | "bouncy"
+   }
+   ```
+
+2. Extend CLI command:
    ```rust
    AgentVerify {
        // ... existing args
@@ -1067,37 +1510,24 @@ Extend agent-verify to resolve and report CSS computed values.
    }
    ```
 
-2. Extend JSON output:
+3. Example Rust usage:
    ```rust
-   #[derive(Serialize)]
-   pub struct AgentVerifyResult {
-       // ... existing fields
+   let mut client = LspAgentClient::spawn("pxl").await?;
 
-       #[serde(skip_serializing_if = "Option::is_none")]
-       pub resolved_colors: Option<Vec<ResolvedColor>>,
-
-       #[serde(skip_serializing_if = "Option::is_none")]
-       pub timing_analysis: Option<Vec<TimingAnalysis>>,
+   // Get resolved colors
+   let colors = client.resolve_colors(content).await?;
+   for c in &colors {
+       println!("{}: {} → {}", c.token, c.original, c.resolved);
    }
 
-   #[derive(Serialize)]
-   pub struct ResolvedColor {
-       pub token: String,           // "{skin}"
-       pub original: String,        // "var(--skin-tone)"
-       pub resolved: String,        // "#FFCC99"
-       pub palette: String,
-   }
-
-   #[derive(Serialize)]
-   pub struct TimingAnalysis {
-       pub animation: String,
-       pub timing_function: String,
-       pub description: String,
-       pub curve_type: String,      // "smooth" | "stepped" | "bouncy"
+   // Analyze timing
+   let timing = client.analyze_timing(content).await?;
+   for t in &timing {
+       println!("{}: {} ({})", t.animation, t.timing_function, t.curve_type);
    }
    ```
 
-3. Example output with `--resolve-colors`:
+4. Example CLI output with `--resolve-colors`:
    ```json
    {
      "valid": true,
@@ -1144,7 +1574,7 @@ pxl agent-verify --analyze-timing < animation.pxl
 # Shows timing function analysis for each animation
 ```
 
-**Dependencies:** Tasks 17.7-17.11
+**Dependencies:** Tasks 24.7-24.11
 
 ---
 
@@ -1263,52 +1693,70 @@ Users can integrate with the Generic LSP Client extension:
 ## Verification Summary
 
 ```bash
-# === WAVE 1-5: Core LSP ===
+# === WAVE 1-4: Core LSP (24.1-24.6) ===
 
-# 1. LSP server starts
+# 1. LSP server starts (24.1)
 ./target/release/pxl lsp &
 # (test with LSP client)
 
-# 2. Diagnostics work
+# 2. Diagnostics work (24.2)
 # Open file with errors in VS Code, should see squiggles
 
-# 3. Hover shows coordinates
+# 3. Hover shows grid coordinates (24.3)
 # Hover over grid tokens, should see x,y position
 
-# 4. Completions work
+# 4. Row length diagnostics (24.4)
+# Misaligned rows show warning with fix suggestion
+
+# 5. Completions work (24.5)
 # Type "{" in grid, should see token suggestions
 
-# 5. Symbols work
-# Open outline, should see palettes/sprites
+# 6. Symbols work (24.6)
+# Open outline (Cmd+Shift+O), should see palettes/sprites
 
-# 6. Agent bridge works
+# === WAVE 5: LspAgentClient (24.7-24.8) ===
+
+# 7. LspAgentClient library works (24.7)
+cargo test --features agent-client agent_client
+cargo run --features agent-client --example agent_verify
+
+# 8. Rust agent integration
+use pxl::LspAgentClient;
+let mut client = LspAgentClient::spawn("pxl").await?;
+let diagnostics = client.verify_content(content).await?;
+let completions = client.get_completions(content, 0, 42).await?;
+let symbols = client.get_symbols(content).await?;
+
+# 9. CLI bridge works (24.8)
 echo '{"type":"sprite","name":"x","grid":["{a}{a}","{a}"]}' | pxl agent-verify
 # Should return JSON with diagnostics
 
 # === WAVE 6-7: CSS Features (requires Phase 22) ===
 
-# 7. Color provider works
+# 10. Color provider works (24.9)
 # Open palette with hsl(), color-mix() - should show color swatches
 # Click swatch to open picker
 
-# 8. CSS variable completions
+# 11. CSS variable completions (24.10)
 # Type var(-- inside a color value, should see defined variables
 
-# 9. CSS variable hover
+# 12. CSS variable hover (24.10)
 # Hover over var(--primary), should show resolved value
 
-# 10. Timing function visualization
+# 13. Timing function visualization (24.11)
 # Hover over ease-in-out or cubic-bezier(), should show ASCII curve
 
-# 11. Transform explanation
+# 14. Transform explanation (24.12)
 # Hover over rotate(90deg) scale(2), should show effect description
 
-# 12. Agent CSS tools
-pxl agent-verify --resolve-colors < sprite_with_vars.pxl
-# Should show resolved color hex values
+# 15. LspAgentClient CSS extensions (24.13)
+# Rust API:
+let colors = client.resolve_colors(content).await?;
+let timing = client.analyze_timing(content).await?;
 
+# CLI:
+pxl agent-verify --resolve-colors < sprite_with_vars.pxl
 pxl agent-verify --analyze-timing < animation.pxl
-# Should show timing function analysis
 ```
 
 ---
