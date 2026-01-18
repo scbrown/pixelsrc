@@ -1,0 +1,5 @@
+{"type": "palette", "name": "demo", "colors": {".": "#00000000", "{bg}": "#0f0f23", "{idle}": "#4a9eff", "{jump}": "#ffd93d", "{land}": "#6bcb77"}}
+{"type": "sprite", "name": "char_idle", "palette": "demo", "grid": [". {idle} .", "{idle} {idle} {idle}", ". {idle} .", "{idle} . {idle}"]}
+{"type": "sprite", "name": "char_jump", "palette": "demo", "grid": [". {jump} .", "{jump} {jump} {jump}", "{jump} {jump} {jump}", ". . ."]}
+{"type": "sprite", "name": "char_land", "palette": "demo", "grid": [". . .", "{land} {land} {land}", "{land} {land} {land}", "{land} . {land}"]}
+{"type": "animation", "name": "jump_cycle", "keyframes": {"0%": {"sprite": "char_idle"}, "25%": {"sprite": "char_jump"}, "75%": {"sprite": "char_land"}, "100%": {"sprite": "char_idle"}}, "duration": "800ms", "timing_function": "ease"}

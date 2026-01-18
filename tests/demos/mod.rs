@@ -574,4 +574,156 @@ mod tests {
         // Horizontal: 2 frames × 3px = 6px wide, 3px tall
         assert_spritesheet_dimensions(jsonl, "mixed", None, 6, 3);
     }
+
+    // ========================================================================
+    // CSS Keyframes Tests (DT-14)
+    // ========================================================================
+
+    /// @demo format/css/keyframes#percentage
+    /// @title Percentage Keyframes
+    /// @description Animation using 0%, 50%, 100% keyframes with opacity and sprite changes.
+    #[test]
+    fn test_css_keyframes_percentage() {
+        let jsonl = include_str!("../../examples/demos/css/keyframes/percentage.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_, _, animations) = parse_content(jsonl);
+        let anim = animations.get("fade_walk").expect("Animation 'fade_walk' not found");
+
+        // Verify this is a keyframes-based animation
+        assert!(anim.is_css_keyframes(), "Should use CSS keyframes format");
+
+        // Check keyframe count
+        let keyframes = anim.keyframes.as_ref().unwrap();
+        assert_eq!(keyframes.len(), 3, "Should have 3 keyframes (0%, 50%, 100%)");
+
+        // Verify keyframe keys
+        assert!(keyframes.contains_key("0%"), "Should have 0% keyframe");
+        assert!(keyframes.contains_key("50%"), "Should have 50% keyframe");
+        assert!(keyframes.contains_key("100%"), "Should have 100% keyframe");
+
+        // Verify 0% keyframe properties
+        let kf_0 = &keyframes["0%"];
+        assert_eq!(kf_0.sprite.as_deref(), Some("walk_1"));
+        assert_eq!(kf_0.opacity, Some(0.0));
+
+        // Verify 50% keyframe properties
+        let kf_50 = &keyframes["50%"];
+        assert_eq!(kf_50.sprite.as_deref(), Some("walk_2"));
+        assert_eq!(kf_50.opacity, Some(1.0));
+
+        // Verify timing function
+        assert_eq!(anim.timing_function.as_deref(), Some("ease-in-out"));
+    }
+
+    /// @demo format/css/keyframes#from_to
+    /// @title From/To Keyframes
+    /// @description Animation using from/to aliases (equivalent to 0%/100%).
+    #[test]
+    fn test_css_keyframes_from_to() {
+        let jsonl = include_str!("../../examples/demos/css/keyframes/from_to.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_, _, animations) = parse_content(jsonl);
+        let anim = animations.get("fade_in").expect("Animation 'fade_in' not found");
+
+        // Verify this is a keyframes-based animation
+        assert!(anim.is_css_keyframes(), "Should use CSS keyframes format");
+
+        // Check keyframe keys use from/to aliases
+        let keyframes = anim.keyframes.as_ref().unwrap();
+        assert_eq!(keyframes.len(), 2, "Should have 2 keyframes (from, to)");
+        assert!(keyframes.contains_key("from"), "Should have 'from' keyframe");
+        assert!(keyframes.contains_key("to"), "Should have 'to' keyframe");
+
+        // Verify from keyframe (0% alias) - starts transparent
+        let kf_from = &keyframes["from"];
+        assert_eq!(kf_from.sprite.as_deref(), Some("dot"));
+        assert_eq!(kf_from.opacity, Some(0.0));
+
+        // Verify to keyframe (100% alias) - ends opaque
+        let kf_to = &keyframes["to"];
+        assert_eq!(kf_to.sprite.as_deref(), Some("dot"));
+        assert_eq!(kf_to.opacity, Some(1.0));
+
+        // Verify duration is 1 second
+        assert_eq!(anim.duration_ms(), 1000);
+    }
+
+    /// @demo format/css/keyframes#sprite_changes
+    /// @title Sprite Changes at Keyframes
+    /// @description Animation that changes sprites at different keyframes (idle → jump → land → idle).
+    #[test]
+    fn test_css_keyframes_sprite_changes() {
+        let jsonl = include_str!("../../examples/demos/css/keyframes/sprite_changes.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+        let anim = animations.get("jump_cycle").expect("Animation 'jump_cycle' not found");
+
+        // Verify this is a keyframes-based animation
+        assert!(anim.is_css_keyframes(), "Should use CSS keyframes format");
+
+        // Check all keyframes exist
+        let keyframes = anim.keyframes.as_ref().unwrap();
+        assert_eq!(keyframes.len(), 4, "Should have 4 keyframes (0%, 25%, 75%, 100%)");
+
+        // Verify sprite changes at each keyframe
+        assert_eq!(keyframes["0%"].sprite.as_deref(), Some("char_idle"));
+        assert_eq!(keyframes["25%"].sprite.as_deref(), Some("char_jump"));
+        assert_eq!(keyframes["75%"].sprite.as_deref(), Some("char_land"));
+        assert_eq!(keyframes["100%"].sprite.as_deref(), Some("char_idle"));
+
+        // Verify all referenced sprites can be resolved
+        for sprite_name in ["char_idle", "char_jump", "char_land"] {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
+        }
+
+        // Verify duration is 800ms
+        assert_eq!(anim.duration_ms(), 800);
+    }
+
+    /// @demo format/css/keyframes#transforms
+    /// @title Transform Animations
+    /// @description Animations using CSS transforms (rotate, scale) at keyframes.
+    #[test]
+    fn test_css_keyframes_transforms() {
+        let jsonl = include_str!("../../examples/demos/css/keyframes/transforms.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_, _, animations) = parse_content(jsonl);
+
+        // Test spin animation (rotate)
+        let spin = animations.get("spin").expect("Animation 'spin' not found");
+        assert!(spin.is_css_keyframes(), "spin should use CSS keyframes format");
+
+        let spin_kf = spin.keyframes.as_ref().unwrap();
+        assert_eq!(spin_kf.len(), 2);
+        assert_eq!(spin_kf["0%"].transform.as_deref(), Some("rotate(0deg)"));
+        assert_eq!(spin_kf["100%"].transform.as_deref(), Some("rotate(360deg)"));
+        assert_eq!(spin.timing_function.as_deref(), Some("linear"));
+
+        // Test pulse animation (scale + opacity)
+        let pulse = animations.get("pulse").expect("Animation 'pulse' not found");
+        assert!(pulse.is_css_keyframes(), "pulse should use CSS keyframes format");
+
+        let pulse_kf = pulse.keyframes.as_ref().unwrap();
+        assert_eq!(pulse_kf.len(), 3);
+
+        // 0%: normal size, full opacity
+        assert_eq!(pulse_kf["0%"].transform.as_deref(), Some("scale(1)"));
+        assert_eq!(pulse_kf["0%"].opacity, Some(1.0));
+
+        // 50%: larger, half opacity
+        assert_eq!(pulse_kf["50%"].transform.as_deref(), Some("scale(1.5)"));
+        assert_eq!(pulse_kf["50%"].opacity, Some(0.5));
+
+        // 100%: back to normal
+        assert_eq!(pulse_kf["100%"].transform.as_deref(), Some("scale(1)"));
+        assert_eq!(pulse_kf["100%"].opacity, Some(1.0));
+
+        assert_eq!(pulse.timing_function.as_deref(), Some("ease-in-out"));
+    }
 }
