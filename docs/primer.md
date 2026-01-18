@@ -33,6 +33,27 @@ Pixelsrc is a GenAI-native pixel art format. It's text-based JSONL that you gene
 - Color format: `#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`, or CSS colors (see [colors.md](colors.md))
 - `{_}` is the conventional transparent token
 
+### Palette with CSS Variables
+
+```json
+{"type": "palette", "name": "themed", "colors": {
+  "--primary": "#4169E1",
+  "--accent": "#FFD700",
+  "{_}": "transparent",
+  "{main}": "var(--primary)",
+  "{highlight}": "var(--accent)",
+  "{shadow}": "color-mix(in oklch, var(--primary) 70%, black)",
+  "{glow}": "color-mix(in oklch, var(--primary) 60%, white)"
+}}
+```
+
+- **CSS Variables**: Define with `--name`, reference with `var(--name)` or `var(--name, fallback)`
+- **color-mix()**: Generate shadows/highlights automatically: `color-mix(in oklch, color 70%, black)`
+- Common patterns:
+  - Shadow: `color-mix(in oklch, var(--color) 70%, black)`
+  - Highlight: `color-mix(in oklch, var(--color) 60%, white)`
+  - Muted: `color-mix(in srgb, color1 50%, color2)`
+
 ### Sprite
 
 ```json
@@ -43,7 +64,7 @@ Pixelsrc is a GenAI-native pixel art format. It's text-based JSONL that you gene
 - `palette`: name of previously defined palette, or inline colors object
 - `grid`: array of strings, one per row, top to bottom
 
-### Animation
+### Animation (Frame Array)
 
 ```json
 {"type": "animation", "name": "walk", "frames": ["frame1", "frame2", "frame3"], "duration": 100, "loop": true}
@@ -52,6 +73,37 @@ Pixelsrc is a GenAI-native pixel art format. It's text-based JSONL that you gene
 - `frames`: array of sprite names
 - `duration`: milliseconds per frame (default: 100)
 - `loop`: whether to loop (default: true)
+
+### Animation (CSS Keyframes) - Recommended
+
+```json
+{"type": "animation", "name": "pulse", "keyframes": {
+  "0%": {"sprite": "star", "opacity": 1.0},
+  "50%": {"sprite": "star", "opacity": 0.5, "transform": "scale(1.2)"},
+  "100%": {"sprite": "star", "opacity": 1.0}
+}, "duration": "1s", "timing_function": "ease-in-out", "loop": true}
+```
+
+- `keyframes`: map of percentage keys to keyframe objects
+- `duration`: CSS time string (`"500ms"`, `"1s"`) or milliseconds
+- `timing_function`: CSS easing (`linear`, `ease`, `ease-in-out`, `steps(4)`)
+- Keyframe fields: `sprite`, `opacity`, `offset`, `transform`
+
+### CSS Transforms in Keyframes
+
+Use CSS transform strings within keyframe animations:
+
+```json
+"transform": "translate(0, -5)"        // Move up 5 pixels
+"transform": "rotate(90deg)"           // Rotate 90 degrees clockwise
+"transform": "scale(2)"                // Double size
+"transform": "scale(1.5, 1)"           // Scale width only
+"transform": "flip(x)"                 // Horizontal mirror
+"transform": "flip(y)"                 // Vertical mirror
+"transform": "translate(5, 0) rotate(45deg) scale(1.2)"  // Combined
+```
+
+**Pixel art tips**: Use 90° rotation increments and integer scale factors for crisp results.
 
 ### Composition
 
@@ -83,10 +135,17 @@ This is one row with 8 tokens (8 pixels wide).
 
 ## Complete Example
 
-A simple 8x8 coin sprite:
+A simple 8x8 coin sprite using CSS variables and color-mix:
 
 ```jsonl
-{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#FFD700", "{shine}": "#FFFACD", "{shadow}": "#B8860B"}}
+{"type": "palette", "name": "coin", "colors": {
+  "--gold": "#FFD700",
+  "{_}": "transparent",
+  "{gold}": "var(--gold)",
+  "{shine}": "color-mix(in oklch, var(--gold) 60%, white)",
+  "{shadow}": "color-mix(in oklch, var(--gold) 70%, black)",
+  "{dark}": "color-mix(in oklch, var(--gold) 50%, black)"
+}}
 {"type": "sprite", "name": "coin", "size": [8, 8], "palette": "coin", "grid": [
   "{_}{_}{gold}{gold}{gold}{gold}{_}{_}",
   "{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}",
@@ -95,13 +154,22 @@ A simple 8x8 coin sprite:
   "{gold}{gold}{gold}{gold}{gold}{gold}{shadow}{gold}",
   "{gold}{gold}{gold}{gold}{gold}{shadow}{shadow}{gold}",
   "{_}{gold}{gold}{gold}{gold}{gold}{gold}{_}",
-  "{_}{_}{shadow}{shadow}{shadow}{shadow}{_}{_}"
+  "{_}{_}{dark}{dark}{dark}{dark}{_}{_}"
 ]}
+{"type": "animation", "name": "coin_spin", "keyframes": {
+  "0%": {"sprite": "coin", "transform": "scale(1, 1)"},
+  "25%": {"sprite": "coin", "transform": "scale(0.3, 1)"},
+  "50%": {"sprite": "coin", "transform": "scale(1, 1) flip(x)"},
+  "75%": {"sprite": "coin", "transform": "scale(0.3, 1)"},
+  "100%": {"sprite": "coin", "transform": "scale(1, 1)"}
+}, "duration": "600ms", "timing_function": "ease-in-out", "loop": true}
 ```
 
 **Key observations:**
-- Palette defined before sprite
+- CSS variable `--gold` defines base color
+- `color-mix()` derives `{shine}`, `{shadow}`, `{dark}` automatically
 - Semantic token names: `{gold}`, `{shine}`, `{shadow}`
+- CSS keyframes animation with transform for spin effect
 - Each row has exactly 8 tokens (matches width)
 - Transparent `{_}` for background
 
@@ -132,6 +200,21 @@ A simple 8x8 coin sprite:
 6. **Use outlines for definition**
    - Dark outline around character silhouette
    - Makes sprites readable at small sizes
+
+7. **Use CSS variables for theming**
+   - Define base colors as `--name` variables
+   - Reference with `var(--name)` in tokens
+   - Enables easy palette swapping
+
+8. **Use color-mix() for derived colors**
+   - Shadows: `color-mix(in oklch, base 70%, black)`
+   - Highlights: `color-mix(in oklch, base 60%, white)`
+   - Avoids manually calculating shade values
+
+9. **Use CSS keyframes for animations**
+   - Percentage-based timing is intuitive
+   - Supports opacity, transforms, offsets
+   - CSS timing functions for smooth easing
 
 ### DON'T
 

@@ -32,23 +32,68 @@ You are a pixel art generator that outputs sprites in pixelsrc format.
 - Example row: "{_}{skin}{skin}{_}" = 4 pixels
 - Token names should be descriptive: {skin}, {hair}, {outline}, {shadow}
 
+## CSS Variables (Recommended)
+
+Use CSS variables for theming and color-mix() for derived colors:
+
+{"type": "palette", "name": "themed", "colors": {
+  "--primary": "#4169E1",
+  "{_}": "transparent",
+  "{main}": "var(--primary)",
+  "{shadow}": "color-mix(in oklch, var(--primary) 70%, black)",
+  "{highlight}": "color-mix(in oklch, var(--primary) 60%, white)"
+}}
+
+- Define base colors with `--name` prefix
+- Reference with `var(--name)` or `var(--name, fallback)`
+- Generate shadows: `color-mix(in oklch, color 70%, black)`
+- Generate highlights: `color-mix(in oklch, color 60%, white)`
+
+## CSS Keyframes Animation (Recommended)
+
+Use percentage-based keyframes for animations:
+
+{"type": "animation", "name": "pulse", "keyframes": {
+  "0%": {"sprite": "star", "opacity": 1.0},
+  "50%": {"sprite": "star", "transform": "scale(1.2)", "opacity": 0.7},
+  "100%": {"sprite": "star", "opacity": 1.0}
+}, "duration": "1s", "timing_function": "ease-in-out", "loop": true}
+
+- Transform functions: translate(x, y), rotate(deg), scale(n), flip(x/y)
+- Timing functions: linear, ease, ease-in, ease-out, ease-in-out, steps(n)
+- Duration: "500ms", "1s", or number in milliseconds
+
 ## Example Output
 
-{"type": "sprite", "name": "red_heart", "palette": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}, "grid": [
+{"type": "palette", "name": "heart", "colors": {
+  "--red": "#FF0000",
+  "{_}": "transparent",
+  "{r}": "var(--red)",
+  "{p}": "color-mix(in oklch, var(--red) 70%, white)",
+  "{dark}": "color-mix(in oklch, var(--red) 70%, black)"
+}}
+{"type": "sprite", "name": "heart", "palette": "heart", "grid": [
   "{_}{r}{r}{_}{r}{r}{_}",
   "{r}{p}{r}{r}{p}{r}{r}",
   "{r}{r}{r}{r}{r}{r}{r}",
   "{_}{r}{r}{r}{r}{r}{_}",
   "{_}{_}{r}{r}{r}{_}{_}",
-  "{_}{_}{_}{r}{_}{_}{_}"
+  "{_}{_}{_}{dark}{_}{_}{_}"
 ]}
+{"type": "animation", "name": "heart_beat", "keyframes": {
+  "0%": {"sprite": "heart", "transform": "scale(1)"},
+  "15%": {"sprite": "heart", "transform": "scale(1.1)"},
+  "30%": {"sprite": "heart", "transform": "scale(1)"}
+}, "duration": "1s", "timing_function": "ease-out", "loop": true}
 
 ## Best Practices
 
 - Use semantic token names: {skin}, {hair}, {outline}, {shadow}, {highlight}
 - Keep sprites small: 8x8, 16x16, or 32x32 pixels
-- Use {_} with "#00000000" for transparent pixels
+- Use {_} with "transparent" for transparent pixels
 - Limit palette to 4-16 colors for retro aesthetic
+- Use CSS variables (--name) for base colors, enables easy theming
+- Use color-mix() to auto-generate shadow/highlight variants
 - Add highlights and shadows for depth
 - Include an {outline} color for definition
 
@@ -82,16 +127,29 @@ Character description:
 - [DESCRIBE STYLE: cute, realistic, retro, etc.]
 
 Requirements:
+- Use CSS variables for base colors: --skin-tone, --hair-color, --shirt-color
 - Use semantic token names: {skin}, {hair}, {eye}, {shirt}, {pants}, {outline}
-- Include {_} mapped to #00000000 for transparent background
+- Use color-mix() for shadows: color-mix(in oklch, var(--color) 70%, black)
+- Use color-mix() for highlights: color-mix(in oklch, var(--color) 60%, white)
+- Include {_} mapped to "transparent" for transparent background
 - Use an {outline} color for definition
-- Add highlights and shadows for depth
-- Limit palette to 8-12 colors
+- Limit palette to 8-12 visible colors (CSS variables don't count)
 
 Output format:
-1. First line: palette definition with "type": "palette"
+1. First line: palette with CSS variables and color-mix() derived colors
 2. Second line: sprite definition with "type": "sprite"
 3. Ensure each grid row has exactly [SIZE] tokens
+
+Example palette structure:
+{"type": "palette", "name": "char", "colors": {
+  "--skin": "#FFCC99",
+  "--hair": "#8B4513",
+  "{_}": "transparent",
+  "{skin}": "var(--skin)",
+  "{skin_shadow}": "color-mix(in oklch, var(--skin) 70%, black)",
+  "{hair}": "var(--hair)",
+  "{hair_highlight}": "color-mix(in oklch, var(--hair) 70%, white)"
+}}
 ```
 
 ### Item Template
@@ -107,15 +165,28 @@ Item description:
 - [DESCRIBE STYLE: fantasy RPG, sci-fi, cute, realistic]
 
 Requirements:
+- Use CSS variables for material base colors: --metal, --wood, --gem
 - Use semantic token names: {blade}, {hilt}, {gem}, {wood}, {metal}
-- Include {_} mapped to #00000000 for transparent background
-- Add {highlight} and {shadow} for depth
-- Keep palette under 8 colors
+- Use color-mix() for shadows and highlights
+- Include {_} mapped to "transparent" for transparent background
+- Keep palette under 8 visible colors
 
 Visual guidelines:
-- Use lighter colors on top-left for highlight (light source)
-- Use darker colors on bottom-right for shadow
+- Use lighter colors (color-mix with white) on top-left for highlight
+- Use darker colors (color-mix with black) on bottom-right for shadow
 - Leave 1-2 pixel margin for breathing room
+
+Example palette:
+{"type": "palette", "name": "sword", "colors": {
+  "--steel": "#C0C0C0",
+  "--gold": "#FFD700",
+  "{_}": "transparent",
+  "{blade}": "var(--steel)",
+  "{blade_shine}": "color-mix(in oklch, var(--steel) 50%, white)",
+  "{blade_shadow}": "color-mix(in oklch, var(--steel) 70%, black)",
+  "{guard}": "var(--gold)",
+  "{hilt}": "#8B4513"
+}}
 ```
 
 ### Animation Template
@@ -131,21 +202,29 @@ Animation description:
 - [DESCRIBE FRAME COUNT: 2, 4, 6, 8 frames]
 
 Requirements:
-- All frames must use the SAME shared palette
+- All frames must use the SAME shared palette with CSS variables
 - Keep subject centered and consistent across frames
 - Only animate the parts that move
 - Use meaningful frame names: [name]_1, [name]_2, etc.
+- Use CSS keyframes format for animations
 
 Output format:
-1. First line: shared palette definition
+1. First line: shared palette with --variables and color-mix() shadows
 2. Following lines: sprite frames in order
-3. Last line: animation definition linking frames
+3. Last line: CSS keyframes animation
 
-Frame timing (duration in ms):
-- Fast action: 50-100ms
-- Normal movement: 100-150ms
-- Slow/relaxed: 200-300ms
-- Idle breathing: 400-600ms
+CSS Keyframes format:
+{"type": "animation", "name": "anim", "keyframes": {
+  "0%": {"sprite": "frame_1"},
+  "50%": {"sprite": "frame_2", "transform": "translate(0, -2)"},
+  "100%": {"sprite": "frame_1"}
+}, "duration": "500ms", "timing_function": "ease-in-out", "loop": true}
+
+Frame timing:
+- Fast action: "50ms" to "100ms"
+- Normal movement: "100ms" to "150ms"
+- Slow/relaxed: "200ms" to "300ms"
+- Idle breathing: "400ms" to "2s"
 ```
 
 ### Tileset Template
@@ -161,10 +240,19 @@ Tileset description:
 - [DESCRIBE VARIATION: how many tile variants]
 
 Requirements:
-- All tiles must use the SAME shared palette
+- All tiles must use the SAME shared palette with CSS variables
 - Tiles must be seamlessly tileable (edges match)
-- Use 3-4 shades per base color for variation
-- Token names: {grass_light}, {grass_mid}, {grass_dark}
+- Use color-mix() to auto-generate shades from base color
+- Define base color as --grass, derive {grass_light}, {grass_mid}, {grass_dark}
+
+Example palette structure:
+{"type": "palette", "name": "terrain", "colors": {
+  "--grass": "#228B22",
+  "{_}": "transparent",
+  "{grass}": "var(--grass)",
+  "{grass_light}": "color-mix(in oklch, var(--grass) 70%, white)",
+  "{grass_dark}": "color-mix(in oklch, var(--grass) 70%, black)"
+}}
 
 Tiling guidelines:
 - Distribute color variations randomly but evenly

@@ -1,0 +1,64 @@
+{"type": "palette", "name": "hero", "colors": {
+  "--skin-tone": "#FFCC99",
+  "--hair-color": "#8B4513",
+  "--shirt-color": "#4169E1",
+  "--pants-color": "#1E3A5F",
+  "--outline-color": "#2C1810",
+  "{_}": "transparent",
+  "{skin}": "var(--skin-tone)",
+  "{skin_shadow}": "color-mix(in oklch, var(--skin-tone) 70%, black)",
+  "{hair}": "var(--hair-color)",
+  "{hair_highlight}": "color-mix(in oklch, var(--hair-color) 70%, white)",
+  "{eye}": "#000000",
+  "{shirt}": "var(--shirt-color)",
+  "{shirt_highlight}": "color-mix(in oklch, var(--shirt-color) 70%, white)",
+  "{shirt_shadow}": "color-mix(in oklch, var(--shirt-color) 70%, black)",
+  "{pants}": "var(--pants-color)",
+  "{pants_shadow}": "color-mix(in oklch, var(--pants-color) 70%, black)",
+  "{shoes}": "#000000",
+  "{outline}": "var(--outline-color)"
+}}
+{"type": "sprite", "name": "hero_idle", "size": [16, 16], "palette": "hero", "grid": [
+  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{_}{outline}{outline}{outline}{outline}{_}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{outline}{hair_highlight}{hair}{hair}{hair}{outline}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{hair_highlight}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{hair}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{skin}{eye}{skin}{skin}{eye}{skin}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{skin}{skin}{skin_shadow}{skin_shadow}{skin}{skin}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{outline}{shirt_highlight}{shirt}{shirt}{shirt}{shirt}{shirt}{outline}{_}{_}{_}{_}",
+  "{_}{_}{_}{outline}{skin}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{skin}{outline}{_}{_}{_}",
+  "{_}{_}{_}{outline}{skin_shadow}{outline}{shirt}{shirt}{shirt}{shirt}{outline}{skin_shadow}{outline}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{outline}{shirt_shadow}{shirt}{shirt}{shirt_shadow}{outline}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{outline}{pants}{pants}{pants}{pants}{outline}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{outline}{pants_shadow}{_}{_}{pants_shadow}{outline}{_}{_}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{shoes}{shoes}{_}{_}{shoes}{shoes}{_}{_}{_}{_}{_}"
+]}
+{"type": "animation", "name": "hero_breathe", "keyframes": {
+  "0%": {"sprite": "hero_idle", "transform": "translate(0, 0)"},
+  "50%": {"sprite": "hero_idle", "transform": "translate(0, -1)"},
+  "100%": {"sprite": "hero_idle", "transform": "translate(0, 0)"}
+}, "duration": "2s", "timing_function": "ease-in-out", "loop": true}
+{"type": "palette", "name": "hero_alt", "colors": {
+  "--skin-tone": "#8D5524",
+  "--hair-color": "#2C1810",
+  "--shirt-color": "#DC143C",
+  "--pants-color": "#2F4F4F",
+  "--outline-color": "#1a0f0a",
+  "{_}": "transparent",
+  "{skin}": "var(--skin-tone)",
+  "{skin_shadow}": "color-mix(in oklch, var(--skin-tone) 70%, black)",
+  "{hair}": "var(--hair-color)",
+  "{hair_highlight}": "color-mix(in oklch, var(--hair-color) 70%, white)",
+  "{eye}": "#000000",
+  "{shirt}": "var(--shirt-color)",
+  "{shirt_highlight}": "color-mix(in oklch, var(--shirt-color) 70%, white)",
+  "{shirt_shadow}": "color-mix(in oklch, var(--shirt-color) 70%, black)",
+  "{pants}": "var(--pants-color)",
+  "{pants_shadow}": "color-mix(in oklch, var(--pants-color) 70%, black)",
+  "{shoes}": "#1a1a1a",
+  "{outline}": "var(--outline-color)"
+}}
+{"type": "variant", "name": "hero_alt", "base": "hero_idle", "palette": "hero_alt"}

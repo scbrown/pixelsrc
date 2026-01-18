@@ -1,0 +1,78 @@
+{"type": "palette", "name": "day_theme", "colors": {
+  "--sky": "#87CEEB",
+  "--ground": "#228B22",
+  "--sun": "#FFD700",
+  "--tree-trunk": "#8B4513",
+  "--tree-leaves": "#228B22",
+  "{_}": "transparent",
+  "{sky}": "var(--sky)",
+  "{sky_light}": "color-mix(in oklch, var(--sky) 70%, white)",
+  "{ground}": "var(--ground)",
+  "{ground_dark}": "color-mix(in oklch, var(--ground) 70%, black)",
+  "{sun}": "var(--sun)",
+  "{sun_glow}": "color-mix(in oklch, var(--sun) 50%, white)",
+  "{trunk}": "var(--tree-trunk)",
+  "{trunk_dark}": "color-mix(in oklch, var(--tree-trunk) 70%, black)",
+  "{leaves}": "var(--tree-leaves)",
+  "{leaves_light}": "color-mix(in oklch, var(--tree-leaves) 60%, white)",
+  "{leaves_dark}": "color-mix(in oklch, var(--tree-leaves) 60%, black)"
+}}
+{"type": "palette", "name": "night_theme", "colors": {
+  "--sky": "#1a1a2e",
+  "--ground": "#0d3b0d",
+  "--sun": "#FFFACD",
+  "--tree-trunk": "#3d2817",
+  "--tree-leaves": "#0d3b0d",
+  "{_}": "transparent",
+  "{sky}": "var(--sky)",
+  "{sky_light}": "color-mix(in oklch, var(--sky) 70%, #4a4a6a)",
+  "{ground}": "var(--ground)",
+  "{ground_dark}": "color-mix(in oklch, var(--ground) 70%, black)",
+  "{sun}": "var(--sun)",
+  "{sun_glow}": "color-mix(in oklch, var(--sun) 40%, var(--sky))",
+  "{trunk}": "var(--tree-trunk)",
+  "{trunk_dark}": "color-mix(in oklch, var(--tree-trunk) 70%, black)",
+  "{leaves}": "var(--tree-leaves)",
+  "{leaves_light}": "color-mix(in oklch, var(--tree-leaves) 80%, #4a6a4a)",
+  "{leaves_dark}": "color-mix(in oklch, var(--tree-leaves) 60%, black)"
+}}
+{"type": "sprite", "name": "tree", "size": [5, 7], "palette": "day_theme", "grid": [
+  "{_}{_}{leaves_light}{_}{_}",
+  "{_}{leaves_light}{leaves}{leaves_light}{_}",
+  "{leaves_light}{leaves}{leaves}{leaves}{leaves_dark}",
+  "{leaves}{leaves}{leaves}{leaves}{leaves_dark}",
+  "{_}{leaves}{leaves}{leaves_dark}{_}",
+  "{_}{_}{trunk}{_}{_}",
+  "{_}{trunk_dark}{trunk}{trunk_dark}{_}"
+]}
+{"type": "sprite", "name": "sun", "size": [5, 5], "palette": "day_theme", "grid": [
+  "{_}{sun_glow}{sun}{sun_glow}{_}",
+  "{sun_glow}{sun}{sun}{sun}{sun_glow}",
+  "{sun}{sun}{sun}{sun}{sun}",
+  "{sun_glow}{sun}{sun}{sun}{sun_glow}",
+  "{_}{sun_glow}{sun}{sun_glow}{_}"
+]}
+{"type": "sprite", "name": "ground_tile", "size": [8, 3], "palette": "day_theme", "grid": [
+  "{ground}{ground_dark}{ground}{ground}{ground_dark}{ground}{ground}{ground_dark}",
+  "{ground}{ground}{ground_dark}{ground}{ground}{ground}{ground_dark}{ground}",
+  "{ground_dark}{ground}{ground}{ground_dark}{ground_dark}{ground}{ground}{ground_dark}"
+]}
+{"type": "sprite", "name": "sky_gradient", "size": [8, 4], "palette": "day_theme", "grid": [
+  "{sky_light}{sky_light}{sky_light}{sky_light}{sky_light}{sky_light}{sky_light}{sky_light}",
+  "{sky_light}{sky}{sky_light}{sky}{sky}{sky_light}{sky}{sky_light}",
+  "{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}",
+  "{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}"
+]}
+{"type": "composition", "name": "day_scene", "size": [16, 12], "cell_size": [1, 1], "layers": [
+  {"sprite": "sky_gradient", "x": 0, "y": 0},
+  {"sprite": "sky_gradient", "x": 8, "y": 0},
+  {"sprite": "sun", "x": 10, "y": 1},
+  {"sprite": "tree", "x": 2, "y": 3},
+  {"sprite": "tree", "x": 9, "y": 4},
+  {"sprite": "ground_tile", "x": 0, "y": 9},
+  {"sprite": "ground_tile", "x": 8, "y": 9}
+]}
+{"type": "variant", "name": "tree_night", "base": "tree", "palette": "night_theme"}
+{"type": "variant", "name": "moon", "base": "sun", "palette": "night_theme"}
+{"type": "variant", "name": "ground_night", "base": "ground_tile", "palette": "night_theme"}
+{"type": "variant", "name": "sky_night", "base": "sky_gradient", "palette": "night_theme"}

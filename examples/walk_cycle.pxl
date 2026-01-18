@@ -1,0 +1,45 @@
+{"type": "palette", "name": "walker", "colors": {
+  "--body-color": "#4A90D9",
+  "--foot-color": "#2C3E50",
+  "{_}": "transparent",
+  "{body}": "var(--body-color)",
+  "{body_light}": "color-mix(in oklch, var(--body-color) 70%, white)",
+  "{foot}": "var(--foot-color)",
+  "{shadow}": "color-mix(in oklch, var(--body-color) 60%, black)"
+}}
+{"type": "sprite", "name": "walk_1", "size": [8, 8], "palette": "walker", "grid": [
+  "{_}{_}{body_light}{body}{body}{body_light}{_}{_}",
+  "{_}{body}{body}{body}{body}{body}{body}{_}",
+  "{_}{body}{body}{body}{body}{body}{body}{_}",
+  "{_}{_}{body}{body}{body}{body}{_}{_}",
+  "{_}{_}{shadow}{body}{body}{shadow}{_}{_}",
+  "{_}{_}{foot}{_}{_}{foot}{_}{_}",
+  "{_}{foot}{_}{_}{_}{_}{foot}{_}",
+  "{_}{_}{_}{_}{_}{_}{_}{_}"
+]}
+{"type": "sprite", "name": "walk_2", "size": [8, 8], "palette": "walker", "grid": [
+  "{_}{_}{body_light}{body}{body}{body_light}{_}{_}",
+  "{_}{body}{body}{body}{body}{body}{body}{_}",
+  "{_}{body}{body}{body}{body}{body}{body}{_}",
+  "{_}{_}{body}{body}{body}{body}{_}{_}",
+  "{_}{_}{shadow}{body}{body}{shadow}{_}{_}",
+  "{_}{_}{_}{foot}{foot}{_}{_}{_}",
+  "{_}{_}{_}{foot}{foot}{_}{_}{_}",
+  "{_}{_}{_}{_}{_}{_}{_}{_}"
+]}
+{"type": "animation", "name": "walk", "keyframes": {
+  "0%": {"sprite": "walk_1"},
+  "25%": {"sprite": "walk_2"},
+  "50%": {"sprite": "walk_1", "transform": "flip(x)"},
+  "75%": {"sprite": "walk_2", "transform": "flip(x)"}
+}, "duration": "600ms", "timing_function": "steps(4)", "loop": true}
+{"type": "animation", "name": "walk_bounce", "keyframes": {
+  "0%": {"sprite": "walk_1", "transform": "translate(0, 0)"},
+  "12.5%": {"sprite": "walk_1", "transform": "translate(0, -1)"},
+  "25%": {"sprite": "walk_2", "transform": "translate(0, 0)"},
+  "37.5%": {"sprite": "walk_2", "transform": "translate(0, -1)"},
+  "50%": {"sprite": "walk_1", "transform": "translate(0, 0) flip(x)"},
+  "62.5%": {"sprite": "walk_1", "transform": "translate(0, -1) flip(x)"},
+  "75%": {"sprite": "walk_2", "transform": "translate(0, 0) flip(x)"},
+  "87.5%": {"sprite": "walk_2", "transform": "translate(0, -1) flip(x)"}
+}, "duration": "800ms", "timing_function": "linear", "loop": true}
