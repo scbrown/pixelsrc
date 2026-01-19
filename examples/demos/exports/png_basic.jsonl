@@ -1,0 +1,1 @@
+{"type": "sprite", "name": "pixel_art", "size": [4, 4], "palette": {".": "#00000000", "r": "#FF0000", "g": "#00FF00", "b": "#0000FF", "w": "#FFFFFF"}, "grid": ["rrrr", "gggg", "bbbb", "wwww"]}

@@ -5,6 +5,7 @@
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, PaletteRef, TtpObject};
+use pixelsrc::output::scale_image;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
 use pixelsrc::renderer::render_resolved;
@@ -117,6 +118,51 @@ pub fn capture_render_info(jsonl: &str, sprite_name: &str) -> RenderInfo {
     RenderInfo {
         width: image.width(),
         height: image.height(),
+        frame_count: 1,
+        palette_name: original_palette_name,
+        color_count: resolved.palette.len(),
+        sha256: hash,
+    }
+}
+
+/// Capture render info for a scaled sprite.
+///
+/// Renders the sprite and scales it by the given factor, then captures info.
+pub fn capture_scaled_render_info(jsonl: &str, sprite_name: &str, scale_factor: u8) -> RenderInfo {
+    let (palette_registry, sprite_registry, _) = parse_content(jsonl);
+
+    let resolved = sprite_registry
+        .resolve(sprite_name, &palette_registry, false)
+        .unwrap_or_else(|_| panic!("Failed to resolve sprite '{sprite_name}'"));
+
+    let (image, _warnings) = render_resolved(&resolved);
+
+    // Scale the image
+    let scaled = scale_image(image, scale_factor);
+
+    // Calculate SHA256 of scaled PNG bytes
+    let mut png_bytes = Vec::new();
+    scaled
+        .write_to(&mut Cursor::new(&mut png_bytes), image::ImageOutputFormat::Png)
+        .expect("Failed to encode scaled PNG");
+
+    let mut hasher = Sha256::new();
+    hasher.update(&png_bytes);
+    let hash = format!("{:x}", hasher.finalize());
+
+    // Get palette name from original sprite
+    let original_palette_name = if let Some(orig_sprite) = sprite_registry.get_sprite(sprite_name) {
+        match &orig_sprite.palette {
+            PaletteRef::Named(name) => Some(name.clone()),
+            PaletteRef::Inline(_) => None,
+        }
+    } else {
+        None
+    };
+
+    RenderInfo {
+        width: scaled.width(),
+        height: scaled.height(),
         frame_count: 1,
         palette_name: original_palette_name,
         color_count: resolved.palette.len(),
@@ -390,6 +436,78 @@ pub fn assert_spritesheet_frame_size(
     );
 }
 
+/// Structured info captured from a GIF animation render.
+#[derive(Debug, Clone)]
+pub struct GifInfo {
+    /// Number of frames in the animation
+    pub frame_count: usize,
+    /// Width of each frame in pixels
+    pub frame_width: u32,
+    /// Height of each frame in pixels
+    pub frame_height: u32,
+    /// Whether the animation loops
+    pub loops: bool,
+    /// Duration per frame in milliseconds
+    pub duration_ms: u32,
+}
+
+/// Capture GIF animation info.
+///
+/// Parses the JSONL content, finds the animation, and captures info about
+/// what would be rendered to GIF format.
+pub fn capture_gif_info(jsonl: &str, animation_name: &str) -> GifInfo {
+    let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+    let animation = animations
+        .get(animation_name)
+        .unwrap_or_else(|| panic!("Animation '{animation_name}' not found"));
+
+    // Render all frames to get dimensions
+    let frame_images = render_animation_frames(animation, &sprite_registry, &palette_registry);
+
+    // Get frame dimensions (max across all frames)
+    let frame_width = frame_images.iter().map(|f| f.width()).max().unwrap_or(1);
+    let frame_height = frame_images.iter().map(|f| f.height()).max().unwrap_or(1);
+
+    GifInfo {
+        frame_count: animation.frames.len(),
+        frame_width,
+        frame_height,
+        loops: animation.loops(),
+        duration_ms: animation.duration_ms(),
+    }
+}
+
+/// Verify GIF animation has expected frame count.
+pub fn assert_gif_frame_count(jsonl: &str, animation_name: &str, expected_count: usize) {
+    let info = capture_gif_info(jsonl, animation_name);
+    assert_eq!(
+        info.frame_count, expected_count,
+        "GIF frame count mismatch for animation '{}': expected {}, got {}",
+        animation_name, expected_count, info.frame_count
+    );
+}
+
+/// Verify GIF animation has expected frame dimensions.
+pub fn assert_gif_frame_dimensions(
+    jsonl: &str,
+    animation_name: &str,
+    expected_width: u32,
+    expected_height: u32,
+) {
+    let info = capture_gif_info(jsonl, animation_name);
+    assert_eq!(
+        info.frame_width, expected_width,
+        "GIF frame width mismatch for animation '{}': expected {}, got {}",
+        animation_name, expected_width, info.frame_width
+    );
+    assert_eq!(
+        info.frame_height, expected_height,
+        "GIF frame height mismatch for animation '{}': expected {}, got {}",
+        animation_name, expected_height, info.frame_height
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -574,6 +692,97 @@ mod tests {
 
         // Horizontal: 2 frames × 3px = 6px wide, 3px tall
         assert_spritesheet_dimensions(jsonl, "mixed", None, 6, 3);
+    }
+
+    // ========================================================================
+    // PNG Export Tests (DT-6)
+    // ========================================================================
+
+    /// @demo export/png#basic
+    /// @title Basic PNG Export
+    /// @description Simple sprite rendered to PNG format at 1x scale.
+    #[test]
+    fn test_png_basic() {
+        let jsonl = include_str!("../../examples/demos/exports/png_basic.jsonl");
+        assert_validates(jsonl, true);
+
+        // Verify basic dimensions (4x4 sprite)
+        let info = capture_render_info(jsonl, "pixel_art");
+        assert_eq!(info.width, 4, "PNG should be 4 pixels wide");
+        assert_eq!(info.height, 4, "PNG should be 4 pixels tall");
+        assert_eq!(info.color_count, 5, "Should have 5 colors (transparent + 4 colors)");
+        assert_eq!(info.frame_count, 1, "Static sprite should have 1 frame");
+    }
+
+    /// @demo export/png#scaled
+    /// @title Scaled PNG Export
+    /// @description Sprite rendered at various scale factors (2x, 4x, 8x) using nearest-neighbor.
+    #[test]
+    fn test_png_scaled() {
+        let jsonl = include_str!("../../examples/demos/exports/png_scaled.jsonl");
+        assert_validates(jsonl, true);
+
+        // Base dimensions (3x3 sprite)
+        let info_1x = capture_render_info(jsonl, "scalable");
+        assert_eq!(info_1x.width, 3, "1x scale should be 3 pixels wide");
+        assert_eq!(info_1x.height, 3, "1x scale should be 3 pixels tall");
+
+        // 2x scale
+        let info_2x = capture_scaled_render_info(jsonl, "scalable", 2);
+        assert_eq!(info_2x.width, 6, "2x scale should be 6 pixels wide (3 × 2)");
+        assert_eq!(info_2x.height, 6, "2x scale should be 6 pixels tall (3 × 2)");
+
+        // 4x scale
+        let info_4x = capture_scaled_render_info(jsonl, "scalable", 4);
+        assert_eq!(info_4x.width, 12, "4x scale should be 12 pixels wide (3 × 4)");
+        assert_eq!(info_4x.height, 12, "4x scale should be 12 pixels tall (3 × 4)");
+
+        // 8x scale
+        let info_8x = capture_scaled_render_info(jsonl, "scalable", 8);
+        assert_eq!(info_8x.width, 24, "8x scale should be 24 pixels wide (3 × 8)");
+        assert_eq!(info_8x.height, 24, "8x scale should be 24 pixels tall (3 × 8)");
+
+        // Color count should be preserved across scales
+        assert_eq!(info_1x.color_count, info_2x.color_count, "Color count should be preserved at 2x");
+        assert_eq!(info_1x.color_count, info_4x.color_count, "Color count should be preserved at 4x");
+        assert_eq!(info_1x.color_count, info_8x.color_count, "Color count should be preserved at 8x");
+    }
+
+    // ========================================================================
+    // GIF Export Tests (DT-6)
+    // ========================================================================
+
+    /// @demo export/gif#animated
+    /// @title Animated GIF Export
+    /// @description Animation rendered as looping GIF with specified duration.
+    #[test]
+    fn test_gif_animated() {
+        let jsonl = include_str!("../../examples/demos/exports/gif_animated.jsonl");
+        assert_validates(jsonl, true);
+
+        // Verify animation exists with expected frame count
+        assert_frame_count(jsonl, "star_blink", 4);
+
+        // Capture GIF-specific info
+        let info = capture_gif_info(jsonl, "star_blink");
+        assert_eq!(info.frame_count, 4, "GIF should have 4 frames");
+        assert_eq!(info.frame_width, 5, "Frame width should be 5 pixels");
+        assert_eq!(info.frame_height, 5, "Frame height should be 5 pixels");
+        assert!(info.loops, "Animation should loop");
+        assert_eq!(info.duration_ms, 250, "Frame duration should be 250ms");
+    }
+
+    /// Test GIF with non-looping animation
+    #[test]
+    fn test_gif_no_loop() {
+        let jsonl = r##"{"type": "sprite", "name": "f1", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
+{"type": "sprite", "name": "f2", "palette": {"{x}": "#00FF00"}, "grid": ["{x}"]}
+{"type": "animation", "name": "once", "duration": "500ms", "loop": false, "frames": ["f1", "f2"]}"##;
+
+        let info = capture_gif_info(jsonl, "once");
+        assert_eq!(info.frame_count, 2);
+        assert!(!info.loops, "Animation should not loop");
+        assert_eq!(info.duration_ms, 500, "Frame duration should be 500ms");
     }
 
     // ========================================================================
