@@ -6,8 +6,8 @@ use crate::atlas::{pack_atlas, AtlasBox, AtlasConfig as PackerConfig, SpriteInpu
 use crate::build::{BuildContext, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult};
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
-use crate::registry::PaletteRegistry;
-use crate::renderer::render_sprite;
+use crate::registry::{PaletteRegistry, ResolvedSprite, SpriteRegistry};
+use crate::renderer::{render_resolved, render_sprite};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -206,13 +206,14 @@ impl BuildPipeline {
             return Err(format!("Parse warnings in {}: {}", source.display(), warnings.join("; ")));
         }
 
-        // Build palette registry from parsed objects
-        let mut registry = PaletteRegistry::new();
+        // Build palette and sprite registries from parsed objects
+        let mut palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
         let mut sprites = Vec::new();
         for obj in parse_result.objects {
             match obj {
                 TtpObject::Palette(p) => {
-                    registry.register(p);
+                    palette_registry.register(p);
                 }
                 TtpObject::Sprite(s) => {
                     sprites.push(s);
@@ -223,33 +224,65 @@ impl BuildPipeline {
             }
         }
 
+        // Register all sprites (needed for source resolution)
+        for sprite in &sprites {
+            sprite_registry.register_sprite(sprite.clone());
+        }
+
         // Find the sprite to render (use the target name or first sprite)
-        let sprite = if sprites.len() == 1 {
-            sprites.into_iter().next().unwrap()
+        let sprite_name = if sprites.len() == 1 {
+            sprites[0].name.clone()
         } else {
             // Try to find sprite by target name
-            sprites.into_iter().find(|s| s.name == target.name).ok_or_else(|| {
-                format!("Sprite '{}' not found in {}", target.name, source.display())
-            })?
+            sprites
+                .iter()
+                .find(|s| s.name == target.name)
+                .map(|s| s.name.clone())
+                .ok_or_else(|| {
+                    format!("Sprite '{}' not found in {}", target.name, source.display())
+                })?
         };
 
-        // Resolve the palette for this sprite
-        let resolved = if self.context.is_strict() {
-            registry
-                .resolve_strict(&sprite)
-                .map_err(|e| format!("Failed to resolve palette for '{}': {}", sprite.name, e))?
-        } else {
-            let result = registry.resolve_lenient(&sprite);
-            if let Some(warning) = result.warning {
-                if self.context.is_verbose() {
-                    eprintln!("Warning: {}", warning.message);
+        let sprite = sprite_registry.get_sprite(&sprite_name).ok_or_else(|| {
+            format!("Sprite '{}' not found in registry", sprite_name)
+        })?;
+
+        // Determine if we need transform resolution (has source reference or transforms)
+        let needs_transform_resolution = sprite.source.is_some() || sprite.transform.is_some();
+
+        // Render the sprite (with or without transforms)
+        let (image, render_warnings) = if needs_transform_resolution {
+            // Use SpriteRegistry to resolve source references and apply transforms
+            let resolved = sprite_registry
+                .resolve(&sprite_name, &palette_registry, self.context.is_strict())
+                .map_err(|e| format!("Failed to resolve sprite '{}': {}", sprite_name, e))?;
+
+            // Log any resolution warnings
+            if self.context.is_verbose() {
+                for warning in &resolved.warnings {
+                    eprintln!("Warning: sprite '{}': {}", sprite_name, warning.message);
                 }
             }
-            result.palette
-        };
 
-        // Render the sprite
-        let (image, render_warnings) = render_sprite(&sprite, &resolved.colors);
+            render_resolved(&resolved)
+        } else {
+            // No transforms - use direct rendering with palette resolution
+            let resolved_palette = if self.context.is_strict() {
+                palette_registry
+                    .resolve_strict(sprite)
+                    .map_err(|e| format!("Failed to resolve palette for '{}': {}", sprite.name, e))?
+            } else {
+                let result = palette_registry.resolve_lenient(sprite);
+                if let Some(warning) = result.warning {
+                    if self.context.is_verbose() {
+                        eprintln!("Warning: {}", warning.message);
+                    }
+                }
+                result.palette
+            };
+
+            render_sprite(sprite, &resolved_palette.colors)
+        };
 
         // Handle render warnings
         if !render_warnings.is_empty() {
@@ -323,10 +356,15 @@ impl BuildPipeline {
         let multi_source = target.sources.len() > 1;
 
         // Phase 1: Parse all source files and collect render tasks
-        // Each render task contains: (sprite, resolved_palette, qualified_name)
+        // Each render task contains resolved sprite data ready for rendering
         struct RenderTask {
-            sprite: crate::models::Sprite,
+            /// Resolved grid (with transforms applied if any)
+            grid: Vec<String>,
+            /// Resolved palette colors
             colors: HashMap<String, String>,
+            /// The original sprite (for metadata)
+            sprite: crate::models::Sprite,
+            /// Qualified name for the atlas
             qualified_name: String,
         }
 
@@ -339,14 +377,15 @@ impl BuildPipeline {
             let reader = BufReader::new(file);
             let parse_result = parse_stream(reader);
 
-            // Build palette registry and collect sprites
-            let mut registry = PaletteRegistry::new();
+            // Build palette and sprite registries
+            let mut palette_registry = PaletteRegistry::new();
+            let mut sprite_registry = SpriteRegistry::new();
             let mut sprites = Vec::new();
 
             for obj in parse_result.objects {
                 match obj {
                     TtpObject::Palette(p) => {
-                        registry.register(p);
+                        palette_registry.register(p);
                     }
                     TtpObject::Sprite(s) => {
                         sprites.push(s);
@@ -357,41 +396,71 @@ impl BuildPipeline {
                 }
             }
 
+            // Register all sprites (needed for source resolution)
+            for sprite in &sprites {
+                sprite_registry.register_sprite(sprite.clone());
+            }
+
             // Create render tasks for each sprite
             let file_stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
 
             for sprite in sprites {
-                // Resolve palette for sprite
-                let resolved = if is_strict {
-                    registry.resolve_strict(&sprite).map_err(|e| {
-                        format!(
-                            "Failed to resolve palette for '{}' in {}: {}",
-                            sprite.name,
-                            source.display(),
-                            e
-                        )
-                    })?
-                } else {
-                    let result = registry.resolve_lenient(&sprite);
-                    if let Some(warning) = result.warning {
-                        if is_verbose {
-                            eprintln!("Warning: {}", warning.message);
-                        }
-                    }
-                    result.palette
-                };
-
                 let qualified_name = if multi_source {
                     format!("{}:{}", file_stem, sprite.name)
                 } else {
                     sprite.name.clone()
                 };
 
-                render_tasks.push(RenderTask {
-                    sprite,
-                    colors: resolved.colors.clone(),
-                    qualified_name,
-                });
+                // Determine if we need transform resolution
+                let needs_transform_resolution =
+                    sprite.source.is_some() || sprite.transform.is_some();
+
+                let (grid, colors) = if needs_transform_resolution {
+                    // Use SpriteRegistry to resolve source references and apply transforms
+                    let resolved = sprite_registry
+                        .resolve(&sprite.name, &palette_registry, is_strict)
+                        .map_err(|e| {
+                            format!(
+                                "Failed to resolve sprite '{}' in {}: {}",
+                                sprite.name,
+                                source.display(),
+                                e
+                            )
+                        })?;
+
+                    // Log any resolution warnings
+                    if is_verbose {
+                        for warning in &resolved.warnings {
+                            eprintln!("Warning: sprite '{}': {}", sprite.name, warning.message);
+                        }
+                    }
+
+                    (resolved.grid, resolved.palette)
+                } else {
+                    // No transforms - use direct palette resolution
+                    let resolved_palette = if is_strict {
+                        palette_registry.resolve_strict(&sprite).map_err(|e| {
+                            format!(
+                                "Failed to resolve palette for '{}' in {}: {}",
+                                sprite.name,
+                                source.display(),
+                                e
+                            )
+                        })?
+                    } else {
+                        let result = palette_registry.resolve_lenient(&sprite);
+                        if let Some(warning) = result.warning {
+                            if is_verbose {
+                                eprintln!("Warning: {}", warning.message);
+                            }
+                        }
+                        result.palette
+                    };
+
+                    (sprite.grid.clone(), resolved_palette.colors)
+                };
+
+                render_tasks.push(RenderTask { grid, colors, sprite, qualified_name });
             }
         }
 
@@ -399,8 +468,15 @@ impl BuildPipeline {
         let render_results: Vec<Result<SpriteInput, String>> = render_tasks
             .into_par_iter()
             .map(|task| {
-                // Render the sprite
-                let (image, render_warnings) = render_sprite(&task.sprite, &task.colors);
+                // Render the sprite using resolved grid and colors
+                let resolved = ResolvedSprite {
+                    name: task.sprite.name.clone(),
+                    size: task.sprite.size,
+                    grid: task.grid,
+                    palette: task.colors,
+                    warnings: vec![],
+                };
+                let (image, render_warnings) = render_resolved(&resolved);
 
                 // Handle render warnings
                 if !render_warnings.is_empty() {
@@ -881,6 +957,131 @@ mod tests {
         assert_eq!(img.height(), 2);
     }
 
+    #[test]
+    fn test_build_sprite_with_source_and_transform() {
+        let (temp, ctx) = create_test_context();
+
+        // Create a sprite file with base sprite and derived sprite with transforms
+        let src_dir = temp.path().join("src/pxl");
+        let sprite_file = src_dir.join("arrows.pxl");
+        // Base sprite is an arrow pointing right: {r}.. -> {r}
+        // Derived sprite mirrors it horizontally to point left
+        let sprite_content = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000", "{ }": "#00000000"}}
+{"type": "sprite", "name": "arrow_right", "palette": "colors", "grid": ["{ }{r}", "{r}{r}", "{ }{r}"]}
+{"type": "sprite", "name": "arrow_left", "palette": "colors", "source": "arrow_right", "transform": ["mirror-h"]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("arrow_left.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::sprite(
+            "arrow_left".to_string(),
+            sprite_file,
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+        assert!(output_file.exists(), "Output PNG file should exist");
+
+        // Verify the PNG was created with correct mirrored content
+        let img = image::open(&output_file).expect("Should open as valid PNG").to_rgba8();
+        assert_eq!(img.width(), 2);
+        assert_eq!(img.height(), 3);
+
+        // After mirror-h, the pattern should be:
+        // Original: { }{r}  ->  Mirrored: {r}{ }
+        //           {r}{r}              {r}{r}
+        //           { }{r}              {r}{ }
+        // So top-left (0,0) should be red, top-right (1,0) should be transparent
+        let top_left = img.get_pixel(0, 0);
+        let top_right = img.get_pixel(1, 0);
+        assert_eq!(top_left[0], 255, "Top-left red channel should be 255 (mirrored)");
+        assert_eq!(top_left[3], 255, "Top-left alpha should be 255 (opaque red)");
+        assert_eq!(top_right[3], 0, "Top-right alpha should be 0 (transparent)");
+    }
+
+    #[test]
+    fn test_build_sprite_with_rotate_transform() {
+        let (temp, ctx) = create_test_context();
+
+        // Create a sprite file with a sprite and rotate transform
+        let src_dir = temp.path().join("src/pxl");
+        let sprite_file = src_dir.join("rotated.pxl");
+        // Base sprite is 2x1 (red, green), rotated 90 degrees becomes 1x2
+        let sprite_content = r##"{"type": "sprite", "name": "bar", "palette": {"{r}": "#FF0000", "{g}": "#00FF00"}, "grid": ["{r}{g}"]}
+{"type": "sprite", "name": "rotated", "palette": {"{r}": "#FF0000", "{g}": "#00FF00"}, "source": "bar", "transform": ["rotate:90"]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("rotated.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::sprite(
+            "rotated".to_string(),
+            sprite_file,
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // After 90 degree rotation, 2x1 becomes 1x2
+        let img = image::open(&output_file).expect("Should open as valid PNG").to_rgba8();
+        assert_eq!(img.width(), 1, "Width should be 1 after 90 degree rotation");
+        assert_eq!(img.height(), 2, "Height should be 2 after 90 degree rotation");
+    }
+
+    #[test]
+    fn test_build_sprite_with_direct_transform() {
+        let (temp, ctx) = create_test_context();
+
+        // Create a sprite file with transform applied directly (no source)
+        let src_dir = temp.path().join("src/pxl");
+        let sprite_file = src_dir.join("tiled.pxl");
+        // Base sprite is 1x1 red, tiled 2x2 becomes 2x2
+        let sprite_content = r##"{"type": "sprite", "name": "tiled", "palette": {"{r}": "#FF0000"}, "grid": ["{r}"], "transform": [{"op": "tile", "w": 2, "h": 2}]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("tiled.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::sprite(
+            "tiled".to_string(),
+            sprite_file,
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // After 2x2 tiling, 1x1 becomes 2x2
+        let img = image::open(&output_file).expect("Should open as valid PNG").to_rgba8();
+        assert_eq!(img.width(), 2, "Width should be 2 after 2x2 tiling");
+        assert_eq!(img.height(), 2, "Height should be 2 after 2x2 tiling");
+
+        // All pixels should be red
+        for y in 0..2 {
+            for x in 0..2 {
+                let pixel = img.get_pixel(x, y);
+                assert_eq!(pixel[0], 255, "Red channel should be 255");
+                assert_eq!(pixel[1], 0, "Green channel should be 0");
+                assert_eq!(pixel[2], 0, "Blue channel should be 0");
+            }
+        }
+    }
+
     fn create_atlas_test_context(atlas_name: &str, sources: Vec<&str>) -> (TempDir, BuildContext) {
         use crate::config::{AtlasConfig as ConfigAtlas, ProjectConfig, PxlConfig};
 
@@ -1120,5 +1321,52 @@ mod tests {
         let img = image::open(&png_path).expect("Should open as valid PNG");
         assert_eq!(img.width(), 4, "Width should be power of 2 (4)");
         assert_eq!(img.height(), 4, "Height should be power of 2 (4)");
+    }
+
+    #[test]
+    fn test_build_atlas_with_transforms() {
+        let (temp, ctx) = create_atlas_test_context("transformed", vec!["*.pxl"]);
+
+        // Create source file with base and transformed sprites
+        let src_dir = temp.path().join("src/pxl");
+        let sprite_file = src_dir.join("shapes.pxl");
+        // Base: 2x1 horizontal bar, Transform: tiled 1x2 to become 2x2
+        let sprite_content = r##"{"type": "sprite", "name": "bar", "palette": {"{r}": "#FF0000"}, "grid": ["{r}{r}"]}
+{"type": "sprite", "name": "block", "palette": {"{r}": "#FF0000"}, "source": "bar", "transform": [{"op": "tile", "w": 1, "h": 2}]}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("transformed.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::atlas(
+            "transformed".to_string(),
+            vec![sprite_file],
+            output_file.clone(),
+        );
+
+        let result = pipeline.execute_target(&target);
+        assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
+
+        // Verify JSON metadata shows correct dimensions for transformed sprite
+        let json_path = out_dir.join("transformed.json");
+        let json_content = fs::read_to_string(&json_path).expect("Should read JSON");
+
+        // Both sprites should be in the atlas
+        assert!(json_content.contains("\"bar\""), "Atlas should contain original bar sprite");
+        assert!(json_content.contains("\"block\""), "Atlas should contain transformed block sprite");
+
+        // Verify the atlas contains the correct frames with transformed dimensions
+        // bar: 2x1, block: 2x2 (tiled 1x2)
+        let metadata: serde_json::Value = serde_json::from_str(&json_content).unwrap();
+        let frames = metadata.get("frames").expect("Should have frames");
+
+        // Find the block frame and verify its dimensions (frame properties are direct, not nested)
+        let block_frame = frames.get("block").expect("Should have block frame");
+        assert_eq!(block_frame.get("w").and_then(|v| v.as_u64()), Some(2), "Block width should be 2");
+        assert_eq!(block_frame.get("h").and_then(|v| v.as_u64()), Some(2), "Block height should be 2 (tiled)");
     }
 }
