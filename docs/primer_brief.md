@@ -14,6 +14,14 @@ Text-based JSONL format for pixel art. Generate text, render to PNG with `pxl re
 {"type": "sprite", "name": "x", "palette": "x", "grid": ["{_}{skin}{skin}{_}", "..."]}
 ```
 
+**Sprite Transforms** - Derive sprites:
+```json
+{"type": "sprite", "name": "x_left", "source": "x", "transform": ["mirror-h"]}
+{"type": "sprite", "name": "x_rot", "source": "x", "transform": ["rotate:90"]}
+{"type": "sprite", "name": "x_out", "source": "x", "transform": [{"op": "sel-out"}]}
+```
+Operations: `mirror-h`, `mirror-v`, `rotate:90/180/270`, `scale:x,y`, `sel-out`, `dither`, `shadow`
+
 **Animation** - CSS Keyframes (recommended):
 ```json
 {"type": "animation", "name": "x", "keyframes": {"0%": {"sprite": "s", "opacity": 1.0}, "50%": {"sprite": "s", "transform": "scale(1.2)"}}, "duration": "1s", "timing_function": "ease-in-out"}

@@ -162,11 +162,36 @@ This translates first, then rotates, then scales.
 
 ---
 
-## Effect Transforms
+## Sprite Transforms (Derived Sprites)
 
-Effect transforms modify sprite appearance through arrays of operations. They're applied via the `transform` array on a sprite definition.
+Create new sprites derived from existing ones using transforms. These are specified via the `transform` array on a sprite definition.
 
-### Basic Syntax
+### String Syntax (Simple Operations)
+
+For common geometric operations, use string syntax:
+
+```json
+{"type": "sprite", "name": "hero_left", "source": "hero_right", "transform": ["mirror-h"]}
+{"type": "sprite", "name": "hero_down", "source": "hero_right", "transform": ["rotate:90"]}
+{"type": "sprite", "name": "hero_big", "source": "hero", "transform": ["scale:2,2"]}
+{"type": "sprite", "name": "hero_shadow", "source": "hero", "transform": ["shadow:1,1:{shadow}"]}
+```
+
+| Operation | String Syntax | Description |
+|-----------|---------------|-------------|
+| Mirror H | `"mirror-h"` | Flip horizontally (left-right) |
+| Mirror V | `"mirror-v"` | Flip vertically (top-bottom) |
+| Rotate | `"rotate:90"` | Rotate 90°, 180°, or 270° clockwise |
+| Scale | `"scale:2,2"` | Scale by X,Y factors |
+| Shift | `"shift:1,1"` | Shift pixels by X,Y offset |
+| Shadow | `"shadow:1,1:{token}"` | Add drop shadow at offset with token |
+| Sel-out | `"sel-out"` or `"sel-out:{fallback}"` | Selective outline |
+
+Aliases: `flip-h` = `mirror-h`, `flip-v` = `mirror-v`, `rot` = `rotate`
+
+### Object Syntax (Advanced Operations)
+
+For operations with multiple parameters, use object syntax:
 
 ```json
 {
@@ -180,6 +205,12 @@ Effect transforms modify sprite appearance through arrays of operations. They're
 ```
 
 Transforms are applied in array order.
+
+---
+
+## Effect Transforms
+
+Effect transforms modify sprite appearance through arrays of operations.
 
 ## Dithering Patterns
 

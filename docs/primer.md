@@ -64,6 +64,36 @@ Pixelsrc is a GenAI-native pixel art format. It's text-based JSONL that you gene
 - `palette`: name of previously defined palette, or inline colors object
 - `grid`: array of strings, one per row, top to bottom
 
+### Sprite Transforms (Derived Sprites)
+
+Create derived sprites from a source with pixel-level transformations:
+
+```json
+{"type": "sprite", "name": "hero_left", "source": "hero_right", "transform": ["mirror-h"]}
+{"type": "sprite", "name": "hero_down", "source": "hero_right", "transform": ["rotate:90"]}
+{"type": "sprite", "name": "hero_big", "source": "hero", "transform": ["scale:2,2"]}
+{"type": "sprite", "name": "hero_outlined", "source": "hero", "transform": [{"op": "sel-out", "fallback": "{outline}"}]}
+```
+
+**Transform operations** (string or object syntax):
+
+| Operation | String Syntax | Description |
+|-----------|--------------|-------------|
+| Mirror H | `"mirror-h"` | Flip horizontally |
+| Mirror V | `"mirror-v"` | Flip vertically |
+| Rotate | `"rotate:90"` | Rotate 90°, 180°, or 270° |
+| Scale | `"scale:2,2"` | Scale by X,Y factors |
+| Sel-out | `{"op": "sel-out"}` | Auto-outline based on fill colors |
+| Dither | `{"op": "dither", "pattern": "checker", "tokens": ["{dark}", "{light}"]}` | Apply dither pattern |
+| Shadow | `"shadow:1,1:{shadow}"` | Add drop shadow |
+
+**Chaining transforms:**
+```json
+{"type": "sprite", "name": "hero_processed", "source": "hero", "transform": ["mirror-h", "rotate:90"]}
+```
+
+Transforms apply in array order.
+
 ### Animation (Frame Array)
 
 ```json

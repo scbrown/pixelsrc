@@ -1,0 +1,6 @@
+{"type": "palette", "name": "character", "colors": {"--skin": "#FFCC99", "--hair": "#8B4513", "{_}": "#00000000", "{skin}": "var(--skin)", "{skin_dark}": "color-mix(in oklch, var(--skin) 70%, black)", "{hair}": "var(--hair)", "{hair_dark}": "color-mix(in oklch, var(--hair) 70%, black)", "{outline}": "#2C1810"}}
+{"type": "sprite", "name": "face_right", "palette": "character", "grid": ["{_}{hair}{hair}{_}", "{hair}{skin}{skin}{hair}", "{skin}{skin}{skin}{skin}", "{_}{skin}{skin}{_}"]}
+{"type": "sprite", "name": "face_left", "palette": "character", "source": "face_right", "transform": ["mirror-h"]}
+{"type": "sprite", "name": "face_down", "palette": "character", "source": "face_right", "transform": ["rotate:90"]}
+{"type": "sprite", "name": "face_outlined", "palette": "character", "source": "face_right", "transform": [{"op": "sel-out", "mapping": {"{skin}": "{skin_dark}", "{hair}": "{hair_dark}", "*": "{outline}"}}]}
+{"type": "sprite", "name": "face_big", "palette": "character", "source": "face_right", "transform": ["scale:2,2"]}

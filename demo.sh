@@ -546,6 +546,60 @@ echo -e "  ${DIM}•${NC} ${WHITE}offset${NC}    - Position offset [x, y]"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 17d: Sprite Transforms (Derived Sprites)
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Sprite Transforms (Derived Sprites)"
+
+echo -e "  ${CYAN}Create sprite variants from a source with transforms:${NC}"
+echo ""
+echo -e "  ${DIM}┌─────────────────────────────────────────────────────────┐${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}Source sprite:${NC}                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"name\"${NC}: ${GREEN}\"face_right\"${NC}                               ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}                                                         ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC} ${BOLD}Derived sprites with transforms:${NC}                       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"source\"${NC}: ${GREEN}\"face_right\"${NC}                             ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"transform\"${NC}: ${CYAN}[\"mirror-h\"]${NC}        → face_left       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"transform\"${NC}: ${CYAN}[\"rotate:90\"]${NC}       → face_down       ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"transform\"${NC}: ${CYAN}[\"scale:2,2\"]${NC}       → face_big        ${DIM}│${NC}"
+echo -e "  ${DIM}│${NC}   ${WHITE}\"transform\"${NC}: ${CYAN}[{\"op\": \"sel-out\"}]${NC} → auto-outline    ${DIM}│${NC}"
+echo -e "  ${DIM}└─────────────────────────────────────────────────────────┘${NC}"
+echo ""
+echo -e "  ${GREEN}Transform operations:${NC}"
+echo -e "  ${DIM}•${NC} ${WHITE}mirror-h${NC}  - Flip horizontally"
+echo -e "  ${DIM}•${NC} ${WHITE}mirror-v${NC}  - Flip vertically"
+echo -e "  ${DIM}•${NC} ${WHITE}rotate:N${NC}  - Rotate 90°, 180°, or 270°"
+echo -e "  ${DIM}•${NC} ${WHITE}scale:x,y${NC} - Scale by factors"
+echo -e "  ${DIM}•${NC} ${WHITE}sel-out${NC}   - Auto-outline based on fill colors"
+echo -e "  ${DIM}•${NC} ${WHITE}dither${NC}    - Apply dither patterns"
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 17e: Render Transforms Demo
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Rendering: Sprite Transforms"
+
+echo -e "  ${DIM}\$ pxl render examples/transforms_demo.jsonl -s face_right -o face_right.png${NC}"
+echo -e "  ${DIM}\$ pxl render examples/transforms_demo.jsonl -s face_left -o face_left.png${NC}"
+echo ""
+
+./target/release/pxl render examples/transforms_demo.jsonl -s face_right -o "$DEMO_OUT/face_right.png" 2>&1 | sed 's/^/  /'
+./target/release/pxl render examples/transforms_demo.jsonl -s face_left -o "$DEMO_OUT/face_left.png" 2>&1 | sed 's/^/  /'
+./target/release/pxl render examples/transforms_demo.jsonl -s face_outlined -o "$DEMO_OUT/face_outlined.png" 2>&1 | sed 's/^/  /'
+
+echo ""
+echo -e "  ${BOLD}Original (face_right):${NC}"
+show_image "$DEMO_OUT/face_right.png" 8
+echo ""
+echo -e "  ${BOLD}Mirrored (face_left):${NC}"
+show_image "$DEMO_OUT/face_left.png" 8
+echo ""
+echo -e "  ${BOLD}Outlined (face_outlined):${NC}"
+show_image "$DEMO_OUT/face_outlined.png" 8
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SLIDE 18: Phase 2 - Composition
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Phase 2: Composition"
