@@ -367,6 +367,9 @@ impl AnalysisReport {
                 TtpObject::Particle(_) => {
                     // Particle systems are runtime constructs, not analyzed
                 }
+                TtpObject::Transform(_) => {
+                    // User-defined transforms are handled during rendering
+                }
             }
         }
 

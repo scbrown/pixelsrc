@@ -912,6 +912,10 @@ fn run_render(
             TtpObject::Particle(_) => {
                 // Particle systems are runtime constructs, not rendered statically
             }
+            TtpObject::Transform(_) => {
+                // User-defined transforms are stored in transform registry
+                // (future: register in transform_registry)
+            }
         }
     }
 
@@ -2371,6 +2375,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                 TtpObject::Composition(c) => c.name == name,
                 TtpObject::Variant(v) => v.name == name,
                 TtpObject::Particle(p) => p.name == name,
+                TtpObject::Transform(t) => t.name == name,
             })
             .collect();
 
@@ -2387,6 +2392,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     TtpObject::Composition(c) => c.name.as_str(),
                     TtpObject::Variant(v) => v.name.as_str(),
                     TtpObject::Particle(p) => p.name.as_str(),
+                    TtpObject::Transform(t) => t.name.as_str(),
                 })
                 .collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &all_names, 3)) {
@@ -2482,6 +2488,15 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     "lifetime": p.lifetime,
                     "has_gravity": p.has_gravity,
                     "has_fade": p.has_fade,
+                }),
+                Explanation::Transform(t) => serde_json::json!({
+                    "type": "transform",
+                    "name": t.name,
+                    "is_parameterized": t.is_parameterized,
+                    "params": t.params,
+                    "generates_animation": t.generates_animation,
+                    "frame_count": t.frame_count,
+                    "transform_type": t.transform_type,
                 }),
             })
             .collect();

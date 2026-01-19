@@ -418,6 +418,7 @@ pub struct BuildStats {
 
 /// Build metadata with project and tool information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct BuildMetadata {
     /// Project name from config
     pub project_name: String,
@@ -434,17 +435,6 @@ pub struct BuildMetadata {
     pub scale: Option<u32>,
 }
 
-impl Default for BuildMetadata {
-    fn default() -> Self {
-        Self {
-            project_name: String::new(),
-            project_version: String::new(),
-            builder_version: None,
-            build_mode: None,
-            scale: None,
-        }
-    }
-}
 
 impl BuildMetadata {
     /// Create new build metadata with project info.

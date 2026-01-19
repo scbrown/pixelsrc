@@ -59,6 +59,7 @@ fn format_object(obj: &TtpObject) -> String {
         TtpObject::Animation(a) => format_animation(a),
         TtpObject::Variant(v) => format_variant(v),
         TtpObject::Particle(p) => format_particle(p),
+        TtpObject::Transform(t) => format_transform(t),
     }
 }
 
@@ -396,6 +397,15 @@ fn format_particle(particle: &Particle) -> String {
 
     s.push_str("}}");
     s
+}
+
+/// Format a user-defined transform as single-line JSON.
+fn format_transform(transform: &crate::models::TransformDef) -> String {
+    // Use serde_json for simplicity since TransformDef has complex nested structures
+    serde_json::to_string(transform).unwrap_or_else(|_| {
+        // Fallback to basic format
+        format!(r#"{{"type": "transform", "name": "{}"}}"#, escape_json_string(&transform.name))
+    })
 }
 
 /// Escape a string for JSON output.

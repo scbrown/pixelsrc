@@ -275,6 +275,38 @@ impl Validator {
             TtpObject::Particle(particle) => {
                 self.validate_particle(line_number, &particle);
             }
+            TtpObject::Transform(transform) => {
+                self.validate_transform(line_number, &transform);
+            }
+        }
+    }
+
+    /// Validate a user-defined transform
+    fn validate_transform(&mut self, line_number: usize, transform: &crate::models::TransformDef) {
+        // Check for duplicate name - transforms share namespace with other named objects
+        if !self.sprite_names.insert(transform.name.clone()) {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::DuplicateName,
+                    format!("Duplicate transform name \"{}\"", transform.name),
+                )
+                .with_context(format!("transform \"{}\"", transform.name)),
+            );
+        }
+
+        // Validate keyframe frames if animation
+        if let Some(frames) = transform.frames {
+            if frames == 0 {
+                self.issues.push(
+                    ValidationIssue::warning(
+                        line_number,
+                        IssueType::EmptyGrid,
+                        "Transform has 0 frames".to_string(),
+                    )
+                    .with_context(format!("transform \"{}\"", transform.name)),
+                );
+            }
         }
     }
 

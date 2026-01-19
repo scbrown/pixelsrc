@@ -125,11 +125,29 @@ pub struct ParticleExplanation {
     pub has_fade: bool,
 }
 
+/// Explanation of a user-defined transform
+#[derive(Debug, Clone)]
+pub struct TransformExplanation {
+    /// Transform name
+    pub name: String,
+    /// Whether it has parameters
+    pub is_parameterized: bool,
+    /// Parameter names (if parameterized)
+    pub params: Vec<String>,
+    /// Whether it generates animation frames
+    pub generates_animation: bool,
+    /// Number of frames (if animation)
+    pub frame_count: Option<u32>,
+    /// Transform type description
+    pub transform_type: String,
+}
+
 /// Unified explanation for any pixelsrc object
 #[derive(Debug)]
 pub enum Explanation {
     Sprite(SpriteExplanation),
     Palette(PaletteExplanation),
+    Transform(TransformExplanation),
     Animation(AnimationExplanation),
     Composition(CompositionExplanation),
     Variant(VariantExplanation),
@@ -293,6 +311,30 @@ pub fn explain_particle(particle: &Particle) -> ParticleExplanation {
     }
 }
 
+/// Explain a user-defined transform
+pub fn explain_transform(transform: &crate::models::TransformDef) -> TransformExplanation {
+    let transform_type = if transform.generates_animation() {
+        "keyframe animation".to_string()
+    } else if transform.is_cycling() {
+        "cycling".to_string()
+    } else if transform.is_simple() {
+        "sequence".to_string()
+    } else if transform.compose.is_some() {
+        "parallel composition".to_string()
+    } else {
+        "custom".to_string()
+    };
+
+    TransformExplanation {
+        name: transform.name.clone(),
+        is_parameterized: transform.is_parameterized(),
+        params: transform.params.clone().unwrap_or_default(),
+        generates_animation: transform.generates_animation(),
+        frame_count: transform.frames,
+        transform_type,
+    }
+}
+
 /// Explain any TtpObject
 pub fn explain_object(
     obj: &TtpObject,
@@ -307,6 +349,7 @@ pub fn explain_object(
         TtpObject::Composition(comp) => Explanation::Composition(explain_composition(comp)),
         TtpObject::Variant(variant) => Explanation::Variant(explain_variant(variant)),
         TtpObject::Particle(particle) => Explanation::Particle(explain_particle(particle)),
+        TtpObject::Transform(transform) => Explanation::Transform(explain_transform(transform)),
     }
 }
 
@@ -547,7 +590,22 @@ pub fn format_explanation(exp: &Explanation) -> String {
         Explanation::Composition(c) => format_composition_explanation(c),
         Explanation::Variant(v) => format_variant_explanation(v),
         Explanation::Particle(p) => format_particle_explanation(p),
+        Explanation::Transform(t) => format_transform_explanation(t),
     }
+}
+
+/// Format a transform explanation as human-readable text
+fn format_transform_explanation(t: &TransformExplanation) -> String {
+    let mut lines = vec![format!("Transform: {} ({})", t.name, t.transform_type)];
+    if t.is_parameterized {
+        lines.push(format!("  Parameters: {}", t.params.join(", ")));
+    }
+    if t.generates_animation {
+        if let Some(frames) = t.frame_count {
+            lines.push(format!("  Generates {} animation frames", frames));
+        }
+    }
+    lines.join("\n")
 }
 
 /// Format a particle explanation as human-readable text

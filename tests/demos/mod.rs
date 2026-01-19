@@ -71,6 +71,7 @@ fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<Strin
             }
             TtpObject::Composition(_) => {}
             TtpObject::Particle(_) => {}
+            TtpObject::Transform(_) => {}
         }
     }
 
