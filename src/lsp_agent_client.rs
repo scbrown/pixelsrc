@@ -5,8 +5,8 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use ttp::lsp_agent_client::LspAgentClient;
+//! ```rust
+//! use pixelsrc::lsp_agent_client::LspAgentClient;
 //!
 //! let client = LspAgentClient::new();
 //!
@@ -15,8 +15,8 @@
 //! println!("Valid: {}", result.valid);
 //!
 //! // Get completions at position 2:45 (line 2, column 45)
-//! let content = r#"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000"}}
-//! {"type": "sprite", "name": "s", "grid": ["{red}"]}"#;
+//! let content = r##"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000"}}
+//! {"type": "sprite", "name": "s", "grid": ["{red}"]}"##;
 //! let completions = client.get_completions(content, 2, 45);
 //! for c in &completions.items {
 //!     println!("{}: {}", c.label, c.detail.clone().unwrap_or_default());
