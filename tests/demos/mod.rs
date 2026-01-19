@@ -1109,4 +1109,188 @@ mod tests {
             .resolve("shaded_square", &palette_registry, false)
             .expect("Sprite 'shaded_square' should resolve with color-mix");
     }
+
+    // ========================================================================
+    // CSS Transform Tests (DT-12)
+    // ========================================================================
+
+    /// @demo format/css/transforms#translate
+    /// @title Translate Transform
+    /// @description Position offset using translate(x, y), translateX(x), translateY(y).
+    #[test]
+    fn test_css_transforms_translate() {
+        let jsonl = include_str!("../../examples/demos/css/transforms/translate.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprites can be resolved
+        sprite_registry
+            .resolve("arrow_right", &palette_registry, false)
+            .expect("Sprite 'arrow_right' should resolve");
+        sprite_registry
+            .resolve("arrow_base", &palette_registry, false)
+            .expect("Sprite 'arrow_base' should resolve");
+
+        // Test slide_right animation (translate in X)
+        let slide_right = animations.get("slide_right").expect("Animation 'slide_right' not found");
+        assert!(slide_right.is_css_keyframes(), "slide_right should use CSS keyframes");
+        let kf = slide_right.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("translate(0, 0)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("translate(8px, 0)"));
+
+        // Test slide_down animation (translateY)
+        let slide_down = animations.get("slide_down").expect("Animation 'slide_down' not found");
+        let kf = slide_down.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("translateY(0)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("translateY(4px)"));
+
+        // Test slide_diagonal animation (translate both axes)
+        let slide_diagonal = animations.get("slide_diagonal").expect("Animation 'slide_diagonal' not found");
+        let kf = slide_diagonal.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 3, "slide_diagonal should have 3 keyframes");
+        assert_eq!(kf["50%"].transform.as_deref(), Some("translate(4px, 4px)"));
+    }
+
+    /// @demo format/css/transforms#rotate
+    /// @title Rotate Transform
+    /// @description Rotation using rotate(deg) - pixel art supports 90, 180, 270 degrees.
+    #[test]
+    fn test_css_transforms_rotate() {
+        let jsonl = include_str!("../../examples/demos/css/transforms/rotate.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprites can be resolved
+        sprite_registry
+            .resolve("L_shape", &palette_registry, false)
+            .expect("Sprite 'L_shape' should resolve");
+        sprite_registry
+            .resolve("arrow_up", &palette_registry, false)
+            .expect("Sprite 'arrow_up' should resolve");
+
+        // Test rotate_90 animation
+        let rotate_90 = animations.get("rotate_90").expect("Animation 'rotate_90' not found");
+        assert!(rotate_90.is_css_keyframes(), "rotate_90 should use CSS keyframes");
+        let kf = rotate_90.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("rotate(0deg)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("rotate(90deg)"));
+
+        // Test rotate_180 animation
+        let rotate_180 = animations.get("rotate_180").expect("Animation 'rotate_180' not found");
+        let kf = rotate_180.keyframes.as_ref().unwrap();
+        assert_eq!(kf["100%"].transform.as_deref(), Some("rotate(180deg)"));
+
+        // Test rotate_270 animation
+        let rotate_270 = animations.get("rotate_270").expect("Animation 'rotate_270' not found");
+        let kf = rotate_270.keyframes.as_ref().unwrap();
+        assert_eq!(kf["100%"].transform.as_deref(), Some("rotate(270deg)"));
+
+        // Test spin_full animation (full 360 rotation in steps)
+        let spin_full = animations.get("spin_full").expect("Animation 'spin_full' not found");
+        let kf = spin_full.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 5, "spin_full should have 5 keyframes (0%, 25%, 50%, 75%, 100%)");
+        assert_eq!(kf["25%"].transform.as_deref(), Some("rotate(90deg)"));
+        assert_eq!(kf["50%"].transform.as_deref(), Some("rotate(180deg)"));
+        assert_eq!(kf["75%"].transform.as_deref(), Some("rotate(270deg)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("rotate(360deg)"));
+    }
+
+    /// @demo format/css/transforms#scale
+    /// @title Scale Transform
+    /// @description Scaling using scale(s), scale(x, y), scaleX(x), scaleY(y).
+    #[test]
+    fn test_css_transforms_scale() {
+        let jsonl = include_str!("../../examples/demos/css/transforms/scale.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprites can be resolved
+        sprite_registry
+            .resolve("dot", &palette_registry, false)
+            .expect("Sprite 'dot' should resolve");
+        sprite_registry
+            .resolve("square", &palette_registry, false)
+            .expect("Sprite 'square' should resolve");
+
+        // Test scale_up animation (uniform scale)
+        let scale_up = animations.get("scale_up").expect("Animation 'scale_up' not found");
+        assert!(scale_up.is_css_keyframes(), "scale_up should use CSS keyframes");
+        let kf = scale_up.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("scale(1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scale(4)"));
+
+        // Test scale_xy animation (non-uniform scale)
+        let scale_xy = animations.get("scale_xy").expect("Animation 'scale_xy' not found");
+        let kf = scale_xy.keyframes.as_ref().unwrap();
+        assert_eq!(kf["50%"].transform.as_deref(), Some("scale(2, 1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scale(2, 2)"));
+
+        // Test scale_x_only animation (scaleX)
+        let scale_x = animations.get("scale_x_only").expect("Animation 'scale_x_only' not found");
+        let kf = scale_x.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("scaleX(1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scaleX(3)"));
+
+        // Test scale_y_only animation (scaleY)
+        let scale_y = animations.get("scale_y_only").expect("Animation 'scale_y_only' not found");
+        let kf = scale_y.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("scaleY(1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scaleY(3)"));
+
+        // Test pulse_scale animation (scale with opacity)
+        let pulse = animations.get("pulse_scale").expect("Animation 'pulse_scale' not found");
+        let kf = pulse.keyframes.as_ref().unwrap();
+        assert_eq!(kf["50%"].transform.as_deref(), Some("scale(2)"));
+        assert_eq!(kf["50%"].opacity, Some(0.6));
+    }
+
+    /// @demo format/css/transforms#flip
+    /// @title Flip Transform
+    /// @description Flipping sprites using scaleX(-1) and scaleY(-1).
+    #[test]
+    fn test_css_transforms_flip() {
+        let jsonl = include_str!("../../examples/demos/css/transforms/flip.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprites can be resolved
+        sprite_registry
+            .resolve("face_right", &palette_registry, false)
+            .expect("Sprite 'face_right' should resolve");
+        sprite_registry
+            .resolve("arrow_left", &palette_registry, false)
+            .expect("Sprite 'arrow_left' should resolve");
+
+        // Test flip_horizontal animation
+        let flip_h = animations.get("flip_horizontal").expect("Animation 'flip_horizontal' not found");
+        assert!(flip_h.is_css_keyframes(), "flip_horizontal should use CSS keyframes");
+        let kf = flip_h.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("scaleX(1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scaleX(-1)"));
+
+        // Test flip_vertical animation
+        let flip_v = animations.get("flip_vertical").expect("Animation 'flip_vertical' not found");
+        let kf = flip_v.keyframes.as_ref().unwrap();
+        assert_eq!(kf["0%"].transform.as_deref(), Some("scaleY(1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scaleY(-1)"));
+
+        // Test flip_both animation
+        let flip_both = animations.get("flip_both").expect("Animation 'flip_both' not found");
+        let kf = flip_both.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 3, "flip_both should have 3 keyframes");
+        assert_eq!(kf["50%"].transform.as_deref(), Some("scale(-1, 1)"));
+        assert_eq!(kf["100%"].transform.as_deref(), Some("scale(-1, -1)"));
+
+        // Test mirror_walk animation (translate + flip)
+        let mirror = animations.get("mirror_walk").expect("Animation 'mirror_walk' not found");
+        let kf = mirror.keyframes.as_ref().unwrap();
+        assert_eq!(kf.len(), 4, "mirror_walk should have 4 keyframes");
+        // Combines translate and scaleX for walking and turning
+        assert_eq!(kf["50%"].transform.as_deref(), Some("translate(8px, 0) scaleX(1)"));
+        assert_eq!(kf["51%"].transform.as_deref(), Some("translate(8px, 0) scaleX(-1)"));
+    }
 }

@@ -1,0 +1,8 @@
+{"type": "palette", "name": "dots", "colors": {".": "#00000000", "{d}": "#9C27B0", "{o}": "#FF9800"}}
+{"type": "sprite", "name": "dot", "palette": "dots", "grid": ["{d}"]}
+{"type": "sprite", "name": "square", "palette": "dots", "grid": ["{o} {o}", "{o} {o}"]}
+{"type": "animation", "name": "scale_up", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)"}, "100%": {"sprite": "dot", "transform": "scale(4)"}}, "duration": "600ms", "timing_function": "ease-out"}
+{"type": "animation", "name": "scale_xy", "keyframes": {"0%": {"sprite": "square", "transform": "scale(1, 1)"}, "50%": {"sprite": "square", "transform": "scale(2, 1)"}, "100%": {"sprite": "square", "transform": "scale(2, 2)"}}, "duration": "800ms", "timing_function": "ease-in-out"}
+{"type": "animation", "name": "scale_x_only", "keyframes": {"0%": {"sprite": "square", "transform": "scaleX(1)"}, "100%": {"sprite": "square", "transform": "scaleX(3)"}}, "duration": "400ms", "timing_function": "linear"}
+{"type": "animation", "name": "scale_y_only", "keyframes": {"0%": {"sprite": "square", "transform": "scaleY(1)"}, "100%": {"sprite": "square", "transform": "scaleY(3)"}}, "duration": "400ms", "timing_function": "linear"}
+{"type": "animation", "name": "pulse_scale", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "dot", "transform": "scale(2)", "opacity": 0.6}, "100%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}}, "duration": "1000ms", "timing_function": "ease-in-out"}
