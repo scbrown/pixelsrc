@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Demo Generator Script (DT-16, DT-17)
+# Demo Generator Script (DT-16, DT-17, DT-18)
 #
 # Parses @demo annotations from tests/demos/**/*.rs, extracts JSONL content,
 # and generates markdown documentation fragments.
 #
-# Usage: ./scripts/generate-demos.sh [--dry-run] [--book]
+# Usage: ./scripts/generate-demos.sh [OPTIONS]
 #
 # Options:
-#   --dry-run  Show what would be generated without writing files
-#   --book     Output to docs/book/src/demos/ with mdbook-friendly filenames
+#   --dry-run         Show what would be generated without writing files
+#   --book            Output to docs/book/src/demos/ (for mdbook integration)
+#   --output-dir DIR  Output to specified directory (default: target/demos)
+#   --check           Verify output matches existing files (for CI regression)
 #
 # Annotations supported:
 #   /// @demo section/subsection#anchor
@@ -43,17 +45,30 @@ else
 fi
 
 DRY_RUN=false
-BOOK_MODE=false
+CHECK_MODE=false
 
 # Parse arguments
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --dry-run)
             DRY_RUN=true
+            shift
             ;;
         --book)
-            BOOK_MODE=true
             OUTPUT_DIR="$BOOK_DIR"
+            shift
+            ;;
+        --output-dir)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --check)
+            CHECK_MODE=true
+            shift
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            exit 1
             ;;
     esac
 done
@@ -230,14 +245,47 @@ process_demos() {
     done <<< "$sections"
 }
 
+# Compare two files and report differences
+compare_files() {
+    local expected="$1"
+    local actual="$2"
+    local name="$3"
+
+    if [[ ! -f "$expected" ]]; then
+        log_error "Missing file: $name (expected at $expected)"
+        return 1
+    fi
+
+    if ! diff -q "$actual" "$expected" > /dev/null 2>&1; then
+        log_error "File differs: $name"
+        log_info "Run './scripts/generate-demos.sh --book' to regenerate"
+        diff -u "$expected" "$actual" | head -50 || true
+        return 1
+    fi
+
+    log_success "Verified: $name"
+    return 0
+}
+
 # Main
 main() {
-    log_info "Demo Generator Script (DT-16)"
+    log_info "Demo Generator Script (DT-16, DT-18)"
     log_info "Project root: $PROJECT_ROOT"
+    log_info "Output directory: $OUTPUT_DIR"
+
+    # In check mode, generate to temp directory and compare
+    local actual_output_dir="$OUTPUT_DIR"
+    local temp_dir=""
+    if [[ "$CHECK_MODE" == "true" ]]; then
+        temp_dir=$(mktemp -d)
+        actual_output_dir="$temp_dir"
+        log_info "Check mode: generating to temp directory"
+        trap "rm -rf '$temp_dir'" EXIT
+    fi
 
     # Ensure output directory exists
     if [[ "$DRY_RUN" == "false" ]]; then
-        mkdir -p "$OUTPUT_DIR"
+        mkdir -p "$actual_output_dir"
     fi
 
     # Find all test files
@@ -276,8 +324,54 @@ main() {
 
     log_info "Total demos found: $demo_count"
 
+    # Temporarily override OUTPUT_DIR for generation
+    local saved_output_dir="$OUTPUT_DIR"
+    OUTPUT_DIR="$actual_output_dir"
+
     # Process and generate output
     process_demos "$all_demos"
+
+    OUTPUT_DIR="$saved_output_dir"
+
+    # In check mode, compare generated files against committed files
+    if [[ "$CHECK_MODE" == "true" ]]; then
+        log_info "Comparing generated files against committed files..."
+        local has_diff=false
+
+        # Check all generated files
+        for generated_file in "$temp_dir"/*.md; do
+            [[ -f "$generated_file" ]] || continue
+            local filename
+            filename=$(basename "$generated_file")
+            local expected_file="$OUTPUT_DIR/$filename"
+
+            if ! compare_files "$expected_file" "$generated_file" "$filename"; then
+                has_diff=true
+            fi
+        done
+
+        # Check for extra committed files that shouldn't exist
+        if [[ -d "$OUTPUT_DIR" ]]; then
+            for committed_file in "$OUTPUT_DIR"/*.md; do
+                [[ -f "$committed_file" ]] || continue
+                local filename
+                filename=$(basename "$committed_file")
+                if [[ ! -f "$temp_dir/$filename" ]]; then
+                    log_error "Extra file in committed docs: $filename"
+                    has_diff=true
+                fi
+            done
+        fi
+
+        if [[ "$has_diff" == "true" ]]; then
+            log_error "Demo documentation is out of date!"
+            log_info "Run './scripts/generate-demos.sh --book' to regenerate"
+            exit 1
+        fi
+
+        log_success "All demo documentation is up to date!"
+        exit 0
+    fi
 
     log_success "Done! Output in: $OUTPUT_DIR"
 }

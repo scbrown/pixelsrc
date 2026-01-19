@@ -1,0 +1,29 @@
+name: Demo Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/demos/**'
+      - 'examples/demos/**'
+      - 'scripts/generate-demos.sh'
+      - 'scripts/parse_demos.awk'
+      - 'docs/book/src/demos/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/demos/**'
+      - 'examples/demos/**'
+      - 'scripts/generate-demos.sh'
+      - 'scripts/parse_demos.awk'
+      - 'docs/book/src/demos/**'
+
+jobs:
+  check-demos:
+    name: Verify Demo Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check demo documentation is up to date
+        run: ./scripts/generate-demos.sh --book --check

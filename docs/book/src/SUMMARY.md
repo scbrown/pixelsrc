@@ -97,6 +97,15 @@
 - [Exit Codes](reference/exit-codes.md)
 - [Configuration (pxl.toml)](reference/config.md)
 
+# Demos
+
+- [CSS Colors](demos/format_css_colors.md)
+- [CSS Variables](demos/format_css_variables.md)
+- [CSS Timing Functions](demos/format_css_timing.md)
+- [CSS Keyframes](demos/format_css_keyframes.md)
+- [CSS Transforms](demos/format_css_transforms.md)
+- [Spritesheets](demos/export_spritesheet.md)
+
 # Appendix
 
 - [Vision & Philosophy](appendix/vision.md)
