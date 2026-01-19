@@ -413,10 +413,7 @@ pub fn explain_transform(transform: &Transform) -> String {
             format!("Add {} pixel(s) of transparent padding around edges", size)
         }
         Transform::Crop { x, y, w, h } => {
-            format!(
-                "Crop to {}×{} region starting at ({}, {})",
-                w, h, x, y
-            )
+            format!("Crop to {}×{} region starting at ({}, {})", w, h, x, y)
         }
 
         // Effects
@@ -468,7 +465,8 @@ pub fn explain_transform(transform: &Transform) -> String {
         // Animation
         Transform::Pingpong { exclude_ends } => {
             if *exclude_ends {
-                "Play frames forward then backward (excluding first/last to avoid doubling)".to_string()
+                "Play frames forward then backward (excluding first/last to avoid doubling)"
+                    .to_string()
             } else {
                 "Play frames forward then backward (1,2,3 → 1,2,3,2,1)".to_string()
             }
@@ -4800,26 +4798,14 @@ mod tests {
             explain_transform(&Transform::MirrorH),
             "Flip horizontally (mirror left ↔ right)"
         );
-        assert_eq!(
-            explain_transform(&Transform::MirrorV),
-            "Flip vertically (mirror top ↔ bottom)"
-        );
+        assert_eq!(explain_transform(&Transform::MirrorV), "Flip vertically (mirror top ↔ bottom)");
     }
 
     #[test]
     fn test_explain_transform_rotate() {
-        assert_eq!(
-            explain_transform(&Transform::Rotate { degrees: 90 }),
-            "Rotate 90° clockwise"
-        );
-        assert_eq!(
-            explain_transform(&Transform::Rotate { degrees: 180 }),
-            "Rotate 180°"
-        );
-        assert_eq!(
-            explain_transform(&Transform::Rotate { degrees: 270 }),
-            "Rotate 270° clockwise"
-        );
+        assert_eq!(explain_transform(&Transform::Rotate { degrees: 90 }), "Rotate 90° clockwise");
+        assert_eq!(explain_transform(&Transform::Rotate { degrees: 180 }), "Rotate 180°");
+        assert_eq!(explain_transform(&Transform::Rotate { degrees: 270 }), "Rotate 270° clockwise");
     }
 
     #[test]
@@ -4853,10 +4839,7 @@ mod tests {
             "Add 1px outline using default color"
         );
         assert_eq!(
-            explain_transform(&Transform::Outline {
-                token: Some("{black}".to_string()),
-                width: 2
-            }),
+            explain_transform(&Transform::Outline { token: Some("{black}".to_string()), width: 2 }),
             "Add 2px outline using {black}"
         );
     }

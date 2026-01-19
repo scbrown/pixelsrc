@@ -762,11 +762,7 @@ impl LiveProgress {
     fn render_progress(&self) -> String {
         let completed = self.completed.load(Ordering::SeqCst);
         let total = self.total.load(Ordering::SeqCst);
-        let percentage = if total > 0 {
-            (completed as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let percentage = if total > 0 { (completed as f64 / total as f64) * 100.0 } else { 0.0 };
 
         let bar = self.build_progress_bar(percentage);
         let rate = self.rate();
@@ -783,10 +779,8 @@ impl LiveProgress {
             })
             .unwrap_or_default();
 
-        let eta_str = self
-            .eta()
-            .map(|eta| format!(" ETA: {}", Self::format_eta(eta)))
-            .unwrap_or_default();
+        let eta_str =
+            self.eta().map(|eta| format!(" ETA: {}", Self::format_eta(eta))).unwrap_or_default();
 
         format!(
             "{} [{}/{}] {:.1}% {} ({:.1}/s){}{}",

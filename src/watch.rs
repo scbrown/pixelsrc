@@ -232,8 +232,8 @@ fn extract_line_number(message: &str) -> Option<usize> {
     let patterns = [
         r"[Ll]ine\s+(\d+)",
         r"at line\s+(\d+)",
-        r":(\d+):",      // file:line:col format
-        r":(\d+)$",      // file:line format at end
+        r":(\d+):", // file:line:col format
+        r":(\d+)$", // file:line format at end
     ];
 
     for pattern in patterns {
@@ -259,10 +259,7 @@ fn format_error_display(target_id: &str, error_msg: &str) -> String {
     let clean_msg = error_msg.strip_prefix("failed: ").unwrap_or(error_msg);
 
     if let Some(line) = line_num {
-        format!(
-            "Error in {}:\n          Line {}: {}",
-            display_name, line, clean_msg
-        )
+        format!("Error in {}:\n          Line {}: {}", display_name, line, clean_msg)
     } else {
         format!("Error in {}: {}", display_name, clean_msg)
     }
@@ -460,7 +457,10 @@ fn is_relevant_file(path: &Path) -> bool {
 /// # Returns
 /// * `Ok(())` if watch mode exits cleanly (shouldn't happen normally)
 /// * `Err(WatchError)` if watch setup fails
-pub fn watch_with_pipeline(context: BuildContext, watch_config: WatchConfig) -> Result<(), WatchError> {
+pub fn watch_with_pipeline(
+    context: BuildContext,
+    watch_config: WatchConfig,
+) -> Result<(), WatchError> {
     let src_dir = context.src_dir().to_path_buf();
     let verbose = context.is_verbose();
 
@@ -483,10 +483,7 @@ pub fn watch_with_pipeline(context: BuildContext, watch_config: WatchConfig) -> 
     let mut debouncer = new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
 
     // Start watching the source directory
-    debouncer
-        .watcher()
-        .watch(&src_dir, RecursiveMode::Recursive)
-        .map_err(WatchError::WatchPath)?;
+    debouncer.watcher().watch(&src_dir, RecursiveMode::Recursive).map_err(WatchError::WatchPath)?;
 
     // Error tracker for detecting fixed files
     let mut error_tracker = ErrorTracker::new();
@@ -539,11 +536,7 @@ pub fn watch_with_pipeline(context: BuildContext, watch_config: WatchConfig) -> 
                     let fixed_files = error_tracker.update(&result);
                     print_pipeline_result(&pipeline_result, &fixed_files, verbose);
 
-                    println!(
-                        "[{}] Watching {} for changes...",
-                        timestamp(),
-                        src_dir.display()
-                    );
+                    println!("[{}] Watching {} for changes...", timestamp(), src_dir.display());
                 }
             }
             Ok(Err(error)) => {
@@ -598,10 +591,7 @@ pub fn watch_with_incremental(
     let mut debouncer = new_debouncer(debounce_duration, tx).map_err(WatchError::WatcherInit)?;
 
     // Start watching the source directory
-    debouncer
-        .watcher()
-        .watch(&src_dir, RecursiveMode::Recursive)
-        .map_err(WatchError::WatchPath)?;
+    debouncer.watcher().watch(&src_dir, RecursiveMode::Recursive).map_err(WatchError::WatchPath)?;
 
     // Error tracker for detecting fixed files
     let mut error_tracker = ErrorTracker::new();
@@ -654,11 +644,7 @@ pub fn watch_with_incremental(
                     let fixed_files = error_tracker.update(&result);
                     print_incremental_result(&build_result, &fixed_files, verbose, force);
 
-                    println!(
-                        "[{}] Watching {} for changes...",
-                        timestamp(),
-                        src_dir.display()
-                    );
+                    println!("[{}] Watching {} for changes...", timestamp(), src_dir.display());
                 }
             }
             Ok(Err(error)) => {
@@ -752,10 +738,8 @@ fn convert_pipeline_result(
             for target in &build_result.targets {
                 if let BuildStatus::Failed(msg) = &target.status {
                     // Try to extract file path from target_id (format: "kind:name")
-                    result.add_error(BuildError::new(
-                        PathBuf::from(&target.target_id),
-                        msg.clone(),
-                    ));
+                    result
+                        .add_error(BuildError::new(PathBuf::from(&target.target_id), msg.clone()));
                 }
             }
 

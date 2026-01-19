@@ -298,8 +298,7 @@ impl UnityExporter {
         if options.generate_anim_files && options.include_animations {
             for (anim_name, anim) in &metadata.animations {
                 let anim_path = output_dir.join(format!("{}.anim", anim_name));
-                let anim_content =
-                    self.generate_animation_clip(anim_name, anim, metadata, options);
+                let anim_content = self.generate_animation_clip(anim_name, anim, metadata, options);
                 let mut file = File::create(&anim_path)?;
                 file.write_all(anim_content.as_bytes())?;
                 outputs.push(anim_path);
@@ -334,10 +333,7 @@ impl UnityExporter {
 
             // Calculate pivot
             let (pivot_x, pivot_y) = if let Some(origin) = frame.origin {
-                (
-                    origin[0] as f32 / frame.w as f32,
-                    1.0 - (origin[1] as f32 / frame.h as f32),
-                )
+                (origin[0] as f32 / frame.w as f32, 1.0 - (origin[1] as f32 / frame.h as f32))
             } else {
                 (0.5, 0.0) // Default: bottom-center
             };
@@ -1125,10 +1121,8 @@ mod tests {
         let metadata = create_test_metadata();
 
         let exporter = UnityExporter::new().with_filter_mode(UnityFilterMode::Bilinear);
-        let options = UnityExportOptions {
-            filter_mode: UnityFilterMode::Bilinear,
-            ..Default::default()
-        };
+        let options =
+            UnityExportOptions { filter_mode: UnityFilterMode::Bilinear, ..Default::default() };
         exporter.export_unity(&metadata, &output_path, &options).unwrap();
 
         let meta_path = temp.path().join("sprites.png.meta");
@@ -1144,10 +1138,7 @@ mod tests {
         let metadata = create_test_metadata();
 
         let exporter = UnityExporter::new().with_meta_file(false);
-        let options = UnityExportOptions {
-            generate_meta: false,
-            ..Default::default()
-        };
+        let options = UnityExportOptions { generate_meta: false, ..Default::default() };
         let outputs = exporter.export_unity(&metadata, &output_path, &options).unwrap();
 
         let meta_path = temp.path().join("sprites.png.meta");
@@ -1162,10 +1153,7 @@ mod tests {
         let metadata = create_test_metadata();
 
         let exporter = UnityExporter::new().with_anim_files(false);
-        let options = UnityExportOptions {
-            generate_anim_files: false,
-            ..Default::default()
-        };
+        let options = UnityExportOptions { generate_anim_files: false, ..Default::default() };
         let outputs = exporter.export_unity(&metadata, &output_path, &options).unwrap();
 
         let anim_path = temp.path().join("walk.anim");
@@ -1180,10 +1168,7 @@ mod tests {
         let metadata = create_test_metadata();
 
         let exporter = UnityExporter::new().with_json(false);
-        let options = UnityExportOptions {
-            generate_json: false,
-            ..Default::default()
-        };
+        let options = UnityExportOptions { generate_json: false, ..Default::default() };
         let outputs = exporter.export_unity(&metadata, &output_path, &options).unwrap();
 
         // JSON should not be created

@@ -259,10 +259,7 @@ impl ParallelBuild {
                 .map(|(idx, target)| {
                     // Check if we should stop early
                     if fail_fast && failed_atomic.load(Ordering::Relaxed) {
-                        return (
-                            idx,
-                            TargetResult::skipped(target.id.clone()),
-                        );
+                        return (idx, TargetResult::skipped(target.id.clone()));
                     }
 
                     let result = self.execute_target_internal(target, context);

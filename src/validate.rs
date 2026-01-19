@@ -901,10 +901,7 @@ mod tests {
 
         let issue = row_mismatch_issues[0];
         // Check padding suggestion for short row (1 token vs expected 4)
-        assert!(
-            issue.suggestion.is_some(),
-            "Short row should have padding suggestion"
-        );
+        assert!(issue.suggestion.is_some(), "Short row should have padding suggestion");
         let suggestion = issue.suggestion.as_ref().unwrap();
         assert!(
             suggestion.contains("{_}{_}{_}"),

@@ -81,10 +81,7 @@ pub struct PixelsrcLanguageServer {
 
 impl PixelsrcLanguageServer {
     pub fn new(client: Client) -> Self {
-        Self {
-            client,
-            documents: RwLock::new(HashMap::new()),
-        }
+        Self { client, documents: RwLock::new(HashMap::new()) }
     }
 
     /// Validate document content and publish diagnostics
@@ -94,15 +91,10 @@ impl PixelsrcLanguageServer {
             validator.validate_line(line_num + 1, line);
         }
 
-        let diagnostics: Vec<Diagnostic> = validator
-            .issues()
-            .iter()
-            .map(|issue| Self::issue_to_diagnostic(issue))
-            .collect();
+        let diagnostics: Vec<Diagnostic> =
+            validator.issues().iter().map(Self::issue_to_diagnostic).collect();
 
-        self.client
-            .publish_diagnostics(uri.clone(), diagnostics, None)
-            .await;
+        self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
     }
 
     /// Convert a ValidationIssue to an LSP Diagnostic
@@ -121,14 +113,8 @@ impl PixelsrcLanguageServer {
 
         Diagnostic {
             range: Range {
-                start: Position {
-                    line: (issue.line - 1) as u32,
-                    character: 0,
-                },
-                end: Position {
-                    line: (issue.line - 1) as u32,
-                    character: u32::MAX,
-                },
+                start: Position { line: (issue.line - 1) as u32, character: 0 },
+                end: Position { line: (issue.line - 1) as u32, character: u32::MAX },
             },
             severity: Some(severity),
             code: Some(NumberOrString::String(issue.issue_type.to_string())),
@@ -467,11 +453,8 @@ impl PixelsrcLanguageServer {
                 continue;
             }
 
-            let palette_name = obj
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
+            let palette_name =
+                obj.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
 
             // Get the colors object
             let colors = match obj.get("colors").and_then(|c| c.as_object()) {
@@ -664,11 +647,7 @@ impl PixelsrcLanguageServer {
         // Plot the curve
         for (x, &value) in samples.iter().enumerate().take(width) {
             // Scale value to grid height
-            let normalized = if range > 0.0 {
-                (value - min_val) / range
-            } else {
-                0.5
-            };
+            let normalized = if range > 0.0 { (value - min_val) / range } else { 0.5 };
             let y = ((1.0 - normalized) * (height - 1) as f64).round() as usize;
             let y = y.min(height - 1);
             if x < width {
@@ -680,11 +659,7 @@ impl PixelsrcLanguageServer {
         let mut output = String::new();
 
         // Top label (1.0 or max)
-        let top_label = if max_val > 1.0 {
-            format!("{:.1}", max_val)
-        } else {
-            "1.0".to_string()
-        };
+        let top_label = if max_val > 1.0 { format!("{:.1}", max_val) } else { "1.0".to_string() };
         output.push_str(&format!("{:>4}│", top_label));
         output.push_str(&grid[0].iter().collect::<String>());
         output.push('\n');
@@ -697,11 +672,8 @@ impl PixelsrcLanguageServer {
         }
 
         // Bottom row with 0.0 label
-        let bottom_label = if min_val < 0.0 {
-            format!("{:.1}", min_val)
-        } else {
-            "0.0".to_string()
-        };
+        let bottom_label =
+            if min_val < 0.0 { format!("{:.1}", min_val) } else { "0.0".to_string() };
         output.push_str(&format!("{:>4}│", bottom_label));
         output.push_str(&grid[height - 1].iter().collect::<String>());
         output.push('\n');
@@ -804,10 +776,7 @@ impl PixelsrcLanguageServer {
         // Parse the timing function
         let interpolation = parse_timing_function(timing_str).ok()?;
 
-        Some(TimingFunctionInfo {
-            function_str: timing_str.to_string(),
-            interpolation,
-        })
+        Some(TimingFunctionInfo { function_str: timing_str.to_string(), interpolation })
     }
 
     /// Extract all colors from a palette line
@@ -995,7 +964,11 @@ impl LanguageServer for PixelsrcLanguageServer {
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["{".to_string(), "-".to_string(), "(".to_string()]),
+                    trigger_characters: Some(vec![
+                        "{".to_string(),
+                        "-".to_string(),
+                        "(".to_string(),
+                    ]),
                     ..Default::default()
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
@@ -1007,9 +980,7 @@ impl LanguageServer for PixelsrcLanguageServer {
     }
 
     async fn initialized(&self, _params: InitializedParams) {
-        self.client
-            .log_message(MessageType::INFO, "Pixelsrc LSP initialized")
-            .await;
+        self.client.log_message(MessageType::INFO, "Pixelsrc LSP initialized").await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -1021,10 +992,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let text = params.text_document.text;
 
         // Store document content
-        self.documents
-            .write()
-            .unwrap()
-            .insert(uri.clone(), text.clone());
+        self.documents.write().unwrap().insert(uri.clone(), text.clone());
 
         // Validate and publish diagnostics
         self.validate_and_publish(&uri, &text).await;
@@ -1036,10 +1004,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         // Get the full text from the first change (we use FULL sync)
         if let Some(change) = params.content_changes.into_iter().next() {
             // Store updated content
-            self.documents
-                .write()
-                .unwrap()
-                .insert(uri.clone(), change.text.clone());
+            self.documents.write().unwrap().insert(uri.clone(), change.text.clone());
 
             // Validate and publish diagnostics
             self.validate_and_publish(&uri, &change.text).await;
@@ -1053,9 +1018,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         self.documents.write().unwrap().remove(&uri);
 
         // Clear diagnostics for closed document
-        self.client
-            .publish_diagnostics(uri, Vec::new(), None)
-            .await;
+        self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
@@ -1082,15 +1045,9 @@ impl LanguageServer for PixelsrcLanguageServer {
             let alignment_status = if grid_info.row_width == grid_info.expected_width {
                 "✓ Aligned".to_string()
             } else if grid_info.row_width < grid_info.expected_width {
-                format!(
-                    "⚠ Short by {} token(s)",
-                    grid_info.expected_width - grid_info.row_width
-                )
+                format!("⚠ Short by {} token(s)", grid_info.expected_width - grid_info.row_width)
             } else {
-                format!(
-                    "⚠ Long by {} token(s)",
-                    grid_info.row_width - grid_info.expected_width
-                )
+                format!("⚠ Long by {} token(s)", grid_info.row_width - grid_info.expected_width)
             };
 
             let hover_text = format!(
@@ -1124,9 +1081,7 @@ impl LanguageServer for PixelsrcLanguageServer {
             let registry = Self::build_variable_registry(&content);
 
             // Find the variable's info
-            let var_info = css_variables
-                .iter()
-                .find(|(name, _, _, _)| name == &var_name);
+            let var_info = css_variables.iter().find(|(name, _, _, _)| name == &var_name);
 
             if let Some((_, raw_value, _, palette_name)) = var_info {
                 // Try to resolve the variable
@@ -1247,10 +1202,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         Ok(None)
     }
 
-    async fn completion(
-        &self,
-        params: CompletionParams,
-    ) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = &params.text_document_position.text_document.uri;
         let pos = params.text_document_position.position;
 
@@ -1367,14 +1319,8 @@ impl LanguageServer for PixelsrcLanguageServer {
                     location: Location {
                         uri: uri.clone(),
                         range: Range {
-                            start: Position {
-                                line: line_num as u32,
-                                character: 0,
-                            },
-                            end: Position {
-                                line: line_num as u32,
-                                character: line.len() as u32,
-                            },
+                            start: Position { line: line_num as u32, character: 0 },
+                            end: Position { line: line_num as u32, character: line.len() as u32 },
                         },
                     },
                     container_name: None,
@@ -1407,14 +1353,8 @@ impl LanguageServer for PixelsrcLanguageServer {
             for (color_match, line_idx) in line_colors {
                 colors.push(ColorInformation {
                     range: Range {
-                        start: Position {
-                            line: line_idx,
-                            character: color_match.start,
-                        },
-                        end: Position {
-                            line: line_idx,
-                            character: color_match.end,
-                        },
+                        start: Position { line: line_idx, character: color_match.start },
+                        end: Position { line: line_idx, character: color_match.end },
                     },
                     color: Color {
                         red: color_match.rgba.0,
@@ -1446,10 +1386,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let hex = Self::rgba_to_hex(r, g, b, a);
         presentations.push(ColorPresentation {
             label: hex.clone(),
-            text_edit: Some(TextEdit {
-                range: params.range,
-                new_text: hex,
-            }),
+            text_edit: Some(TextEdit { range: params.range, new_text: hex }),
             additional_text_edits: None,
         });
 
@@ -1457,10 +1394,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let rgb = Self::rgba_to_rgb_functional(r, g, b, a);
         presentations.push(ColorPresentation {
             label: rgb.clone(),
-            text_edit: Some(TextEdit {
-                range: params.range,
-                new_text: rgb,
-            }),
+            text_edit: Some(TextEdit { range: params.range, new_text: rgb }),
             additional_text_edits: None,
         });
 
@@ -1468,10 +1402,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let hsl = Self::rgba_to_hsl(r, g, b, a);
         presentations.push(ColorPresentation {
             label: hsl.clone(),
-            text_edit: Some(TextEdit {
-                range: params.range,
-                new_text: hsl,
-            }),
+            text_edit: Some(TextEdit { range: params.range, new_text: hsl }),
             additional_text_edits: None,
         });
 
@@ -1508,14 +1439,8 @@ impl LanguageServer for PixelsrcLanguageServer {
                 return Ok(Some(GotoDefinitionResponse::Scalar(Location {
                     uri: uri.clone(),
                     range: Range {
-                        start: Position {
-                            line: def_line as u32,
-                            character: start_char,
-                        },
-                        end: Position {
-                            line: def_line as u32,
-                            character: end_char,
-                        },
+                        start: Position { line: def_line as u32, character: start_char },
+                        end: Position { line: def_line as u32, character: end_char },
                     },
                 })));
             }
@@ -1549,10 +1474,7 @@ mod tests {
         assert_eq!(diagnostic.severity, Some(DiagnosticSeverity::ERROR));
         assert_eq!(diagnostic.message, "Invalid JSON");
         assert_eq!(diagnostic.source, Some("pixelsrc".to_string()));
-        assert_eq!(
-            diagnostic.code,
-            Some(NumberOrString::String("json_syntax".to_string()))
-        );
+        assert_eq!(diagnostic.code, Some(NumberOrString::String("json_syntax".to_string())));
     }
 
     #[test]
@@ -1567,15 +1489,13 @@ mod tests {
 
     #[test]
     fn test_issue_to_diagnostic_with_suggestion() {
-        let issue = ValidationIssue::warning(3, IssueType::UndefinedToken, "Undefined token {skni}")
-            .with_suggestion("did you mean {skin}?");
+        let issue =
+            ValidationIssue::warning(3, IssueType::UndefinedToken, "Undefined token {skni}")
+                .with_suggestion("did you mean {skin}?");
         let diagnostic = PixelsrcLanguageServer::issue_to_diagnostic(&issue);
 
         assert_eq!(diagnostic.range.start.line, 2); // 0-indexed
-        assert_eq!(
-            diagnostic.message,
-            "Undefined token {skni} (did you mean {skin}?)"
-        );
+        assert_eq!(diagnostic.message, "Undefined token {skni} (did you mean {skin}?)");
     }
 
     #[test]
@@ -1791,42 +1711,27 @@ also not json"##;
 
     #[test]
     fn test_type_to_symbol_kind_palette() {
-        assert_eq!(
-            PixelsrcLanguageServer::type_to_symbol_kind("palette"),
-            SymbolKind::CONSTANT
-        );
+        assert_eq!(PixelsrcLanguageServer::type_to_symbol_kind("palette"), SymbolKind::CONSTANT);
     }
 
     #[test]
     fn test_type_to_symbol_kind_sprite() {
-        assert_eq!(
-            PixelsrcLanguageServer::type_to_symbol_kind("sprite"),
-            SymbolKind::CLASS
-        );
+        assert_eq!(PixelsrcLanguageServer::type_to_symbol_kind("sprite"), SymbolKind::CLASS);
     }
 
     #[test]
     fn test_type_to_symbol_kind_animation() {
-        assert_eq!(
-            PixelsrcLanguageServer::type_to_symbol_kind("animation"),
-            SymbolKind::FUNCTION
-        );
+        assert_eq!(PixelsrcLanguageServer::type_to_symbol_kind("animation"), SymbolKind::FUNCTION);
     }
 
     #[test]
     fn test_type_to_symbol_kind_composition() {
-        assert_eq!(
-            PixelsrcLanguageServer::type_to_symbol_kind("composition"),
-            SymbolKind::MODULE
-        );
+        assert_eq!(PixelsrcLanguageServer::type_to_symbol_kind("composition"), SymbolKind::MODULE);
     }
 
     #[test]
     fn test_type_to_symbol_kind_unknown() {
-        assert_eq!(
-            PixelsrcLanguageServer::type_to_symbol_kind("unknown"),
-            SymbolKind::OBJECT
-        );
+        assert_eq!(PixelsrcLanguageServer::type_to_symbol_kind("unknown"), SymbolKind::OBJECT);
     }
 
     // === CSS Variable Tests ===
@@ -1877,7 +1782,8 @@ also not json"##;
 
     #[test]
     fn test_find_variable_definition_exists() {
-        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
+        let content =
+            r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
         let result = PixelsrcLanguageServer::find_variable_definition(content, "--primary");
 
         assert!(result.is_some());
@@ -1889,7 +1795,8 @@ also not json"##;
 
     #[test]
     fn test_find_variable_definition_without_dashes() {
-        let content = r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
+        let content =
+            r##"{"type": "palette", "name": "test", "colors": {"--primary": "#FF0000"}}"##;
         // Should work even without the -- prefix
         let result = PixelsrcLanguageServer::find_variable_definition(content, "primary");
 
@@ -1987,10 +1894,7 @@ also not json"##;
         assert!(info.is_some());
         let info = info.unwrap();
         assert_eq!(info.function_str, "steps(4, jump-end)");
-        assert!(matches!(
-            info.interpolation,
-            Interpolation::Steps { count: 4, .. }
-        ));
+        assert!(matches!(info.interpolation, Interpolation::Steps { count: 4, .. }));
     }
 
     #[test]
@@ -2112,7 +2016,8 @@ also not json"##;
 
     #[test]
     fn test_parse_timing_function_context_cursor_outside_value() {
-        let line = r#"{"type": "animation", "name": "test", "timing_function": "ease", "frames": []}"#;
+        let line =
+            r#"{"type": "animation", "name": "test", "timing_function": "ease", "frames": []}"#;
         // Position in "name" field, not timing_function
         let info = PixelsrcLanguageServer::parse_timing_function_context(line, 20);
         assert!(info.is_none());
@@ -2151,10 +2056,7 @@ also not json"##;
     #[test]
     fn test_render_easing_curve_steps() {
         let curve = PixelsrcLanguageServer::render_easing_curve(
-            &Interpolation::Steps {
-                count: 4,
-                position: StepPosition::JumpEnd,
-            },
+            &Interpolation::Steps { count: 4, position: StepPosition::JumpEnd },
             20,
             6,
         );
@@ -2206,14 +2108,8 @@ also not json"##;
 
     #[test]
     fn test_interpolation_to_css_named() {
-        assert_eq!(
-            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Linear),
-            "linear"
-        );
-        assert_eq!(
-            PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseIn),
-            "ease-in"
-        );
+        assert_eq!(PixelsrcLanguageServer::interpolation_to_css(&Interpolation::Linear), "linear");
+        assert_eq!(PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseIn), "ease-in");
         assert_eq!(
             PixelsrcLanguageServer::interpolation_to_css(&Interpolation::EaseOut),
             "ease-out"

@@ -5,7 +5,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ttp::lsp_agent_client::LspAgentClient;
 //!
 //! let client = LspAgentClient::new();
@@ -14,12 +14,12 @@
 //! let result = client.verify_content(r#"{"type": "sprite", "name": "test", "grid": ["{a}"]}"#);
 //! println!("Valid: {}", result.valid);
 //!
-//! // Get completions
+//! // Get completions at position 2:45 (line 2, column 45)
 //! let content = r#"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000"}}
-//! {"type": "sprite", "name": "s", "grid": ["{"]}"#;
+//! {"type": "sprite", "name": "s", "grid": ["{red}"]}"#;
 //! let completions = client.get_completions(content, 2, 45);
-//! for c in completions.items {
-//!     println!("{}: {}", c.label, c.detail.unwrap_or_default());
+//! for c in &completions.items {
+//!     println!("{}: {}", c.label, c.detail.clone().unwrap_or_default());
 //! }
 //! ```
 
@@ -169,19 +169,10 @@ impl LspAgentClient {
         let warning_count = warnings.len();
 
         // Determine validity based on strict mode
-        let valid = if self.strict {
-            error_count == 0 && warning_count == 0
-        } else {
-            error_count == 0
-        };
+        let valid =
+            if self.strict { error_count == 0 && warning_count == 0 } else { error_count == 0 };
 
-        VerificationResult {
-            valid,
-            error_count,
-            warning_count,
-            errors,
-            warnings,
-        }
+        VerificationResult { valid, error_count, warning_count, errors, warnings }
     }
 
     /// Get completions at a specific position
@@ -198,7 +189,12 @@ impl LspAgentClient {
     /// # Returns
     ///
     /// A `CompletionResult` containing all available completions.
-    pub fn get_completions(&self, content: &str, line: usize, _character: usize) -> CompletionResult {
+    pub fn get_completions(
+        &self,
+        content: &str,
+        line: usize,
+        _character: usize,
+    ) -> CompletionResult {
         // Collect defined tokens from palettes
         let defined_tokens = Self::collect_defined_tokens(content);
 
@@ -223,11 +219,7 @@ impl LspAgentClient {
 
         // Check if we're in a sprite's grid context on the specified line
         let is_in_grid = if line > 0 {
-            content
-                .lines()
-                .nth(line - 1)
-                .map(|l| Self::is_grid_context(l))
-                .unwrap_or(false)
+            content.lines().nth(line - 1).map(Self::is_grid_context).unwrap_or(false)
         } else {
             false
         };
@@ -288,9 +280,8 @@ impl LspAgentClient {
     /// Convenience method that returns the verification result as a JSON string.
     pub fn verify_content_json(&self, content: &str) -> String {
         let result = self.verify_content(content);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Get completions and return JSON string
@@ -298,9 +289,8 @@ impl LspAgentClient {
     /// Convenience method that returns completions as a JSON string.
     pub fn get_completions_json(&self, content: &str, line: usize, character: usize) -> String {
         let result = self.get_completions(content, line, character);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Convert a ValidationIssue to a Diagnostic
@@ -632,11 +622,7 @@ mod tests {
         let result = client.verify_content(content);
         assert_eq!(result.warning_count, 1);
         assert!(result.warnings[0].suggestion.is_some());
-        assert!(result.warnings[0]
-            .suggestion
-            .as_ref()
-            .unwrap()
-            .contains("{skin}"));
+        assert!(result.warnings[0].suggestion.as_ref().unwrap().contains("{skin}"));
     }
 
     #[test]

@@ -929,9 +929,8 @@ mod export_tests {
     use super::*;
     use pixelsrc::atlas::{AtlasAnimation, AtlasFrame, AtlasMetadata};
     use pixelsrc::export::{
-        ExportOptions, GodotExportOptions, GodotExporter, LibGdxExportOptions,
-        LibGdxExporter, LibGdxFilterMode, LibGdxRepeatMode, UnityExportOptions, UnityExporter,
-        UnityFilterMode,
+        ExportOptions, GodotExportOptions, GodotExporter, LibGdxExportOptions, LibGdxExporter,
+        LibGdxFilterMode, LibGdxRepeatMode, UnityExportOptions, UnityExporter, UnityFilterMode,
     };
     use std::collections::HashMap;
 
@@ -1253,15 +1252,10 @@ mod export_tests {
                 "filter: MipMapLinearLinear, Linear",
             ),
         ] {
-            let exporter =
-                LibGdxExporter::new().with_min_filter(min).with_mag_filter(mag);
+            let exporter = LibGdxExporter::new().with_min_filter(min).with_mag_filter(mag);
             let content = exporter.export_to_string(&metadata);
 
-            assert!(
-                content.contains(expected_filter),
-                "Expected {} in output",
-                expected_filter
-            );
+            assert!(content.contains(expected_filter), "Expected {} in output", expected_filter);
         }
     }
 
@@ -1360,8 +1354,12 @@ mod export_tests {
             );
         }
 
-        let metadata =
-            AtlasMetadata { image: "large.png".to_string(), size: [320, 320], frames, animations: HashMap::new() };
+        let metadata = AtlasMetadata {
+            image: "large.png".to_string(),
+            size: [320, 320],
+            frames,
+            animations: HashMap::new(),
+        };
 
         let temp = TempDir::new().unwrap();
 
@@ -1566,8 +1564,7 @@ mod watch_tests {
 
     #[test]
     fn test_watch_error_display() {
-        let source_not_found =
-            WatchError::SourceNotFound(PathBuf::from("/nonexistent/path"));
+        let source_not_found = WatchError::SourceNotFound(PathBuf::from("/nonexistent/path"));
         let display = format!("{}", source_not_found);
         assert!(display.contains("Source directory not found"));
         assert!(display.contains("/nonexistent/path"));
@@ -1686,7 +1683,7 @@ fn test_build_plan_duplicate_targets() {
 
     // Should still be 2 (or 1 if deduped by id)
     // The behavior depends on implementation
-    assert!(plan.len() >= 1);
+    assert!(!plan.is_empty());
 }
 
 #[test]

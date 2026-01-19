@@ -3343,8 +3343,7 @@ fn run_build(
         }
 
         let context = BuildContext::new(config, project_root).with_verbose(verbose);
-        let mut incremental = IncrementalBuild::new(context)
-            .with_force(force);
+        let mut incremental = IncrementalBuild::new(context).with_force(force);
 
         match incremental.run() {
             Ok(result) => {
@@ -3352,11 +3351,7 @@ fn run_build(
                 if result.is_success() {
                     // Show incremental stats in summary
                     if stats.had_skips() && !force {
-                        println!(
-                            "{} ({} skipped - unchanged)",
-                            result.summary(),
-                            stats.skipped
-                        );
+                        println!("{} ({} skipped - unchanged)", result.summary(), stats.skipped);
                     } else {
                         println!("{}", result.summary());
                     }

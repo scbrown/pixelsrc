@@ -79,7 +79,6 @@ pub enum ManifestError {
     VersionMismatch { expected: u32, found: u32 },
 }
 
-
 /// Build manifest tracking all built targets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildManifest {
@@ -320,8 +319,7 @@ impl BuildManifest {
     ///
     /// This recomputes stats from existing target entries.
     pub fn compute_stats(&mut self) {
-        let mut stats = BuildStats::default();
-        stats.total_targets = self.targets.len();
+        let mut stats = BuildStats { total_targets: self.targets.len(), ..Default::default() };
 
         for target in self.targets.values() {
             // Count as success (we only record successful builds)
@@ -344,10 +342,7 @@ impl BuildManifest {
 
     /// Compute the total output size across all targets.
     pub fn total_output_size(&self) -> u64 {
-        self.targets
-            .values()
-            .flat_map(|t| t.output_sizes.values())
-            .sum()
+        self.targets.values().flat_map(|t| t.output_sizes.values()).sum()
     }
 
     /// Verify output file checksums.
@@ -1104,7 +1099,9 @@ mod tests {
         let manifest_path = temp.path().join(MANIFEST_FILENAME);
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build_with_duration("sprite:test", &[source], &[output], Some(100)).unwrap();
+        manifest
+            .record_build_with_duration("sprite:test", &[source], &[output], Some(100))
+            .unwrap();
         manifest.set_metadata(BuildMetadata::new("test-project", "2.0.0").with_scale(4));
         manifest.compute_stats();
         manifest.save(&manifest_path).unwrap();

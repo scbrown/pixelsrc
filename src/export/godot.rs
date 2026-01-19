@@ -342,11 +342,7 @@ region = Rect2({}, {}, {}, {})
             let frame_count = anim.frames.len();
 
             // Calculate animation length based on fps
-            let length = if frame_count > 0 && fps > 0.0 {
-                frame_count as f64 / fps
-            } else {
-                1.0
-            };
+            let length = if frame_count > 0 && fps > 0.0 { frame_count as f64 / fps } else { 1.0 };
 
             // Build times array (evenly spaced)
             let times: Vec<String> = (0..frame_count)
@@ -369,17 +365,12 @@ region = Rect2({}, {}, {}, {})
                 .frames
                 .iter()
                 .filter_map(|frame_name| {
-                    frame_to_id
-                        .get(frame_name)
-                        .map(|id| format!("ExtResource(\"{}\")", id))
+                    frame_to_id.get(frame_name).map(|id| format!("ExtResource(\"{}\")", id))
                 })
                 .collect();
             let values_str = values.join(", ");
 
-            lines.push(format!(
-                "[sub_resource type=\"Animation\" id=\"Animation_{}\"]",
-                anim_name
-            ));
+            lines.push(format!("[sub_resource type=\"Animation\" id=\"Animation_{}\"]", anim_name));
             lines.push(format!("resource_name = \"{}\"", anim_name));
             lines.push(format!("length = {:.6}", length));
             lines.push("loop_mode = 1".to_string()); // 1 = loop

@@ -228,12 +228,9 @@ impl BuildPipeline {
             sprites.into_iter().next().unwrap()
         } else {
             // Try to find sprite by target name
-            sprites
-                .into_iter()
-                .find(|s| s.name == target.name)
-                .ok_or_else(|| {
-                    format!("Sprite '{}' not found in {}", target.name, source.display())
-                })?
+            sprites.into_iter().find(|s| s.name == target.name).ok_or_else(|| {
+                format!("Sprite '{}' not found in {}", target.name, source.display())
+            })?
         };
 
         // Resolve the palette for this sprite
@@ -417,7 +414,10 @@ impl BuildPipeline {
                         ));
                     } else if is_verbose {
                         for warning in &render_warnings {
-                            eprintln!("Warning: sprite '{}': {}", task.sprite.name, warning.message);
+                            eprintln!(
+                                "Warning: sprite '{}': {}",
+                                task.sprite.name, warning.message
+                            );
                         }
                     }
                 }
@@ -440,42 +440,26 @@ impl BuildPipeline {
                     m.boxes.as_ref().map(|b| {
                         b.iter()
                             .map(|(name, cb)| {
-                                (
-                                    name.clone(),
-                                    AtlasBox { x: cb.x, y: cb.y, w: cb.w, h: cb.h },
-                                )
+                                (name.clone(), AtlasBox { x: cb.x, y: cb.y, w: cb.w, h: cb.h })
                             })
                             .collect::<HashMap<_, _>>()
                     })
                 });
 
-                Ok(SpriteInput {
-                    name: task.qualified_name,
-                    image: final_image,
-                    origin,
-                    boxes,
-                })
+                Ok(SpriteInput { name: task.qualified_name, image: final_image, origin, boxes })
             })
             .collect();
 
         // Collect results, propagating any errors
-        let sprite_inputs: Vec<SpriteInput> = render_results
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
+        let sprite_inputs: Vec<SpriteInput> =
+            render_results.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         if sprite_inputs.is_empty() {
-            return Err(format!(
-                "No sprites found in source files for atlas '{}'",
-                target.name
-            ));
+            return Err(format!("No sprites found in source files for atlas '{}'", target.name));
         }
 
         // Pack sprites into atlas
-        let base_name = target
-            .output
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or(&target.name);
+        let base_name = target.output.file_stem().and_then(|s| s.to_str()).unwrap_or(&target.name);
         let result = pack_atlas(&sprite_inputs, &packer_config, base_name);
 
         if result.atlases.is_empty() {
@@ -499,8 +483,9 @@ impl BuildPipeline {
             let json_path = out_dir.join(&json_name);
             let json_content = serde_json::to_string_pretty(&metadata)
                 .map_err(|e| format!("Failed to serialize atlas metadata: {}", e))?;
-            fs::write(&json_path, json_content)
-                .map_err(|e| format!("Failed to write atlas JSON {}: {}", json_path.display(), e))?;
+            fs::write(&json_path, json_content).map_err(|e| {
+                format!("Failed to write atlas JSON {}: {}", json_path.display(), e)
+            })?;
             outputs.push(json_path);
         }
 
@@ -822,11 +807,7 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "red_dot".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target = BuildTarget::sprite("red_dot".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -856,11 +837,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "green_pixel".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::sprite("green_pixel".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -891,11 +869,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "checkerboard".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::sprite("checkerboard".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -907,7 +882,7 @@ mod tests {
     }
 
     fn create_atlas_test_context(atlas_name: &str, sources: Vec<&str>) -> (TempDir, BuildContext) {
-        use crate::config::{AtlasConfig as ConfigAtlas, PxlConfig, ProjectConfig};
+        use crate::config::{AtlasConfig as ConfigAtlas, ProjectConfig, PxlConfig};
 
         let temp = TempDir::new().unwrap();
 
@@ -963,11 +938,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::atlas(
-            "test_atlas".to_string(),
-            vec![sprite_file],
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::atlas("test_atlas".to_string(), vec![sprite_file], output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1051,11 +1023,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::atlas(
-            "player".to_string(),
-            vec![sprite_file],
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::atlas("player".to_string(), vec![sprite_file], output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1076,7 +1045,8 @@ mod tests {
         // Create source file with only a palette (no sprites)
         let src_dir = temp.path().join("src/pxl");
         let palette_file = src_dir.join("colors.pxl");
-        let palette_content = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000"}}"##;
+        let palette_content =
+            r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000"}}"##;
         File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
 
         // Create output directory
@@ -1086,11 +1056,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::atlas(
-            "empty".to_string(),
-            vec![palette_file],
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::atlas("empty".to_string(), vec![palette_file], output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_failure(), "Should fail when no sprites found");
@@ -1098,7 +1065,7 @@ mod tests {
 
     #[test]
     fn test_build_atlas_power_of_two() {
-        use crate::config::{AtlasConfig as ConfigAtlas, PxlConfig, ProjectConfig};
+        use crate::config::{AtlasConfig as ConfigAtlas, ProjectConfig, PxlConfig};
 
         let temp = TempDir::new().unwrap();
 
@@ -1143,11 +1110,7 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::atlas(
-            "pot".to_string(),
-            vec![sprite_file],
-            output_file.clone(),
-        );
+        let target = BuildTarget::atlas("pot".to_string(), vec![sprite_file], output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);

@@ -763,11 +763,13 @@ mod tests {
         assert_eq!(ease_in.timing_function.as_deref(), Some("ease-in"));
 
         // Test ease-out
-        let ease_out = animations.get("ease_out_slide").expect("Animation 'ease_out_slide' not found");
+        let ease_out =
+            animations.get("ease_out_slide").expect("Animation 'ease_out_slide' not found");
         assert_eq!(ease_out.timing_function.as_deref(), Some("ease-out"));
 
         // Test ease-in-out
-        let ease_in_out = animations.get("ease_in_out_slide").expect("Animation 'ease_in_out_slide' not found");
+        let ease_in_out =
+            animations.get("ease_in_out_slide").expect("Animation 'ease_in_out_slide' not found");
         assert_eq!(ease_in_out.timing_function.as_deref(), Some("ease-in-out"));
     }
 
@@ -838,20 +840,24 @@ mod tests {
         assert_eq!(kf.len(), 5, "steps_4 should have 5 keyframes");
 
         // Test steps with jump-start
-        let jump_start = animations.get("steps_jump_start").expect("Animation 'steps_jump_start' not found");
+        let jump_start =
+            animations.get("steps_jump_start").expect("Animation 'steps_jump_start' not found");
         assert_eq!(jump_start.timing_function.as_deref(), Some("steps(4, jump-start)"));
 
         // Test steps with jump-end
-        let jump_end = animations.get("steps_jump_end").expect("Animation 'steps_jump_end' not found");
+        let jump_end =
+            animations.get("steps_jump_end").expect("Animation 'steps_jump_end' not found");
         assert_eq!(jump_end.timing_function.as_deref(), Some("steps(4, jump-end)"));
 
         // Test step-start (instant jump to final value)
-        let step_start = animations.get("step_start_instant").expect("Animation 'step_start_instant' not found");
+        let step_start =
+            animations.get("step_start_instant").expect("Animation 'step_start_instant' not found");
         assert_eq!(step_start.timing_function.as_deref(), Some("step-start"));
         assert_eq!(step_start.duration_ms(), 500);
 
         // Test step-end (delayed jump to final value)
-        let step_end = animations.get("step_end_delayed").expect("Animation 'step_end_delayed' not found");
+        let step_end =
+            animations.get("step_end_delayed").expect("Animation 'step_end_delayed' not found");
         assert_eq!(step_end.timing_function.as_deref(), Some("step-end"));
     }
 
