@@ -91,8 +91,11 @@ impl PixelsrcLanguageServer {
             validator.validate_line(line_num + 1, line);
         }
 
-        let diagnostics: Vec<Diagnostic> =
-            validator.issues().iter().map(Self::issue_to_diagnostic).collect();
+        let diagnostics: Vec<Diagnostic> = validator
+            .issues()
+            .iter()
+            .map(Self::issue_to_diagnostic)
+            .collect();
 
         self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
     }

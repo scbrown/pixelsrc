@@ -62,10 +62,31 @@ wasm-opt = false
 # =============================================================================
 # Linting Configuration
 # =============================================================================
-# Note: Clippy lints are configured via CI command-line flags due to
-# Cargo.toml [lints.clippy] table not being respected in some environments.
-# See .github/workflows/ci.yml for the canonical clippy configuration.
 
 [lints.rust]
 # Forbid unsafe code - this is a pixel art tool, no need for unsafe
 unsafe_code = "forbid"
+
+[lints.clippy]
+# Enable all common lints (lower priority so individual allows can override)
+all = { level = "warn", priority = -1 }
+
+# Warn on common development artifacts that shouldn't be committed
+todo = "warn"
+dbg_macro = "warn"
+
+# Allow these lints - they're either false positives or intentional patterns
+cloned_ref_to_slice_refs = "allow"
+needless_range_loop = "allow"       # Sometimes clearer than enumerate()
+should_implement_trait = "allow"    # Custom impl choices are intentional
+too_many_arguments = "allow"        # Sprite/animation functions need many params
+ptr_arg = "allow"                   # &String/&Vec are sometimes clearer
+doc_overindented_list_items = "allow"
+match_overlapping_arm = "allow"
+match_like_matches_macro = "allow"  # Explicit match is sometimes clearer
+vec_init_then_push = "allow"        # Sometimes clearer than collect()
+useless_vec = "allow"
+derivable_impls = "allow"           # Custom Default impls are sometimes clearer
+unnecessary_unwrap = "allow"
+manual_range_contains = "allow"     # x >= 0 && x < n is sometimes clearer
+field_reassign_with_default = "allow"  # Sometimes clearer to assign after default

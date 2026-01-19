@@ -28,25 +28,8 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: |
-          cargo clippy --all-targets --all-features -- \
-            -W clippy::all \
-            -W clippy::todo \
-            -W clippy::dbg_macro \
-            -A clippy::cloned_ref_to_slice_refs \
-            -A clippy::needless_range_loop \
-            -A clippy::should_implement_trait \
-            -A clippy::too_many_arguments \
-            -A clippy::ptr_arg \
-            -A clippy::doc_overindented_list_items \
-            -A clippy::match_overlapping_arm \
-            -A clippy::match_like_matches_macro \
-            -A clippy::vec_init_then_push \
-            -A clippy::useless_vec \
-            -A clippy::derivable_impls \
-            -A clippy::unnecessary_unwrap \
-            -A clippy::manual_range_contains \
-            -D warnings
+        # Lints are configured in Cargo.toml [lints.clippy] section
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build
         run: cargo build --all-features
