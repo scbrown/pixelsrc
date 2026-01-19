@@ -29,6 +29,7 @@
 - [Composition](format/composition.md)
 - [Transforms](format/transforms.md)
 - [Includes](format/includes.md)
+- [Unsupported CSS](format/css/unsupported.md)
 
 # CLI Reference
 
