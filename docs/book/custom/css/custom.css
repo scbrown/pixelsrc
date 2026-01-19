@@ -116,3 +116,116 @@ pre {
 code {
     font-family: 'Fira Code', 'Consolas', monospace;
 }
+
+/* =============================================================================
+ * Demo Container Styles (DT-17)
+ * Styles for auto-rendered demo containers from generate-demos.sh
+ * ============================================================================= */
+
+/* Demo source container - the code block */
+.demo-source {
+    margin-bottom: 0.5rem;
+}
+
+/* Demo container - where rendered sprites appear */
+.demo-container {
+    background: var(--code-bg, #44475a);
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 0.5rem 0 1.5rem 0;
+    min-height: 80px;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+    gap: 1rem;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: start;
+    -ms-flex-pack: start;
+    justify-content: flex-start;
+}
+
+/* Checkerboard background for rendered demos */
+.demo-container.demo-rendered {
+    /* Checkerboard pattern for transparency */
+    background:
+        linear-gradient(45deg, #3a3d4a 25%, transparent 25%),
+        linear-gradient(-45deg, #3a3d4a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #3a3d4a 75%),
+        linear-gradient(-45deg, transparent 75%, #3a3d4a 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #44475a;
+}
+
+/* Individual sprite container */
+.demo-sprite {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(40, 42, 54, 0.8);
+    border-radius: 4px;
+}
+
+/* Sprite image - pixel-perfect scaling */
+.demo-sprite img {
+    /* Cross-browser pixel art rendering */
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    /* Scale up small sprites for visibility */
+    min-width: 32px;
+    min-height: 32px;
+    /* Use CSS transform for scaling if needed */
+    -webkit-transform: scale(4);
+    transform: scale(4);
+    -webkit-transform-origin: center center;
+    transform-origin: center center;
+    margin: 24px; /* Account for scale transform */
+}
+
+/* Sprite label */
+.demo-sprite-label {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: #8be9fd;
+    padding: 0.125rem 0.375rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+}
+
+/* More sprites indicator */
+.demo-more {
+    font-size: 0.875rem;
+    color: #6272a4;
+    padding: 0.5rem;
+}
+
+/* Loading state */
+.demo-loading {
+    color: #6272a4;
+    font-style: italic;
+    margin: 0;
+}
+
+/* Error state */
+.demo-error {
+    color: #ff5555;
+    font-family: monospace;
+    font-size: 0.9em;
+    margin: 0;
+}

@@ -81,6 +81,15 @@
 - [Interactive Sandbox](playground/sandbox.md)
 - [Example Gallery](playground/gallery.md)
 
+# Demos
+
+- [CSS Colors](demos/colors.md)
+- [CSS Variables](demos/variables.md)
+- [CSS Timing Functions](demos/timing.md)
+- [CSS Keyframes](demos/keyframes.md)
+- [CSS Transforms](demos/transforms.md)
+- [Spritesheets](demos/spritesheets.md)
+
 # Reference
 
 - [Built-in Palettes](reference/palettes.md)

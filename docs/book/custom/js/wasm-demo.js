@@ -230,13 +230,158 @@
                     }
                 })(demos[i]);
             }
+        },
+
+        /**
+         * Initialize auto-render demo containers (from generate-demos.sh)
+         * Finds .demo-container[data-demo] elements, extracts JSONL from
+         * preceding .demo-source code block, and renders sprites.
+         */
+        initDemoContainers: function() {
+            var self = this;
+            var containers = document.querySelectorAll('.demo-container[data-demo]');
+
+            for (var i = 0; i < containers.length; i++) {
+                (function(container) {
+                    var demoId = container.getAttribute('data-demo');
+
+                    // Find preceding .demo-source sibling
+                    var source = container.previousElementSibling;
+                    while (source && !source.classList.contains('demo-source')) {
+                        source = source.previousElementSibling;
+                    }
+
+                    if (!source) {
+                        container.innerHTML = '<p class="demo-error">Demo source not found</p>';
+                        return;
+                    }
+
+                    // Extract JSONL from code block
+                    var codeBlock = source.querySelector('pre code');
+                    if (!codeBlock) {
+                        container.innerHTML = '<p class="demo-error">Code block not found</p>';
+                        return;
+                    }
+
+                    var jsonl = codeBlock.textContent;
+                    if (!jsonl || !jsonl.trim()) {
+                        container.innerHTML = '<p class="demo-error">Empty JSONL content</p>';
+                        return;
+                    }
+
+                    // Generate unique container ID
+                    var containerId = 'demo-render-' + demoId + '-' + i;
+                    container.id = containerId;
+
+                    // Create loading indicator
+                    container.innerHTML = '<p class="demo-loading">Loading demo...</p>';
+
+                    // Wait for WASM to be ready, then render
+                    var attempts = 0;
+                    var maxAttempts = 50; // 5 seconds max
+
+                    function tryRender() {
+                        if (self.isReady()) {
+                            self.renderDemo(jsonl, containerId);
+                        } else if (attempts < maxAttempts) {
+                            attempts++;
+                            setTimeout(tryRender, 100);
+                        } else {
+                            container.innerHTML = '<p class="demo-error">WASM module not available</p>';
+                        }
+                    }
+
+                    tryRender();
+                })(containers[i]);
+            }
+        },
+
+        /**
+         * Render a demo with multiple sprites/animations
+         * Renders the first sprite found in the JSONL content
+         * @param {string} jsonl - Pixelsrc JSONL content
+         * @param {string} containerId - ID of the container element
+         */
+        renderDemo: function(jsonl, containerId) {
+            var container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Demo container not found:', containerId);
+                return;
+            }
+
+            if (!wasmReady) {
+                container.innerHTML = '<p class="demo-error">' + getBrowserSupportMessage() + '</p>';
+                return;
+            }
+
+            try {
+                // Get list of sprites from the JSONL
+                var sprites = this.listSprites(jsonl);
+
+                if (!sprites || sprites.length === 0) {
+                    container.innerHTML = '<p class="demo-error">No sprites found in demo</p>';
+                    return;
+                }
+
+                // Create container for rendered sprites
+                container.innerHTML = '';
+                container.className = 'demo-container demo-rendered';
+
+                // Render each sprite (or first few if many)
+                var maxSprites = Math.min(sprites.length, 4);
+                for (var i = 0; i < maxSprites; i++) {
+                    var spriteName = sprites[i];
+                    var spriteDiv = document.createElement('div');
+                    spriteDiv.className = 'demo-sprite';
+
+                    try {
+                        var pngBytes = wasmModule.render_to_png(jsonl, spriteName);
+                        var blob = new Blob([pngBytes], { type: 'image/png' });
+                        var dataUrl = URL.createObjectURL(blob);
+
+                        var img = document.createElement('img');
+                        img.src = dataUrl;
+                        img.alt = spriteName;
+                        img.title = spriteName;
+                        img.style.imageRendering = 'pixelated';
+
+                        var label = document.createElement('span');
+                        label.className = 'demo-sprite-label';
+                        label.textContent = spriteName;
+
+                        spriteDiv.appendChild(img);
+                        spriteDiv.appendChild(label);
+                    } catch (error) {
+                        spriteDiv.innerHTML = '<span class="demo-error">' + spriteName + ': ' + error.message + '</span>';
+                    }
+
+                    container.appendChild(spriteDiv);
+                }
+
+                // If there are more sprites, show count
+                if (sprites.length > maxSprites) {
+                    var moreLabel = document.createElement('span');
+                    moreLabel.className = 'demo-more';
+                    moreLabel.textContent = '+ ' + (sprites.length - maxSprites) + ' more';
+                    container.appendChild(moreLabel);
+                }
+            } catch (error) {
+                container.innerHTML = '<p class="demo-error">Render error: ' + error.message + '</p>';
+            }
         }
     };
 
     // Initialize on page load
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initWasm);
-    } else {
+    function init() {
         initWasm();
+        // Initialize demo containers after DOM is ready
+        // Each container will wait for WASM to be ready before rendering
+        window.pixelsrcDemo.initDemoContainers();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 })();
