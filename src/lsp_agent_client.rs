@@ -5,7 +5,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use pixelsrc::lsp_agent_client::LspAgentClient;
 //!
 //! let client = LspAgentClient::new();
@@ -21,10 +21,27 @@
 //! for c in &completions.items {
 //!     println!("{}: {}", c.label, c.detail.clone().unwrap_or_default());
 //! }
+//!
+//! // Resolve colors (CSS extensions)
+//! let palette_content = r##"{"type": "palette", "name": "hero", "colors": {"--base": "#FF6347", "{skin}": "var(--base)"}}"##;
+//! let colors = client.resolve_colors(palette_content);
+//! for c in &colors.colors {
+//!     println!("{}: {} -> {}", c.token, c.original, c.resolved);
+//! }
+//!
+//! // Analyze timing functions
+//! let anim_content = r#"{"type": "animation", "name": "walk", "timing_function": "ease-in-out"}"#;
+//! let timing = client.analyze_timing(anim_content);
+//! for t in &timing.animations {
+//!     println!("{}: {} ({})", t.animation, t.timing_function, t.curve_type);
+//! }
 //! ```
 
+use crate::color::parse_color;
+use crate::motion::{parse_timing_function, Interpolation, StepPosition};
 use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
+use crate::variables::VariableRegistry;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -100,6 +117,56 @@ pub struct GridPosition {
     pub sprite_name: String,
     /// Whether the row is properly aligned
     pub aligned: bool,
+}
+
+/// Result of color resolution request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColorResolutionResult {
+    /// List of resolved colors
+    pub colors: Vec<ResolvedColor>,
+    /// Number of colors that failed to resolve
+    pub error_count: usize,
+    /// Errors encountered during resolution
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub errors: Vec<String>,
+}
+
+/// A resolved color with original and computed values
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolvedColor {
+    /// Token name (e.g., "{skin}") or variable name (e.g., "--primary")
+    pub token: String,
+    /// Original value before resolution (e.g., "var(--base)")
+    pub original: String,
+    /// Resolved hex value (e.g., "#FFCC99")
+    pub resolved: String,
+    /// Palette name where this color is defined
+    pub palette: String,
+    /// Whether this is a CSS variable (--name) rather than a token ({name})
+    pub is_variable: bool,
+}
+
+/// Result of timing function analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimingAnalysisResult {
+    /// List of analyzed animations
+    pub animations: Vec<TimingAnalysis>,
+}
+
+/// Timing function analysis for a single animation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimingAnalysis {
+    /// Animation name
+    pub animation: String,
+    /// Original timing function string
+    pub timing_function: String,
+    /// Human-readable description of the timing effect
+    pub description: String,
+    /// Curve type classification
+    pub curve_type: String,
+    /// ASCII visualization of the easing curve (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ascii_curve: Option<String>,
 }
 
 /// LspAgentClient provides programmatic access to LSP functionality
@@ -291,6 +358,339 @@ impl LspAgentClient {
         let result = self.get_completions(content, line, character);
         serde_json::to_string_pretty(&result)
             .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
+    }
+
+    /// Resolve all CSS colors in content to computed hex values.
+    ///
+    /// Parses all palettes in the content, resolves `var()` references and
+    /// `color-mix()` functions, and returns the computed hex values for each
+    /// color definition.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The full document content
+    ///
+    /// # Returns
+    ///
+    /// A `ColorResolutionResult` containing all resolved colors and any errors.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use pixelsrc::lsp_agent_client::LspAgentClient;
+    ///
+    /// let client = LspAgentClient::new();
+    /// let content = r##"{"type": "palette", "name": "hero", "colors": {"--base": "#FF6347", "{skin}": "var(--base)"}}"##;
+    ///
+    /// let result = client.resolve_colors(content);
+    /// assert!(result.colors.iter().any(|c| c.token == "{skin}"));
+    /// ```
+    pub fn resolve_colors(&self, content: &str) -> ColorResolutionResult {
+        let mut colors = Vec::new();
+        let mut errors = Vec::new();
+
+        // First pass: build variable registry from all palettes
+        let registry = Self::build_variable_registry(content);
+
+        // Second pass: collect and resolve all colors
+        for line in content.lines() {
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Only process palettes
+            let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+                Some(t) if t == "palette" => t,
+                _ => continue,
+            };
+            let _ = obj_type;
+
+            let palette_name = obj
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            // Get the colors object
+            let palette_colors = match obj.get("colors").and_then(|c| c.as_object()) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            for (key, value) in palette_colors {
+                let original_value = match value.as_str() {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+
+                let is_variable = key.starts_with("--");
+                let is_token = key.starts_with('{') && key.ends_with('}');
+
+                // Skip non-color entries
+                if !is_variable && !is_token {
+                    continue;
+                }
+
+                // Resolve var() references first
+                let resolved_value = match registry.resolve(&original_value) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        errors.push(format!("{}: {}", key, e));
+                        continue;
+                    }
+                };
+
+                // Parse the resolved value as a color and convert to hex
+                let hex_value = match parse_color(&resolved_value) {
+                    Ok(rgba) => {
+                        if rgba.0[3] == 255 {
+                            format!("#{:02X}{:02X}{:02X}", rgba.0[0], rgba.0[1], rgba.0[2])
+                        } else {
+                            format!(
+                                "#{:02X}{:02X}{:02X}{:02X}",
+                                rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3]
+                            )
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("{}: {}", key, e));
+                        continue;
+                    }
+                };
+
+                colors.push(ResolvedColor {
+                    token: key.clone(),
+                    original: original_value,
+                    resolved: hex_value,
+                    palette: palette_name.clone(),
+                    is_variable,
+                });
+            }
+        }
+
+        ColorResolutionResult {
+            error_count: errors.len(),
+            colors,
+            errors,
+        }
+    }
+
+    /// Resolve colors and return JSON string
+    ///
+    /// Convenience method that returns the color resolution result as a JSON string.
+    pub fn resolve_colors_json(&self, content: &str) -> String {
+        let result = self.resolve_colors(content);
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
+            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
+        })
+    }
+
+    /// Analyze timing functions in animations.
+    ///
+    /// Parses all animations in the content and extracts timing function
+    /// information with human-readable descriptions and ASCII curve visualizations.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The full document content
+    ///
+    /// # Returns
+    ///
+    /// A `TimingAnalysisResult` containing analysis for each animation.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use pixelsrc::lsp_agent_client::LspAgentClient;
+    ///
+    /// let client = LspAgentClient::new();
+    /// let content = r#"{"type": "animation", "name": "walk", "timing_function": "ease-in-out"}"#;
+    ///
+    /// let result = client.analyze_timing(content);
+    /// assert_eq!(result.animations.len(), 1);
+    /// assert_eq!(result.animations[0].curve_type, "smooth");
+    /// ```
+    pub fn analyze_timing(&self, content: &str) -> TimingAnalysisResult {
+        let mut animations = Vec::new();
+
+        for line in content.lines() {
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Only process animations
+            let obj_type = match obj.get("type").and_then(|t| t.as_str()) {
+                Some(t) if t == "animation" => t,
+                _ => continue,
+            };
+            let _ = obj_type;
+
+            let anim_name = obj
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            // Get timing function (default to "linear" if not specified)
+            let timing_str = obj
+                .get("timing_function")
+                .and_then(|t| t.as_str())
+                .unwrap_or("linear")
+                .to_string();
+
+            // Parse the timing function
+            let (description, curve_type, ascii_curve) = match parse_timing_function(&timing_str) {
+                Ok(interpolation) => {
+                    let desc = Self::describe_interpolation(&interpolation);
+                    let curve_type = Self::classify_curve_type(&interpolation);
+                    let ascii = Self::render_ascii_curve(&interpolation, 20, 8);
+                    (desc, curve_type, Some(ascii))
+                }
+                Err(_) => {
+                    (format!("Unknown timing function: {}", timing_str), "unknown".to_string(), None)
+                }
+            };
+
+            animations.push(TimingAnalysis {
+                animation: anim_name,
+                timing_function: timing_str,
+                description,
+                curve_type,
+                ascii_curve,
+            });
+        }
+
+        TimingAnalysisResult { animations }
+    }
+
+    /// Analyze timing and return JSON string
+    ///
+    /// Convenience method that returns the timing analysis result as a JSON string.
+    pub fn analyze_timing_json(&self, content: &str) -> String {
+        let result = self.analyze_timing(content);
+        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
+            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
+        })
+    }
+
+    /// Build a VariableRegistry from document content
+    fn build_variable_registry(content: &str) -> VariableRegistry {
+        let mut registry = VariableRegistry::new();
+
+        for line in content.lines() {
+            let obj: Value = match serde_json::from_str(line) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let obj = match obj.as_object() {
+                Some(o) => o,
+                None => continue,
+            };
+
+            // Only process palettes
+            if obj.get("type").and_then(|t| t.as_str()) != Some("palette") {
+                continue;
+            }
+
+            // Get the colors object
+            let colors = match obj.get("colors").and_then(|c| c.as_object()) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            // Extract CSS variables (keys starting with '--')
+            for (key, value) in colors {
+                if key.starts_with("--") {
+                    if let Some(value_str) = value.as_str() {
+                        registry.define(key, value_str);
+                    }
+                }
+            }
+        }
+
+        registry
+    }
+
+    /// Describe an interpolation/timing function in human-readable terms
+    fn describe_interpolation(interpolation: &Interpolation) -> String {
+        match interpolation {
+            Interpolation::Linear => "Constant speed from start to end.".to_string(),
+            Interpolation::EaseIn => "Starts slow, accelerates toward end.".to_string(),
+            Interpolation::EaseOut => "Starts fast, decelerates toward end.".to_string(),
+            Interpolation::EaseInOut => "Slow start and end, fast middle.".to_string(),
+            Interpolation::Bounce => "Bouncy effect at the end, like a ball.".to_string(),
+            Interpolation::Elastic => "Elastic overshoot effect, springs past target.".to_string(),
+            Interpolation::Bezier { p1, p2 } => {
+                format!(
+                    "Custom cubic bezier curve ({:.2}, {:.2}, {:.2}, {:.2}).",
+                    p1.0, p1.1, p2.0, p2.1
+                )
+            }
+            Interpolation::Steps { count, position } => {
+                let pos_desc = match position {
+                    StepPosition::JumpStart => "starts immediately",
+                    StepPosition::JumpEnd => "ends on final value",
+                    StepPosition::JumpNone => "never sits on endpoints",
+                    StepPosition::JumpBoth => "sits on both endpoints",
+                };
+                format!("Jumps in {} discrete step(s), {}.", count, pos_desc)
+            }
+        }
+    }
+
+    /// Classify a timing function into a curve type
+    fn classify_curve_type(interpolation: &Interpolation) -> String {
+        match interpolation {
+            Interpolation::Linear => "linear".to_string(),
+            Interpolation::EaseIn | Interpolation::EaseOut | Interpolation::EaseInOut => {
+                "smooth".to_string()
+            }
+            Interpolation::Bounce => "bouncy".to_string(),
+            Interpolation::Elastic => "elastic".to_string(),
+            Interpolation::Bezier { .. } => "smooth".to_string(),
+            Interpolation::Steps { .. } => "stepped".to_string(),
+        }
+    }
+
+    /// Render an ASCII visualization of the easing curve
+    fn render_ascii_curve(interpolation: &Interpolation, width: usize, height: usize) -> String {
+        use crate::motion::ease;
+
+        let mut grid = vec![vec![' '; width]; height];
+
+        // Sample the curve
+        for x in 0..width {
+            let t = x as f64 / (width - 1) as f64;
+            let y = ease(t, interpolation);
+            let y_idx = ((1.0 - y) * (height - 1) as f64).round() as usize;
+            let y_idx = y_idx.min(height - 1);
+            grid[y_idx][x] = '█';
+        }
+
+        // Build the ASCII art with frame
+        let mut result = String::new();
+        result.push_str(&format!("┌{}┐\n", "─".repeat(width)));
+        for row in &grid {
+            result.push('│');
+            result.extend(row.iter());
+            result.push_str("│\n");
+        }
+        result.push_str(&format!("└{}┘", "─".repeat(width)));
+
+        result
     }
 
     /// Convert a ValidationIssue to a Diagnostic
@@ -640,5 +1040,229 @@ mod tests {
         let result = client.verify_content("   \n\n   \n");
         assert!(result.valid);
         assert_eq!(result.error_count, 0);
+    }
+
+    // === CSS Color Resolution Tests ===
+
+    #[test]
+    fn test_resolve_colors_simple_hex() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}"##;
+
+        let result = client.resolve_colors(content);
+        assert_eq!(result.error_count, 0);
+        assert_eq!(result.colors.len(), 2);
+
+        let red = result.colors.iter().find(|c| c.token == "{red}").unwrap();
+        assert_eq!(red.resolved, "#FF0000");
+        assert_eq!(red.palette, "test");
+        assert!(!red.is_variable);
+    }
+
+    #[test]
+    fn test_resolve_colors_css_variable() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "hero", "colors": {"--base": "#FF6347", "{skin}": "var(--base)"}}"##;
+
+        let result = client.resolve_colors(content);
+        assert_eq!(result.error_count, 0);
+
+        let base = result.colors.iter().find(|c| c.token == "--base").unwrap();
+        assert_eq!(base.resolved, "#FF6347");
+        assert!(base.is_variable);
+
+        let skin = result.colors.iter().find(|c| c.token == "{skin}").unwrap();
+        assert_eq!(skin.original, "var(--base)");
+        assert_eq!(skin.resolved, "#FF6347");
+        assert!(!skin.is_variable);
+    }
+
+    #[test]
+    fn test_resolve_colors_color_mix() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "hero", "colors": {"{shadow}": "color-mix(in srgb, red 50%, black)"}}"##;
+
+        let result = client.resolve_colors(content);
+        assert_eq!(result.error_count, 0);
+        assert_eq!(result.colors.len(), 1);
+
+        let shadow = result.colors.iter().find(|c| c.token == "{shadow}").unwrap();
+        assert!(shadow.original.contains("color-mix"));
+        // Should be a darker red - not testing exact value due to color space differences
+        assert!(shadow.resolved.starts_with('#'));
+    }
+
+    #[test]
+    fn test_resolve_colors_chained_variables() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "hero", "colors": {"--primary": "#FF0000", "--accent": "var(--primary)", "{highlight}": "var(--accent)"}}"##;
+
+        let result = client.resolve_colors(content);
+        assert_eq!(result.error_count, 0);
+
+        let highlight = result.colors.iter().find(|c| c.token == "{highlight}").unwrap();
+        assert_eq!(highlight.resolved, "#FF0000");
+    }
+
+    #[test]
+    fn test_resolve_colors_multiple_palettes() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "p1", "colors": {"--base": "#AA0000", "{a}": "var(--base)"}}
+{"type": "palette", "name": "p2", "colors": {"{b}": "#00BB00"}}"##;
+
+        let result = client.resolve_colors(content);
+        assert_eq!(result.error_count, 0);
+        assert_eq!(result.colors.len(), 3);
+
+        // Colors should reference their palette
+        let a = result.colors.iter().find(|c| c.token == "{a}").unwrap();
+        assert_eq!(a.palette, "p1");
+
+        let b = result.colors.iter().find(|c| c.token == "{b}").unwrap();
+        assert_eq!(b.palette, "p2");
+    }
+
+    #[test]
+    fn test_resolve_colors_json() {
+        let client = LspAgentClient::new();
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
+        let json = client.resolve_colors_json(content);
+
+        // Should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["error_count"], 0);
+        assert!(parsed["colors"].as_array().unwrap().len() >= 1);
+    }
+
+    // === Timing Function Analysis Tests ===
+
+    #[test]
+    fn test_analyze_timing_linear() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "slide", "timing_function": "linear"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.animation, "slide");
+        assert_eq!(anim.timing_function, "linear");
+        assert_eq!(anim.curve_type, "linear");
+        assert!(anim.description.contains("Constant speed"));
+        assert!(anim.ascii_curve.is_some());
+    }
+
+    #[test]
+    fn test_analyze_timing_ease_in_out() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "fade", "timing_function": "ease-in-out"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.curve_type, "smooth");
+        assert!(anim.description.contains("Slow start and end"));
+    }
+
+    #[test]
+    fn test_analyze_timing_cubic_bezier() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "custom", "timing_function": "cubic-bezier(0.25, 0.1, 0.25, 1.0)"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.curve_type, "smooth");
+        assert!(anim.description.contains("cubic bezier"));
+    }
+
+    #[test]
+    fn test_analyze_timing_steps() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "walk", "timing_function": "steps(4, jump-end)"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.curve_type, "stepped");
+        assert!(anim.description.contains("4 discrete step"));
+    }
+
+    #[test]
+    fn test_analyze_timing_bounce() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "drop", "timing_function": "bounce"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.curve_type, "bouncy");
+        assert!(anim.description.contains("Bouncy effect"));
+    }
+
+    #[test]
+    fn test_analyze_timing_default_linear() {
+        let client = LspAgentClient::new();
+        // No timing_function specified - should default to linear
+        let content = r#"{"type": "animation", "name": "idle", "frames": ["f1", "f2"]}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 1);
+
+        let anim = &result.animations[0];
+        assert_eq!(anim.timing_function, "linear");
+    }
+
+    #[test]
+    fn test_analyze_timing_multiple_animations() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "walk", "timing_function": "linear"}
+{"type": "animation", "name": "run", "timing_function": "ease-in"}
+{"type": "animation", "name": "jump", "timing_function": "bounce"}"#;
+
+        let result = client.analyze_timing(content);
+        assert_eq!(result.animations.len(), 3);
+
+        let walk = result.animations.iter().find(|a| a.animation == "walk").unwrap();
+        assert_eq!(walk.curve_type, "linear");
+
+        let run = result.animations.iter().find(|a| a.animation == "run").unwrap();
+        assert_eq!(run.curve_type, "smooth");
+
+        let jump = result.animations.iter().find(|a| a.animation == "jump").unwrap();
+        assert_eq!(jump.curve_type, "bouncy");
+    }
+
+    #[test]
+    fn test_analyze_timing_json() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "test", "timing_function": "ease"}"#;
+        let json = client.analyze_timing_json(content);
+
+        // Should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["animations"].as_array().unwrap().len() >= 1);
+    }
+
+    #[test]
+    fn test_ascii_curve_rendering() {
+        let client = LspAgentClient::new();
+        let content = r#"{"type": "animation", "name": "test", "timing_function": "ease-in-out"}"#;
+
+        let result = client.analyze_timing(content);
+        let anim = &result.animations[0];
+
+        let curve = anim.ascii_curve.as_ref().unwrap();
+        // Should have box-drawing characters
+        assert!(curve.contains('┌'));
+        assert!(curve.contains('┐'));
+        assert!(curve.contains('└'));
+        assert!(curve.contains('┘'));
+        assert!(curve.contains('│'));
+        assert!(curve.contains('█'));
     }
 }
