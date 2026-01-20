@@ -5,6 +5,7 @@
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, PaletteRef, TtpObject};
+use pixelsrc::palette_cycle::calculate_total_frames;
 use pixelsrc::output::scale_image;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
@@ -505,6 +506,72 @@ pub fn assert_gif_frame_dimensions(
         info.frame_height, expected_height,
         "GIF frame height mismatch for animation '{}': expected {}, got {}",
         animation_name, expected_height, info.frame_height
+    );
+}
+
+// ============================================================================
+// Palette Cycle Helpers
+// ============================================================================
+
+/// Structured info captured from a palette cycle animation.
+#[derive(Debug, Clone)]
+pub struct PaletteCycleInfo {
+    /// Number of cycles in the animation
+    pub cycle_count: usize,
+    /// Total frames generated (LCM of all cycle lengths)
+    pub total_frames: usize,
+    /// List of cycle lengths
+    pub cycle_lengths: Vec<usize>,
+    /// List of cycle durations in milliseconds
+    pub cycle_durations: Vec<Option<u32>>,
+    /// Tokens in each cycle
+    pub cycle_tokens: Vec<Vec<String>>,
+}
+
+/// Capture palette cycle info for an animation.
+///
+/// Parses the JSONL content, finds the animation, and captures info about
+/// the palette cycles defined on it.
+pub fn capture_palette_cycle_info(jsonl: &str, animation_name: &str) -> PaletteCycleInfo {
+    let (_, _, animations) = parse_content(jsonl);
+
+    let animation = animations
+        .get(animation_name)
+        .unwrap_or_else(|| panic!("Animation '{animation_name}' not found"));
+
+    let cycles = animation.palette_cycles();
+    let total_frames = calculate_total_frames(cycles);
+
+    PaletteCycleInfo {
+        cycle_count: cycles.len(),
+        total_frames,
+        cycle_lengths: cycles.iter().map(|c| c.cycle_length()).collect(),
+        cycle_durations: cycles.iter().map(|c| c.duration).collect(),
+        cycle_tokens: cycles.iter().map(|c| c.tokens.clone()).collect(),
+    }
+}
+
+/// Verify animation has expected number of palette cycles.
+pub fn assert_palette_cycle_count(jsonl: &str, animation_name: &str, expected_count: usize) {
+    let info = capture_palette_cycle_info(jsonl, animation_name);
+    assert_eq!(
+        info.cycle_count, expected_count,
+        "Palette cycle count mismatch for animation '{}': expected {}, got {}",
+        animation_name, expected_count, info.cycle_count
+    );
+}
+
+/// Verify palette cycle generates expected total frame count.
+pub fn assert_palette_cycle_total_frames(
+    jsonl: &str,
+    animation_name: &str,
+    expected_frames: usize,
+) {
+    let info = capture_palette_cycle_info(jsonl, animation_name);
+    assert_eq!(
+        info.total_frames, expected_frames,
+        "Total frame count mismatch for animation '{}': expected {}, got {}",
+        animation_name, expected_frames, info.total_frames
     );
 }
 
@@ -1502,5 +1569,155 @@ mod tests {
         // Combines translate and scaleX for walking and turning
         assert_eq!(kf["50%"].transform.as_deref(), Some("translate(8px, 0) scaleX(1)"));
         assert_eq!(kf["51%"].transform.as_deref(), Some("translate(8px, 0) scaleX(-1)"));
+    }
+
+    // ========================================================================
+    // Palette Cycling Tests (DT-20)
+    // ========================================================================
+
+    /// @demo format/animation/palette_cycle#single
+    /// @title Single Palette Cycle
+    /// @description Single color cycling through a sequence of values (classic water/fire shimmer).
+    #[test]
+    fn test_palette_cycle_single() {
+        let jsonl = include_str!("../../examples/demos/palette_cycling/single_cycle.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprite can be resolved
+        sprite_registry
+            .resolve("wave", &palette_registry, false)
+            .expect("Sprite 'wave' should resolve");
+
+        // Verify animation has palette cycle
+        let anim = animations.get("wave_cycle").expect("Animation 'wave_cycle' not found");
+        let cycles = anim.palette_cycles();
+        assert_eq!(cycles.len(), 1, "Should have 1 palette cycle");
+
+        // Verify cycle properties
+        let cycle = &cycles[0];
+        assert_eq!(cycle.tokens.len(), 4, "Cycle should have 4 tokens");
+        assert_eq!(cycle.tokens[0], "{c1}");
+        assert_eq!(cycle.tokens[3], "{c4}");
+        assert_eq!(cycle.duration, Some(200), "Cycle duration should be 200ms");
+
+        // Verify using helper
+        let info = capture_palette_cycle_info(jsonl, "wave_cycle");
+        assert_eq!(info.cycle_count, 1);
+        assert_eq!(info.total_frames, 4, "4 tokens = 4 frames for single cycle");
+        assert_eq!(info.cycle_lengths, vec![4]);
+    }
+
+    /// @demo format/animation/palette_cycle#multiple
+    /// @title Multiple Independent Cycles
+    /// @description Multiple palette cycles running simultaneously at different speeds (water + fire).
+    #[test]
+    fn test_palette_cycle_multiple() {
+        let jsonl = include_str!("../../examples/demos/palette_cycling/multiple_cycles.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprite can be resolved
+        sprite_registry
+            .resolve("waterfire", &palette_registry, false)
+            .expect("Sprite 'waterfire' should resolve");
+
+        // Verify animation has multiple palette cycles
+        let anim = animations.get("dual_cycle").expect("Animation 'dual_cycle' not found");
+        let cycles = anim.palette_cycles();
+        assert_eq!(cycles.len(), 2, "Should have 2 palette cycles");
+
+        // Verify water cycle (3 tokens, 300ms)
+        let water_cycle = &cycles[0];
+        assert_eq!(water_cycle.tokens.len(), 3, "Water cycle should have 3 tokens");
+        assert!(water_cycle.tokens.iter().all(|t| t.starts_with("{w")));
+        assert_eq!(water_cycle.duration, Some(300), "Water cycle duration should be 300ms");
+
+        // Verify fire cycle (3 tokens, 200ms)
+        let fire_cycle = &cycles[1];
+        assert_eq!(fire_cycle.tokens.len(), 3, "Fire cycle should have 3 tokens");
+        assert!(fire_cycle.tokens.iter().all(|t| t.starts_with("{f")));
+        assert_eq!(fire_cycle.duration, Some(200), "Fire cycle duration should be 200ms");
+
+        // Verify total frames = LCM(3, 3) = 3
+        let info = capture_palette_cycle_info(jsonl, "dual_cycle");
+        assert_eq!(info.cycle_count, 2);
+        assert_eq!(info.total_frames, 3, "LCM(3,3) = 3 total frames");
+        assert_eq!(info.cycle_lengths, vec![3, 3]);
+    }
+
+    /// @demo format/animation/palette_cycle#timing
+    /// @title Cycle Timing Control
+    /// @description Controlling cycle speed with duration field (fast vs slow cycling).
+    #[test]
+    fn test_palette_cycle_timing() {
+        let jsonl = include_str!("../../examples/demos/palette_cycling/cycle_timing.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_, _, animations) = parse_content(jsonl);
+
+        // Verify fast cycle (50ms duration)
+        let fast_anim = animations.get("fast_cycle").expect("Animation 'fast_cycle' not found");
+        let fast_cycles = fast_anim.palette_cycles();
+        assert_eq!(fast_cycles.len(), 1);
+        assert_eq!(fast_cycles[0].duration, Some(50), "Fast cycle should be 50ms");
+        assert_eq!(fast_cycles[0].tokens.len(), 3);
+
+        // Verify slow cycle (500ms duration)
+        let slow_anim = animations.get("slow_cycle").expect("Animation 'slow_cycle' not found");
+        let slow_cycles = slow_anim.palette_cycles();
+        assert_eq!(slow_cycles.len(), 1);
+        assert_eq!(slow_cycles[0].duration, Some(500), "Slow cycle should be 500ms");
+        assert_eq!(slow_cycles[0].tokens.len(), 3);
+
+        // Both have same number of frames (3 tokens each)
+        let fast_info = capture_palette_cycle_info(jsonl, "fast_cycle");
+        let slow_info = capture_palette_cycle_info(jsonl, "slow_cycle");
+        assert_eq!(fast_info.total_frames, slow_info.total_frames, "Same token count = same frames");
+        assert_eq!(fast_info.total_frames, 3);
+
+        // But different durations
+        assert_eq!(fast_info.cycle_durations, vec![Some(50)]);
+        assert_eq!(slow_info.cycle_durations, vec![Some(500)]);
+    }
+
+    /// @demo format/animation/palette_cycle#ping_pong
+    /// @title Ping-Pong Cycling
+    /// @description Reverse direction cycling using duplicated tokens pattern (forward then backward).
+    #[test]
+    fn test_palette_cycle_ping_pong() {
+        let jsonl = include_str!("../../examples/demos/palette_cycling/ping_pong.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify sprite can be resolved
+        sprite_registry
+            .resolve("glow", &palette_registry, false)
+            .expect("Sprite 'glow' should resolve");
+
+        // Verify animation has ping-pong pattern
+        let anim = animations.get("ping_pong_glow").expect("Animation 'ping_pong_glow' not found");
+        let cycles = anim.palette_cycles();
+        assert_eq!(cycles.len(), 1, "Should have 1 palette cycle");
+
+        // Ping-pong is achieved by duplicating tokens: [p1, p2, p3, p4, p5, p4, p3, p2]
+        // This creates a forward-then-backward pattern
+        let cycle = &cycles[0];
+        assert_eq!(cycle.tokens.len(), 8, "Ping-pong cycle should have 8 tokens (5 + 3 reverse)");
+
+        // Verify the ping-pong pattern
+        assert_eq!(cycle.tokens[0], "{p1}", "Start at p1");
+        assert_eq!(cycle.tokens[4], "{p5}", "Peak at p5 (middle)");
+        assert_eq!(cycle.tokens[5], "{p4}", "Reverse: p4");
+        assert_eq!(cycle.tokens[6], "{p3}", "Reverse: p3");
+        assert_eq!(cycle.tokens[7], "{p2}", "Reverse: p2 (ends before p1 to avoid double)");
+
+        // Verify frame count = token count
+        let info = capture_palette_cycle_info(jsonl, "ping_pong_glow");
+        assert_eq!(info.total_frames, 8, "8 tokens = 8 frames");
+        assert_eq!(info.cycle_durations, vec![Some(100)]);
     }
 }

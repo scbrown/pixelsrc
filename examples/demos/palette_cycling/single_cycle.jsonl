@@ -1,0 +1,3 @@
+{"type": "palette", "name": "gradient", "colors": {"{_}": "#00000000", "{c1}": "#1E3A5F", "{c2}": "#2E5A8F", "{c3}": "#4E7ABF", "{c4}": "#7E9ADF"}}
+{"type": "sprite", "name": "wave", "palette": "gradient", "grid": ["{c1}{c2}{c3}{c4}", "{c2}{c3}{c4}{c1}", "{c3}{c4}{c1}{c2}", "{c4}{c1}{c2}{c3}"]}
+{"type": "animation", "name": "wave_cycle", "frames": ["wave"], "duration": 200, "palette_cycle": [{"tokens": ["{c1}", "{c2}", "{c3}", "{c4}"], "duration": 200}]}
