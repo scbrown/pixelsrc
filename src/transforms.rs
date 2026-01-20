@@ -5502,6 +5502,7 @@ mod tests {
     // ========================================================================
 
     #[test]
+    #[allow(clippy::approx_constant)] // Testing numeric parsing, not using PI
     fn test_expression_evaluator_numbers() {
         let eval = ExpressionEvaluator::new(std::collections::HashMap::new());
         assert!((eval.evaluate("42").unwrap() - 42.0).abs() < f64::EPSILON);

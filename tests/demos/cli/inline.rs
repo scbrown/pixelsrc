@@ -43,21 +43,9 @@ fn test_inline_basic() {
 fn test_inline_column_alignment() {
     // Create rows with varying token lengths
     let rows = vec![
-        vec![
-            "{_}".to_string(),
-            "{_}".to_string(),
-            "{body}".to_string(),
-        ],
-        vec![
-            "{_}".to_string(),
-            "{skin_highlight}".to_string(),
-            "{body}".to_string(),
-        ],
-        vec![
-            "{eye}".to_string(),
-            "{skin_shadow}".to_string(),
-            "{body_dark}".to_string(),
-        ],
+        vec!["{_}".to_string(), "{_}".to_string(), "{body}".to_string()],
+        vec!["{_}".to_string(), "{skin_highlight}".to_string(), "{body}".to_string()],
+        vec!["{eye}".to_string(), "{skin_shadow}".to_string(), "{body_dark}".to_string()],
     ];
 
     let formatted = format_columns(rows);
@@ -68,17 +56,12 @@ fn test_inline_column_alignment() {
     // All rows should have consistent column positions
     let first_body_pos = formatted[0].find("{body}").expect("{{body}} should be in first row");
     let second_body_pos = formatted[1].find("{body}").expect("{{body}} should be in second row");
-    let third_body_pos = formatted[2].find("{body_dark}").expect("{{body_dark}} should be in third row");
+    let third_body_pos =
+        formatted[2].find("{body_dark}").expect("{{body_dark}} should be in third row");
 
     // All third column entries should start at the same position
-    assert_eq!(
-        first_body_pos, second_body_pos,
-        "Third column should be aligned across rows"
-    );
-    assert_eq!(
-        first_body_pos, third_body_pos,
-        "Third column should be aligned with body_dark"
-    );
+    assert_eq!(first_body_pos, second_body_pos, "Third column should be aligned across rows");
+    assert_eq!(first_body_pos, third_body_pos, "Third column should be aligned with body_dark");
 }
 
 /// @demo cli/inline#token_preservation
@@ -108,22 +91,10 @@ fn test_inline_token_preservation() {
     let formatted = format_columns(rows);
 
     // Full token names should be preserved
-    assert!(
-        formatted.iter().any(|row| row.contains("{hair}")),
-        "Should preserve {{hair}} token"
-    );
-    assert!(
-        formatted.iter().any(|row| row.contains("{skin}")),
-        "Should preserve {{skin}} token"
-    );
-    assert!(
-        formatted.iter().any(|row| row.contains("{eye}")),
-        "Should preserve {{eye}} token"
-    );
-    assert!(
-        formatted.iter().any(|row| row.contains("{shirt}")),
-        "Should preserve {{shirt}} token"
-    );
+    assert!(formatted.iter().any(|row| row.contains("{hair}")), "Should preserve {{hair}} token");
+    assert!(formatted.iter().any(|row| row.contains("{skin}")), "Should preserve {{skin}} token");
+    assert!(formatted.iter().any(|row| row.contains("{eye}")), "Should preserve {{eye}} token");
+    assert!(formatted.iter().any(|row| row.contains("{shirt}")), "Should preserve {{shirt}} token");
 }
 
 /// @demo cli/inline#empty_grid
@@ -142,23 +113,13 @@ fn test_inline_empty_grid() {
 /// @description Single-row grids format correctly without extra padding.
 #[test]
 fn test_inline_single_row() {
-    let rows = vec![vec![
-        "{a}".to_string(),
-        "{bb}".to_string(),
-        "{ccc}".to_string(),
-    ]];
+    let rows = vec![vec!["{a}".to_string(), "{bb}".to_string(), "{ccc}".to_string()]];
 
     let formatted = format_columns(rows);
 
     assert_eq!(formatted.len(), 1, "Should have 1 formatted row");
-    assert!(
-        formatted[0].contains("{a}"),
-        "Should contain first token"
-    );
-    assert!(
-        formatted[0].contains("{ccc}"),
-        "Should contain last token"
-    );
+    assert!(formatted[0].contains("{a}"), "Should contain first token");
+    assert!(formatted[0].contains("{ccc}"), "Should contain last token");
 }
 
 /// @demo cli/inline#wide_tokens
@@ -168,10 +129,7 @@ fn test_inline_single_row() {
 fn test_inline_wide_tokens() {
     let rows = vec![
         vec!["{short}".to_string(), "{x}".to_string()],
-        vec![
-            "{very_long_token_name}".to_string(),
-            "{y}".to_string(),
-        ],
+        vec!["{very_long_token_name}".to_string(), "{y}".to_string()],
     ];
 
     let formatted = format_columns(rows);
@@ -180,8 +138,5 @@ fn test_inline_wide_tokens() {
     let first_x_pos = formatted[0].find("{x}").expect("{{x}} should be in first row");
     let second_y_pos = formatted[1].find("{y}").expect("{{y}} should be in second row");
 
-    assert_eq!(
-        first_x_pos, second_y_pos,
-        "Second column should be aligned"
-    );
+    assert_eq!(first_x_pos, second_y_pos, "Second column should be aligned");
 }

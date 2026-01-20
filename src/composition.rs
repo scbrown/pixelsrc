@@ -45,10 +45,7 @@ pub struct RenderContext {
 impl RenderContext {
     /// Create a new empty render context.
     pub fn new() -> Self {
-        Self {
-            composition_cache: HashMap::new(),
-            render_stack: Vec::new(),
-        }
+        Self { composition_cache: HashMap::new(), render_stack: Vec::new() }
     }
 
     /// Get a cached rendered composition by name.
@@ -92,12 +89,8 @@ impl RenderContext {
     pub fn push(&mut self, name: impl Into<String>) -> Result<(), CompositionError> {
         let name = name.into();
         if self.render_stack.contains(&name) {
-            let mut cycle_path: Vec<String> = self
-                .render_stack
-                .iter()
-                .skip_while(|n| *n != &name)
-                .cloned()
-                .collect();
+            let mut cycle_path: Vec<String> =
+                self.render_stack.iter().skip_while(|n| *n != &name).cloned().collect();
             cycle_path.push(name);
             return Err(CompositionError::CycleDetected { cycle_path });
         }
@@ -3073,14 +3066,8 @@ mod tests {
 
         // Verify colors
         assert_eq!(*ctx.get_cached("red").unwrap().get_pixel(0, 0), Rgba([255, 0, 0, 255]));
-        assert_eq!(
-            *ctx.get_cached("green").unwrap().get_pixel(0, 0),
-            Rgba([0, 255, 0, 255])
-        );
-        assert_eq!(
-            *ctx.get_cached("blue").unwrap().get_pixel(0, 0),
-            Rgba([0, 0, 255, 255])
-        );
+        assert_eq!(*ctx.get_cached("green").unwrap().get_pixel(0, 0), Rgba([0, 255, 0, 255]));
+        assert_eq!(*ctx.get_cached("blue").unwrap().get_pixel(0, 0), Rgba([0, 0, 255, 255]));
     }
 
     #[test]

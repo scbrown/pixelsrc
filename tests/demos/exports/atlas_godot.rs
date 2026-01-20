@@ -150,7 +150,10 @@ fn test_atlas_godot_content() {
         "Should be AnimationLibrary resource"
     );
     assert!(anims_content.contains("Animation_walk"), "Should contain walk animation");
-    assert!(anims_content.contains("tracks/0/path = NodePath(\".:texture\")"), "Should animate texture property");
+    assert!(
+        anims_content.contains("tracks/0/path = NodePath(\".:texture\")"),
+        "Should animate texture property"
+    );
 }
 
 /// @demo export/atlas#godot_origin

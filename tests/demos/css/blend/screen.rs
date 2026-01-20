@@ -17,16 +17,8 @@ fn test_css_blend_screen() {
     // Verify composition structure
     let info = capture_composition_info(jsonl, "blend_screen_demo");
     assert_eq!(info.layer_count, 2, "Should have 2 layers (base + overlay)");
-    assert_eq!(
-        info.width,
-        Some(6),
-        "Composition should be 6 pixels wide"
-    );
-    assert_eq!(
-        info.height,
-        Some(6),
-        "Composition should be 6 pixels tall"
-    );
+    assert_eq!(info.width, Some(6), "Composition should be 6 pixels wide");
+    assert_eq!(info.height, Some(6), "Composition should be 6 pixels tall");
 
     // Verify blend modes: base layer has no blend (default), overlay has "screen"
     assert_layer_blend_mode(jsonl, "blend_screen_demo", 0, None);

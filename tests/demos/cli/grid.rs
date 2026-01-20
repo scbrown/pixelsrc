@@ -156,11 +156,7 @@ fn test_grid_tall_sprite() {
 /// @description Tokens are aligned in columns for easy reading.
 #[test]
 fn test_grid_alignment() {
-    let grid = vec![
-        "{a}{b}{c}".to_string(),
-        "{d}{e}{f}".to_string(),
-        "{g}{h}{i}".to_string(),
-    ];
+    let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
 
     let output = render_coordinate_grid(&grid, false);
 
@@ -168,11 +164,7 @@ fn test_grid_alignment() {
     let lines: Vec<&str> = output.lines().collect();
 
     // Find token positions in content lines (skip header lines)
-    let content_lines: Vec<&str> = lines
-        .iter()
-        .filter(|l| l.contains("│"))
-        .cloned()
-        .collect();
+    let content_lines: Vec<&str> = lines.iter().filter(|l| l.contains("│")).cloned().collect();
 
     assert_eq!(content_lines.len(), 3, "Should have 3 content rows");
 

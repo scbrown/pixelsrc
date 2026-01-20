@@ -69,9 +69,8 @@ fn test_transform_source_reference() {
     let (_, sprite_registry, _) = parse_content(jsonl);
 
     // Verify arrow_left references arrow_right
-    let arrow_left = sprite_registry
-        .get_sprite("arrow_left")
-        .expect("Sprite 'arrow_left' should exist");
+    let arrow_left =
+        sprite_registry.get_sprite("arrow_left").expect("Sprite 'arrow_left' should exist");
 
     assert_eq!(
         arrow_left.source.as_deref(),
@@ -80,10 +79,7 @@ fn test_transform_source_reference() {
     );
 
     // Verify it has a transform
-    let transform = arrow_left
-        .transform
-        .as_ref()
-        .expect("arrow_left should have transform");
+    let transform = arrow_left.transform.as_ref().expect("arrow_left should have transform");
 
     assert!(!transform.is_empty(), "Transform should not be empty");
 }
@@ -98,9 +94,8 @@ fn test_transform_chain() {
     let (_, sprite_registry, _) = parse_content(jsonl);
 
     // Check arrow_scaled has scale transform
-    let scaled = sprite_registry
-        .get_sprite("arrow_scaled")
-        .expect("Sprite 'arrow_scaled' should exist");
+    let scaled =
+        sprite_registry.get_sprite("arrow_scaled").expect("Sprite 'arrow_scaled' should exist");
 
     let transform = scaled.transform.as_ref().expect("Should have transform");
     assert_eq!(transform.len(), 1, "Should have exactly 1 transform");

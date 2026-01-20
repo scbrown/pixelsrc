@@ -22,14 +22,8 @@ fn test_watch_mode_configuration() {
     assert_eq!(config.project.name, "watch-demo");
 
     // Verify watch settings
-    assert_eq!(
-        config.watch.debounce_ms, 50,
-        "Debounce should be 50ms for responsive feedback"
-    );
-    assert!(
-        config.watch.clear_screen,
-        "Should clear screen between rebuilds"
-    );
+    assert_eq!(config.watch.debounce_ms, 50, "Debounce should be 50ms for responsive feedback");
+    assert!(config.watch.clear_screen, "Should clear screen between rebuilds");
 }
 
 /// @demo build/watch#debounce
@@ -44,20 +38,14 @@ fn test_watch_mode_debounce() {
     // Test custom debounce from config
     let toml_content = watch_mode_toml();
     let config: PxlConfig = toml::from_str(toml_content).expect("Should parse config");
-    assert_eq!(
-        config.watch.debounce_ms, 50,
-        "Custom debounce should be 50ms"
-    );
+    assert_eq!(config.watch.debounce_ms, 50, "Custom debounce should be 50ms");
 
     // Verify debounce is reasonable (not too fast, not too slow)
     assert!(
         config.watch.debounce_ms >= 10,
         "Debounce should be at least 10ms to batch rapid changes"
     );
-    assert!(
-        config.watch.debounce_ms <= 500,
-        "Debounce should be at most 500ms for responsiveness"
-    );
+    assert!(config.watch.debounce_ms <= 500, "Debounce should be at most 500ms for responsiveness");
 }
 
 /// @demo build/watch#clear_screen
@@ -72,10 +60,7 @@ fn test_watch_mode_clear_screen() {
     // Test custom clear screen from config
     let toml_content = watch_mode_toml();
     let config: PxlConfig = toml::from_str(toml_content).expect("Should parse config");
-    assert!(
-        config.watch.clear_screen,
-        "Watch mode config should clear screen"
-    );
+    assert!(config.watch.clear_screen, "Watch mode config should clear screen");
 
     // Test disabled clear screen
     let no_clear_toml = r#"
@@ -86,10 +71,7 @@ name = "test"
 clear_screen = false
 "#;
     let no_clear: PxlConfig = toml::from_str(no_clear_toml).expect("Should parse");
-    assert!(
-        !no_clear.watch.clear_screen,
-        "Should respect clear_screen = false"
-    );
+    assert!(!no_clear.watch.clear_screen, "Should respect clear_screen = false");
 }
 
 /// @demo build/watch#relaxed_validation
@@ -101,10 +83,7 @@ fn test_watch_mode_relaxed_validation() {
     let config: PxlConfig = toml::from_str(toml_content).expect("Should parse config");
 
     // Verify relaxed validation
-    assert!(
-        !config.validate.strict,
-        "Watch mode should not use strict validation"
-    );
+    assert!(!config.validate.strict, "Watch mode should not use strict validation");
 
     // Unused palettes should be ignored during development
     assert_eq!(
@@ -130,16 +109,10 @@ fn test_watch_mode_preview_generation() {
     let config: PxlConfig = toml::from_str(toml_content).expect("Should parse config");
 
     // Verify preview is enabled for quick visual feedback
-    assert!(
-        config.animations.preview,
-        "Watch mode should enable animation previews"
-    );
+    assert!(config.animations.preview, "Watch mode should enable animation previews");
 
     // Preview scale should be reasonable for quick rendering
-    assert_eq!(
-        config.animations.preview_scale, 2,
-        "Preview scale should be 2x for watch mode"
-    );
+    assert_eq!(config.animations.preview_scale, 2, "Preview scale should be 2x for watch mode");
 
     // Horizontal layout is faster to render
     assert_eq!(
@@ -157,14 +130,8 @@ fn test_watch_mode_defaults() {
     let default = WatchConfig::default();
 
     // Check all defaults
-    assert_eq!(
-        default.debounce_ms, 100,
-        "Default debounce should be 100ms"
-    );
-    assert!(
-        default.clear_screen,
-        "Default should clear screen"
-    );
+    assert_eq!(default.debounce_ms, 100, "Default debounce should be 100ms");
+    assert!(default.clear_screen, "Default should clear screen");
 }
 
 /// @demo build/watch#serde_roundtrip
@@ -172,10 +139,7 @@ fn test_watch_mode_defaults() {
 /// @description Verify watch configuration serializes and deserializes correctly.
 #[test]
 fn test_watch_mode_serde_roundtrip() {
-    let original = WatchConfig {
-        debounce_ms: 75,
-        clear_screen: false,
-    };
+    let original = WatchConfig { debounce_ms: 75, clear_screen: false };
 
     // Serialize to TOML
     let toml_str = toml::to_string(&original).expect("Should serialize");

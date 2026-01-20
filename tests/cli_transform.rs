@@ -41,9 +41,7 @@ fn extract_grid(jsonl: &str) -> Option<Vec<String>> {
             if value.get("type").and_then(|t| t.as_str()) == Some("sprite") {
                 if let Some(grid) = value.get("grid").and_then(|g| g.as_array()) {
                     return Some(
-                        grid.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect(),
+                        grid.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
                     );
                 }
             }
@@ -284,7 +282,10 @@ fn test_transform_rotate_invalid() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("90") || stderr.contains("180") || stderr.contains("270") || stderr.contains("invalid"),
+        stderr.contains("90")
+            || stderr.contains("180")
+            || stderr.contains("270")
+            || stderr.contains("invalid"),
         "Should mention valid rotation values: {stderr}"
     );
 }

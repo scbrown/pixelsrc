@@ -135,10 +135,7 @@ fn test_import_max_colors() {
 
     // Import with reduced color count (quantization)
     let result_2 = import_png(&path, "colors_2", 2).expect("Import should succeed");
-    assert!(
-        result_2.palette.len() <= 2,
-        "Quantization should limit to 2 colors"
-    );
+    assert!(result_2.palette.len() <= 2, "Quantization should limit to 2 colors");
 }
 
 /// @demo cli/import#transparency
@@ -154,10 +151,7 @@ fn test_import_transparency() {
     assert_eq!(result.palette.len(), 2, "Should have red + transparent");
 
     // Verify transparent token exists
-    assert!(
-        result.palette.contains_key("{_}"),
-        "Should have {{_}} transparent token"
-    );
+    assert!(result.palette.contains_key("{_}"), "Should have {{_}} transparent token");
 
     // Verify transparent color is fully transparent
     let transparent_color = &result.palette["{_}"];
@@ -168,10 +162,7 @@ fn test_import_transparency() {
 
     // Verify grid contains transparent tokens
     let jsonl = result.to_jsonl();
-    assert!(
-        jsonl.contains("{_}"),
-        "Grid should contain transparent tokens"
-    );
+    assert!(jsonl.contains("{_}"), "Grid should contain transparent tokens");
 }
 
 /// @demo cli/import#name_derivation
@@ -243,11 +234,7 @@ fn test_import_token_generation() {
     let tokens: Vec<&String> = result.palette.keys().collect();
     let unique_count = tokens.iter().collect::<std::collections::HashSet<_>>().len();
 
-    assert_eq!(
-        unique_count,
-        tokens.len(),
-        "All tokens should be unique"
-    );
+    assert_eq!(unique_count, tokens.len(), "All tokens should be unique");
 
     for token in &tokens {
         assert!(token.starts_with('{'), "Token should start with {{");

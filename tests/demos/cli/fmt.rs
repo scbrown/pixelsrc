@@ -59,15 +59,13 @@ fn test_fmt_visual_grid() {
 #[test]
 fn test_fmt_single_row_compact() {
     // Single-row sprite stays compact
-    let single_row = r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    let single_row =
+        r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
 
     let formatted = format_pixelsrc(single_row).expect("Formatting should succeed");
 
     // Single row grid should stay on one line
-    assert!(
-        formatted.contains(r#""grid": ["{x}"]"#),
-        "Single-row grid should remain compact"
-    );
+    assert!(formatted.contains(r#""grid": ["{x}"]"#), "Single-row grid should remain compact");
 }
 
 /// @demo cli/fmt#palette_sorted
@@ -147,10 +145,7 @@ fn test_fmt_composition() {
     let formatted = format_pixelsrc(input).expect("Formatting should succeed");
 
     // Composition should have layers on separate lines
-    assert!(
-        formatted.contains('\n'),
-        "Composition should have multi-line formatting"
-    );
+    assert!(formatted.contains('\n'), "Composition should have multi-line formatting");
 
     // Verify it still parses
     let reader = Cursor::new(&formatted);

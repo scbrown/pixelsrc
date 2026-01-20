@@ -211,10 +211,7 @@ fn test_transparency_handling() {
     assert_eq!(result.palette.len(), 2, "Should have 2 colors (red + transparent)");
 
     // Verify transparent token exists
-    assert!(
-        result.palette.contains_key("{_}"),
-        "Should have transparent token {{_}}"
-    );
+    assert!(result.palette.contains_key("{_}"), "Should have transparent token {{_}}");
 
     // Verify transparent color value
     let transparent_hex = &result.palette["{_}"];

@@ -73,10 +73,7 @@ fn test_validate_invalid_json() {
     assert!(errors > 0, "Invalid JSON should produce errors");
 
     let issues = validate_with_issues(jsonl);
-    assert!(
-        issues.iter().any(|i| i.contains("ERROR")),
-        "Should have error-level issues"
-    );
+    assert!(issues.iter().any(|i| i.contains("ERROR")), "Should have error-level issues");
 }
 
 /// @demo cli/validate#missing_type
@@ -114,7 +111,8 @@ fn test_validate_missing_name() {
 /// @description `pxl validate` detects references to palettes that don't exist.
 #[test]
 fn test_validate_undefined_palette() {
-    let jsonl = r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
+    let jsonl =
+        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
 
     let (errors, _) = validate_content(jsonl);
 
@@ -139,10 +137,7 @@ fn test_validate_invalid_color() {
 
     let (errors, warnings) = validate_content(jsonl);
 
-    assert!(
-        errors > 0 || warnings > 0,
-        "Invalid color should produce error or warning"
-    );
+    assert!(errors > 0 || warnings > 0, "Invalid color should produce error or warning");
 }
 
 /// @demo cli/validate#strict_mode
@@ -166,10 +161,7 @@ fn test_validate_strict_mode() {
 
     // Verify we can detect when strict mode would change the outcome
     if warnings > 0 && errors == 0 {
-        assert!(
-            strict_failures > 0,
-            "Strict mode converts warnings to failures"
-        );
+        assert!(strict_failures > 0, "Strict mode converts warnings to failures");
     }
 }
 
@@ -199,10 +191,7 @@ fn test_validate_line_numbers() {
         .filter(|i| i.line == 3 && matches!(i.severity, Severity::Error))
         .collect();
 
-    assert!(
-        !line_3_errors.is_empty(),
-        "Should report error on line 3 where invalid JSON is"
-    );
+    assert!(!line_3_errors.is_empty(), "Should report error on line 3 where invalid JSON is");
 }
 
 /// @demo cli/validate#multiple_errors
@@ -224,7 +213,8 @@ fn test_validate_multiple_errors() {
 /// @description `pxl validate --json` outputs machine-readable validation results.
 #[test]
 fn test_validate_json_output() {
-    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    let jsonl =
+        r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
 
     let mut validator = Validator::new();
     for (line_idx, line) in jsonl.lines().enumerate() {

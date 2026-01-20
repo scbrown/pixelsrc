@@ -3,7 +3,6 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
-pub mod animation;
 pub mod build;
 pub mod cli;
 pub mod css;
@@ -11,8 +10,8 @@ pub mod exports;
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
-use pixelsrc::palette_cycle::calculate_total_frames;
 use pixelsrc::output::scale_image;
+use pixelsrc::palette_cycle::calculate_total_frames;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
 use pixelsrc::renderer::render_resolved;
@@ -24,7 +23,6 @@ use std::io::Cursor;
 
 pub mod sprites;
 // Submodules for organized demo tests
-mod cli;
 mod imports;
 
 /// Structured render info captured from a sprite/animation render.
@@ -154,11 +152,8 @@ pub fn capture_composition_info(jsonl: &str, composition_name: &str) -> Composit
         None => (None, None),
     };
 
-    let blend_modes: Vec<Option<String>> = comp
-        .layers
-        .iter()
-        .map(|layer| layer.blend.clone())
-        .collect();
+    let blend_modes: Vec<Option<String>> =
+        comp.layers.iter().map(|layer| layer.blend.clone()).collect();
 
     let sprite_keys: Vec<String> = comp.sprites.keys().cloned().collect();
 
@@ -919,9 +914,18 @@ mod tests {
         assert_eq!(info_8x.height, 24, "8x scale should be 24 pixels tall (3 × 8)");
 
         // Color count should be preserved across scales
-        assert_eq!(info_1x.color_count, info_2x.color_count, "Color count should be preserved at 2x");
-        assert_eq!(info_1x.color_count, info_4x.color_count, "Color count should be preserved at 4x");
-        assert_eq!(info_1x.color_count, info_8x.color_count, "Color count should be preserved at 8x");
+        assert_eq!(
+            info_1x.color_count, info_2x.color_count,
+            "Color count should be preserved at 2x"
+        );
+        assert_eq!(
+            info_1x.color_count, info_4x.color_count,
+            "Color count should be preserved at 4x"
+        );
+        assert_eq!(
+            info_1x.color_count, info_8x.color_count,
+            "Color count should be preserved at 8x"
+        );
     }
 
     // ========================================================================
@@ -1532,7 +1536,8 @@ mod tests {
         assert_eq!(kf["100%"].transform.as_deref(), Some("translateY(4px)"));
 
         // Test slide_diagonal animation (translate both axes)
-        let slide_diagonal = animations.get("slide_diagonal").expect("Animation 'slide_diagonal' not found");
+        let slide_diagonal =
+            animations.get("slide_diagonal").expect("Animation 'slide_diagonal' not found");
         let kf = slide_diagonal.keyframes.as_ref().unwrap();
         assert_eq!(kf.len(), 3, "slide_diagonal should have 3 keyframes");
         assert_eq!(kf["50%"].transform.as_deref(), Some("translate(4px, 4px)"));
@@ -1652,7 +1657,8 @@ mod tests {
             .expect("Sprite 'arrow_left' should resolve");
 
         // Test flip_horizontal animation
-        let flip_h = animations.get("flip_horizontal").expect("Animation 'flip_horizontal' not found");
+        let flip_h =
+            animations.get("flip_horizontal").expect("Animation 'flip_horizontal' not found");
         assert!(flip_h.is_css_keyframes(), "flip_horizontal should use CSS keyframes");
         let kf = flip_h.keyframes.as_ref().unwrap();
         assert_eq!(kf["0%"].transform.as_deref(), Some("scaleX(1)"));
@@ -1698,7 +1704,15 @@ mod tests {
         assert!(palette_registry.contains("character"));
 
         // Verify all character sprites can be resolved
-        for sprite_name in ["char_idle_1", "char_idle_2", "char_run_1", "char_run_2", "char_run_3", "char_run_4", "item_gem"] {
+        for sprite_name in [
+            "char_idle_1",
+            "char_idle_2",
+            "char_run_1",
+            "char_run_2",
+            "char_run_3",
+            "char_run_4",
+            "item_gem",
+        ] {
             sprite_registry
                 .resolve(sprite_name, &palette_registry, false)
                 .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
@@ -1741,7 +1755,10 @@ mod tests {
         let base_info = capture_render_info(jsonl, "slime_base");
         assert_eq!(base_info.width, 5, "Slime sprite should be 5 pixels wide");
         assert_eq!(base_info.height, 5, "Slime sprite should be 5 pixels tall");
-        assert_eq!(base_info.color_count, 5, "Base slime should have 5 colors (including transparent)");
+        assert_eq!(
+            base_info.color_count, 5,
+            "Base slime should have 5 colors (including transparent)"
+        );
 
         // Verify all color variants can be resolved
         for variant_name in ["slime_red", "slime_blue", "slime_gold"] {
@@ -1751,8 +1768,14 @@ mod tests {
 
             // Verify variant has same dimensions as base
             let variant_info = capture_render_info(jsonl, variant_name);
-            assert_eq!(variant_info.width, base_info.width, "Variant '{variant_name}' should match base width");
-            assert_eq!(variant_info.height, base_info.height, "Variant '{variant_name}' should match base height");
+            assert_eq!(
+                variant_info.width, base_info.width,
+                "Variant '{variant_name}' should match base width"
+            );
+            assert_eq!(
+                variant_info.height, base_info.height,
+                "Variant '{variant_name}' should match base height"
+            );
         }
 
         // Verify squash sprite for animation
@@ -1880,7 +1903,10 @@ mod tests {
         // Both have same number of frames (3 tokens each)
         let fast_info = capture_palette_cycle_info(jsonl, "fast_cycle");
         let slow_info = capture_palette_cycle_info(jsonl, "slow_cycle");
-        assert_eq!(fast_info.total_frames, slow_info.total_frames, "Same token count = same frames");
+        assert_eq!(
+            fast_info.total_frames, slow_info.total_frames,
+            "Same token count = same frames"
+        );
         assert_eq!(fast_info.total_frames, 3);
 
         // But different durations
