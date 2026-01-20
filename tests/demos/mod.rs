@@ -4,6 +4,7 @@
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
 pub mod css;
+pub mod exports;
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
