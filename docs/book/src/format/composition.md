@@ -58,6 +58,9 @@ The `.` character maps to `null` (transparent/no sprite), while `H` and `T` plac
 
 ## Cell Size (Tiling)
 
+<!-- DEMOS format/composition#positioning -->
+<!-- /DEMOS -->
+
 The `cell_size` field enables tiling - composing large images from smaller sprites:
 
 | Cell Size | Meaning |
@@ -105,6 +108,9 @@ Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
 ```
 
 ## Multiple Layers
+
+<!-- DEMOS format/composition#basic_layers -->
+<!-- /DEMOS -->
 
 Layers are rendered bottom-to-top. The first layer is the background:
 
@@ -159,6 +165,9 @@ Fill an entire layer with a single sprite:
 ```
 
 ## Blend Modes
+
+<!-- DEMOS format/composition#blend_modes -->
+<!-- /DEMOS -->
 
 Layer blending controls how colors combine when layers overlap. Each blend mode applies a mathematical formula to determine the final pixel color.
 

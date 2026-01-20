@@ -38,6 +38,9 @@ Multiple transforms can be combined in a single string, separated by spaces.
 
 ### translate(x, y)
 
+<!-- DEMOS format/transforms#translate -->
+<!-- /DEMOS -->
+
 Move the sprite by the specified pixel offset.
 
 ```json
@@ -52,6 +55,9 @@ Move the sprite by the specified pixel offset.
 | `y` | integer | Vertical offset (positive = down, optional, defaults to 0) |
 
 ### rotate(deg)
+
+<!-- DEMOS format/transforms#rotate -->
+<!-- /DEMOS -->
 
 Rotate the sprite clockwise by the specified angle.
 
@@ -72,6 +78,9 @@ For crisp pixel art, use 90-degree increments (0, 90, 180, 270). Other angles wo
 | Other values | Arbitrary rotation with anti-aliasing |
 
 ### scale(n) or scale(x, y)
+
+<!-- DEMOS format/transforms#scale -->
+<!-- /DEMOS -->
 
 Scale the sprite uniformly or non-uniformly.
 
@@ -104,6 +113,9 @@ Integer scale factors (2, 3, 4) maintain pixel-perfect appearance. Fractional sc
 | 0.5, 0.25... | Reduced resolution |
 
 ### flip(x) or flip(y)
+
+<!-- DEMOS format/transforms#flip -->
+<!-- /DEMOS -->
 
 Mirror the sprite horizontally or vertically.
 

@@ -116,6 +116,9 @@ The `timing_function` field accepts CSS easing functions:
 
 ## Frame Array Format (Legacy)
 
+<!-- DEMOS format/animation#basic_frames -->
+<!-- /DEMOS -->
+
 The frame array format provides a simple list of sprite names. Use this for straightforward frame-by-frame animations.
 
 ### Syntax
@@ -198,6 +201,9 @@ Run several palette cycles simultaneously:
 ```
 
 ## Frame Tags
+
+<!-- DEMOS format/animation#frame_tags -->
+<!-- /DEMOS -->
 
 Mark frame ranges with semantic names for game engine integration:
 
@@ -300,6 +306,9 @@ Animate attached elements like hair, capes, or tails that follow the parent anim
 | `rotation` | Chain responds to rotation changes |
 
 ## Duration vs FPS
+
+<!-- DEMOS format/animation#timing -->
+<!-- /DEMOS -->
 
 You can specify timing using either `duration` (ms per frame) or `fps` (frames per second):
 

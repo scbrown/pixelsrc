@@ -26,6 +26,9 @@ A sprite defines a pixel art image using a grid of color tokens. Sprites are the
 
 ## Example
 
+<!-- DEMOS format/sprite#basic -->
+<!-- /DEMOS -->
+
 ```json
 {"type": "sprite", "name": "coin", "palette": "gold", "grid": [
   "{_}{g}{g}{_}",
@@ -78,6 +81,9 @@ This creates a 7x4 sprite with:
 
 ### Named Palette
 
+<!-- DEMOS format/sprite#named_palette -->
+<!-- /DEMOS -->
+
 Reference a palette defined earlier in the file:
 
 ```json
@@ -85,6 +91,9 @@ Reference a palette defined earlier in the file:
 ```
 
 ### Inline Palette
+
+<!-- DEMOS format/sprite#inline_palette -->
+<!-- /DEMOS -->
 
 Define colors directly in the sprite:
 
@@ -153,6 +162,9 @@ pxl render button.pxl --nine-slice 64x32 -o button_wide.png
 This scales the button to 64x32 pixels while preserving the 4-pixel borders.
 
 ## Metadata
+
+<!-- DEMOS format/sprite#metadata -->
+<!-- /DEMOS -->
 
 Attach additional data for game engine integration:
 

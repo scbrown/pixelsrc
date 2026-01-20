@@ -24,6 +24,9 @@ A palette defines named color tokens for use in sprites. Palettes separate color
 
 ## Example
 
+<!-- DEMOS format/palette#definitions -->
+<!-- /DEMOS -->
+
 ```json
 {"type": "palette", "name": "hero", "colors": {
   "{_}": "#00000000",
@@ -88,6 +91,9 @@ See [CSS Variables](css-variables.md) for complete documentation including themi
 - `{_}` - Conventional token for transparency (not enforced, but widely used)
 
 ## Color Ramps
+
+<!-- DEMOS format/palette#cycling -->
+<!-- /DEMOS -->
 
 Generate multiple shades from a base color. Shadows shift hue (toward warm/cool) rather than just darkening, creating more natural-looking color progressions.
 

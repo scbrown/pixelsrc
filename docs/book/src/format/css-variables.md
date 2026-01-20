@@ -22,6 +22,9 @@ Define variables with the `--` prefix and reference them with `var()`:
 
 ## Variable Definition
 
+<!-- DEMOS format/css-variables#definition -->
+<!-- /DEMOS -->
+
 Variables are palette entries with keys starting with `--`:
 
 | Syntax | Description |
@@ -37,6 +40,9 @@ This allows forward references - a color can use `var(--name)` even if `--name` 
 
 ## Variable References
 
+<!-- DEMOS format/css-variables#resolution -->
+<!-- /DEMOS -->
+
 Reference variables with `var(--name)` or `var(--name, fallback)`:
 
 | Syntax | Description |
@@ -46,6 +52,9 @@ Reference variables with `var(--name)` or `var(--name, fallback)`:
 | `var(name)` | Also works (-- prefix optional) |
 
 ### Fallback Values
+
+<!-- DEMOS format/css-variables#fallbacks -->
+<!-- /DEMOS -->
 
 Fallbacks are used when a variable is undefined:
 
