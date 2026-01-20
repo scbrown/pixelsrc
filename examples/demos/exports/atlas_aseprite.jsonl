@@ -1,0 +1,10 @@
+{"type": "palette", "name": "character", "colors": {"{_}": "#00000000", "{o}": "#2C3E50", "{s}": "#E74C3C", "{e}": "#3498DB", "{h}": "#F39C12"}}
+{"type": "sprite", "name": "char_idle_1", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{_}{o}{_}{o}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "char_idle_2", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{o}{_}{_}{o}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "char_run_1", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{o}{_}{o}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "char_run_2", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{_}{o}{_}{o}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "char_run_3", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{_}{o}{o}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "char_run_4", "palette": "character", "grid": ["{_}{o}{o}{_}", "{o}{e}{e}{o}", "{o}{s}{s}{o}", "{o}{_}{_}{o}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "item_gem", "palette": "character", "grid": ["{_}{h}{_}", "{h}{h}{h}", "{_}{h}{_}"]}
+{"type": "animation", "name": "idle", "frames": ["char_idle_1", "char_idle_2"], "duration": 500}
+{"type": "animation", "name": "run", "frames": ["char_run_1", "char_run_2", "char_run_3", "char_run_4"], "duration": 100}
