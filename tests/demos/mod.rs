@@ -3,6 +3,7 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
+pub mod composition;
 pub mod css;
 pub mod exports;
 
