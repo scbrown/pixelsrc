@@ -8,6 +8,80 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 // ============================================================================
+// Render Context (NC-3)
+// ============================================================================
+
+/// Context for rendering operations with caching support.
+///
+/// The RenderContext stores rendered compositions to avoid redundant rendering
+/// when the same composition is referenced multiple times (e.g., in nested
+/// compositions or tiled layouts).
+///
+/// # Example
+///
+/// ```ignore
+/// use pixelsrc::composition::RenderContext;
+/// use image::RgbaImage;
+///
+/// let mut ctx = RenderContext::new();
+///
+/// // First render - compute and cache
+/// if ctx.get_cached("scene").is_none() {
+///     let rendered = render_composition(/* ... */);
+///     ctx.cache("scene".to_string(), rendered);
+/// }
+///
+/// // Second reference - get from cache
+/// let cached = ctx.get_cached("scene").unwrap();
+/// ```
+#[derive(Debug, Default)]
+pub struct RenderContext {
+    /// Cache of rendered compositions by name
+    composition_cache: HashMap<String, RgbaImage>,
+}
+
+impl RenderContext {
+    /// Create a new empty render context.
+    pub fn new() -> Self {
+        Self { composition_cache: HashMap::new() }
+    }
+
+    /// Get a cached rendered composition by name.
+    ///
+    /// Returns `None` if the composition has not been cached yet.
+    pub fn get_cached(&self, name: &str) -> Option<&RgbaImage> {
+        self.composition_cache.get(name)
+    }
+
+    /// Cache a rendered composition.
+    ///
+    /// If a composition with the same name was already cached, it will be replaced.
+    pub fn cache(&mut self, name: String, image: RgbaImage) {
+        self.composition_cache.insert(name, image);
+    }
+
+    /// Check if a composition is already cached.
+    pub fn is_cached(&self, name: &str) -> bool {
+        self.composition_cache.contains_key(name)
+    }
+
+    /// Clear all cached compositions.
+    pub fn clear(&mut self) {
+        self.composition_cache.clear();
+    }
+
+    /// Get the number of cached compositions.
+    pub fn len(&self) -> usize {
+        self.composition_cache.len()
+    }
+
+    /// Check if the cache is empty.
+    pub fn is_empty(&self) -> bool {
+        self.composition_cache.is_empty()
+    }
+}
+
+// ============================================================================
 // Blend Modes (ATF-10)
 // ============================================================================
 
@@ -2858,5 +2932,141 @@ mod tests {
         // String var() with fallback
         let var_fb: VarOr<f64> = serde_json::from_str(r#""var(--opacity, 0.5)""#).unwrap();
         assert!(matches!(var_fb, VarOr::Var(s) if s == "var(--opacity, 0.5)"));
+    }
+
+    // ========== RenderContext Cache Tests (NC-3) ==========
+
+    #[test]
+    fn test_render_context_new() {
+        let ctx = RenderContext::new();
+        assert!(ctx.is_empty());
+        assert_eq!(ctx.len(), 0);
+    }
+
+    #[test]
+    fn test_render_context_cache_and_get() {
+        let mut ctx = RenderContext::new();
+
+        // Create a test image
+        let mut img = RgbaImage::new(2, 2);
+        img.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        // Cache it
+        ctx.cache("test_comp".to_string(), img);
+
+        // Verify it's cached
+        assert!(ctx.is_cached("test_comp"));
+        assert_eq!(ctx.len(), 1);
+
+        // Get it back
+        let cached = ctx.get_cached("test_comp");
+        assert!(cached.is_some());
+        let cached = cached.unwrap();
+        assert_eq!(cached.width(), 2);
+        assert_eq!(cached.height(), 2);
+        assert_eq!(*cached.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_render_context_get_cached_not_found() {
+        let ctx = RenderContext::new();
+        assert!(ctx.get_cached("nonexistent").is_none());
+        assert!(!ctx.is_cached("nonexistent"));
+    }
+
+    #[test]
+    fn test_render_context_cache_overwrites() {
+        let mut ctx = RenderContext::new();
+
+        // Cache first image (red)
+        let mut img1 = RgbaImage::new(1, 1);
+        img1.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        ctx.cache("comp".to_string(), img1);
+
+        // Cache second image with same name (blue)
+        let mut img2 = RgbaImage::new(1, 1);
+        img2.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+        ctx.cache("comp".to_string(), img2);
+
+        // Should still have only one entry
+        assert_eq!(ctx.len(), 1);
+
+        // Should be the second (blue) image
+        let cached = ctx.get_cached("comp").unwrap();
+        assert_eq!(*cached.get_pixel(0, 0), Rgba([0, 0, 255, 255]));
+    }
+
+    #[test]
+    fn test_render_context_multiple_compositions() {
+        let mut ctx = RenderContext::new();
+
+        // Cache multiple compositions
+        let mut img1 = RgbaImage::new(1, 1);
+        img1.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        ctx.cache("red".to_string(), img1);
+
+        let mut img2 = RgbaImage::new(1, 1);
+        img2.put_pixel(0, 0, Rgba([0, 255, 0, 255]));
+        ctx.cache("green".to_string(), img2);
+
+        let mut img3 = RgbaImage::new(1, 1);
+        img3.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+        ctx.cache("blue".to_string(), img3);
+
+        assert_eq!(ctx.len(), 3);
+        assert!(ctx.is_cached("red"));
+        assert!(ctx.is_cached("green"));
+        assert!(ctx.is_cached("blue"));
+
+        // Verify colors
+        assert_eq!(*ctx.get_cached("red").unwrap().get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(
+            *ctx.get_cached("green").unwrap().get_pixel(0, 0),
+            Rgba([0, 255, 0, 255])
+        );
+        assert_eq!(
+            *ctx.get_cached("blue").unwrap().get_pixel(0, 0),
+            Rgba([0, 0, 255, 255])
+        );
+    }
+
+    #[test]
+    fn test_render_context_clear() {
+        let mut ctx = RenderContext::new();
+
+        // Cache some compositions
+        ctx.cache("a".to_string(), RgbaImage::new(1, 1));
+        ctx.cache("b".to_string(), RgbaImage::new(1, 1));
+        assert_eq!(ctx.len(), 2);
+
+        // Clear
+        ctx.clear();
+        assert!(ctx.is_empty());
+        assert_eq!(ctx.len(), 0);
+        assert!(!ctx.is_cached("a"));
+        assert!(!ctx.is_cached("b"));
+    }
+
+    #[test]
+    fn test_render_context_cache_hit_avoids_rerender() {
+        // This test demonstrates the cache usage pattern
+        let mut ctx = RenderContext::new();
+        let mut render_count = 0;
+
+        // Simulate rendering "scene" twice with cache
+        for _ in 0..2 {
+            if ctx.get_cached("scene").is_none() {
+                // "Render" the composition (in reality this would call render_composition)
+                render_count += 1;
+                let mut img = RgbaImage::new(4, 4);
+                img.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+                ctx.cache("scene".to_string(), img);
+            }
+            // Use the cached version
+            let _cached = ctx.get_cached("scene").unwrap();
+        }
+
+        // Should only have rendered once
+        assert_eq!(render_count, 1);
     }
 }
