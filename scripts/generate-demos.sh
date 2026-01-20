@@ -46,6 +46,7 @@ fi
 
 DRY_RUN=false
 CHECK_MODE=false
+BOOK_MODE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -56,6 +57,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --book)
             OUTPUT_DIR="$BOOK_DIR"
+            BOOK_MODE=true
             shift
             ;;
         --output-dir)
