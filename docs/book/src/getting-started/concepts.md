@@ -18,14 +18,22 @@ Pixelsrc files contain **objects**, one per line. Each object has a `type` field
 
 A **palette** defines colors with semantic names:
 
-```json
-{"type": "palette", "name": "hero", "colors": {
-  "{_}": "#00000000",
-  "{skin}": "#FFCC99",
-  "{hair}": "#8B4513",
-  "{outline}": "#000000"
-}}
+<!-- DEMOS getting-started/concepts#palette -->
+**Semantic Color Palette**
+
+Palette with meaningful token names for character colors.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFCC99", "{hair}": "#8B4513", "{outline}": "#000000"}}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="palette">
+</div>
+<!-- /DEMOS -->
 
 Key points:
 - Token names are wrapped in curly braces: `{name}`
@@ -53,13 +61,23 @@ Benefits of semantic tokens:
 
 A **sprite** is a pixel grid defined using tokens:
 
-```json
-{"type": "sprite", "name": "dot", "palette": "colors", "grid": [
-  "{_}{r}{_}",
-  "{r}{r}{r}",
-  "{_}{r}{_}"
-]}
+<!-- DEMOS getting-started/concepts#sprite -->
+**Basic Sprite Grid**
+
+A simple cross pattern showing how tokens map to pixels.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000"}}
+{"type": "sprite", "name": "dot", "palette": "colors", "grid": ["{_}{r}{_}", "{r}{r}{r}", "{_}{r}{_}"]}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="sprite">
+</div>
+<!-- /DEMOS -->
 
 Key points:
 - `grid` is an array of strings, one per row (top to bottom)
@@ -96,12 +114,25 @@ Key points:
 
 A **composition** layers multiple sprites:
 
-```json
-{"type": "composition", "name": "scene", "size": [32, 32], "layers": [
-  {"sprite": "background", "x": 0, "y": 0},
-  {"sprite": "hero", "x": 8, "y": 16}
-]}
+<!-- DEMOS getting-started/concepts#composition -->
+**Layered Scene**
+
+Combining multiple sprites into a single scene with positioning.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "scene", "colors": {"{_}": "#00000000", "{bg}": "#87CEEB", "{g}": "#228B22", "{r}": "#FF0000"}}
+{"type": "sprite", "name": "background", "palette": "scene", "grid": ["{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}", "{g}{g}{g}{g}", "{g}{g}{g}{g}"]}
+{"type": "sprite", "name": "hero", "palette": "scene", "grid": ["{r}{r}", "{r}{r}"]}
+{"type": "composition", "name": "scene", "size": [4, 4], "layers": [{"sprite": "background", "x": 0, "y": 0}, {"sprite": "hero", "x": 1, "y": 1}]}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="composition">
+</div>
+<!-- /DEMOS -->
 
 Layers are rendered bottom-to-top (first layer is background).
 

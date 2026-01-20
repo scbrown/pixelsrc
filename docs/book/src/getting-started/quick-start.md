@@ -19,6 +19,24 @@ This defines:
 - A **palette** named "star" with two colors: transparent (`{_}`) and yellow (`{y}`)
 - A **sprite** named "star" that uses that palette to draw a 3x3 star shape
 
+<!-- DEMOS getting-started/quick-start#star -->
+**Your First Sprite**
+
+A simple 3x3 star using semantic color tokens.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700"}}
+{"type": "sprite", "name": "star", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="star">
+</div>
+<!-- /DEMOS -->
+
 ### Try It
 
 Edit the colors below and click "Try it" to see your sprite:
