@@ -19,6 +19,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 
 pub mod sprites;
+// Submodules for organized demo tests
+mod imports;
 
 /// Structured render info captured from a sprite/animation render.
 #[derive(Debug, Clone)]
