@@ -1,6 +1,7 @@
 //! Composition rendering - layering sprites onto a canvas
 
 use crate::models::{Composition, VarOr};
+use crate::registry::CompositionRegistry;
 use crate::variables::VariableRegistry;
 use image::{Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
@@ -581,6 +582,168 @@ pub fn render_composition(
 
                     // Blit sprite onto canvas with blend mode and opacity (ATF-10)
                     blit_sprite_blended(&mut canvas, sprite_image, x, y, blend_mode, opacity);
+                }
+            }
+        }
+    }
+
+    Ok((canvas, warnings))
+}
+
+/// Render a composition with support for nested composition references (NC-4).
+///
+/// This function extends `render_composition` to support compositions that reference
+/// other compositions in their sprite maps. When a sprite name is not found in the
+/// `sprites` HashMap, the function checks the `composition_registry` for a composition
+/// with that name and recursively renders it.
+///
+/// # Cycle Detection
+/// The function uses `RenderContext` to track which compositions are currently being
+/// rendered. If a composition attempts to reference itself (directly or indirectly),
+/// a `CycleDetected` error is returned.
+///
+/// # Caching
+/// Rendered compositions are cached in the `RenderContext`. When the same composition
+/// is referenced multiple times, the cached result is reused.
+pub fn render_composition_nested(
+    comp: &Composition,
+    sprites: &HashMap<String, RgbaImage>,
+    composition_registry: Option<&CompositionRegistry>,
+    ctx: &mut RenderContext,
+    strict: bool,
+    variables: Option<&VariableRegistry>,
+) -> Result<(RgbaImage, Vec<Warning>), CompositionError> {
+    // Push this composition onto the render stack for cycle detection
+    ctx.push(&comp.name)?;
+
+    let result = render_composition_inner(comp, sprites, composition_registry, ctx, strict, variables);
+
+    // Pop from render stack when done
+    ctx.pop();
+
+    result
+}
+
+/// Internal implementation of nested composition rendering.
+fn render_composition_inner(
+    comp: &Composition,
+    sprites: &HashMap<String, RgbaImage>,
+    composition_registry: Option<&CompositionRegistry>,
+    ctx: &mut RenderContext,
+    strict: bool,
+    variables: Option<&VariableRegistry>,
+) -> Result<(RgbaImage, Vec<Warning>), CompositionError> {
+    let mut warnings = Vec::new();
+
+    // Determine cell size (default to [1, 1])
+    let cell_size = comp.cell_size.unwrap_or([1, 1]);
+
+    // Look up base sprite/composition if specified (NC-4: supports nested compositions)
+    let base_image: Option<std::borrow::Cow<'_, RgbaImage>> = if let Some(ref base_name) = comp.base {
+        if let Some(img) = sprites.get(base_name) {
+            Some(std::borrow::Cow::Borrowed(img))
+        } else if let Some(reg) = composition_registry {
+            if let Some(nested_comp) = reg.get(base_name) {
+                if let Some(cached) = ctx.get_cached(base_name) {
+                    Some(std::borrow::Cow::Owned(cached.clone()))
+                } else {
+                    let (rendered, nested_warnings) = render_composition_nested(
+                        nested_comp, sprites, composition_registry, ctx, strict, variables
+                    )?;
+                    warnings.extend(nested_warnings);
+                    ctx.cache(base_name.to_string(), rendered.clone());
+                    Some(std::borrow::Cow::Owned(rendered))
+                }
+            } else {
+                warnings.push(Warning::new(format!(
+                    "Base '{}' not found for composition '{}'", base_name, comp.name
+                )));
+                None
+            }
+        } else {
+            warnings.push(Warning::new(format!(
+                "Base sprite '{}' not found for composition '{}'", base_name, comp.name
+            )));
+            None
+        }
+    } else {
+        None
+    };
+
+    // Determine canvas size
+    let (width, height) = if let Some([w, h]) = comp.size {
+        (w, h)
+    } else if let Some(ref base_img) = base_image {
+        (base_img.width(), base_img.height())
+    } else {
+        let (w, h) = infer_size_from_layers(&comp.layers, cell_size);
+        if w == 0 || h == 0 { (1, 1) } else { (w, h) }
+    };
+
+    // Create canvas
+    let mut canvas = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
+
+    // Render base first
+    if let Some(ref base_img) = base_image {
+        blit_sprite(&mut canvas, base_img, 0, 0);
+    }
+
+    // Render each layer
+    for layer in &comp.layers {
+        let (blend_mode, blend_warning) = resolve_blend_mode(layer.blend.as_deref(), variables);
+        if let Some(w) = blend_warning { warnings.push(w); }
+
+        let (opacity, opacity_warning) = resolve_opacity(layer.opacity.as_ref(), variables);
+        if let Some(w) = opacity_warning { warnings.push(w); }
+
+        if let Some(ref map) = layer.map {
+            for (row_idx, row) in map.iter().enumerate() {
+                for (col_idx, char_key) in row.chars().enumerate() {
+                    let key = char_key.to_string();
+
+                    let sprite_name = match comp.sprites.get(&key) {
+                        Some(Some(name)) => name,
+                        Some(None) => continue,
+                        None => {
+                            warnings.push(Warning::new(format!(
+                                "Unknown sprite key '{}' in composition '{}'", key, comp.name
+                            )));
+                            continue;
+                        }
+                    };
+
+                    // Get sprite/composition image (NC-4: check compositions too)
+                    let sprite_image: std::borrow::Cow<'_, RgbaImage> = if let Some(img) = sprites.get(sprite_name) {
+                        std::borrow::Cow::Borrowed(img)
+                    } else if let Some(reg) = composition_registry {
+                        if let Some(nested_comp) = reg.get(sprite_name) {
+                            if let Some(cached) = ctx.get_cached(sprite_name) {
+                                std::borrow::Cow::Owned(cached.clone())
+                            } else {
+                                let (rendered, nested_warnings) = render_composition_nested(
+                                    nested_comp, sprites, composition_registry, ctx, strict, variables
+                                )?;
+                                warnings.extend(nested_warnings);
+                                ctx.cache(sprite_name.to_string(), rendered.clone());
+                                std::borrow::Cow::Owned(rendered)
+                            }
+                        } else {
+                            warnings.push(Warning::new(format!(
+                                "Sprite '{}' not found for composition '{}'", sprite_name, comp.name
+                            )));
+                            continue;
+                        }
+                    } else {
+                        warnings.push(Warning::new(format!(
+                            "Sprite '{}' not found for composition '{}'", sprite_name, comp.name
+                        )));
+                        continue;
+                    };
+
+                    let x = (col_idx as u32) * cell_size[0];
+                    let y = (row_idx as u32) * cell_size[1];
+
+                    blit_sprite_blended(&mut canvas, &sprite_image, x, y, blend_mode, opacity);
                 }
             }
         }
@@ -3284,5 +3447,443 @@ mod tests {
         ctx.push("C").unwrap();
         assert_eq!(ctx.depth(), 3);
         assert_eq!(cloned.depth(), 2);
+    }
+
+    // ========== Nested Composition Tests (NC-4) ==========
+
+    mod nested {
+        use super::super::{render_composition_nested, Composition, CompositionError, RenderContext, Warning};
+        use crate::registry::CompositionRegistry;
+        use image::{Rgba, RgbaImage};
+        use std::collections::HashMap;
+
+        /// Helper to create a simple composition
+        fn make_composition(
+            name: &str,
+            sprites_map: HashMap<String, Option<String>>,
+            layers: Vec<Vec<String>>,
+            size: Option<[u32; 2]>,
+        ) -> Composition {
+            Composition {
+                name: name.to_string(),
+                base: None,
+                size,
+                cell_size: Some([2, 2]),
+                sprites: sprites_map,
+                layers: layers
+                    .into_iter()
+                    .map(|map| crate::models::CompositionLayer {
+                        name: None,
+                        fill: None,
+                        map: Some(map),
+                        transform: None,
+                        blend: None,
+                        opacity: None,
+                    })
+                    .collect(),
+            }
+        }
+
+        /// Helper to create a 2x2 colored sprite image
+        fn make_sprite_image(r: u8, g: u8, b: u8) -> RgbaImage {
+            let mut img = RgbaImage::new(2, 2);
+            for pixel in img.pixels_mut() {
+                *pixel = Rgba([r, g, b, 255]);
+            }
+            img
+        }
+
+        #[test]
+        fn test_nested_composition_with_sprite_regression() {
+            // Regression test: composition referencing only sprites should still work
+            let mut sprites = HashMap::new();
+            sprites.insert("red".to_string(), make_sprite_image(255, 0, 0));
+            sprites.insert("blue".to_string(), make_sprite_image(0, 0, 255));
+
+            let sprites_map: HashMap<String, Option<String>> = [
+                ("R".to_string(), Some("red".to_string())),
+                ("B".to_string(), Some("blue".to_string())),
+                (".".to_string(), None),
+            ]
+            .into_iter()
+            .collect();
+
+            let comp = make_composition(
+                "main",
+                sprites_map,
+                vec![vec!["RB".to_string(), "BR".to_string()]],
+                Some([4, 4]),
+            );
+
+            let composition_registry = CompositionRegistry::new();
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (image, warnings) = result.unwrap();
+            assert!(warnings.is_empty());
+            assert_eq!(image.width(), 4);
+            assert_eq!(image.height(), 4);
+
+            // Check pixel colors: (0,0) should be red, (2,0) should be blue
+            assert_eq!(image.get_pixel(0, 0)[0], 255); // Red
+            assert_eq!(image.get_pixel(2, 0)[2], 255); // Blue
+        }
+
+        #[test]
+        fn test_nested_composition_references_composition() {
+            // Test: composition "main" references composition "sub" which uses sprite "pixel"
+            let mut sprites = HashMap::new();
+            sprites.insert("pixel".to_string(), make_sprite_image(128, 128, 128));
+
+            // Create sub-composition that uses the pixel sprite
+            let sub_sprites: HashMap<String, Option<String>> =
+                [("P".to_string(), Some("pixel".to_string()))].into_iter().collect();
+
+            let sub_comp = make_composition(
+                "sub",
+                sub_sprites,
+                vec![vec!["P".to_string()]],
+                Some([2, 2]),
+            );
+
+            // Create main composition that references "sub" composition
+            let main_sprites: HashMap<String, Option<String>> =
+                [("S".to_string(), Some("sub".to_string()))].into_iter().collect();
+
+            let main_comp = make_composition(
+                "main",
+                main_sprites,
+                vec![vec!["S".to_string()]],
+                Some([2, 2]),
+            );
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(sub_comp);
+            composition_registry.register(main_comp.clone());
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &main_comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (image, warnings) = result.unwrap();
+            assert!(warnings.is_empty());
+            assert_eq!(image.width(), 2);
+            assert_eq!(image.height(), 2);
+
+            // All pixels should be gray (from the nested composition)
+            assert_eq!(*image.get_pixel(0, 0), Rgba([128, 128, 128, 255]));
+        }
+
+        #[test]
+        fn test_nested_two_level_nesting() {
+            // Test: A -> B -> sprite (two levels of nesting)
+            let mut sprites = HashMap::new();
+            sprites.insert("green".to_string(), make_sprite_image(0, 255, 0));
+
+            // Level 2: comp_b uses sprite "green"
+            let comp_b_sprites: HashMap<String, Option<String>> =
+                [("G".to_string(), Some("green".to_string()))].into_iter().collect();
+
+            let comp_b = make_composition(
+                "comp_b",
+                comp_b_sprites,
+                vec![vec!["G".to_string()]],
+                Some([2, 2]),
+            );
+
+            // Level 1: comp_a references comp_b
+            let comp_a_sprites: HashMap<String, Option<String>> =
+                [("B".to_string(), Some("comp_b".to_string()))].into_iter().collect();
+
+            let comp_a = make_composition(
+                "comp_a",
+                comp_a_sprites,
+                vec![vec!["B".to_string()]],
+                Some([2, 2]),
+            );
+
+            // Top level: main references comp_a
+            let main_sprites: HashMap<String, Option<String>> =
+                [("A".to_string(), Some("comp_a".to_string()))].into_iter().collect();
+
+            let main_comp = make_composition(
+                "main",
+                main_sprites,
+                vec![vec!["A".to_string()]],
+                Some([2, 2]),
+            );
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(comp_b);
+            composition_registry.register(comp_a);
+            composition_registry.register(main_comp.clone());
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &main_comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (image, warnings) = result.unwrap();
+            assert!(warnings.is_empty());
+
+            // Should have green color from the deeply nested sprite
+            assert_eq!(*image.get_pixel(0, 0), Rgba([0, 255, 0, 255]));
+        }
+
+        #[test]
+        fn test_nested_cycle_detection() {
+            // Test: A -> B -> A should trigger cycle detection error
+            let sprites = HashMap::new();
+
+            // comp_a references comp_b
+            let comp_a_sprites: HashMap<String, Option<String>> =
+                [("B".to_string(), Some("comp_b".to_string()))].into_iter().collect();
+
+            let comp_a = make_composition(
+                "comp_a",
+                comp_a_sprites,
+                vec![vec!["B".to_string()]],
+                Some([2, 2]),
+            );
+
+            // comp_b references comp_a (creates cycle)
+            let comp_b_sprites: HashMap<String, Option<String>> =
+                [("A".to_string(), Some("comp_a".to_string()))].into_iter().collect();
+
+            let comp_b = make_composition(
+                "comp_b",
+                comp_b_sprites,
+                vec![vec!["A".to_string()]],
+                Some([2, 2]),
+            );
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(comp_a.clone());
+            composition_registry.register(comp_b);
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &comp_a,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            let message = err.to_string();
+            assert!(message.contains("Cycle detected"));
+        }
+
+        #[test]
+        fn test_nested_self_reference_cycle() {
+            // Test: A -> A (self-reference cycle)
+            let sprites = HashMap::new();
+
+            let comp_sprites: HashMap<String, Option<String>> =
+                [("A".to_string(), Some("self_ref".to_string()))].into_iter().collect();
+
+            let comp = make_composition(
+                "self_ref",
+                comp_sprites,
+                vec![vec!["A".to_string()]],
+                Some([2, 2]),
+            );
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(comp.clone());
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(matches!(err, CompositionError::CycleDetected { .. }));
+        }
+
+        #[test]
+        fn test_nested_cache_reuse() {
+            // Test: same nested composition referenced multiple times uses cache
+            let mut sprites = HashMap::new();
+            sprites.insert("red".to_string(), make_sprite_image(255, 0, 0));
+
+            // sub_comp uses red sprite
+            let sub_sprites: HashMap<String, Option<String>> =
+                [("R".to_string(), Some("red".to_string()))].into_iter().collect();
+
+            let sub_comp = make_composition(
+                "sub",
+                sub_sprites,
+                vec![vec!["R".to_string()]],
+                Some([2, 2]),
+            );
+
+            // main_comp references "sub" twice in a 2x2 grid
+            let main_sprites: HashMap<String, Option<String>> =
+                [("S".to_string(), Some("sub".to_string()))].into_iter().collect();
+
+            let main_comp = make_composition(
+                "main",
+                main_sprites,
+                vec![vec!["SS".to_string(), "SS".to_string()]],
+                Some([4, 4]),
+            );
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(sub_comp);
+            composition_registry.register(main_comp.clone());
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &main_comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (image, _) = result.unwrap();
+
+            // Verify the cache was used - "sub" should be cached
+            assert!(ctx.is_cached("sub"));
+
+            // All 4 cells should be red (from the cached sub composition)
+            assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+            assert_eq!(*image.get_pixel(2, 0), Rgba([255, 0, 0, 255]));
+            assert_eq!(*image.get_pixel(0, 2), Rgba([255, 0, 0, 255]));
+            assert_eq!(*image.get_pixel(2, 2), Rgba([255, 0, 0, 255]));
+        }
+
+        #[test]
+        fn test_nested_base_composition() {
+            // Test: base can also be a composition reference
+            let mut sprites = HashMap::new();
+            sprites.insert("blue".to_string(), make_sprite_image(0, 0, 255));
+            sprites.insert("red".to_string(), make_sprite_image(255, 0, 0));
+
+            // background composition is all blue
+            let bg_sprites: HashMap<String, Option<String>> =
+                [("B".to_string(), Some("blue".to_string()))].into_iter().collect();
+
+            let bg_comp = make_composition(
+                "background",
+                bg_sprites,
+                vec![vec!["BB".to_string(), "BB".to_string()]],
+                Some([4, 4]),
+            );
+
+            // main composition has background as base, with red overlay
+            let main_sprites: HashMap<String, Option<String>> = [
+                ("R".to_string(), Some("red".to_string())),
+                (".".to_string(), None),
+            ]
+            .into_iter()
+            .collect();
+
+            let mut main_comp = make_composition(
+                "main",
+                main_sprites,
+                vec![vec!["R.".to_string(), ".R".to_string()]],
+                Some([4, 4]),
+            );
+            main_comp.base = Some("background".to_string());
+
+            let mut composition_registry = CompositionRegistry::new();
+            composition_registry.register(bg_comp);
+            composition_registry.register(main_comp.clone());
+
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &main_comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (image, warnings) = result.unwrap();
+            assert!(warnings.is_empty());
+
+            // (0,0) should be red (overlay)
+            assert_eq!(*image.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+            // (2,0) should be blue (from background)
+            assert_eq!(*image.get_pixel(2, 0), Rgba([0, 0, 255, 255]));
+            // (2,2) should be red (overlay)
+            assert_eq!(*image.get_pixel(2, 2), Rgba([255, 0, 0, 255]));
+        }
+
+        #[test]
+        fn test_nested_missing_composition_warning() {
+            // Test: referencing non-existent composition emits warning
+            let sprites = HashMap::new();
+
+            let main_sprites: HashMap<String, Option<String>> =
+                [("X".to_string(), Some("nonexistent".to_string()))].into_iter().collect();
+
+            let main_comp = make_composition(
+                "main",
+                main_sprites,
+                vec![vec!["X".to_string()]],
+                Some([2, 2]),
+            );
+
+            let composition_registry = CompositionRegistry::new();
+            let mut ctx = RenderContext::new();
+
+            let result = render_composition_nested(
+                &main_comp,
+                &sprites,
+                Some(&composition_registry),
+                &mut ctx,
+                false,
+                None,
+            );
+
+            assert!(result.is_ok());
+            let (_, warnings) = result.unwrap();
+            assert!(!warnings.is_empty());
+            assert!(warnings[0].message.contains("not found"));
+        }
     }
 }
