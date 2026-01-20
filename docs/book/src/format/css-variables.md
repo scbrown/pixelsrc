@@ -85,9 +85,6 @@ Fallbacks can contain `var()` references:
 
 This resolves `--override` if defined, otherwise falls back to `--base`.
 
-<!-- DEMOS format/css-variables#fallbacks -->
-<!-- /DEMOS -->
-
 ## Use Cases
 
 ### Theming
