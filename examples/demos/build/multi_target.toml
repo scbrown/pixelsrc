@@ -1,0 +1,52 @@
+# Demo: Multiple Output Targets
+# Configuration with multiple atlases and export formats.
+
+[project]
+name = "multi-target-demo"
+version = "0.1.0"
+src = "sprites"
+out = "build"
+
+[defaults]
+scale = 1
+padding = 1
+
+# Main game atlas - all gameplay sprites
+[atlases.game]
+sources = ["characters/**", "enemies/**", "items/**"]
+max_size = [2048, 2048]
+padding = 2
+power_of_two = true
+
+# UI atlas - separate for UI elements
+[atlases.ui]
+sources = ["ui/**", "hud/**"]
+max_size = [1024, 1024]
+padding = 1
+power_of_two = true
+
+# Effects atlas - particles and VFX
+[atlases.effects]
+sources = ["particles/**", "vfx/**"]
+max_size = [512, 512]
+padding = 0
+power_of_two = false
+
+# Export to multiple formats
+[export.generic]
+enabled = true
+atlas_format = "json"
+
+[export.godot]
+enabled = true
+resource_path = "res://assets/sprites"
+animation_player = true
+sprite_frames = true
+
+[export.unity]
+enabled = true
+pixels_per_unit = 16
+filter_mode = "point"
+
+[export.libgdx]
+enabled = true

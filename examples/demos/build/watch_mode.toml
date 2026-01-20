@@ -1,0 +1,38 @@
+# Demo: Watch Mode Configuration
+# Configuration for file watching and automatic rebuilds.
+
+[project]
+name = "watch-demo"
+version = "0.1.0"
+src = "sprites"
+out = "build"
+
+[defaults]
+scale = 2
+padding = 1
+
+[atlases.main]
+sources = ["**/*.pxl"]
+max_size = [1024, 1024]
+power_of_two = true
+
+[animations]
+sources = ["anims/**"]
+preview = true
+preview_scale = 2
+sheet_layout = "horizontal"
+
+[export.generic]
+enabled = true
+
+[validate]
+strict = false
+unused_palettes = "ignore"
+missing_refs = "warn"
+
+# Watch mode specific settings
+[watch]
+# Short debounce for responsive feedback
+debounce_ms = 50
+# Clear terminal between rebuilds for clean output
+clear_screen = true

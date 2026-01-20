@@ -1,0 +1,50 @@
+# Demo: Build Variants Configuration
+# Configuration demonstrating debug/release/custom build variants through scale.
+
+[project]
+name = "variants-demo"
+version = "0.1.0"
+src = "src/pxl"
+out = "build"
+
+# Debug variant: 1x scale for faster iteration
+# To use: pxl build (default)
+# Or override with: pxl build --scale 1
+[defaults]
+scale = 1
+padding = 1
+
+[atlases.main]
+sources = ["sprites/**"]
+max_size = [1024, 1024]
+padding = 1
+power_of_two = true
+
+[animations]
+sources = ["anims/**"]
+preview = true
+preview_scale = 1
+sheet_layout = "horizontal"
+
+# Export settings can be toggled per variant via CLI
+[export.generic]
+enabled = true
+
+[export.godot]
+enabled = false
+resource_path = "res://debug/sprites"
+
+[export.unity]
+enabled = false
+pixels_per_unit = 16
+filter_mode = "point"
+
+# Relaxed validation for debug builds
+[validate]
+strict = false
+unused_palettes = "ignore"
+missing_refs = "warn"
+
+[watch]
+debounce_ms = 100
+clear_screen = true
