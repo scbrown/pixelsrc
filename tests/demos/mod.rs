@@ -3,6 +3,7 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
+pub mod animation;
 pub mod css;
 pub mod exports;
 
@@ -21,6 +22,7 @@ use std::io::Cursor;
 
 pub mod sprites;
 // Submodules for organized demo tests
+mod cli;
 mod imports;
 
 /// Structured render info captured from a sprite/animation render.

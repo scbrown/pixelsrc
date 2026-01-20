@@ -1,0 +1,2 @@
+{"type": "palette", "name": "character", "colors": {"{_}": "#00000000", "{skin}": "#FFD599", "{hair}": "#8B4513", "{eye}": "#2244AA", "{shirt}": "#CC3333"}}
+{"type": "sprite", "name": "face", "palette": "character", "grid": ["{_}{hair}{hair}{hair}{_}", "{hair}{skin}{skin}{skin}{hair}", "{skin}{eye}{skin}{eye}{skin}", "{skin}{skin}{skin}{skin}{skin}", "{_}{skin}{shirt}{skin}{_}"]}
