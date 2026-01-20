@@ -4,7 +4,8 @@
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
 use image::RgbaImage;
-use pixelsrc::models::{Animation, PaletteRef, TtpObject};
+use pixelsrc::composition::render_composition;
+use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
 use pixelsrc::output::scale_image;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
@@ -77,6 +78,44 @@ fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<Strin
     }
 
     (palette_registry, sprite_registry, animations)
+}
+
+/// Parse JSONL content and build registries including compositions.
+///
+/// Returns (`palette_registry`, `sprite_registry`, animations, compositions) tuple.
+fn parse_content_with_compositions(
+    jsonl: &str,
+) -> (
+    PaletteRegistry,
+    SpriteRegistry,
+    HashMap<String, Animation>,
+    HashMap<String, Composition>,
+) {
+    let cursor = Cursor::new(jsonl);
+    let parse_result = parse_stream(cursor);
+
+    let mut palette_registry = PaletteRegistry::new();
+    let mut sprite_registry = SpriteRegistry::new();
+    let mut animations: HashMap<String, Animation> = HashMap::new();
+    let mut compositions: HashMap<String, Composition> = HashMap::new();
+
+    for obj in parse_result.objects {
+        match obj {
+            TtpObject::Palette(p) => palette_registry.register(p),
+            TtpObject::Sprite(s) => sprite_registry.register_sprite(s),
+            TtpObject::Variant(v) => sprite_registry.register_variant(v),
+            TtpObject::Animation(a) => {
+                animations.insert(a.name.clone(), a);
+            }
+            TtpObject::Composition(c) => {
+                compositions.insert(c.name.clone(), c);
+            }
+            TtpObject::Particle(_) => {}
+            TtpObject::Transform(_) => {}
+        }
+    }
+
+    (palette_registry, sprite_registry, animations, compositions)
 }
 
 /// Capture structured render info for a sprite.
@@ -1502,5 +1541,287 @@ mod tests {
         // Combines translate and scaleX for walking and turning
         assert_eq!(kf["50%"].transform.as_deref(), Some("translate(8px, 0) scaleX(1)"));
         assert_eq!(kf["51%"].transform.as_deref(), Some("translate(8px, 0) scaleX(-1)"));
+    }
+
+    // ========================================================================
+    // Composition Tests (DT-5)
+    // ========================================================================
+
+    /// Structured info captured from a composition render.
+    #[derive(Debug, Clone)]
+    pub struct CompositionInfo {
+        /// Width in pixels
+        pub width: u32,
+        /// Height in pixels
+        pub height: u32,
+        /// Number of layers in the composition
+        pub layer_count: usize,
+        /// Cell size used for tiling
+        pub cell_size: [u32; 2],
+        /// SHA256 hash of the rendered output (PNG bytes)
+        pub sha256: String,
+    }
+
+    /// Render all sprites in a registry to images for composition rendering.
+    fn render_sprites_for_composition(
+        sprite_registry: &SpriteRegistry,
+        palette_registry: &PaletteRegistry,
+    ) -> HashMap<String, RgbaImage> {
+        let mut rendered: HashMap<String, RgbaImage> = HashMap::new();
+
+        for (sprite_name, _sprite) in sprite_registry.sprites() {
+            if let Ok(resolved) = sprite_registry.resolve(sprite_name, palette_registry, false) {
+                let (image, _warnings) = render_resolved(&resolved);
+                rendered.insert(sprite_name.clone(), image);
+            }
+        }
+
+        rendered
+    }
+
+    /// Capture structured composition info.
+    ///
+    /// Parses the JSONL content, renders all sprites, renders the composition,
+    /// and returns structured information.
+    pub fn capture_composition_info(jsonl: &str, composition_name: &str) -> CompositionInfo {
+        let (palette_registry, sprite_registry, _, compositions) =
+            parse_content_with_compositions(jsonl);
+
+        let comp = compositions
+            .get(composition_name)
+            .unwrap_or_else(|| panic!("Composition '{composition_name}' not found"));
+
+        let rendered_sprites = render_sprites_for_composition(&sprite_registry, &palette_registry);
+
+        let (image, _warnings) =
+            render_composition(comp, &rendered_sprites, false, None).unwrap_or_else(|e| {
+                panic!("Failed to render composition '{composition_name}': {e}")
+            });
+
+        // Calculate SHA256 of PNG bytes
+        let mut png_bytes = Vec::new();
+        image
+            .write_to(&mut Cursor::new(&mut png_bytes), image::ImageOutputFormat::Png)
+            .expect("Failed to encode PNG");
+
+        let mut hasher = Sha256::new();
+        hasher.update(&png_bytes);
+        let hash = format!("{:x}", hasher.finalize());
+
+        CompositionInfo {
+            width: image.width(),
+            height: image.height(),
+            layer_count: comp.layers.len(),
+            cell_size: comp.cell_size(),
+            sha256: hash,
+        }
+    }
+
+    /// Verify composition renders with expected dimensions.
+    pub fn assert_composition_dimensions(
+        jsonl: &str,
+        composition_name: &str,
+        width: u32,
+        height: u32,
+    ) {
+        let info = capture_composition_info(jsonl, composition_name);
+        assert_eq!(
+            info.width, width,
+            "Width mismatch for composition '{}': expected {}, got {}",
+            composition_name, width, info.width
+        );
+        assert_eq!(
+            info.height, height,
+            "Height mismatch for composition '{}': expected {}, got {}",
+            composition_name, height, info.height
+        );
+    }
+
+    /// @demo format/composition#basic
+    /// @title Basic Layer Composition
+    /// @description Simple sprite stacking with background and foreground layers.
+    #[test]
+    fn test_composition_basic_layers() {
+        let jsonl = include_str!("../../examples/demos/composition/basic_layers.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_palette_registry, sprite_registry, _, compositions) =
+            parse_content_with_compositions(jsonl);
+
+        // Verify composition exists
+        let comp = compositions.get("scene").expect("Composition 'scene' not found");
+        assert_eq!(comp.layers.len(), 2, "Should have 2 layers (bg + fg)");
+        assert_eq!(comp.cell_size(), [1, 1], "Cell size should be 1x1");
+
+        // Verify sprites are defined
+        assert!(sprite_registry.get_sprite("bg").is_some(), "Background sprite should exist");
+        assert!(sprite_registry.get_sprite("fg").is_some(), "Foreground sprite should exist");
+
+        // Render and verify dimensions
+        let info = capture_composition_info(jsonl, "scene");
+        assert_eq!(info.width, 5, "Composition should be 5 pixels wide");
+        assert_eq!(info.height, 5, "Composition should be 5 pixels tall");
+        assert_eq!(info.layer_count, 2, "Should have 2 layers");
+    }
+
+    /// @demo format/composition#blend
+    /// @title Blend Mode Composition
+    /// @description Layer blending with normal, multiply, screen, and overlay modes.
+    #[test]
+    fn test_composition_blend_modes() {
+        let jsonl = include_str!("../../examples/demos/composition/blend_modes.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_palette_registry, sprite_registry, _, compositions) =
+            parse_content_with_compositions(jsonl);
+
+        // Verify all blend mode compositions exist
+        for name in ["blend_normal", "blend_multiply", "blend_screen", "blend_overlay"] {
+            assert!(
+                compositions.contains_key(name),
+                "Composition '{name}' should exist"
+            );
+        }
+
+        // Verify sprites are defined
+        for sprite in ["white_square", "red_circle", "blue_circle"] {
+            assert!(
+                sprite_registry.get_sprite(sprite).is_some(),
+                "Sprite '{sprite}' should exist"
+            );
+        }
+
+        // Verify blend modes are set correctly on layers
+        let normal = compositions.get("blend_normal").unwrap();
+        assert_eq!(
+            normal.layers[1].blend.as_deref(),
+            Some("normal"),
+            "Second layer should have normal blend"
+        );
+
+        let multiply = compositions.get("blend_multiply").unwrap();
+        assert_eq!(
+            multiply.layers[1].blend.as_deref(),
+            Some("multiply"),
+            "Second layer should have multiply blend"
+        );
+
+        let screen = compositions.get("blend_screen").unwrap();
+        assert_eq!(
+            screen.layers[1].blend.as_deref(),
+            Some("screen"),
+            "Second layer should have screen blend"
+        );
+
+        let overlay = compositions.get("blend_overlay").unwrap();
+        assert_eq!(
+            overlay.layers[1].blend.as_deref(),
+            Some("overlay"),
+            "Second layer should have overlay blend"
+        );
+
+        // Render each and verify dimensions (all 4x4)
+        for name in ["blend_normal", "blend_multiply", "blend_screen", "blend_overlay"] {
+            let info = capture_composition_info(jsonl, name);
+            assert_eq!(info.width, 4, "{name} should be 4 pixels wide");
+            assert_eq!(info.height, 4, "{name} should be 4 pixels tall");
+        }
+    }
+
+    /// @demo format/composition#positioning
+    /// @title Position and Grid Composition
+    /// @description Sprite positioning using cell grids, offsets, and anchors.
+    #[test]
+    fn test_composition_positioning() {
+        let jsonl = include_str!("../../examples/demos/composition/positioning.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_palette_registry, sprite_registry, _, compositions) =
+            parse_content_with_compositions(jsonl);
+
+        // Verify compositions exist
+        for name in ["grid_positions", "corner_placement", "centered"] {
+            assert!(
+                compositions.contains_key(name),
+                "Composition '{name}' should exist"
+            );
+        }
+
+        // Verify sprites
+        assert!(sprite_registry.get_sprite("dot").is_some(), "Sprite 'dot' should exist");
+        assert!(sprite_registry.get_sprite("cross").is_some(), "Sprite 'cross' should exist");
+
+        // Test grid_positions - 8x8 canvas with 2x2 cells
+        let grid = compositions.get("grid_positions").unwrap();
+        assert_eq!(grid.cell_size(), [2, 2], "grid_positions should use 2x2 cells");
+
+        let info = capture_composition_info(jsonl, "grid_positions");
+        assert_eq!(info.width, 8, "grid_positions should be 8 pixels wide");
+        assert_eq!(info.height, 8, "grid_positions should be 8 pixels tall");
+
+        // Test corner_placement - 6x6 canvas with 3x3 cells
+        let corners = compositions.get("corner_placement").unwrap();
+        assert_eq!(corners.cell_size(), [3, 3], "corner_placement should use 3x3 cells");
+
+        let info = capture_composition_info(jsonl, "corner_placement");
+        assert_eq!(info.width, 6, "corner_placement should be 6 pixels wide");
+        assert_eq!(info.height, 6, "corner_placement should be 6 pixels tall");
+
+        // Test centered - 8x8 canvas with 2x2 cells, sprites in center
+        let info = capture_composition_info(jsonl, "centered");
+        assert_eq!(info.width, 8, "centered should be 8 pixels wide");
+        assert_eq!(info.height, 8, "centered should be 8 pixels tall");
+    }
+
+    /// @demo format/composition#fills
+    /// @title Background Fill Composition
+    /// @description Solid color fills, pattern fills, and fills with overlays.
+    #[test]
+    fn test_composition_fills() {
+        let jsonl = include_str!("../../examples/demos/composition/fills.jsonl");
+        assert_validates(jsonl, true);
+
+        let (_palette_registry, sprite_registry, _, compositions) =
+            parse_content_with_compositions(jsonl);
+
+        // Verify compositions exist
+        for name in ["solid_fill", "pattern_fill", "fill_with_overlay"] {
+            assert!(
+                compositions.contains_key(name),
+                "Composition '{name}' should exist"
+            );
+        }
+
+        // Verify sprites
+        for sprite in ["bg_blue", "bg_gray", "checker_tile", "star"] {
+            assert!(
+                sprite_registry.get_sprite(sprite).is_some(),
+                "Sprite '{sprite}' should exist"
+            );
+        }
+
+        // Test solid_fill - 4x4 canvas filled with 1x1 blue tiles
+        let solid = compositions.get("solid_fill").unwrap();
+        assert_eq!(solid.cell_size(), [1, 1], "solid_fill should use 1x1 cells");
+
+        let info = capture_composition_info(jsonl, "solid_fill");
+        assert_eq!(info.width, 4, "solid_fill should be 4 pixels wide");
+        assert_eq!(info.height, 4, "solid_fill should be 4 pixels tall");
+
+        // Test pattern_fill - 4x4 canvas with 2x2 checker tiles
+        let pattern = compositions.get("pattern_fill").unwrap();
+        assert_eq!(pattern.cell_size(), [2, 2], "pattern_fill should use 2x2 cells");
+
+        let info = capture_composition_info(jsonl, "pattern_fill");
+        assert_eq!(info.width, 4, "pattern_fill should be 4 pixels wide");
+        assert_eq!(info.height, 4, "pattern_fill should be 4 pixels tall");
+
+        // Test fill_with_overlay - 6x6 canvas with gray fill and star overlay
+        let overlay = compositions.get("fill_with_overlay").unwrap();
+        assert_eq!(overlay.layers.len(), 2, "fill_with_overlay should have 2 layers");
+
+        let info = capture_composition_info(jsonl, "fill_with_overlay");
+        assert_eq!(info.width, 6, "fill_with_overlay should be 6 pixels wide");
+        assert_eq!(info.height, 6, "fill_with_overlay should be 6 pixels tall");
     }
 }
