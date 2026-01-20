@@ -36,6 +36,52 @@ By default, the command distinguishes between errors (which cause a non-zero exi
 
 ## Examples
 
+<!-- DEMOS cli/validate#valid -->
+**Valid File Example**
+
+A properly structured file passes validation without errors.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "valid", "colors": {"{_}": "#00000000", "{x}": "#ff0000"}}
+{"type": "sprite", "name": "dot", "palette": "valid", "grid": ["{x}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="valid">
+</div>
+
+```bash
+pxl validate dot.pxl
+# ✓ dot.pxl: valid
+```
+<!-- /DEMOS -->
+
+<!-- DEMOS cli/validate#error -->
+**Validation Error Example**
+
+Files with errors show detailed diagnostic messages.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "sprite", "name": "broken", "palette": "missing", "grid": ["{x}{y}{z}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="error">
+</div>
+
+```bash
+pxl validate broken.pxl
+# error: sprite 'broken' references undefined palette 'missing'
+# error: undefined tokens in grid: {x}, {y}, {z}
+```
+<!-- /DEMOS -->
+
 ### Basic validation
 
 ```bash

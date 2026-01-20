@@ -59,6 +59,28 @@ The `--format` option supports:
 
 ## Examples
 
+<!-- DEMOS cli/render#basic -->
+**Basic Render Example**
+
+Render a simple sprite to PNG output.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple", "colors": {"{_}": "#00000000", "{b}": "#4a90d9", "{w}": "#ffffff"}}
+{"type": "sprite", "name": "icon", "palette": "simple", "grid": ["{_}{b}{_}", "{b}{w}{b}", "{_}{b}{_}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl render icon.pxl -o icon.png
+```
+<!-- /DEMOS -->
+
 ### Basic rendering
 
 ```bash
@@ -73,6 +95,28 @@ pxl render sprites.pxl --sprite hero -o hero.png
 ```
 
 ### Scaling
+
+<!-- DEMOS cli/render#scaled -->
+**Scaled Render Example**
+
+Render sprites at larger sizes with integer scaling.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "pixel", "colors": {"{_}": "#00000000", "{p}": "#e43b44", "{d}": "#a82b3a"}}
+{"type": "sprite", "name": "heart", "palette": "pixel", "grid": ["{_}{p}{_}{p}{_}", "{p}{d}{p}{d}{p}", "{p}{d}{d}{d}{p}", "{_}{p}{d}{p}{_}", "{_}{_}{p}{_}{_}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="scaled">
+</div>
+
+```bash
+pxl render heart.pxl --scale 4 -o heart_4x.png
+```
+<!-- /DEMOS -->
 
 ```bash
 # Scale up 4x (16x16 becomes 64x64)

@@ -32,6 +32,28 @@ This is useful for converting existing pixel art into the Pixelsrc format for ed
 
 ## Examples
 
+<!-- DEMOS cli/import#basic -->
+**Import Workflow**
+
+Convert a PNG image to Pixelsrc format. The import command detects colors and creates a palette and sprite definition.
+
+<div class="demo-source">
+
+```bash
+# Input: hero.png (16x16 pixel art)
+pxl import hero.png -o hero.pxl
+
+# Output: hero.pxl contains:
+# {"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", ...}}
+# {"type": "sprite", "name": "hero", "palette": "hero", "grid": [...]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+<!-- /DEMOS -->
+
 ### Basic import
 
 ```bash
@@ -52,6 +74,27 @@ pxl import hero.png -o assets/sprites/hero.pxl
 ```
 
 ### Controlling colors
+
+<!-- DEMOS cli/import#quantization -->
+**Color Quantization**
+
+Limit the palette size during import for retro-style constraints.
+
+<div class="demo-source">
+
+```bash
+# Limit to 4 colors (Game Boy style)
+pxl import hero.png --max-colors 4
+
+# Result: palette has at most 4 colors
+# Colors are quantized to fit the constraint
+```
+
+</div>
+
+<div class="demo-container" data-demo="quantization">
+</div>
+<!-- /DEMOS -->
 
 ```bash
 # Limit to 4 colors (Game Boy style)
