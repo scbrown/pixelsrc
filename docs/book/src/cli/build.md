@@ -32,6 +32,38 @@ The build system supports:
 
 ## Examples
 
+<!-- DEMOS cli/build#basic -->
+**Basic Build Example**
+
+Build all assets according to `pxl.toml` configuration.
+
+<div class="demo-source">
+
+```toml
+# pxl.toml
+[project]
+name = "my-game"
+src = "src/pxl"
+out = "build"
+
+[defaults]
+scale = 2
+```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl build
+# Building 5 targets...
+#   sprite:player ... ok (150ms)
+#   sprite:enemy ... ok (120ms)
+# Build succeeded: 5 built in 270ms
+```
+<!-- /DEMOS -->
+
 ### Basic Build
 
 Build all assets using defaults from `pxl.toml`:
@@ -49,6 +81,27 @@ pxl build --src assets/sprites --out dist/images
 ```
 
 ### Watch Mode
+
+<!-- DEMOS cli/build#watch -->
+**Watch Mode**
+
+Automatically rebuild when source files change—ideal for development workflows.
+
+<div class="demo-source">
+
+```bash
+pxl build --watch
+# Watching src/pxl for changes...
+# [12:34:56] sprite:player rebuilt (45ms)
+# [12:35:01] sprite:enemy rebuilt (38ms)
+# Press Ctrl+C to stop
+```
+
+</div>
+
+<div class="demo-container" data-demo="watch">
+</div>
+<!-- /DEMOS -->
 
 Automatically rebuild when source files change:
 

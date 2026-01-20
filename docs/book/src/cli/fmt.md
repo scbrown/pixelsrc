@@ -33,6 +33,31 @@ By default, files are modified in place. Use `--check` to verify formatting with
 
 ## Examples
 
+<!-- DEMOS cli/fmt#before_after -->
+**Formatting Example**
+
+The formatter standardizes spacing and alignment for consistent, readable files.
+
+<div class="demo-source">
+
+```jsonl
+# Before formatting (compact):
+{"type":"sprite","name":"icon","palette":{"x":"#ff0000"},"grid":["{x}{x}","{x}{x}"]}
+
+# After pxl fmt:
+{"type": "sprite", "name": "icon", "palette": {"{x}": "#ff0000"}, "grid": ["{x}{x}", "{x}{x}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="before_after">
+</div>
+
+```bash
+pxl fmt sprite.pxl
+```
+<!-- /DEMOS -->
+
 ### Format files in place
 
 ```bash
@@ -47,6 +72,27 @@ pxl fmt assets/**/*.pxl
 ```
 
 ### Check mode (CI integration)
+
+<!-- DEMOS cli/fmt#check -->
+**Check Mode for CI**
+
+Verify formatting without modifying files—useful for CI pipelines.
+
+<div class="demo-source">
+
+```bash
+# Check if files are formatted
+pxl fmt --check sprite.pxl
+
+# Exit code 0: already formatted
+# Exit code 1: needs formatting
+```
+
+</div>
+
+<div class="demo-container" data-demo="check">
+</div>
+<!-- /DEMOS -->
 
 ```bash
 # Check if files are formatted (exit 1 if not)
