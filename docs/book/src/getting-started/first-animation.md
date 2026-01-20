@@ -49,20 +49,25 @@ This creates a blink effect:
 
 Your `blink.pxl` should look like:
 
-```json
+<!-- DEMOS getting-started/first-animation#blink -->
+**Blinking Star Animation**
+
+A simple 4-frame blink effect with timing control.
+
+<div class="demo-source">
+
+```jsonl
 {"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700", "{w}": "#FFFFFF"}}
-{"type": "sprite", "name": "star_normal", "palette": "star", "grid": [
-  "{_}{y}{_}",
-  "{y}{y}{y}",
-  "{_}{y}{_}"
-]}
-{"type": "sprite", "name": "star_bright", "palette": "star", "grid": [
-  "{_}{w}{_}",
-  "{w}{w}{w}",
-  "{_}{w}{_}"
-]}
+{"type": "sprite", "name": "star_normal", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}
+{"type": "sprite", "name": "star_bright", "palette": "star", "grid": ["{_}{w}{_}", "{w}{w}{w}", "{_}{w}{_}"]}
 {"type": "animation", "name": "blink", "frames": ["star_normal", "star_normal", "star_normal", "star_bright"], "duration": 150}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="blink">
+</div>
+<!-- /DEMOS -->
 
 ## Step 4: Render as GIF
 
