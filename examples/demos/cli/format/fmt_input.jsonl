@@ -1,0 +1,3 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "rgb_square", "palette": "colors", "grid": ["{r}{g}", "{b}{r}"]}
+{"type": "sprite", "name": "larger_sprite", "palette": "colors", "grid": ["{_}{r}{r}{_}", "{r}{g}{g}{r}", "{r}{g}{g}{r}", "{_}{b}{b}{_}"]}
