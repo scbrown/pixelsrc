@@ -15,6 +15,9 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::Cursor;
 
+// Submodules for organized demo tests
+mod imports;
+
 /// Structured render info captured from a sprite/animation render.
 #[derive(Debug, Clone)]
 pub struct RenderInfo {
