@@ -15,3 +15,5 @@ Output format demonstrations.
 | `atlas_godot.jsonl` | Godot .tres format |
 | `atlas_unity.jsonl` | Unity JSON format |
 | `atlas_libgdx.jsonl` | libGDX TextureAtlas format |
+| `atlas_aseprite.jsonl` | Aseprite-compatible JSON format |
+| `recolor_export.jsonl` | Export with palette swap (variants) |

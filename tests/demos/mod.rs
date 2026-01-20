@@ -1503,4 +1503,100 @@ mod tests {
         assert_eq!(kf["50%"].transform.as_deref(), Some("translate(8px, 0) scaleX(1)"));
         assert_eq!(kf["51%"].transform.as_deref(), Some("translate(8px, 0) scaleX(-1)"));
     }
+
+    // ========================================================================
+    // Atlas Export Tests (DT-22)
+    // ========================================================================
+
+    /// @demo export/atlas#aseprite
+    /// @title Aseprite JSON Atlas
+    /// @description Sprite atlas data for Aseprite-compatible JSON export format.
+    #[test]
+    fn test_atlas_aseprite() {
+        let jsonl = include_str!("../../examples/demos/exports/atlas_aseprite.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify palette is registered
+        assert!(palette_registry.contains("character"));
+
+        // Verify all character sprites can be resolved
+        for sprite_name in ["char_idle_1", "char_idle_2", "char_run_1", "char_run_2", "char_run_3", "char_run_4", "item_gem"] {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
+        }
+
+        // Verify character sprite dimensions (4x4)
+        let info = capture_render_info(jsonl, "char_idle_1");
+        assert_eq!(info.width, 4, "Character sprite should be 4 pixels wide");
+        assert_eq!(info.height, 4, "Character sprite should be 4 pixels tall");
+
+        // Verify item sprite dimensions (3x3)
+        let gem_info = capture_render_info(jsonl, "item_gem");
+        assert_eq!(gem_info.width, 3, "Gem sprite should be 3 pixels wide");
+        assert_eq!(gem_info.height, 3, "Gem sprite should be 3 pixels tall");
+
+        // Verify animations exist
+        let idle = animations.get("idle").expect("Animation 'idle' not found");
+        assert_eq!(idle.frames.len(), 2, "Idle animation should have 2 frames");
+        assert_eq!(idle.duration_ms(), 500, "Idle animation should have 500ms duration");
+
+        let run = animations.get("run").expect("Animation 'run' not found");
+        assert_eq!(run.frames.len(), 4, "Run animation should have 4 frames");
+        assert_eq!(run.duration_ms(), 100, "Run animation should have 100ms duration");
+    }
+
+    /// @demo export/recolor#palette_swap
+    /// @title Recolor Export with Palette Swap
+    /// @description Export sprites with palette variants applied (color swaps).
+    #[test]
+    fn test_recolor_export() {
+        let jsonl = include_str!("../../examples/demos/exports/recolor_export.jsonl");
+        assert_validates(jsonl, true);
+
+        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
+
+        // Verify base palette is registered
+        assert!(palette_registry.contains("slime_green"));
+
+        // Verify base sprite can be resolved
+        let base_info = capture_render_info(jsonl, "slime_base");
+        assert_eq!(base_info.width, 5, "Slime sprite should be 5 pixels wide");
+        assert_eq!(base_info.height, 5, "Slime sprite should be 5 pixels tall");
+        assert_eq!(base_info.color_count, 5, "Base slime should have 5 colors (including transparent)");
+
+        // Verify all color variants can be resolved
+        for variant_name in ["slime_red", "slime_blue", "slime_gold"] {
+            sprite_registry
+                .resolve(variant_name, &palette_registry, false)
+                .unwrap_or_else(|_| panic!("Variant '{variant_name}' should resolve"));
+
+            // Verify variant has same dimensions as base
+            let variant_info = capture_render_info(jsonl, variant_name);
+            assert_eq!(variant_info.width, base_info.width, "Variant '{variant_name}' should match base width");
+            assert_eq!(variant_info.height, base_info.height, "Variant '{variant_name}' should match base height");
+        }
+
+        // Verify squash sprite for animation
+        let squash_info = capture_render_info(jsonl, "slime_squash");
+        assert_eq!(squash_info.width, 5, "Squash sprite should be 5 pixels wide");
+        assert_eq!(squash_info.height, 5, "Squash sprite should be 5 pixels tall");
+
+        // Verify bounce animation
+        let bounce = animations.get("slime_bounce").expect("Animation 'slime_bounce' not found");
+        assert_eq!(bounce.frames.len(), 2, "Bounce animation should have 2 frames");
+        assert_eq!(bounce.duration_ms(), 300, "Bounce animation should have 300ms duration");
+
+        // Verify variants produce different output (different hashes)
+        let red_info = capture_render_info(jsonl, "slime_red");
+        let blue_info = capture_render_info(jsonl, "slime_blue");
+        let gold_info = capture_render_info(jsonl, "slime_gold");
+
+        assert_ne!(base_info.sha256, red_info.sha256, "Red variant should differ from base");
+        assert_ne!(base_info.sha256, blue_info.sha256, "Blue variant should differ from base");
+        assert_ne!(base_info.sha256, gold_info.sha256, "Gold variant should differ from base");
+        assert_ne!(red_info.sha256, blue_info.sha256, "Red and blue variants should differ");
+    }
 }
