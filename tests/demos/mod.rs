@@ -3,8 +3,10 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
+pub mod css;
+
 use image::RgbaImage;
-use pixelsrc::models::{Animation, PaletteRef, TtpObject};
+use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
 use pixelsrc::output::scale_image;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
@@ -79,6 +81,135 @@ pub fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<S
     }
 
     (palette_registry, sprite_registry, animations)
+}
+
+/// Parse JSONL content and return compositions along with registries.
+///
+/// Returns (`palette_registry`, `sprite_registry`, compositions) tuple.
+pub fn parse_compositions(
+    jsonl: &str,
+) -> (PaletteRegistry, SpriteRegistry, HashMap<String, Composition>) {
+    let cursor = Cursor::new(jsonl);
+    let parse_result = parse_stream(cursor);
+
+    let mut palette_registry = PaletteRegistry::new();
+    let mut sprite_registry = SpriteRegistry::new();
+    let mut compositions: HashMap<String, Composition> = HashMap::new();
+
+    for obj in parse_result.objects {
+        match obj {
+            TtpObject::Palette(p) => palette_registry.register(p),
+            TtpObject::Sprite(s) => sprite_registry.register_sprite(s),
+            TtpObject::Variant(v) => sprite_registry.register_variant(v),
+            TtpObject::Composition(c) => {
+                compositions.insert(c.name.clone(), c);
+            }
+            TtpObject::Animation(_) => {}
+            TtpObject::Particle(_) => {}
+            TtpObject::Transform(_) => {}
+        }
+    }
+
+    (palette_registry, sprite_registry, compositions)
+}
+
+/// Structured info captured from a composition.
+#[derive(Debug, Clone)]
+pub struct CompositionInfo {
+    /// Name of the composition
+    pub name: String,
+    /// Width in pixels (if size specified)
+    pub width: Option<u32>,
+    /// Height in pixels (if size specified)
+    pub height: Option<u32>,
+    /// Number of layers
+    pub layer_count: usize,
+    /// Blend modes used by layers (in order)
+    pub blend_modes: Vec<Option<String>>,
+    /// Sprite keys defined in the composition
+    pub sprite_keys: Vec<String>,
+}
+
+/// Capture structured composition info.
+///
+/// Parses the JSONL content, finds the composition, and returns information
+/// about its layers, blend modes, and structure.
+pub fn capture_composition_info(jsonl: &str, composition_name: &str) -> CompositionInfo {
+    let (_, _, compositions) = parse_compositions(jsonl);
+
+    let comp = compositions
+        .get(composition_name)
+        .unwrap_or_else(|| panic!("Composition '{composition_name}' not found"));
+
+    let (width, height) = match comp.size {
+        Some([w, h]) => (Some(w), Some(h)),
+        None => (None, None),
+    };
+
+    let blend_modes: Vec<Option<String>> = comp
+        .layers
+        .iter()
+        .map(|layer| layer.blend.clone())
+        .collect();
+
+    let sprite_keys: Vec<String> = comp.sprites.keys().cloned().collect();
+
+    CompositionInfo {
+        name: comp.name.clone(),
+        width,
+        height,
+        layer_count: comp.layers.len(),
+        blend_modes,
+        sprite_keys,
+    }
+}
+
+/// Verify composition has expected blend mode on a specific layer.
+///
+/// Layer index is 0-based. None means "normal" (default).
+pub fn assert_layer_blend_mode(
+    jsonl: &str,
+    composition_name: &str,
+    layer_index: usize,
+    expected_blend: Option<&str>,
+) {
+    let info = capture_composition_info(jsonl, composition_name);
+    assert!(
+        layer_index < info.layer_count,
+        "Layer index {} out of bounds for composition '{}' with {} layers",
+        layer_index,
+        composition_name,
+        info.layer_count
+    );
+
+    let actual_blend = info.blend_modes[layer_index].as_deref();
+    assert_eq!(
+        actual_blend, expected_blend,
+        "Blend mode mismatch for layer {} of composition '{}': expected {:?}, got {:?}",
+        layer_index, composition_name, expected_blend, actual_blend
+    );
+}
+
+/// Verify all sprites referenced by a composition can be resolved.
+pub fn assert_composition_sprites_resolve(jsonl: &str, composition_name: &str) {
+    let (palette_registry, sprite_registry, compositions) = parse_compositions(jsonl);
+
+    let comp = compositions
+        .get(composition_name)
+        .unwrap_or_else(|| panic!("Composition '{composition_name}' not found"));
+
+    // Check all sprite values can be resolved
+    for (key, sprite_name_opt) in &comp.sprites {
+        if let Some(sprite_name) = sprite_name_opt {
+            sprite_registry
+                .resolve(sprite_name, &palette_registry, false)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to resolve sprite '{sprite_name}' (key '{key}') in composition '{composition_name}': {e}"
+                    )
+                });
+        }
+    }
 }
 
 /// Capture structured render info for a sprite.
