@@ -104,6 +104,9 @@ Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
   ]}]}
 ```
 
+<!-- DEMOS format/composition#positioning -->
+<!-- /DEMOS -->
+
 ## Multiple Layers
 
 Layers are rendered bottom-to-top. The first layer is the background:
@@ -126,6 +129,9 @@ Layers are rendered bottom-to-top. The first layer is the background:
     ]}
   ]}
 ```
+
+<!-- DEMOS format/composition#basic_layers -->
+<!-- /DEMOS -->
 
 ## Base Sprite
 
@@ -214,6 +220,9 @@ Use for fire, explosions, magic sparkles, or any additive light effect.
 {"name": "texture", "fill": "noise_texture", "blend": "overlay", "opacity": 0.5}
 ```
 Use for applying textures while preserving underlying tones.
+
+<!-- DEMOS format/composition#blend_modes -->
+<!-- /DEMOS -->
 
 ## CSS Variables in Compositions
 

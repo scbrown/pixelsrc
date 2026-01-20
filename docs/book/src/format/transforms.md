@@ -51,6 +51,9 @@ Move the sprite by the specified pixel offset.
 | `x` | integer | Horizontal offset (positive = right) |
 | `y` | integer | Vertical offset (positive = down, optional, defaults to 0) |
 
+<!-- DEMOS format/transforms#translate -->
+<!-- /DEMOS -->
+
 ### rotate(deg)
 
 Rotate the sprite clockwise by the specified angle.
@@ -70,6 +73,9 @@ For crisp pixel art, use 90-degree increments (0, 90, 180, 270). Other angles wo
 | 0, 90, 180, 270 | Pixel-perfect rotation |
 | 45, 135, 225, 315 | Diagonal, some blurring |
 | Other values | Arbitrary rotation with anti-aliasing |
+
+<!-- DEMOS format/transforms#rotate -->
+<!-- /DEMOS -->
 
 ### scale(n) or scale(x, y)
 
@@ -103,6 +109,9 @@ Integer scale factors (2, 3, 4) maintain pixel-perfect appearance. Fractional sc
 | 1.5, 2.5... | Blended pixels |
 | 0.5, 0.25... | Reduced resolution |
 
+<!-- DEMOS format/transforms#scale -->
+<!-- /DEMOS -->
+
 ### flip(x) or flip(y)
 
 Mirror the sprite horizontally or vertically.
@@ -123,6 +132,9 @@ Alternative syntax:
 ```
 
 Flipping is always pixel-perfect with no quality loss.
+
+<!-- DEMOS format/transforms#flip -->
+<!-- /DEMOS -->
 
 ### Transform Order
 

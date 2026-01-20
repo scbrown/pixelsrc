@@ -47,6 +47,9 @@ Edit the palette colors and see how they affect the sprite:
 
 Try changing `{hair}` to `#FFD700` (blonde) or `{shirt}` to `#FF0000` (red).
 
+<!-- DEMOS format/palette#definitions -->
+<!-- /DEMOS -->
+
 ## Color Formats
 
 Palettes accept colors in these hexadecimal formats:
@@ -138,6 +141,9 @@ For a ramp named `skin` with `steps: 5`:
 | `{skin}` | Base color |
 | `{skin+1}` | Highlight (1 step light) |
 | `{skin+2}` | Brightest (2 steps light) |
+
+<!-- DEMOS format/palette#cycling -->
+<!-- /DEMOS -->
 
 ## Inline Color Derivation
 

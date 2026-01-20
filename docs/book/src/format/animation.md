@@ -146,6 +146,9 @@ The frame array format provides a simple list of sprite names. Use this for stra
 {"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"], "duration": 100, "loop": true}
 ```
 
+<!-- DEMOS format/animation#basic_frames -->
+<!-- /DEMOS -->
+
 ## Frame References
 
 Frames reference sprites by name. The sprites must be defined earlier in the file:
@@ -228,6 +231,9 @@ Mark frame ranges with semantic names for game engine integration:
 
 Tags allow game engines to play specific sub-animations by name (e.g., "play the run tag").
 
+<!-- DEMOS format/animation#frame_tags -->
+<!-- /DEMOS -->
+
 ## Per-Frame Metadata
 
 Define hitboxes and metadata that vary across frames:
@@ -309,6 +315,9 @@ You can specify timing using either `duration` (ms per frame) or `fps` (frames p
 ```
 
 Both examples create the same 20 FPS animation.
+
+<!-- DEMOS format/animation#timing -->
+<!-- /DEMOS -->
 
 ## Complete Examples
 

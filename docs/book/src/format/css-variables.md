@@ -35,6 +35,9 @@ Variables are resolved in a two-pass process:
 
 This allows forward references - a color can use `var(--name)` even if `--name` is defined later in the palette.
 
+<!-- DEMOS format/css-variables#definition -->
+<!-- /DEMOS -->
+
 ## Variable References
 
 Reference variables with `var(--name)` or `var(--name, fallback)`:
@@ -44,6 +47,9 @@ Reference variables with `var(--name)` or `var(--name, fallback)`:
 | `var(--name)` | Simple reference |
 | `var(--name, fallback)` | Reference with fallback value |
 | `var(name)` | Also works (-- prefix optional) |
+
+<!-- DEMOS format/css-variables#resolution -->
+<!-- /DEMOS -->
 
 ### Fallback Values
 
@@ -61,6 +67,9 @@ Fallbacks are used when a variable is undefined:
 
 If `--secondary` is not defined, `{alt}` uses the fallback `#00FF00`.
 
+<!-- DEMOS format/css-variables#fallbacks -->
+<!-- /DEMOS -->
+
 ### Nested References
 
 Fallbacks can contain `var()` references:
@@ -75,6 +84,9 @@ Fallbacks can contain `var()` references:
 ```
 
 This resolves `--override` if defined, otherwise falls back to `--base`.
+
+<!-- DEMOS format/css-variables#fallbacks -->
+<!-- /DEMOS -->
 
 ## Use Cases
 

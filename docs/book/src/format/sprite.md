@@ -48,6 +48,9 @@ Modify the grid pattern and colors to create different sprites:
 
 Try adding more rows to make the coin larger, or change `{h}` (highlight) to create different shine effects.
 
+<!-- DEMOS format/sprite#basic -->
+<!-- /DEMOS -->
+
 ## Grid Format
 
 The grid is an array of strings representing pixel rows:
@@ -84,6 +87,9 @@ Reference a palette defined earlier in the file:
 {"type": "sprite", "name": "hero", "palette": "hero_colors", "grid": [...]}
 ```
 
+<!-- DEMOS format/sprite#named_palette -->
+<!-- /DEMOS -->
+
 ### Inline Palette
 
 Define colors directly in the sprite:
@@ -94,6 +100,9 @@ Define colors directly in the sprite:
   "{x}": "#FF0000"
 }, "grid": ["{x}"]}
 ```
+
+<!-- DEMOS format/sprite#inline_palette -->
+<!-- /DEMOS -->
 
 ### Built-in Palette
 
@@ -194,6 +203,9 @@ Attach additional data for game engine integration:
 | `hit` | Damage-dealing region |
 | `collide` | Physics collision boundary |
 | `trigger` | Interaction trigger zone |
+
+<!-- DEMOS format/sprite#metadata -->
+<!-- /DEMOS -->
 
 ## Transforms
 
