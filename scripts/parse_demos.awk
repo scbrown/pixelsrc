@@ -87,7 +87,10 @@ in_demo == 1 && found_fn == 1 && /include_str!\(/ {
         jsonl = $0
         sub(/.*include_str!\([[:space:]]*"/, "", jsonl)
         sub(/".*/, "", jsonl)
-        sub(/^\.\.\/\.\.\//, "", jsonl)
+        # Strip all leading ../ sequences to get path relative to project root
+        while (jsonl ~ /^\.\.\//) {
+            sub(/^\.\.\//, "", jsonl)
+        }
         # We got everything - emit and reset
         # Use <EMPTY> placeholder for empty fields (bash read can't handle consecutive delimiters)
         if (length(demo) > 0) {

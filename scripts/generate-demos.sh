@@ -10,6 +10,7 @@
 # Options:
 #   --dry-run         Show what would be generated without writing files
 #   --book            Output to docs/book/src/demos/ (for mdbook integration)
+#   --inline          Inject demos into existing pages at <!-- DEMOS --> markers
 #   --output-dir DIR  Output to specified directory (default: target/demos)
 #   --check           Verify output matches existing files (for CI regression)
 #
@@ -18,6 +19,10 @@
 #   /// @title Demo Title
 #   /// @description Description text.
 #   /// @cli pxl render example.jsonl -o output.png
+#
+# Marker format in .md files:
+#   <!-- DEMOS section/subsection#anchor -->
+#   <!-- /DEMOS -->
 # =============================================================================
 
 set -euo pipefail
@@ -47,6 +52,8 @@ fi
 DRY_RUN=false
 CHECK_MODE=false
 BOOK_MODE=false
+INLINE_MODE=false
+DOCS_DIR=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -59,6 +66,14 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_DIR="$BOOK_DIR"
             BOOK_MODE=true
             shift
+            ;;
+        --inline)
+            INLINE_MODE=true
+            shift
+            ;;
+        --docs-dir)
+            DOCS_DIR="$2"
+            shift 2
             ;;
         --output-dir)
             OUTPUT_DIR="$2"
@@ -74,6 +89,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Default docs directory for inline mode
+if [[ -z "$DOCS_DIR" ]]; then
+    DOCS_DIR="$PROJECT_ROOT/docs/book/src"
+fi
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -269,24 +289,255 @@ compare_files() {
     return 0
 }
 
+# =============================================================================
+# Inline Injection Functions (DT-17)
+# =============================================================================
+
+# Get demo data for a specific path (section#anchor)
+# Returns tab-separated: demo<TAB>title<TAB>description<TAB>cli<TAB>jsonl_path
+get_demo_for_path() {
+    local demos_data="$1"
+    local target_path="$2"
+    echo "$demos_data" | while IFS=$'\t' read -r marker demo title description cli jsonl_path; do
+        [[ "$marker" != "DEMO" ]] && continue
+        if [[ "$demo" == "$target_path" ]]; then
+            printf "%s\t%s\t%s\t%s\t%s\n" "$demo" "$title" "$description" "$cli" "$jsonl_path"
+            return 0
+        fi
+    done
+}
+
+# Generate inline demo markdown (simpler format for embedding)
+generate_inline_demo_markdown() {
+    local demo="$1"
+    local title="$2"
+    local description="$3"
+    local cli="$4"
+    local jsonl_path="$5"
+
+    # Replace <EMPTY> placeholders with empty string
+    [[ "$title" == "<EMPTY>" ]] && title=""
+    [[ "$description" == "<EMPTY>" ]] && description=""
+    [[ "$cli" == "<EMPTY>" ]] && cli=""
+
+    local jsonl_file="$PROJECT_ROOT/$jsonl_path"
+
+    if [[ ! -f "$jsonl_file" ]]; then
+        log_warn "JSONL file not found: $jsonl_path"
+        return 1
+    fi
+
+    # Extract anchor from demo path
+    local anchor="${demo##*#}"
+
+    # Generate compact inline format
+    if [[ -n "$title" ]]; then
+        echo "**$title**"
+        echo ""
+    fi
+
+    if [[ -n "$description" ]]; then
+        echo "$description"
+        echo ""
+    fi
+
+    echo '<div class="demo-source">'
+    echo ""
+    echo '```jsonl'
+    cat "$jsonl_file"
+    echo '```'
+    echo ""
+    echo '</div>'
+    echo ""
+
+    echo "<div class=\"demo-container\" data-demo=\"$anchor\">"
+    echo '</div>'
+
+    if [[ -n "$cli" ]]; then
+        echo ""
+        echo '**CLI equivalent:**'
+        echo '```bash'
+        echo "$cli"
+        echo '```'
+    fi
+}
+
+# Find all markdown files with DEMOS markers
+find_files_with_markers() {
+    local docs_dir="$1"
+    # Find files containing DEMOS markers
+    grep -rl '<!-- DEMOS ' "$docs_dir" --include='*.md' 2>/dev/null || true
+}
+
+# Inject content between markers in a file
+# Uses temp file approach to handle multi-line content safely
+inject_between_markers() {
+    local input_file="$1"
+    local output_file="$2"
+    local start_marker="$3"
+    local end_marker="$4"
+    local replacement_file="$5"
+
+    awk -v start="$start_marker" -v end="$end_marker" -v repl_file="$replacement_file" '
+        BEGIN { in_block = 0 }
+        index($0, start) {
+            print $0
+            # Read and print replacement from file
+            while ((getline line < repl_file) > 0) {
+                print line
+            }
+            close(repl_file)
+            in_block = 1
+            next
+        }
+        in_block && index($0, end) {
+            print $0
+            in_block = 0
+            next
+        }
+        !in_block { print }
+    ' "$input_file" > "$output_file"
+}
+
+# Process inline demos - inject generated content into markdown files at markers
+process_inline_demos() {
+    local demos_data="$1"
+    local docs_dir="$2"
+    local check_mode="$3"
+    local dry_run="$4"
+
+    local has_changes=false
+    local has_errors=false
+
+    # Create temp directory for working files
+    local work_dir
+    work_dir=$(mktemp -d)
+    trap "rm -rf '$work_dir'" RETURN
+
+    # Find all files with DEMOS markers
+    local files_with_markers
+    files_with_markers=$(find_files_with_markers "$docs_dir")
+
+    if [[ -z "$files_with_markers" ]]; then
+        log_warn "No files with <!-- DEMOS --> markers found in $docs_dir"
+        return 0
+    fi
+
+    # Process each file
+    while IFS= read -r md_file; do
+        [[ -z "$md_file" ]] && continue
+
+        log_info "Processing: $md_file"
+
+        # Copy original to working file
+        local work_file="$work_dir/current.md"
+        local temp_file="$work_dir/temp.md"
+        cp "$md_file" "$work_file"
+
+        # Find all DEMOS markers in the file
+        # Pattern: <!-- DEMOS section#anchor -->
+        local markers
+        markers=$(grep -o '<!-- DEMOS [^>]*-->' "$md_file" | sed 's/<!-- DEMOS //;s/ -->//' || true)
+
+        if [[ -z "$markers" ]]; then
+            continue
+        fi
+
+        local file_changed=false
+
+        # Process each marker
+        while IFS= read -r marker_path; do
+            [[ -z "$marker_path" ]] && continue
+
+            # Get demo data for this path
+            local demo_info
+            demo_info=$(get_demo_for_path "$demos_data" "$marker_path")
+
+            if [[ -z "$demo_info" ]]; then
+                log_warn "No demo found for marker: $marker_path in $md_file"
+                continue
+            fi
+
+            # Parse demo info
+            local demo title description cli jsonl_path
+            IFS=$'\t' read -r demo title description cli jsonl_path <<< "$demo_info"
+
+            # Generate replacement content to temp file
+            local repl_file="$work_dir/replacement.md"
+            if ! generate_inline_demo_markdown "$demo" "$title" "$description" "$cli" "$jsonl_path" > "$repl_file"; then
+                has_errors=true
+                continue
+            fi
+
+            # Build the full replacement block
+            local start_marker="<!-- DEMOS $marker_path -->"
+            local end_marker="<!-- /DEMOS -->"
+
+            # Inject content using temp files
+            inject_between_markers "$work_file" "$temp_file" "$start_marker" "$end_marker" "$repl_file"
+            mv "$temp_file" "$work_file"
+            file_changed=true
+
+        done <<< "$markers"
+
+        # Check if content changed from original
+        if [[ "$file_changed" == "true" ]] && ! diff -q "$md_file" "$work_file" > /dev/null 2>&1; then
+            has_changes=true
+
+            if [[ "$dry_run" == "true" ]]; then
+                log_info "[DRY-RUN] Would update: $md_file"
+            elif [[ "$check_mode" == "true" ]]; then
+                log_error "File needs update: $md_file"
+                # Show diff preview
+                diff -u "$md_file" "$work_file" | head -30 || true
+            else
+                # Write updated content
+                cp "$work_file" "$md_file"
+                log_success "Updated: $md_file"
+            fi
+        else
+            log_success "Up to date: $md_file"
+        fi
+
+    done <<< "$files_with_markers"
+
+    if [[ "$check_mode" == "true" && "$has_changes" == "true" ]]; then
+        log_error "Some files need updating. Run './scripts/generate-demos.sh --inline' to regenerate."
+        return 1
+    fi
+
+    if [[ "$has_errors" == "true" ]]; then
+        log_warn "Some demos could not be processed"
+    fi
+
+    return 0
+}
+
 # Main
 main() {
-    log_info "Demo Generator Script (DT-16, DT-18)"
+    log_info "Demo Generator Script (DT-16, DT-17, DT-18)"
     log_info "Project root: $PROJECT_ROOT"
-    log_info "Output directory: $OUTPUT_DIR"
 
-    # In check mode, generate to temp directory and compare
+    if [[ "$INLINE_MODE" == "true" ]]; then
+        log_info "Mode: inline injection"
+        log_info "Docs directory: $DOCS_DIR"
+    else
+        log_info "Mode: standalone generation"
+        log_info "Output directory: $OUTPUT_DIR"
+    fi
+
+    # In check mode for standalone generation, generate to temp directory
     local actual_output_dir="$OUTPUT_DIR"
     local temp_dir=""
-    if [[ "$CHECK_MODE" == "true" ]]; then
+    if [[ "$CHECK_MODE" == "true" && "$INLINE_MODE" == "false" ]]; then
         temp_dir=$(mktemp -d)
         actual_output_dir="$temp_dir"
         log_info "Check mode: generating to temp directory"
         trap "rm -rf '$temp_dir'" EXIT
     fi
 
-    # Ensure output directory exists
-    if [[ "$DRY_RUN" == "false" ]]; then
+    # Ensure output directory exists (for standalone mode)
+    if [[ "$DRY_RUN" == "false" && "$INLINE_MODE" == "false" ]]; then
         mkdir -p "$actual_output_dir"
     fi
 
@@ -325,6 +576,25 @@ main() {
     fi
 
     log_info "Total demos found: $demo_count"
+
+    # Handle inline mode
+    if [[ "$INLINE_MODE" == "true" ]]; then
+        log_info ""
+        log_info "Processing inline demos..."
+
+        if ! process_inline_demos "$all_demos" "$DOCS_DIR" "$CHECK_MODE" "$DRY_RUN"; then
+            exit 1
+        fi
+
+        if [[ "$CHECK_MODE" == "true" ]]; then
+            log_success "All inline demos are up to date!"
+        else
+            log_success "Done! Inline demos injected into: $DOCS_DIR"
+        fi
+        exit 0
+    fi
+
+    # Standalone mode: generate separate files
 
     # Temporarily override OUTPUT_DIR for generation
     local saved_output_dir="$OUTPUT_DIR"

@@ -27,6 +27,20 @@ A sprite defines a pixel art image using a grid of color tokens. Sprites are the
 ## Example
 
 <!-- DEMOS format/sprite#basic -->
+**Minimal Valid Sprite**
+
+A 3x3 sprite with an inline palette demonstrating the minimum required fields.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "sprite", "name": "square", "size": [3, 3], "palette": {"{_}": "#00000000", "{r}": "#FF0000"}, "grid": ["{r}{r}{r}", "{r}{_}{r}", "{r}{r}{r}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
 <!-- /DEMOS -->
 
 ```json
@@ -82,6 +96,21 @@ This creates a 7x4 sprite with:
 ### Named Palette
 
 <!-- DEMOS format/sprite#named_palette -->
+**Named Palette Reference**
+
+Sprite referencing a separately-defined palette by name.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "retro", "colors": {"{_}": "#00000000", "{bg}": "#1a1c2c", "{fg}": "#f4f4f4", "{accent}": "#ffcd75"}}
+{"type": "sprite", "name": "icon", "palette": "retro", "grid": ["{bg}{fg}{bg}", "{fg}{accent}{fg}", "{bg}{fg}{bg}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="named_palette">
+</div>
 <!-- /DEMOS -->
 
 Reference a palette defined earlier in the file:
@@ -93,6 +122,20 @@ Reference a palette defined earlier in the file:
 ### Inline Palette
 
 <!-- DEMOS format/sprite#inline_palette -->
+**Inline Palette Definition**
+
+Sprite with colors defined inline rather than referencing a named palette.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "sprite", "name": "heart", "palette": {"{_}": "#00000000", "{r}": "#e43b44", "{p}": "#f77622"}, "grid": ["{_}{r}{_}{r}{_}", "{r}{p}{r}{p}{r}", "{r}{p}{p}{p}{r}", "{_}{r}{p}{r}{_}", "{_}{_}{r}{_}{_}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="inline_palette">
+</div>
 <!-- /DEMOS -->
 
 Define colors directly in the sprite:
