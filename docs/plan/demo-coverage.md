@@ -12,6 +12,7 @@ and manually during development milestones.
 
 | Date | Coverage | Features | Notes |
 |------|----------|----------|-------|
+| 2026-01-19 | 34% | 29/84 | Full registry (DT-29) - added palette-cycling, imports, build-system, CLI categories |
 | 2026-01-19 | 60% | 26/43 | Initial tracking (DT-19) |
 
 ## Coverage by Category
@@ -24,16 +25,24 @@ and manually during development milestones.
 | CSS Variables | 100% (4/4) | Full variable system coverage |
 | CSS Timing | 100% (3/3) | All timing functions covered |
 | CSS Keyframes | 100% (4/4) | All keyframe features covered |
-| CSS Transforms | 100% (5/5) | All transform functions covered |
-| Exports | 100% (3/3) | Spritesheet exports covered |
+| Transforms | 83% (5/6) | Missing: recolor/palette swap |
+| Exports | 60% (6/10) | PNG/GIF/Spritesheet done; missing atlas formats |
 
 ### Needs Coverage (<80%)
 
 | Category | Coverage | Missing |
 |----------|----------|---------|
 | Sprites | 0% (0/8) | All sprite features need demos |
-| Animation | 0% (0/5) | All animation features need demos |
-| Composition | 0% (0/4) | All composition features need demos |
+| Animation | 0% (0/6) | All animation features need demos |
+| Composition | 0% (0/5) | All composition features need demos |
+| Palette Cycling | 0% (0/4) | New category - cycle effects |
+| Imports | 0% (0/4) | New category - PNG import features |
+| Build System | 0% (0/5) | New category - pxl.toml, watch mode |
+| CLI Core | 0% (0/3) | New category - render, import, validate |
+| CLI Format | 0% (0/4) | New category - fmt, show, explain, inline |
+| CLI Analysis | 0% (0/5) | New category - diff, suggest, alias, grid, analyze |
+| CLI Project | 0% (0/3) | New category - build, new, init |
+| CLI Info | 0% (0/3) | New category - prime, prompts, palettes |
 
 ## Missing Demos
 
@@ -122,9 +131,26 @@ The coverage script maintains a feature registry mapping feature names to expect
 
 | Milestone | Target | Notes |
 |-----------|--------|-------|
-| Phase 23 Wave 2 | 70% | Add sprite, animation, composition demos |
-| Phase 23 Wave 3 | 85% | Add export demos |
+| Current (DT-29) | 35% | Baseline after full registry expansion |
+| Phase 23 Wave 2 | 50% | Add sprite, animation, composition demos |
+| Phase 23 Wave 3 | 70% | Add export, CLI, build system demos |
+| Phase 23 Wave 4 | 85% | Add palette cycling, import demos |
 | Phase 23 Complete | 95% | Full feature coverage |
+
+## Feature Registry Summary
+
+The coverage script tracks **84 features** across **17 categories**:
+
+| Group | Categories | Features |
+|-------|------------|----------|
+| Core Format | sprites, transforms, animation, composition | 25 |
+| Palette | palette-cycling | 4 |
+| I/O | imports, exports | 14 |
+| Build | build-system | 5 |
+| CLI | cli-core, cli-format, cli-analysis, cli-project, cli-info | 18 |
+| CSS | css-colors, css-variables, css-timing, css-keyframes | 18 |
+
+**Total: 84 features**
 
 ## CI Integration
 

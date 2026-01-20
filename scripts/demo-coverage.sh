@@ -18,6 +18,23 @@
 #   0  Coverage meets threshold
 #   1  Coverage below threshold (only with --ci flag)
 #   2  Script error
+#
+# Threshold Recommendations:
+#   35%  - Informational (current baseline after DT-29)
+#   50%  - Minimum viable for release
+#   70%  - Target for Wave 2 completion
+#   85%  - Target for Wave 3 completion
+#   95%  - Full feature coverage goal
+#
+# Feature Categories (84 total):
+#   Core Format:    sprites(8), transforms(6), animation(6), composition(5)
+#   Palette:        palette-cycling(4)
+#   I/O:            imports(4), exports(10)
+#   Build:          build-system(5)
+#   CLI:            cli-core(3), cli-format(4), cli-analysis(5),
+#                   cli-project(3), cli-info(3)
+#   CSS:            css-colors(7), css-variables(4), css-timing(3),
+#                   css-keyframes(4)
 # =============================================================================
 
 set -euo pipefail
@@ -109,6 +126,7 @@ transforms|Vertical flip|format/css/transforms#flip
 transforms|Rotation|format/css/transforms#rotate
 transforms|Scale|format/css/transforms#scale
 transforms|Translate|format/css/transforms#translate
+transforms|Recolor (palette swap)|format/sprite#recolor
 
 # Animation
 animation|Basic frame sequence|format/animation#basic
@@ -116,17 +134,73 @@ animation|Frame timing (FPS)|format/animation#fps
 animation|Frame tags|format/animation#tags
 animation|Looping modes|format/animation#looping
 animation|Attachment chains|format/animation#attachments
+animation|Frame-specific metadata|format/animation#frame_metadata
 
 # Composition
 composition|Basic layer stacking|format/composition#basic
 composition|Layer positioning|format/composition#positioning
 composition|Blend modes|format/composition#blend
 composition|Background fills|format/composition#fills
+composition|Multi-sprite scenes|format/composition#multi_sprite
+
+# Palette Cycling
+palette-cycling|Single color cycle|format/palette#cycle_single
+palette-cycling|Multiple cycle groups|format/palette#cycle_multiple
+palette-cycling|Cycle timing|format/palette#cycle_timing
+palette-cycling|Ping-pong mode|format/palette#cycle_pingpong
+
+# Imports
+imports|PNG to JSONL conversion|cli/import#png
+imports|Palette detection|cli/import#palette_detect
+imports|Multi-frame import|cli/import#multi_frame
+imports|Transparent color handling|cli/import#transparency
 
 # Exports
+exports|PNG basic|export/png#basic
+exports|PNG scaled|export/png#scaled
+exports|GIF animated|export/gif#animated
 exports|Spritesheet horizontal|export/spritesheet#horizontal
 exports|Spritesheet grid|export/spritesheet#grid
 exports|Spritesheet padding|export/spritesheet#padding
+exports|Atlas Godot|export/atlas#godot
+exports|Atlas Unity|export/atlas#unity
+exports|Atlas LibGDX|export/atlas#libgdx
+exports|Atlas Aseprite|export/atlas#aseprite
+
+# Build System
+build-system|Basic pxl.toml configuration|cli/build#basic
+build-system|Multi-target builds|cli/build#multi_target
+build-system|Incremental rebuilds|cli/build#incremental
+build-system|Watch mode|cli/build#watch
+build-system|Build variants|cli/build#variants
+
+# CLI Core
+cli-core|render command|cli/core#render
+cli-core|import command|cli/core#import
+cli-core|validate command|cli/core#validate
+
+# CLI Format
+cli-format|fmt command|cli/format#fmt
+cli-format|show command|cli/format#show
+cli-format|explain command|cli/format#explain
+cli-format|inline command|cli/format#inline
+
+# CLI Analysis
+cli-analysis|diff command|cli/analysis#diff
+cli-analysis|suggest command|cli/analysis#suggest
+cli-analysis|alias command|cli/analysis#alias
+cli-analysis|grid command|cli/analysis#grid
+cli-analysis|analyze command|cli/analysis#analyze
+
+# CLI Project
+cli-project|build command|cli/project#build
+cli-project|new command|cli/project#new
+cli-project|init command|cli/project#init
+
+# CLI Info
+cli-info|prime command|cli/info#prime
+cli-info|prompts command|cli/info#prompts
+cli-info|palettes command|cli/info#palettes
 
 # CSS Colors
 css-colors|Hex colors|format/css/colors#hex
