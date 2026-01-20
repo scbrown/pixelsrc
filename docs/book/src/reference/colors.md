@@ -2,6 +2,9 @@
 
 Pixelsrc supports a variety of color formats for defining palette colors. All formats are parsed using a combination of optimized hex parsing and the `lightningcss` library for CSS color notation.
 
+<!-- DEMOS reference/colors#formats -->
+<!-- /DEMOS -->
+
 ## Quick Reference
 
 | Format | Example | Notes |
@@ -83,6 +86,9 @@ Perceptually uniform color space. Colors with the same lightness value appear eq
 ## color-mix() Function
 
 Blend two colors in a specified color space. Ideal for generating shadow and highlight variants.
+
+<!-- DEMOS reference/colors#color-mix -->
+<!-- /DEMOS -->
 
 ### Syntax
 
