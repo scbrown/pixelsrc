@@ -4,13 +4,16 @@
 //! - A unified `Registry` trait for consistent registry interfaces
 //! - `PaletteRegistry` for storing named palettes and resolving palette references
 //! - `SpriteRegistry` for storing sprites and variants with transform support
+//! - `TransformRegistry` for storing user-defined transforms
+//! - `CompositionRegistry` for storing layered sprite compositions
+//! - `Renderable` enum for unified sprite/composition lookup
 //!
-//! Both registries support lenient mode (warnings + fallback) and strict mode (errors).
+//! Most registries support lenient mode (warnings + fallback) and strict mode (errors).
 
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::models::{Palette, PaletteRef, Sprite, TransformSpec, Variant};
+use crate::models::{Composition, Palette, PaletteRef, Sprite, TransformSpec, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
 use crate::transforms::{self, Transform, TransformError};
@@ -1446,6 +1449,165 @@ impl Registry<TransformDef> for TransformRegistry {
     }
 }
 
+// ============================================================================
+// Composition Registry (NC-1)
+// ============================================================================
+
+/// Registry for named compositions.
+///
+/// Stores Composition objects that can be looked up by name.
+/// Compositions define layered sprite arrangements for complex visuals.
+#[derive(Debug, Clone, Default)]
+pub struct CompositionRegistry {
+    compositions: HashMap<String, Composition>,
+}
+
+impl CompositionRegistry {
+    /// Create a new empty composition registry.
+    pub fn new() -> Self {
+        Self { compositions: HashMap::new() }
+    }
+
+    /// Register a composition in the registry.
+    ///
+    /// If a composition with the same name already exists, it is replaced.
+    pub fn register(&mut self, composition: Composition) {
+        self.compositions.insert(composition.name.clone(), composition);
+    }
+
+    /// Get a composition by name.
+    pub fn get(&self, name: &str) -> Option<&Composition> {
+        self.compositions.get(name)
+    }
+
+    /// Check if a composition with the given name exists.
+    pub fn contains(&self, name: &str) -> bool {
+        self.compositions.contains_key(name)
+    }
+
+    /// Get the number of compositions in the registry.
+    pub fn len(&self) -> usize {
+        self.compositions.len()
+    }
+
+    /// Check if the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        self.compositions.is_empty()
+    }
+
+    /// Clear all compositions from the registry.
+    pub fn clear(&mut self) {
+        self.compositions.clear();
+    }
+
+    /// Get an iterator over all composition names.
+    pub fn names(&self) -> impl Iterator<Item = &String> {
+        self.compositions.keys()
+    }
+
+    /// Iterate over all compositions in the registry.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Composition)> {
+        self.compositions.iter()
+    }
+}
+
+impl Registry<Composition> for CompositionRegistry {
+    fn contains(&self, name: &str) -> bool {
+        self.compositions.contains_key(name)
+    }
+
+    fn get(&self, name: &str) -> Option<&Composition> {
+        self.compositions.get(name)
+    }
+
+    fn len(&self) -> usize {
+        self.compositions.len()
+    }
+
+    fn clear(&mut self) {
+        self.compositions.clear();
+    }
+
+    fn names(&self) -> Box<dyn Iterator<Item = &String> + '_> {
+        Box::new(self.compositions.keys())
+    }
+}
+
+// ============================================================================
+// Unified Renderable Lookup (NC-1)
+// ============================================================================
+
+/// A renderable entity that can be either a sprite or a composition.
+///
+/// This enum provides unified lookup across sprite and composition registries,
+/// allowing rendering code to handle both types through a single interface.
+#[derive(Debug, Clone)]
+pub enum Renderable<'a> {
+    /// A sprite (direct or resolved from variant)
+    Sprite(&'a Sprite),
+    /// A composition of layered sprites
+    Composition(&'a Composition),
+}
+
+impl<'a> Renderable<'a> {
+    /// Get the name of the renderable entity.
+    pub fn name(&self) -> &str {
+        match self {
+            Renderable::Sprite(sprite) => &sprite.name,
+            Renderable::Composition(composition) => &composition.name,
+        }
+    }
+
+    /// Check if this is a sprite.
+    pub fn is_sprite(&self) -> bool {
+        matches!(self, Renderable::Sprite(_))
+    }
+
+    /// Check if this is a composition.
+    pub fn is_composition(&self) -> bool {
+        matches!(self, Renderable::Composition(_))
+    }
+
+    /// Get the sprite if this is a Sprite variant.
+    pub fn as_sprite(&self) -> Option<&'a Sprite> {
+        match self {
+            Renderable::Sprite(sprite) => Some(sprite),
+            _ => None,
+        }
+    }
+
+    /// Get the composition if this is a Composition variant.
+    pub fn as_composition(&self) -> Option<&'a Composition> {
+        match self {
+            Renderable::Composition(composition) => Some(composition),
+            _ => None,
+        }
+    }
+}
+
+/// Look up a renderable by name across sprite and composition registries.
+///
+/// Searches sprites first, then compositions. Returns the first match found.
+/// This enables unified rendering where a name can refer to either a sprite
+/// or a composition without the caller needing to know which.
+pub fn lookup_renderable<'a>(
+    name: &str,
+    sprite_registry: &'a SpriteRegistry,
+    composition_registry: &'a CompositionRegistry,
+) -> Option<Renderable<'a>> {
+    // Check sprites first (including variants via the direct sprite lookup)
+    if let Some(sprite) = sprite_registry.get_sprite(name) {
+        return Some(Renderable::Sprite(sprite));
+    }
+
+    // Then check compositions
+    if let Some(composition) = composition_registry.get(name) {
+        return Some(Renderable::Composition(composition));
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2449,5 +2611,236 @@ mod tests {
         let variant = Registry::<Variant>::get(&registry, "hero_red");
         assert!(variant.is_some());
         assert_eq!(variant.unwrap().name, "hero_red");
+    }
+
+    // ========== CompositionRegistry Tests (NC-1) ==========
+
+    fn test_composition() -> Composition {
+        Composition {
+            name: "hero_scene".to_string(),
+            base: None,
+            size: Some([16, 16]),
+            cell_size: Some([8, 8]),
+            sprites: HashMap::from([
+                ("hero".to_string(), Some("hero".to_string())),
+                ("bg".to_string(), Some("background".to_string())),
+            ]),
+            layers: vec![],
+        }
+    }
+
+    fn alt_composition() -> Composition {
+        Composition {
+            name: "alt_scene".to_string(),
+            base: None,
+            size: Some([32, 32]),
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        }
+    }
+
+    #[test]
+    fn test_composition_registry_new() {
+        let registry = CompositionRegistry::new();
+        assert!(registry.is_empty());
+        assert_eq!(registry.len(), 0);
+        assert!(!registry.contains("anything"));
+    }
+
+    #[test]
+    fn test_composition_registry_register_and_get() {
+        let mut registry = CompositionRegistry::new();
+        let composition = test_composition();
+        registry.register(composition);
+
+        assert!(registry.contains("hero_scene"));
+        let retrieved = registry.get("hero_scene").unwrap();
+        assert_eq!(retrieved.name, "hero_scene");
+        assert_eq!(retrieved.size, Some([16, 16]));
+    }
+
+    #[test]
+    fn test_composition_registry_register_overwrites() {
+        let mut registry = CompositionRegistry::new();
+        let comp1 = Composition {
+            name: "scene".to_string(),
+            base: None,
+            size: Some([8, 8]),
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+        let comp2 = Composition {
+            name: "scene".to_string(),
+            base: None,
+            size: Some([16, 16]),
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+
+        registry.register(comp1);
+        registry.register(comp2);
+
+        assert_eq!(registry.len(), 1);
+        let retrieved = registry.get("scene").unwrap();
+        assert_eq!(retrieved.size, Some([16, 16]));
+    }
+
+    #[test]
+    fn test_composition_registry_len_and_empty() {
+        let mut registry = CompositionRegistry::new();
+        assert!(registry.is_empty());
+        assert_eq!(registry.len(), 0);
+
+        registry.register(test_composition());
+        assert!(!registry.is_empty());
+        assert_eq!(registry.len(), 1);
+
+        registry.register(alt_composition());
+        assert_eq!(registry.len(), 2);
+
+        registry.clear();
+        assert!(registry.is_empty());
+        assert_eq!(registry.len(), 0);
+    }
+
+    #[test]
+    fn test_composition_registry_names() {
+        let mut registry = CompositionRegistry::new();
+        registry.register(test_composition());
+        registry.register(alt_composition());
+
+        let names: Vec<_> = registry.names().collect();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&&"hero_scene".to_string()));
+        assert!(names.contains(&&"alt_scene".to_string()));
+    }
+
+    #[test]
+    fn test_composition_registry_iter() {
+        let mut registry = CompositionRegistry::new();
+        registry.register(test_composition());
+        registry.register(alt_composition());
+
+        let items: Vec<_> = registry.iter().collect();
+        assert_eq!(items.len(), 2);
+    }
+
+    #[test]
+    fn test_composition_registry_trait_via_generic() {
+        fn check_registry<V>(reg: &impl Registry<V>) -> usize {
+            reg.len()
+        }
+
+        let mut registry = CompositionRegistry::new();
+        registry.register(test_composition());
+        assert_eq!(check_registry::<Composition>(&registry), 1);
+    }
+
+    #[test]
+    fn test_composition_registry_trait_contains_and_get() {
+        let mut registry = CompositionRegistry::new();
+        registry.register(test_composition());
+
+        assert!(Registry::<Composition>::contains(&registry, "hero_scene"));
+        assert!(!Registry::<Composition>::contains(&registry, "nonexistent"));
+
+        let composition = Registry::<Composition>::get(&registry, "hero_scene");
+        assert!(composition.is_some());
+        assert_eq!(composition.unwrap().name, "hero_scene");
+    }
+
+    // ========== Renderable and Unified Lookup Tests (NC-1) ==========
+
+    #[test]
+    fn test_renderable_sprite() {
+        let sprite = hero_sprite();
+        let renderable = Renderable::Sprite(&sprite);
+
+        assert_eq!(renderable.name(), "hero");
+        assert!(renderable.is_sprite());
+        assert!(!renderable.is_composition());
+        assert!(renderable.as_sprite().is_some());
+        assert!(renderable.as_composition().is_none());
+    }
+
+    #[test]
+    fn test_renderable_composition() {
+        let composition = test_composition();
+        let renderable = Renderable::Composition(&composition);
+
+        assert_eq!(renderable.name(), "hero_scene");
+        assert!(!renderable.is_sprite());
+        assert!(renderable.is_composition());
+        assert!(renderable.as_sprite().is_none());
+        assert!(renderable.as_composition().is_some());
+    }
+
+    #[test]
+    fn test_lookup_renderable_finds_sprite() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(hero_sprite());
+        let composition_registry = CompositionRegistry::new();
+
+        let result = lookup_renderable("hero", &sprite_registry, &composition_registry);
+        assert!(result.is_some());
+        let renderable = result.unwrap();
+        assert!(renderable.is_sprite());
+        assert_eq!(renderable.name(), "hero");
+    }
+
+    #[test]
+    fn test_lookup_renderable_finds_composition() {
+        let sprite_registry = SpriteRegistry::new();
+        let mut composition_registry = CompositionRegistry::new();
+        composition_registry.register(test_composition());
+
+        let result = lookup_renderable("hero_scene", &sprite_registry, &composition_registry);
+        assert!(result.is_some());
+        let renderable = result.unwrap();
+        assert!(renderable.is_composition());
+        assert_eq!(renderable.name(), "hero_scene");
+    }
+
+    #[test]
+    fn test_lookup_renderable_sprite_takes_precedence() {
+        // If both sprite and composition have the same name, sprite wins
+        let mut sprite_registry = SpriteRegistry::new();
+        let sprite = Sprite {
+            name: "shared_name".to_string(),
+            size: None,
+            palette: PaletteRef::Inline(HashMap::new()),
+            grid: vec![],
+            metadata: None,
+            ..Default::default()
+        };
+        sprite_registry.register_sprite(sprite);
+
+        let mut composition_registry = CompositionRegistry::new();
+        let composition = Composition {
+            name: "shared_name".to_string(),
+            base: None,
+            size: None,
+            cell_size: None,
+            sprites: HashMap::new(),
+            layers: vec![],
+        };
+        composition_registry.register(composition);
+
+        let result = lookup_renderable("shared_name", &sprite_registry, &composition_registry);
+        assert!(result.is_some());
+        // Sprite takes precedence
+        assert!(result.unwrap().is_sprite());
+    }
+
+    #[test]
+    fn test_lookup_renderable_not_found() {
+        let sprite_registry = SpriteRegistry::new();
+        let composition_registry = CompositionRegistry::new();
+
+        let result = lookup_renderable("nonexistent", &sprite_registry, &composition_registry);
+        assert!(result.is_none());
     }
 }
