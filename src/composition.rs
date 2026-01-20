@@ -34,16 +34,21 @@ use thiserror::Error;
 /// // Second reference - get from cache
 /// let cached = ctx.get_cached("scene").unwrap();
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct RenderContext {
     /// Cache of rendered compositions by name
     composition_cache: HashMap<String, RgbaImage>,
+    /// Stack of composition names currently being rendered (for cycle detection)
+    render_stack: Vec<String>,
 }
 
 impl RenderContext {
     /// Create a new empty render context.
     pub fn new() -> Self {
-        Self { composition_cache: HashMap::new() }
+        Self {
+            composition_cache: HashMap::new(),
+            render_stack: Vec::new(),
+        }
     }
 
     /// Get a cached rendered composition by name.
@@ -77,7 +82,47 @@ impl RenderContext {
 
     /// Check if the cache is empty.
     pub fn is_empty(&self) -> bool {
-        self.composition_cache.is_empty()
+        self.composition_cache.is_empty() && self.render_stack.is_empty()
+    }
+
+    /// Push a composition onto the render stack.
+    ///
+    /// Returns `Ok(())` if successful, or `Err(CompositionError::CycleDetected)`
+    /// if the composition is already on the stack (indicating a cycle).
+    pub fn push(&mut self, name: impl Into<String>) -> Result<(), CompositionError> {
+        let name = name.into();
+        if self.render_stack.contains(&name) {
+            let mut cycle_path: Vec<String> = self
+                .render_stack
+                .iter()
+                .skip_while(|n| *n != &name)
+                .cloned()
+                .collect();
+            cycle_path.push(name);
+            return Err(CompositionError::CycleDetected { cycle_path });
+        }
+        self.render_stack.push(name);
+        Ok(())
+    }
+
+    /// Pop a composition from the render stack.
+    pub fn pop(&mut self) -> Option<String> {
+        self.render_stack.pop()
+    }
+
+    /// Check if a composition is currently being rendered.
+    pub fn contains(&self, name: &str) -> bool {
+        self.render_stack.iter().any(|n| n == name)
+    }
+
+    /// Get the current depth of the render stack.
+    pub fn depth(&self) -> usize {
+        self.render_stack.len()
+    }
+
+    /// Get the current render path as a slice.
+    pub fn path(&self) -> &[String] {
+        &self.render_stack
     }
 }
 
@@ -286,6 +331,12 @@ pub enum CompositionError {
         actual_dimensions: (usize, usize),
         expected_dimensions: (u32, u32),
         composition_name: String,
+    },
+    /// Cycle detected in nested composition references
+    #[error("Cycle detected in composition rendering: {}", cycle_path.join(" -> "))]
+    CycleDetected {
+        /// The composition names forming the cycle (e.g., ["A", "B", "A"])
+        cycle_path: Vec<String>,
     },
 }
 
@@ -2934,13 +2985,15 @@ mod tests {
         assert!(matches!(var_fb, VarOr::Var(s) if s == "var(--opacity, 0.5)"));
     }
 
-    // ========== RenderContext Cache Tests (NC-3) ==========
+    // ========== RenderContext Tests (NC-2, NC-3) ==========
 
     #[test]
     fn test_render_context_new() {
         let ctx = RenderContext::new();
         assert!(ctx.is_empty());
         assert_eq!(ctx.len(), 0);
+        assert_eq!(ctx.depth(), 0);
+        assert!(ctx.path().is_empty());
     }
 
     #[test]
@@ -3068,5 +3121,168 @@ mod tests {
 
         // Should only have rendered once
         assert_eq!(render_count, 1);
+    }
+
+    #[test]
+    fn test_render_context_push_pop_basic() {
+        let mut ctx = RenderContext::new();
+
+        // Push A
+        assert!(ctx.push("A").is_ok());
+        assert_eq!(ctx.depth(), 1);
+        assert!(ctx.contains("A"));
+        assert!(!ctx.is_empty());
+
+        // Push B
+        assert!(ctx.push("B").is_ok());
+        assert_eq!(ctx.depth(), 2);
+        assert!(ctx.contains("A"));
+        assert!(ctx.contains("B"));
+
+        // Push C
+        assert!(ctx.push("C").is_ok());
+        assert_eq!(ctx.depth(), 3);
+        assert_eq!(ctx.path(), &["A", "B", "C"]);
+
+        // Pop C
+        assert_eq!(ctx.pop(), Some("C".to_string()));
+        assert_eq!(ctx.depth(), 2);
+        assert!(!ctx.contains("C"));
+
+        // Pop B
+        assert_eq!(ctx.pop(), Some("B".to_string()));
+        assert_eq!(ctx.depth(), 1);
+
+        // Pop A
+        assert_eq!(ctx.pop(), Some("A".to_string()));
+        assert!(ctx.is_empty());
+
+        // Pop empty returns None
+        assert_eq!(ctx.pop(), None);
+    }
+
+    #[test]
+    fn test_render_context_a_b_c_renders_ok() {
+        // A -> B -> C renders OK (no cycles)
+        let mut ctx = RenderContext::new();
+
+        assert!(ctx.push("A").is_ok());
+        assert!(ctx.push("B").is_ok());
+        assert!(ctx.push("C").is_ok());
+
+        assert_eq!(ctx.depth(), 3);
+        assert_eq!(ctx.path(), &["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_render_context_cycle_a_b_a() {
+        // A -> B -> A returns CycleDetected error
+        let mut ctx = RenderContext::new();
+
+        assert!(ctx.push("A").is_ok());
+        assert!(ctx.push("B").is_ok());
+
+        let result = ctx.push("A");
+        assert!(result.is_err());
+
+        match result {
+            Err(CompositionError::CycleDetected { cycle_path }) => {
+                assert_eq!(cycle_path, vec!["A", "B", "A"]);
+            }
+            _ => panic!("Expected CycleDetected error"),
+        }
+    }
+
+    #[test]
+    fn test_render_context_self_reference_cycle() {
+        // A -> A (self-reference) returns CycleDetected error
+        let mut ctx = RenderContext::new();
+
+        assert!(ctx.push("A").is_ok());
+
+        let result = ctx.push("A");
+        assert!(result.is_err());
+
+        match result {
+            Err(CompositionError::CycleDetected { cycle_path }) => {
+                assert_eq!(cycle_path, vec!["A", "A"]);
+            }
+            _ => panic!("Expected CycleDetected error"),
+        }
+    }
+
+    #[test]
+    fn test_render_context_longer_cycle() {
+        // A -> B -> C -> D -> B returns CycleDetected error with path B -> C -> D -> B
+        let mut ctx = RenderContext::new();
+
+        assert!(ctx.push("A").is_ok());
+        assert!(ctx.push("B").is_ok());
+        assert!(ctx.push("C").is_ok());
+        assert!(ctx.push("D").is_ok());
+
+        let result = ctx.push("B");
+        assert!(result.is_err());
+
+        match result {
+            Err(CompositionError::CycleDetected { cycle_path }) => {
+                assert_eq!(cycle_path, vec!["B", "C", "D", "B"]);
+            }
+            _ => panic!("Expected CycleDetected error"),
+        }
+    }
+
+    #[test]
+    fn test_render_context_cycle_error_message() {
+        // Verify the error message format
+        let mut ctx = RenderContext::new();
+        ctx.push("scene").unwrap();
+        ctx.push("background").unwrap();
+        ctx.push("overlay").unwrap();
+
+        let result = ctx.push("scene");
+        let err = result.unwrap_err();
+        let message = err.to_string();
+
+        assert!(message.contains("Cycle detected"));
+        assert!(message.contains("scene -> background -> overlay -> scene"));
+    }
+
+    #[test]
+    fn test_render_context_reuse_after_pop() {
+        // After popping, the same name can be pushed again
+        let mut ctx = RenderContext::new();
+
+        ctx.push("A").unwrap();
+        ctx.push("B").unwrap();
+        ctx.pop(); // Pop B
+
+        // B can be pushed again
+        assert!(ctx.push("B").is_ok());
+        assert_eq!(ctx.path(), &["A", "B"]);
+    }
+
+    #[test]
+    fn test_render_context_default() {
+        // Default trait implementation
+        let ctx: RenderContext = Default::default();
+        assert!(ctx.is_empty());
+        assert_eq!(ctx.depth(), 0);
+    }
+
+    #[test]
+    fn test_render_context_clone() {
+        let mut ctx = RenderContext::new();
+        ctx.push("A").unwrap();
+        ctx.push("B").unwrap();
+
+        let cloned = ctx.clone();
+        assert_eq!(cloned.depth(), 2);
+        assert_eq!(cloned.path(), &["A", "B"]);
+
+        // Original and clone are independent
+        ctx.push("C").unwrap();
+        assert_eq!(ctx.depth(), 3);
+        assert_eq!(cloned.depth(), 2);
     }
 }
