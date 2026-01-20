@@ -2,6 +2,9 @@
 
 Pixelsrc includes several built-in palettes that can be referenced by name using the `@name` syntax. These palettes provide curated color sets for common pixel art styles.
 
+<!-- DEMOS reference/palettes#gallery -->
+<!-- /DEMOS -->
+
 ## Using Built-in Palettes
 
 Reference a built-in palette with the `@` prefix:
