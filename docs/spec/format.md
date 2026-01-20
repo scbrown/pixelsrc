@@ -504,6 +504,52 @@ Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
   "layers": [{"map": ["{pxl}"]}]}
 ```
 
+#### Nested Compositions
+
+Compositions can reference other compositions in their `sprites` map, enabling hierarchical scene construction. When rendering, if a sprite name is not found in the sprite pool, the renderer checks for a composition with that name and renders it recursively.
+
+**Key Features:**
+- **Recursive rendering:** Compositions can contain other compositions at any nesting depth
+- **Cycle detection:** Self-referential cycles (A → B → A) are detected and reported as errors
+- **Caching:** Rendered compositions are cached, so repeated references reuse the cached result
+
+**Example (Nested Scene):**
+```jsonl
+{"type": "sprite", "name": "tree", "data": ["G", "T"], "palette": {"G": "#228B22", "T": "#8B4513"}}
+{"type": "sprite", "name": "rock", "data": ["RR", "RR"], "palette": {"R": "#696969"}}
+{"type": "composition", "name": "forest_tile", "size": [16, 16], "cell_size": [8, 8],
+  "sprites": {"T": "tree", ".": null},
+  "layers": [{"map": ["TT", ".T"]}]}
+{"type": "composition", "name": "scene", "size": [32, 32], "cell_size": [16, 16],
+  "sprites": {"F": "forest_tile", "R": "rock"},
+  "layers": [{"map": ["FF", "FR"]}]}
+```
+
+In this example, `scene` references `forest_tile` as if it were a sprite. When rendering `scene`, the renderer:
+1. Encounters `F` mapped to `forest_tile`
+2. Finds no sprite named `forest_tile`, but finds a composition
+3. Recursively renders `forest_tile` to produce an image
+4. Uses that rendered image in place of a sprite
+
+**Base as Composition:**
+
+The `base` field can also reference a composition:
+```jsonl
+{"type": "composition", "name": "background", "size": [64, 64], ...}
+{"type": "composition", "name": "scene", "base": "background",
+  "sprites": {"H": "hero"},
+  "layers": [{"map": ["..H.."]}]}
+```
+
+**Cycle Detection:**
+
+Circular references are detected and produce an error:
+```jsonl
+{"type": "composition", "name": "A", "sprites": {"B": "comp_b"}, ...}
+{"type": "composition", "name": "comp_b", "sprites": {"A": "A"}, ...}
+```
+This produces: `Error: Cycle detected in composition references: A -> comp_b -> A`
+
 ---
 
 ## Transform Operations
