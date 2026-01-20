@@ -15,6 +15,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::Cursor;
 
+pub mod sprites;
+
 /// Structured render info captured from a sprite/animation render.
 #[derive(Debug, Clone)]
 pub struct RenderInfo {
@@ -54,7 +56,7 @@ pub struct SpritesheetInfo {
 /// Parse JSONL content and build registries.
 ///
 /// Returns (`palette_registry`, `sprite_registry`, animations) tuple.
-fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<String, Animation>) {
+pub fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<String, Animation>) {
     let cursor = Cursor::new(jsonl);
     let parse_result = parse_stream(cursor);
 
