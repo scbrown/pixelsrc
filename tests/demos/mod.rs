@@ -4,6 +4,7 @@
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
 pub mod build;
+pub mod cli;
 pub mod css;
 pub mod exports;
 
