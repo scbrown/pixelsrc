@@ -3,6 +3,8 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
+mod animation;
+
 use image::RgbaImage;
 use pixelsrc::models::{Animation, PaletteRef, TtpObject};
 use pixelsrc::output::scale_image;

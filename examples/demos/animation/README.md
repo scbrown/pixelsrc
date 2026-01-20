@@ -10,3 +10,4 @@ Frame sequences and timing.
 | `frame_tags.jsonl` | Named animation ranges |
 | `timing.jsonl` | FPS and duration |
 | `attachments.jsonl` | Attachment chains |
+| `looping.jsonl` | Looping modes |

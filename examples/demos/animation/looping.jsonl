@@ -1,0 +1,5 @@
+{"type": "sprite", "name": "loop_frame1", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["x..", ".x.", "..x"]}
+{"type": "sprite", "name": "loop_frame2", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["..x", ".x.", "x.."]}
+{"type": "animation", "name": "looping_default", "frames": ["loop_frame1", "loop_frame2"], "duration": 100}
+{"type": "animation", "name": "looping_true", "frames": ["loop_frame1", "loop_frame2"], "duration": 100, "loop": true}
+{"type": "animation", "name": "looping_false", "frames": ["loop_frame1", "loop_frame2"], "duration": 100, "loop": false}
