@@ -47,9 +47,10 @@ npm supports OIDC trusted publishing (GA since July 2025). Classic tokens were d
 
 **Workflow requirements:**
 - Permission: `id-token: write`
+- Node.js 22+ and run `npm install -g npm@latest` for OIDC support
+- Use `--provenance` flag (triggers OIDC authentication)
 - Do NOT use `registry-url` in `setup-node` (creates .npmrc expecting tokens)
 - Do NOT set `NODE_AUTH_TOKEN` (OIDC only works when no token is present)
-- Provenance attestations are automatic with OIDC
 
 ## Troubleshooting
 
