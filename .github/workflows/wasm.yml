@@ -36,12 +36,12 @@ jobs:
 
       - name: Build WASM
         run: |
-          wasm-pack build --target web --features wasm
+          wasm-pack build --target web -- --no-default-features --features wasm
           rm -rf wasm/pkg
           mv pkg wasm/
 
       - name: Run WASM tests (Node)
-        run: wasm-pack test --node --features wasm
+        run: wasm-pack test --node -- --no-default-features --features wasm
 
       - name: Run npm tests
         run: |
