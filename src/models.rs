@@ -235,6 +235,23 @@ pub enum TransformSpec {
     },
 }
 
+/// Nine-slice region definition for scalable sprites.
+///
+/// Nine-slice (or 9-patch) sprites have fixed corners and stretchable edges/center,
+/// allowing them to be scaled without distorting the corners. Common for UI elements
+/// like buttons, panels, and dialog boxes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NineSlice {
+    /// Left border width in pixels
+    pub left: u32,
+    /// Right border width in pixels
+    pub right: u32,
+    /// Top border height in pixels
+    pub top: u32,
+    /// Bottom border height in pixels
+    pub bottom: u32,
+}
+
 /// A sprite definition.
 ///
 /// A sprite can either have a `grid` directly, or reference another sprite via `source`
@@ -257,6 +274,9 @@ pub struct Sprite {
     /// Sprite metadata for game engine integration (origin, collision boxes)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<SpriteMetadata>,
+    /// Nine-slice region definition for scalable UI sprites
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub nine_slice: Option<NineSlice>,
 }
 
 /// A palette cycle definition for animating colors without changing frames.

@@ -140,6 +140,11 @@ pub enum Commands {
         /// Force power-of-two dimensions for atlas
         #[arg(long)]
         power_of_two: bool,
+
+        /// Render nine-slice sprite to target size (e.g., "64x32")
+        /// Requires sprite to have nine_slice attribute defined
+        #[arg(long)]
+        nine_slice: Option<String>,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -640,6 +645,7 @@ pub fn run() -> ExitCode {
             max_size,
             padding,
             power_of_two,
+            nine_slice,
         } => run_render(
             &input,
             output.as_deref(),
@@ -655,6 +661,7 @@ pub fn run() -> ExitCode {
             max_size.as_deref(),
             padding,
             power_of_two,
+            nine_slice.as_deref(),
         ),
         Commands::Import { input, output, max_colors, name } => {
             run_import(&input, output.as_deref(), max_colors, name.as_deref())
@@ -1013,7 +1020,32 @@ fn run_render(
     max_size_arg: Option<&str>,
     padding: u32,
     power_of_two: bool,
+    nine_slice_arg: Option<&str>,
 ) -> ExitCode {
+    // Parse nine-slice target size if provided
+    let nine_slice_size = if let Some(size_str) = nine_slice_arg {
+        let parts: Vec<&str> = size_str.split('x').collect();
+        if parts.len() != 2 {
+            eprintln!(
+                "Error: Invalid nine-slice size format '{}'. Use WxH format (e.g., '64x32')",
+                size_str
+            );
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+        match (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
+            (Ok(w), Ok(h)) if w > 0 && h > 0 => Some((w, h)),
+            _ => {
+                eprintln!(
+                    "Error: Invalid nine-slice size '{}'. Width and height must be positive integers",
+                    size_str
+                );
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        }
+    } else {
+        None
+    };
+
     // Open input file
     let file = match File::open(input) {
         Ok(f) => f,
@@ -1289,10 +1321,28 @@ fn run_render(
                 grid: final_grid,
                 palette: final_palette,
                 warnings: vec![],
+                nine_slice: sprite.nine_slice.clone(),
             };
 
             // Render the resolved sprite (transforms already applied)
-            let (image, render_warnings) = render_resolved(&render_sprite_data);
+            let (mut image, render_warnings) = render_resolved(&render_sprite_data);
+
+            // Apply nine-slice rendering if requested
+            if let Some((target_w, target_h)) = nine_slice_size {
+                if let Some(ref nine_slice) = sprite.nine_slice {
+                    let (ns_image, ns_warnings) =
+                        crate::renderer::render_nine_slice(&image, nine_slice, target_w, target_h);
+                    image = ns_image;
+                    for warning in ns_warnings {
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                    }
+                } else {
+                    eprintln!(
+                        "Warning: --nine-slice specified but sprite '{}' has no nine_slice attribute",
+                        sprite.name
+                    );
+                }
+            }
 
             // Apply scaling if requested
             let image = scale_image(image, scale);
@@ -1553,6 +1603,7 @@ fn render_composition_to_image(
             grid: resolved_sprite.grid.clone(),
             palette: final_palette,
             warnings: vec![],
+            nine_slice: resolved_sprite.nine_slice.clone(),
         };
 
         // Render the resolved sprite (transforms already applied)
