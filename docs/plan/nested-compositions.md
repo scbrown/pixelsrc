@@ -2,9 +2,17 @@
 
 **Goal:** Allow compositions to reference other compositions in their sprite maps, enabling hierarchical scene building.
 
-**Status:** Not Started
+**Status:** Complete (NC-5 in progress)
 
 **Depends on:** Phase 12 (Composition Tiling) complete
+
+**Beads:**
+- NC-1: TTP-3vsl (closed)
+- NC-2: TTP-ic6c (closed)
+- NC-3: TTP-4dfv (closed)
+- NC-4: TTP-g624 (closed)
+- NC-5: TTP-6wng (in_progress)
+- NC-6: TTP-jvoe (closed)
 
 ---
 
