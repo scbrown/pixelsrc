@@ -1,0 +1,26 @@
+# Codecov configuration for Pixelsrc
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    # Overall project coverage
+    project:
+      default:
+        target: 70%
+        threshold: 2%  # Allow 2% drop without failing
+    # Coverage for new/modified code in PRs
+    patch:
+      default:
+        target: 80%
+
+# Ignore generated and test files from coverage metrics
+ignore:
+  - "tests/**/*"
+  - "benches/**/*"
+  - "examples/**/*"
+
+comment:
+  # Show coverage diff in PR comments
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true
