@@ -71,7 +71,7 @@ jobs:
       - name: Combine website and book
         run: |
           mkdir -p website/dist/book
-          cp -r docs/book/book/* website/dist/book/
+          cp -r docs/book/book/html/* website/dist/book/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
