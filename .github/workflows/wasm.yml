@@ -69,7 +69,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          # Note: No registry-url - using OIDC trusted publishing instead of tokens
 
       - name: Sync version from Cargo.toml
         run: |
