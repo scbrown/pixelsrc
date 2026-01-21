@@ -437,6 +437,8 @@ pub struct ResolvedSprite {
     pub palette: HashMap<String, String>,
     /// Any warnings generated during resolution
     pub warnings: Vec<SpriteWarning>,
+    /// Nine-slice region definition (from base sprite)
+    pub nine_slice: Option<crate::models::NineSlice>,
 }
 
 // ============================================================================
@@ -973,6 +975,7 @@ impl SpriteRegistry {
                 grid: vec![],
                 palette: HashMap::new(),
                 warnings: vec![SpriteWarning::not_found(name)],
+                nine_slice: None,
             })
         }
     }
@@ -1018,6 +1021,7 @@ impl SpriteRegistry {
                     warnings: vec![SpriteWarning {
                         message: format!("Circular reference detected: {}", visited.join(" -> ")),
                     }],
+                    nine_slice: None,
                 });
             }
         }
@@ -1097,7 +1101,14 @@ impl SpriteRegistry {
             }
         };
 
-        Ok(ResolvedSprite { name: sprite.name.clone(), size: sprite.size, grid, palette, warnings })
+        Ok(ResolvedSprite {
+            name: sprite.name.clone(),
+            size: sprite.size,
+            grid,
+            palette,
+            warnings,
+            nine_slice: sprite.nine_slice.clone(),
+        })
     }
 
     /// Apply a list of transforms to a grid.
@@ -1183,6 +1194,7 @@ impl SpriteRegistry {
                         grid: vec![],
                         palette: HashMap::new(),
                         warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
+                        nine_slice: None,
                     });
                 }
             }
@@ -1243,6 +1255,7 @@ impl SpriteRegistry {
             grid,
             palette: merged_palette,
             warnings,
+            nine_slice: base_sprite.nine_slice.clone(),
         })
     }
 
@@ -2231,6 +2244,7 @@ mod tests {
             source: Some("base".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
@@ -2276,6 +2290,7 @@ mod tests {
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("mirror-h".to_string())]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(mirrored);
 
@@ -2316,6 +2331,7 @@ mod tests {
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("rotate:90".to_string())]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(rotated);
 
@@ -2361,6 +2377,7 @@ mod tests {
                 TransformSpec::String("tile:2x1".to_string()),
             ]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(transformed);
 
@@ -2385,6 +2402,7 @@ mod tests {
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
@@ -2413,6 +2431,7 @@ mod tests {
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
@@ -2436,6 +2455,7 @@ mod tests {
             source: Some("b".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         let b = Sprite {
             name: "b".to_string(),
@@ -2445,6 +2465,7 @@ mod tests {
             source: Some("a".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(a);
         sprite_registry.register_sprite(b);

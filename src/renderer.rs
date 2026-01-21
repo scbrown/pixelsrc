@@ -335,6 +335,275 @@ pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
     (image, warnings)
 }
 
+/// Render a nine-slice sprite to a target size.
+///
+/// Nine-slice (or 9-patch) sprites are divided into 9 regions:
+/// - 4 corners (fixed size, no scaling)
+/// - 4 edges (scaled in one direction)
+/// - 1 center (scaled in both directions)
+///
+/// The `nine_slice` parameter defines the border widths (left, right, top, bottom).
+/// The target `width` and `height` determine the output image dimensions.
+///
+/// # Arguments
+///
+/// * `source` - The source image to slice
+/// * `nine_slice` - The border definitions from the sprite
+/// * `target_width` - Target output width in pixels
+/// * `target_height` - Target output height in pixels
+///
+/// # Returns
+///
+/// The rendered nine-slice image and any warnings generated.
+///
+/// # Examples
+///
+/// ```ignore
+/// use pixelsrc::renderer::render_nine_slice;
+/// use pixelsrc::models::NineSlice;
+///
+/// let source = // ... rendered sprite image
+/// let nine_slice = NineSlice { left: 4, right: 4, top: 4, bottom: 4 };
+/// let (result, warnings) = render_nine_slice(&source, &nine_slice, 64, 32);
+/// ```
+pub fn render_nine_slice(
+    source: &RgbaImage,
+    nine_slice: &crate::models::NineSlice,
+    target_width: u32,
+    target_height: u32,
+) -> (RgbaImage, Vec<Warning>) {
+    let mut warnings = Vec::new();
+
+    let src_width = source.width();
+    let src_height = source.height();
+
+    // Validate nine-slice dimensions fit within source
+    let min_width = nine_slice.left + nine_slice.right;
+    let min_height = nine_slice.top + nine_slice.bottom;
+
+    if min_width > src_width {
+        warnings.push(Warning::new(format!(
+            "Nine-slice borders (left={} + right={}) exceed source width ({})",
+            nine_slice.left, nine_slice.right, src_width
+        )));
+        return (source.clone(), warnings);
+    }
+
+    if min_height > src_height {
+        warnings.push(Warning::new(format!(
+            "Nine-slice borders (top={} + bottom={}) exceed source height ({})",
+            nine_slice.top, nine_slice.bottom, src_height
+        )));
+        return (source.clone(), warnings);
+    }
+
+    // Validate target size can accommodate the fixed borders
+    if target_width < min_width {
+        warnings.push(Warning::new(format!(
+            "Target width ({}) is less than minimum nine-slice width ({})",
+            target_width, min_width
+        )));
+        return (source.clone(), warnings);
+    }
+
+    if target_height < min_height {
+        warnings.push(Warning::new(format!(
+            "Target height ({}) is less than minimum nine-slice height ({})",
+            target_height, min_height
+        )));
+        return (source.clone(), warnings);
+    }
+
+    // Create target image
+    let mut result = RgbaImage::new(target_width, target_height);
+
+    // Calculate source regions
+    let src_center_width = src_width - nine_slice.left - nine_slice.right;
+    let src_center_height = src_height - nine_slice.top - nine_slice.bottom;
+
+    // Calculate target center dimensions
+    let target_center_width = target_width - nine_slice.left - nine_slice.right;
+    let target_center_height = target_height - nine_slice.top - nine_slice.bottom;
+
+    // Helper to copy a rectangular region
+    let copy_region = |result: &mut RgbaImage,
+                       src_x: u32,
+                       src_y: u32,
+                       dst_x: u32,
+                       dst_y: u32,
+                       width: u32,
+                       height: u32| {
+        for dy in 0..height {
+            for dx in 0..width {
+                let pixel = *source.get_pixel(src_x + dx, src_y + dy);
+                result.put_pixel(dst_x + dx, dst_y + dy, pixel);
+            }
+        }
+    };
+
+    // Helper to stretch a horizontal strip (scales horizontally)
+    let stretch_horizontal = |result: &mut RgbaImage,
+                              src_x: u32,
+                              src_y: u32,
+                              src_w: u32,
+                              src_h: u32,
+                              dst_x: u32,
+                              dst_y: u32,
+                              dst_w: u32| {
+        if src_w == 0 || dst_w == 0 {
+            return;
+        }
+        for dy in 0..src_h {
+            for dx in 0..dst_w {
+                // Map destination x to source x using nearest-neighbor
+                let src_dx = (dx * src_w) / dst_w;
+                let pixel = *source.get_pixel(src_x + src_dx, src_y + dy);
+                result.put_pixel(dst_x + dx, dst_y + dy, pixel);
+            }
+        }
+    };
+
+    // Helper to stretch a vertical strip (scales vertically)
+    let stretch_vertical = |result: &mut RgbaImage,
+                            src_x: u32,
+                            src_y: u32,
+                            src_w: u32,
+                            src_h: u32,
+                            dst_x: u32,
+                            dst_y: u32,
+                            dst_h: u32| {
+        if src_h == 0 || dst_h == 0 {
+            return;
+        }
+        for dy in 0..dst_h {
+            // Map destination y to source y using nearest-neighbor
+            let src_dy = (dy * src_h) / dst_h;
+            for dx in 0..src_w {
+                let pixel = *source.get_pixel(src_x + dx, src_y + src_dy);
+                result.put_pixel(dst_x + dx, dst_y + dy, pixel);
+            }
+        }
+    };
+
+    // Helper to stretch center (scales both directions)
+    let stretch_both = |result: &mut RgbaImage,
+                        src_x: u32,
+                        src_y: u32,
+                        src_w: u32,
+                        src_h: u32,
+                        dst_x: u32,
+                        dst_y: u32,
+                        dst_w: u32,
+                        dst_h: u32| {
+        if src_w == 0 || src_h == 0 || dst_w == 0 || dst_h == 0 {
+            return;
+        }
+        for dy in 0..dst_h {
+            let src_dy = (dy * src_h) / dst_h;
+            for dx in 0..dst_w {
+                let src_dx = (dx * src_w) / dst_w;
+                let pixel = *source.get_pixel(src_x + src_dx, src_y + src_dy);
+                result.put_pixel(dst_x + dx, dst_y + dy, pixel);
+            }
+        }
+    };
+
+    // 1. Copy corners (fixed size)
+    // Top-left
+    copy_region(&mut result, 0, 0, 0, 0, nine_slice.left, nine_slice.top);
+    // Top-right
+    copy_region(
+        &mut result,
+        src_width - nine_slice.right,
+        0,
+        target_width - nine_slice.right,
+        0,
+        nine_slice.right,
+        nine_slice.top,
+    );
+    // Bottom-left
+    copy_region(
+        &mut result,
+        0,
+        src_height - nine_slice.bottom,
+        0,
+        target_height - nine_slice.bottom,
+        nine_slice.left,
+        nine_slice.bottom,
+    );
+    // Bottom-right
+    copy_region(
+        &mut result,
+        src_width - nine_slice.right,
+        src_height - nine_slice.bottom,
+        target_width - nine_slice.right,
+        target_height - nine_slice.bottom,
+        nine_slice.right,
+        nine_slice.bottom,
+    );
+
+    // 2. Stretch edges
+    // Top edge (stretch horizontally)
+    stretch_horizontal(
+        &mut result,
+        nine_slice.left,
+        0,
+        src_center_width,
+        nine_slice.top,
+        nine_slice.left,
+        0,
+        target_center_width,
+    );
+    // Bottom edge (stretch horizontally)
+    stretch_horizontal(
+        &mut result,
+        nine_slice.left,
+        src_height - nine_slice.bottom,
+        src_center_width,
+        nine_slice.bottom,
+        nine_slice.left,
+        target_height - nine_slice.bottom,
+        target_center_width,
+    );
+    // Left edge (stretch vertically)
+    stretch_vertical(
+        &mut result,
+        0,
+        nine_slice.top,
+        nine_slice.left,
+        src_center_height,
+        0,
+        nine_slice.top,
+        target_center_height,
+    );
+    // Right edge (stretch vertically)
+    stretch_vertical(
+        &mut result,
+        src_width - nine_slice.right,
+        nine_slice.top,
+        nine_slice.right,
+        src_center_height,
+        target_width - nine_slice.right,
+        nine_slice.top,
+        target_center_height,
+    );
+
+    // 3. Stretch center (both directions)
+    stretch_both(
+        &mut result,
+        nine_slice.left,
+        nine_slice.top,
+        src_center_width,
+        src_center_height,
+        nine_slice.left,
+        nine_slice.top,
+        target_center_width,
+        target_center_height,
+    );
+
+    (result, warnings)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -690,6 +959,7 @@ mod tests {
                 ("{b}".to_string(), "#0000FF".to_string()),
             ]),
             warnings: vec![],
+            nine_slice: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -717,6 +987,7 @@ mod tests {
             ],
             palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
             warnings: vec![],
+            nine_slice: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -740,6 +1011,7 @@ mod tests {
                 // {unknown} not in palette
             ]),
             warnings: vec![],
+            nine_slice: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -762,6 +1034,7 @@ mod tests {
             grid: vec![],
             palette: HashMap::new(),
             warnings: vec![],
+            nine_slice: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -787,6 +1060,7 @@ mod tests {
                 ("{skin}".to_string(), "#FF6666".to_string()), // Overridden color
             ]),
             warnings: vec![],
+            nine_slice: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -913,5 +1187,177 @@ mod tests {
         assert!(!warns.is_empty()); // Warning about empty grid
         assert_eq!(img.width(), 1);
         assert_eq!(img.height(), 1);
+    }
+
+    // ========== Nine-slice rendering tests ==========
+
+    #[test]
+    fn test_nine_slice_basic() {
+        use crate::models::NineSlice;
+
+        // Create a 12x12 source image with distinct regions
+        // Layout: 4px borders, 4px center
+        let mut source = RgbaImage::new(12, 12);
+
+        // Fill with distinct colors for each region:
+        // Red = corners, Green = horizontal edges, Blue = vertical edges, Yellow = center
+        let red = Rgba([255, 0, 0, 255]);
+        let green = Rgba([0, 255, 0, 255]);
+        let blue = Rgba([0, 0, 255, 255]);
+        let yellow = Rgba([255, 255, 0, 255]);
+
+        for y in 0..12u32 {
+            for x in 0..12u32 {
+                let is_left = x < 4;
+                let is_right = x >= 8;
+                let is_top = y < 4;
+                let is_bottom = y >= 8;
+
+                let color = match (is_left || is_right, is_top || is_bottom) {
+                    (true, true) => red,     // corners
+                    (false, true) => green,  // top/bottom edges
+                    (true, false) => blue,   // left/right edges
+                    (false, false) => yellow, // center
+                };
+                source.put_pixel(x, y, color);
+            }
+        }
+
+        let nine_slice = NineSlice { left: 4, right: 4, top: 4, bottom: 4 };
+
+        // Render to 20x16 (stretch center from 4x4 to 12x8)
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 20, 16);
+
+        assert!(warnings.is_empty());
+        assert_eq!(result.width(), 20);
+        assert_eq!(result.height(), 16);
+
+        // Check corners are preserved (top-left)
+        assert_eq!(*result.get_pixel(0, 0), red);
+        assert_eq!(*result.get_pixel(3, 3), red);
+
+        // Check corners are preserved (top-right)
+        assert_eq!(*result.get_pixel(16, 0), red);
+        assert_eq!(*result.get_pixel(19, 3), red);
+
+        // Check corners are preserved (bottom-left)
+        assert_eq!(*result.get_pixel(0, 12), red);
+        assert_eq!(*result.get_pixel(3, 15), red);
+
+        // Check corners are preserved (bottom-right)
+        assert_eq!(*result.get_pixel(16, 12), red);
+        assert_eq!(*result.get_pixel(19, 15), red);
+
+        // Check top edge is stretched horizontally (green)
+        assert_eq!(*result.get_pixel(4, 0), green);
+        assert_eq!(*result.get_pixel(8, 2), green);
+        assert_eq!(*result.get_pixel(15, 3), green);
+
+        // Check center is stretched both ways (yellow)
+        assert_eq!(*result.get_pixel(8, 8), yellow);
+    }
+
+    #[test]
+    fn test_nine_slice_same_size() {
+        use crate::models::NineSlice;
+
+        // Create a simple 8x8 source
+        let mut source = RgbaImage::new(8, 8);
+        let blue = Rgba([0, 0, 255, 255]);
+        for y in 0..8u32 {
+            for x in 0..8u32 {
+                source.put_pixel(x, y, blue);
+            }
+        }
+
+        let nine_slice = NineSlice { left: 2, right: 2, top: 2, bottom: 2 };
+
+        // Render to same size (no stretching)
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 8, 8);
+
+        assert!(warnings.is_empty());
+        assert_eq!(result.width(), 8);
+        assert_eq!(result.height(), 8);
+
+        // All pixels should be the same
+        for y in 0..8u32 {
+            for x in 0..8u32 {
+                assert_eq!(*result.get_pixel(x, y), blue);
+            }
+        }
+    }
+
+    #[test]
+    fn test_nine_slice_invalid_borders_too_wide() {
+        use crate::models::NineSlice;
+
+        let source = RgbaImage::new(8, 8);
+
+        // Borders exceed source width (5 + 5 > 8)
+        let nine_slice = NineSlice { left: 5, right: 5, top: 2, bottom: 2 };
+
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 16, 16);
+
+        // Should return original with warning
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("exceed source width"));
+        assert_eq!(result.width(), 8);
+        assert_eq!(result.height(), 8);
+    }
+
+    #[test]
+    fn test_nine_slice_invalid_borders_too_tall() {
+        use crate::models::NineSlice;
+
+        let source = RgbaImage::new(8, 8);
+
+        // Borders exceed source height (5 + 5 > 8)
+        let nine_slice = NineSlice { left: 2, right: 2, top: 5, bottom: 5 };
+
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 16, 16);
+
+        // Should return original with warning
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("exceed source height"));
+        assert_eq!(result.width(), 8);
+        assert_eq!(result.height(), 8);
+    }
+
+    #[test]
+    fn test_nine_slice_target_too_small() {
+        use crate::models::NineSlice;
+
+        let source = RgbaImage::new(12, 12);
+        let nine_slice = NineSlice { left: 4, right: 4, top: 4, bottom: 4 };
+
+        // Target width less than minimum (4 + 4 = 8)
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 6, 12);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("Target width"));
+        assert_eq!(result.width(), 12);
+    }
+
+    #[test]
+    fn test_nine_slice_shrink() {
+        use crate::models::NineSlice;
+
+        // Create 16x16 source with 4px borders (8px center)
+        let mut source = RgbaImage::new(16, 16);
+        let white = Rgba([255, 255, 255, 255]);
+        for y in 0..16u32 {
+            for x in 0..16u32 {
+                source.put_pixel(x, y, white);
+            }
+        }
+
+        let nine_slice = NineSlice { left: 4, right: 4, top: 4, bottom: 4 };
+
+        // Shrink to 10x10 (center becomes 2x2)
+        let (result, warnings) = render_nine_slice(&source, &nine_slice, 10, 10);
+
+        assert!(warnings.is_empty());
+        assert_eq!(result.width(), 10);
+        assert_eq!(result.height(), 10);
     }
 }

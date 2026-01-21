@@ -475,6 +475,7 @@ impl BuildPipeline {
                     grid: task.grid,
                     palette: task.colors,
                     warnings: vec![],
+                    nine_slice: task.sprite.nine_slice.clone(),
                 };
                 let (image, render_warnings) = render_resolved(&resolved);
 

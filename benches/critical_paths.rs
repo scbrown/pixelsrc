@@ -103,6 +103,7 @@ fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
         grid: (0..height).map(|_| make_grid_row(width)).collect(),
         palette,
         warnings: vec![],
+        nine_slice: None,
     }
 }
 
