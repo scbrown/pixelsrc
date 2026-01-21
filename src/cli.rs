@@ -548,6 +548,64 @@ pub enum Commands {
     /// Start the Language Server Protocol server (for editor integration)
     #[command(hide = true)]
     Lsp,
+
+    /// Agent-mode validation and diagnostics (for AI/CLI integration)
+    Agent {
+        /// Subcommand: verify, completions, position
+        #[command(subcommand)]
+        action: AgentAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AgentAction {
+    /// Verify content and return structured diagnostics
+    Verify {
+        /// Input file to verify (omit for stdin)
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Treat warnings as errors
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Get token completions at a position
+    Completions {
+        /// Input file
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Line number (1-indexed)
+        #[arg(long, default_value = "1")]
+        line: usize,
+
+        /// Character position (0-indexed)
+        #[arg(long, default_value = "0")]
+        character: usize,
+    },
+    /// Get grid position information
+    Position {
+        /// Input file
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Line number (1-indexed)
+        #[arg(long)]
+        line: usize,
+
+        /// Character position (0-indexed)
+        #[arg(long)]
+        character: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -712,6 +770,7 @@ pub fn run() -> ExitCode {
             eprintln!("Error: LSP is not available in WASM builds");
             ExitCode::from(EXIT_ERROR)
         }
+        Commands::Agent { action } => run_agent(action),
     }
 }
 
@@ -730,6 +789,98 @@ fn run_lsp() -> ExitCode {
 
     rt.block_on(crate::lsp::run_server());
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute agent command (verify, completions, position)
+fn run_agent(action: AgentAction) -> ExitCode {
+    use crate::lsp_agent_client::LspAgentClient;
+    use std::io::{self, Read};
+
+    match action {
+        AgentAction::Verify { file, stdin, strict } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = if strict {
+                LspAgentClient::strict()
+            } else {
+                LspAgentClient::new()
+            };
+            println!("{}", client.verify_content_json(&content));
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        AgentAction::Completions { file, stdin, line, character } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = LspAgentClient::new();
+            println!("{}", client.get_completions_json(&content, line, character));
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        AgentAction::Position { file, stdin, line, character } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = LspAgentClient::new();
+            if let Some(pos) = client.get_grid_position(&content, line, character) {
+                println!("{}", serde_json::to_string_pretty(&pos).unwrap());
+            } else {
+                println!("null");
+            }
+            ExitCode::from(EXIT_SUCCESS)
+        }
+    }
 }
 
 // Embedded prompt templates
