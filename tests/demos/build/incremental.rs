@@ -57,31 +57,16 @@ fn test_incremental_scope_isolation() {
     // Verify sources don't overlap between atlases
     // This ensures changing one category only rebuilds its atlas
 
-    let player_sources: Vec<&str> = config
-        .atlases
-        .get("player")
-        .unwrap()
-        .sources
-        .iter()
-        .map(|s| s.as_str())
-        .collect();
+    let player_sources: Vec<&str> =
+        config.atlases.get("player").unwrap().sources.iter().map(|s| s.as_str()).collect();
 
-    let enemies_sources: Vec<&str> = config
-        .atlases
-        .get("enemies")
-        .unwrap()
-        .sources
-        .iter()
-        .map(|s| s.as_str())
-        .collect();
+    let enemies_sources: Vec<&str> =
+        config.atlases.get("enemies").unwrap().sources.iter().map(|s| s.as_str()).collect();
 
     // No source from player should match enemies pattern
     for player_src in &player_sources {
         for enemy_src in &enemies_sources {
-            assert_ne!(
-                player_src, enemy_src,
-                "Player and enemies sources should not overlap"
-            );
+            assert_ne!(player_src, enemy_src, "Player and enemies sources should not overlap");
         }
     }
 
@@ -126,8 +111,7 @@ fn test_incremental_target_filter() {
     let config: PxlConfig = toml::from_str(toml_content).expect("Should parse incremental config");
 
     let project_root = PathBuf::from("/test/project");
-    let ctx = BuildContext::new(config, project_root)
-        .with_filter(vec!["player".to_string()]);
+    let ctx = BuildContext::new(config, project_root).with_filter(vec!["player".to_string()]);
 
     // Verify filter is set
     let filter = ctx.target_filter();
@@ -187,10 +171,6 @@ fn test_incremental_atlas_sizing() {
 
     // All should use power-of-two for GPU compatibility
     for (name, atlas) in &config.atlases {
-        assert!(
-            atlas.power_of_two,
-            "Atlas '{}' should use power-of-two dimensions",
-            name
-        );
+        assert!(atlas.power_of_two, "Atlas '{}' should use power-of-two dimensions", name);
     }
 }

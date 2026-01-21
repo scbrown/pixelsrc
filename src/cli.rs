@@ -49,12 +49,12 @@ pub fn find_pixelsrc_files(dir: &std::path::Path) -> Vec<PathBuf> {
 use crate::gif::render_gif;
 use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
+use crate::lsp_agent_client::LspAgentClient;
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
 use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
 use crate::palettes;
 use crate::parser::parse_stream;
-use crate::lsp_agent_client::LspAgentClient;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette, SpriteRegistry};
 use crate::renderer::{render_resolved, render_sprite};
 use crate::spritesheet::render_spritesheet;
@@ -814,11 +814,7 @@ fn run_agent(action: AgentAction) -> ExitCode {
                 return ExitCode::from(EXIT_INVALID_ARGS);
             };
 
-            let client = if strict {
-                LspAgentClient::strict()
-            } else {
-                LspAgentClient::new()
-            };
+            let client = if strict { LspAgentClient::strict() } else { LspAgentClient::new() };
             println!("{}", client.verify_content_json(&content));
             ExitCode::from(EXIT_SUCCESS)
         }
@@ -2568,11 +2564,7 @@ fn run_agent_verify(
     };
 
     // Create client with appropriate strictness
-    let client = if strict {
-        LspAgentClient::strict()
-    } else {
-        LspAgentClient::new()
-    };
+    let client = if strict { LspAgentClient::strict() } else { LspAgentClient::new() };
 
     // Build the result object
     let mut result = serde_json::Map::new();
@@ -2650,13 +2642,15 @@ fn run_agent_verify(
                     .collect();
 
                 // Get size from size field or first row
-                let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
+                let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
+                {
                     size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
                 } else {
                     row_widths.first().copied().unwrap_or(0)
                 };
 
-                let expected_height = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
+                let expected_height = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
+                {
                     size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize
                 } else {
                     row_widths.len()
@@ -2745,10 +2739,7 @@ fn run_agent_verify(
     }
 
     // Output JSON result
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&serde_json::Value::Object(result)).unwrap()
-    );
+    println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(result)).unwrap());
 
     if verification.valid {
         ExitCode::from(EXIT_SUCCESS)

@@ -14,14 +14,9 @@ fn test_metadata_origin() {
 
     let (palette_registry, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("player")
-        .expect("Sprite 'player' should exist");
+    let sprite = sprite_registry.get_sprite("player").expect("Sprite 'player' should exist");
 
-    let metadata = sprite
-        .metadata
-        .as_ref()
-        .expect("Player sprite should have metadata");
+    let metadata = sprite.metadata.as_ref().expect("Player sprite should have metadata");
 
     // Origin at [2, 3] - bottom center of the character
     let origin = metadata.origin.expect("Player sprite should have origin");
@@ -42,14 +37,9 @@ fn test_metadata_collision_boxes() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("player")
-        .expect("Sprite 'player' should exist");
+    let sprite = sprite_registry.get_sprite("player").expect("Sprite 'player' should exist");
 
-    let metadata = sprite
-        .metadata
-        .as_ref()
-        .expect("Player sprite should have metadata");
+    let metadata = sprite.metadata.as_ref().expect("Player sprite should have metadata");
 
     let boxes = metadata.boxes.as_ref().expect("Player sprite should have collision boxes");
 
@@ -77,14 +67,9 @@ fn test_metadata_attachments() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("player")
-        .expect("Sprite 'player' should exist");
+    let sprite = sprite_registry.get_sprite("player").expect("Sprite 'player' should exist");
 
-    let metadata = sprite
-        .metadata
-        .as_ref()
-        .expect("Player sprite should have metadata");
+    let metadata = sprite.metadata.as_ref().expect("Player sprite should have metadata");
 
     // Verify attach_in point (where this sprite connects to parent)
     let attach_in = metadata.attach_in.expect("Should have attach_in point");

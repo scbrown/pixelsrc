@@ -411,11 +411,8 @@ impl LspAgentClient {
             };
             let _ = obj_type;
 
-            let palette_name = obj
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
+            let palette_name =
+                obj.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
 
             // Get the colors object
             let palette_colors = match obj.get("colors").and_then(|c| c.as_object()) {
@@ -474,11 +471,7 @@ impl LspAgentClient {
             }
         }
 
-        ColorResolutionResult {
-            error_count: errors.len(),
-            colors,
-            errors,
-        }
+        ColorResolutionResult { error_count: errors.len(), colors, errors }
     }
 
     /// Resolve colors and return JSON string
@@ -486,9 +479,8 @@ impl LspAgentClient {
     /// Convenience method that returns the color resolution result as a JSON string.
     pub fn resolve_colors_json(&self, content: &str) -> String {
         let result = self.resolve_colors(content);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Analyze timing functions in animations.
@@ -537,18 +529,12 @@ impl LspAgentClient {
             };
             let _ = obj_type;
 
-            let anim_name = obj
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
+            let anim_name =
+                obj.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
 
             // Get timing function (default to "linear" if not specified)
-            let timing_str = obj
-                .get("timing_function")
-                .and_then(|t| t.as_str())
-                .unwrap_or("linear")
-                .to_string();
+            let timing_str =
+                obj.get("timing_function").and_then(|t| t.as_str()).unwrap_or("linear").to_string();
 
             // Parse the timing function
             let (description, curve_type, ascii_curve) = match parse_timing_function(&timing_str) {
@@ -558,9 +544,11 @@ impl LspAgentClient {
                     let ascii = Self::render_ascii_curve(&interpolation, 20, 8);
                     (desc, curve_type, Some(ascii))
                 }
-                Err(_) => {
-                    (format!("Unknown timing function: {}", timing_str), "unknown".to_string(), None)
-                }
+                Err(_) => (
+                    format!("Unknown timing function: {}", timing_str),
+                    "unknown".to_string(),
+                    None,
+                ),
             };
 
             animations.push(TimingAnalysis {
@@ -580,9 +568,8 @@ impl LspAgentClient {
     /// Convenience method that returns the timing analysis result as a JSON string.
     pub fn analyze_timing_json(&self, content: &str) -> String {
         let result = self.analyze_timing(content);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Build a VariableRegistry from document content
@@ -1181,7 +1168,8 @@ mod tests {
     #[test]
     fn test_analyze_timing_steps() {
         let client = LspAgentClient::new();
-        let content = r#"{"type": "animation", "name": "walk", "timing_function": "steps(4, jump-end)"}"#;
+        let content =
+            r#"{"type": "animation", "name": "walk", "timing_function": "steps(4, jump-end)"}"#;
 
         let result = client.analyze_timing(content);
         assert_eq!(result.animations.len(), 1);

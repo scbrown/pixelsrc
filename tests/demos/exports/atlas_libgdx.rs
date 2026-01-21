@@ -6,7 +6,7 @@
 
 use pixelsrc::atlas::{AtlasAnimation, AtlasFrame, AtlasMetadata};
 use pixelsrc::export::libgdx::{
-    LibGdxExporter, LibGdxExportOptions, LibGdxFilterMode, LibGdxRepeatMode,
+    LibGdxExportOptions, LibGdxExporter, LibGdxFilterMode, LibGdxRepeatMode,
 };
 use pixelsrc::export::{ExportOptions, Exporter};
 use pixelsrc::models::TtpObject;
@@ -58,12 +58,7 @@ fn build_atlas_metadata(jsonl: &str) -> AtlasMetadata {
         }
     }
 
-    AtlasMetadata {
-        image: "rpg_items.png".to_string(),
-        size: [64, 64],
-        frames,
-        animations,
-    }
+    AtlasMetadata { image: "rpg_items.png".to_string(), size: [64, 64], frames, animations }
 }
 
 /// @demo export/atlas#libgdx

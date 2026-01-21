@@ -46,8 +46,5 @@ fn test_inline_palette_no_named_ref() {
     let jsonl = include_str!("../../../examples/demos/sprites/inline_palette.jsonl");
 
     let info = capture_render_info(jsonl, "heart");
-    assert!(
-        info.palette_name.is_none(),
-        "Inline palette sprite should not have a palette_name"
-    );
+    assert!(info.palette_name.is_none(), "Inline palette sprite should not have a palette_name");
 }

@@ -4,10 +4,10 @@
 //! Pixelsrc definitions to PNG output.
 
 use crate::demos::{assert_validates, capture_render_info, capture_spritesheet_info};
+use pixelsrc::output::scale_image;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
 use pixelsrc::renderer::render_resolved;
-use pixelsrc::output::scale_image;
 use std::io::Cursor;
 
 /// Parse JSONL and build registries for rendering.
@@ -45,9 +45,8 @@ fn test_render_basic() {
     let (palette_registry, sprite_registry) = setup_render(jsonl);
 
     // Resolve and render the sprite (what `pxl render` does internally)
-    let resolved = sprite_registry
-        .resolve("square", &palette_registry, false)
-        .expect("Should resolve sprite");
+    let resolved =
+        sprite_registry.resolve("square", &palette_registry, false).expect("Should resolve sprite");
 
     let (image, warnings) = render_resolved(&resolved);
 
@@ -183,7 +182,8 @@ fn test_render_output_paths() {
     );
 
     // Explicit file output (single sprite)
-    let explicit = generate_output_path(input, "idle", Some(Path::new("output/character.png")), true);
+    let explicit =
+        generate_output_path(input, "idle", Some(Path::new("output/character.png")), true);
     assert_eq!(
         explicit.to_string_lossy(),
         "output/character.png",

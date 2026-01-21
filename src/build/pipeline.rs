@@ -234,18 +234,14 @@ impl BuildPipeline {
             sprites[0].name.clone()
         } else {
             // Try to find sprite by target name
-            sprites
-                .iter()
-                .find(|s| s.name == target.name)
-                .map(|s| s.name.clone())
-                .ok_or_else(|| {
-                    format!("Sprite '{}' not found in {}", target.name, source.display())
-                })?
+            sprites.iter().find(|s| s.name == target.name).map(|s| s.name.clone()).ok_or_else(
+                || format!("Sprite '{}' not found in {}", target.name, source.display()),
+            )?
         };
 
-        let sprite = sprite_registry.get_sprite(&sprite_name).ok_or_else(|| {
-            format!("Sprite '{}' not found in registry", sprite_name)
-        })?;
+        let sprite = sprite_registry
+            .get_sprite(&sprite_name)
+            .ok_or_else(|| format!("Sprite '{}' not found in registry", sprite_name))?;
 
         // Determine if we need transform resolution (has source reference or transforms)
         let needs_transform_resolution = sprite.source.is_some() || sprite.transform.is_some();
@@ -268,9 +264,9 @@ impl BuildPipeline {
         } else {
             // No transforms - use direct rendering with palette resolution
             let resolved_palette = if self.context.is_strict() {
-                palette_registry
-                    .resolve_strict(sprite)
-                    .map_err(|e| format!("Failed to resolve palette for '{}': {}", sprite.name, e))?
+                palette_registry.resolve_strict(sprite).map_err(|e| {
+                    format!("Failed to resolve palette for '{}': {}", sprite.name, e)
+                })?
             } else {
                 let result = palette_registry.resolve_lenient(sprite);
                 if let Some(warning) = result.warning {
@@ -978,11 +974,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "arrow_left".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::sprite("arrow_left".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1024,11 +1017,7 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "rotated".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target = BuildTarget::sprite("rotated".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1057,11 +1046,7 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::sprite(
-            "tiled".to_string(),
-            sprite_file,
-            output_file.clone(),
-        );
+        let target = BuildTarget::sprite("tiled".to_string(), sprite_file, output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1342,11 +1327,8 @@ mod tests {
 
         let pipeline = BuildPipeline::new(ctx);
 
-        let target = BuildTarget::atlas(
-            "transformed".to_string(),
-            vec![sprite_file],
-            output_file.clone(),
-        );
+        let target =
+            BuildTarget::atlas("transformed".to_string(), vec![sprite_file], output_file.clone());
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
@@ -1357,7 +1339,10 @@ mod tests {
 
         // Both sprites should be in the atlas
         assert!(json_content.contains("\"bar\""), "Atlas should contain original bar sprite");
-        assert!(json_content.contains("\"block\""), "Atlas should contain transformed block sprite");
+        assert!(
+            json_content.contains("\"block\""),
+            "Atlas should contain transformed block sprite"
+        );
 
         // Verify the atlas contains the correct frames with transformed dimensions
         // bar: 2x1, block: 2x2 (tiled 1x2)
@@ -1366,7 +1351,15 @@ mod tests {
 
         // Find the block frame and verify its dimensions (frame properties are direct, not nested)
         let block_frame = frames.get("block").expect("Should have block frame");
-        assert_eq!(block_frame.get("w").and_then(|v| v.as_u64()), Some(2), "Block width should be 2");
-        assert_eq!(block_frame.get("h").and_then(|v| v.as_u64()), Some(2), "Block height should be 2 (tiled)");
+        assert_eq!(
+            block_frame.get("w").and_then(|v| v.as_u64()),
+            Some(2),
+            "Block width should be 2"
+        );
+        assert_eq!(
+            block_frame.get("h").and_then(|v| v.as_u64()),
+            Some(2),
+            "Block height should be 2 (tiled)"
+        );
     }
 }

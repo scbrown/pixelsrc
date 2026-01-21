@@ -5,7 +5,7 @@
 //! and .anim animation clip files.
 
 use pixelsrc::atlas::{AtlasFrame, AtlasMetadata};
-use pixelsrc::export::unity::{export_unity, UnityExporter, UnityExportOptions, UnityFilterMode};
+use pixelsrc::export::unity::{export_unity, UnityExportOptions, UnityExporter, UnityFilterMode};
 use pixelsrc::export::Exporter;
 use pixelsrc::models::TtpObject;
 use pixelsrc::parser::parse_stream;
@@ -134,8 +134,7 @@ fn test_atlas_unity_meta_content() {
     let output_path = temp.path().join("atlas.json");
     export_unity(&metadata, &output_path, 32).unwrap();
 
-    let meta_content =
-        std::fs::read_to_string(temp.path().join("ui_atlas.png.meta")).unwrap();
+    let meta_content = std::fs::read_to_string(temp.path().join("ui_atlas.png.meta")).unwrap();
 
     // Verify meta file structure
     assert!(meta_content.contains("fileFormatVersion: 2"), "Should have file format version");
@@ -193,19 +192,15 @@ fn test_atlas_unity_filter_modes() {
 
     // Test with bilinear filtering
     let exporter = UnityExporter::new().with_filter_mode(UnityFilterMode::Bilinear);
-    let options = UnityExportOptions {
-        filter_mode: UnityFilterMode::Bilinear,
-        ..Default::default()
-    };
+    let options =
+        UnityExportOptions { filter_mode: UnityFilterMode::Bilinear, ..Default::default() };
     let json = exporter.export_to_string(&metadata, &options).unwrap();
 
     assert!(json.contains("\"filterMode\": \"Bilinear\""), "Should use bilinear filtering");
 
     // Test with trilinear filtering
-    let options_tri = UnityExportOptions {
-        filter_mode: UnityFilterMode::Trilinear,
-        ..Default::default()
-    };
+    let options_tri =
+        UnityExportOptions { filter_mode: UnityFilterMode::Trilinear, ..Default::default() };
     let exporter_tri = UnityExporter::new().with_filter_mode(UnityFilterMode::Trilinear);
     let json_tri = exporter_tri.export_to_string(&metadata, &options_tri).unwrap();
 
