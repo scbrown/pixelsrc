@@ -197,11 +197,92 @@ pub struct CssKeyframe {
     pub offset: Option<[i32; 2]>,
 }
 
-/// A named palette defining color tokens.
+/// Per-step color shift for ramp generation.
+///
+/// All values are deltas applied per step. For example, `lightness: -15` means
+/// each shadow step is 15% darker than the previous.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ColorShift {
+    /// Lightness delta per step (-100 to 100)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub lightness: Option<f64>,
+    /// Hue rotation in degrees per step (-180 to 180)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub hue: Option<f64>,
+    /// Saturation delta per step (-100 to 100)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub saturation: Option<f64>,
+}
+
+impl ColorShift {
+    /// Default shadow shift: darker, warmer (hue shifts toward red/orange)
+    pub fn default_shadow() -> Self {
+        Self {
+            lightness: Some(-15.0),
+            hue: Some(10.0),
+            saturation: Some(5.0),
+        }
+    }
+
+    /// Default highlight shift: lighter, cooler (hue shifts toward blue)
+    pub fn default_highlight() -> Self {
+        Self {
+            lightness: Some(12.0),
+            hue: Some(-5.0),
+            saturation: Some(-10.0),
+        }
+    }
+}
+
+/// A color ramp definition for automatic color generation.
+///
+/// Generates a series of colors from shadow to highlight based on a base color
+/// with configurable hue/saturation/lightness shifts per step.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ColorRamp {
+    /// Base color in CSS format (e.g., "#E8B89D", "rgb(232, 184, 157)")
+    pub base: String,
+    /// Total number of steps (odd numbers center on base). Default: 3
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub steps: Option<u32>,
+    /// Per-step shift toward shadows (applied to steps below base)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub shadow_shift: Option<ColorShift>,
+    /// Per-step shift toward highlights (applied to steps above base)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub highlight_shift: Option<ColorShift>,
+}
+
+impl ColorRamp {
+    /// Default number of steps in a ramp
+    pub const DEFAULT_STEPS: u32 = 3;
+
+    /// Returns the number of steps in this ramp
+    pub fn steps(&self) -> u32 {
+        self.steps.unwrap_or(Self::DEFAULT_STEPS)
+    }
+
+    /// Returns the shadow shift, using defaults if not specified
+    pub fn shadow_shift(&self) -> ColorShift {
+        self.shadow_shift.clone().unwrap_or_else(ColorShift::default_shadow)
+    }
+
+    /// Returns the highlight shift, using defaults if not specified
+    pub fn highlight_shift(&self) -> ColorShift {
+        self.highlight_shift.clone().unwrap_or_else(ColorShift::default_highlight)
+    }
+}
+
+/// A named palette defining color tokens.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub colors: HashMap<String, String>,
+    /// Color ramps for automatic generation of shadow/highlight variants
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ramps: Option<HashMap<String, ColorRamp>>,
 }
 
 /// Reference to a palette - either a named reference or inline definition.
@@ -981,6 +1062,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{on}".to_string(), "#FFFFFF".to_string()),
             ]),
+            ..Default::default()
         };
         let json = serde_json::to_string(&palette).unwrap();
         let parsed: Palette = serde_json::from_str(&json).unwrap();
@@ -1025,6 +1107,7 @@ mod tests {
         let obj = TtpObject::Palette(Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{a}".to_string(), "#FF0000".to_string())]),
+            ..Default::default()
         });
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"palette""#));

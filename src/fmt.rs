@@ -440,6 +440,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{a}".to_string(), "#FF0000".to_string()),
             ]),
+            ..Default::default()
         };
         let formatted = format_palette(&palette);
         // Should be single line

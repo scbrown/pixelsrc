@@ -85,15 +85,15 @@ pub mod wasm;
 
 // Core data types
 pub use models::{
-    Animation, Composition, CompositionLayer, Palette, PaletteRef, Sprite, TransformSpec,
-    TtpObject, Variant, Warning,
+    Animation, ColorRamp, ColorShift, Composition, CompositionLayer, Palette, PaletteRef, Sprite,
+    TransformSpec, TtpObject, Variant, Warning,
 };
 
 // Parsing
 pub use parser::{parse_line, parse_stream, ParseError, ParseResult};
 
 // Color
-pub use color::{parse_color, ColorError};
+pub use color::{generate_ramp, parse_color, ColorError, Hsl};
 
 // Registry types
 pub use registry::{
