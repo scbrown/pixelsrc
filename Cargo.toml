@@ -3,6 +3,12 @@ name = "pixelsrc"
 version = "0.2.0"
 edition = "2021"
 description = "Pixelsrc - GenAI-native pixel art format and compiler"
+license = "MIT"
+repository = "https://github.com/scbrown/pixelsrc"
+homepage = "https://github.com/scbrown/pixelsrc"
+keywords = ["pixel-art", "sprite", "gamedev", "genai", "wasm"]
+categories = ["graphics", "game-development", "wasm"]
+readme = "README.md"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
