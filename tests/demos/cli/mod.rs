@@ -10,5 +10,8 @@ pub mod import_cmd;
 pub mod init;
 pub mod inline;
 pub mod new;
+pub mod palettes;
+pub mod prime;
+pub mod prompts;
 pub mod render;
 pub mod validate;
