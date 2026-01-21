@@ -109,17 +109,57 @@ Control whether animations loop:
 
 ### Basic Walk Cycle
 
-```bash
-# Input file with 4-frame walk cycle
-pxl render character.pxl --gif --animation walk -o walk.gif
+<!-- DEMOS exports/gif#basic -->
+**Animated GIF Export**
+
+Export a simple animation as an animated GIF.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "blink", "colors": {"{_}": "#00000000", "{w}": "#ffffff", "{b}": "#000000"}}
+{"type": "sprite", "name": "eye_open", "palette": "blink", "grid": ["{_}{w}{w}{_}", "{w}{b}{b}{w}", "{_}{w}{w}{_}"]}
+{"type": "sprite", "name": "eye_closed", "palette": "blink", "grid": ["{_}{_}{_}{_}", "{w}{w}{w}{w}", "{_}{_}{_}{_}"]}
+{"type": "animation", "name": "blink", "frames": ["eye_open", "eye_open", "eye_open", "eye_closed"], "duration": 200}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl render blink.pxl --gif -o blink.gif
+```
+<!-- /DEMOS -->
 
 ### High-Res Social Media Preview
 
-```bash
-# 8x scale with 200ms frames for slow-motion
-pxl render character.pxl --gif --scale 8 -o preview.gif
+<!-- DEMOS exports/gif#scaled -->
+**Scaled GIF Export**
+
+Scale up animations for better visibility in previews.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "spinner", "colors": {"{_}": "#00000000", "{a}": "#ff6b6b", "{b}": "#4ecdc4"}}
+{"type": "sprite", "name": "spin_1", "palette": "spinner", "grid": ["{a}{_}", "{_}{b}"]}
+{"type": "sprite", "name": "spin_2", "palette": "spinner", "grid": ["{_}{a}", "{b}{_}"]}
+{"type": "sprite", "name": "spin_3", "palette": "spinner", "grid": ["{b}{_}", "{_}{a}"]}
+{"type": "sprite", "name": "spin_4", "palette": "spinner", "grid": ["{_}{b}", "{a}{_}"]}
+{"type": "animation", "name": "spin", "frames": ["spin_1", "spin_2", "spin_3", "spin_4"], "duration": 100}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="scaled">
+</div>
+
+```bash
+pxl render spinner.pxl --gif --scale 4 -o spinner_4x.gif
+```
+<!-- /DEMOS -->
 
 ### Batch Animation Export
 
