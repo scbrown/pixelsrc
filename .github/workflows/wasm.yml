@@ -81,4 +81,6 @@ jobs:
       - name: Publish to npm
         run: |
           cd wasm
-          npm publish --access public --provenance || echo "Version already published or publish failed"
+          npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
