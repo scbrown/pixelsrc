@@ -71,6 +71,13 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Sync version from Cargo.toml
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Syncing npm package version to $VERSION"
+          cd wasm
+          npm version $VERSION --no-git-tag-version --allow-same-version
+
       - name: Publish to npm
         run: |
           cd wasm
