@@ -280,11 +280,48 @@ For smaller local models:
 - May need multiple generation attempts
 - Consider fine-tuning for pixelsrc format
 
+## Sketch Workflow
+
+Iterate quickly without rendering PNGs:
+
+```bash
+# 1. Generate sprite with AI and save to file
+cat > sketch.pxl << 'EOF'
+{"type": "sprite", "name": "hero", "palette": {...}, "grid": [...]}
+EOF
+
+# 2. Preview instantly in terminal with ANSI colors
+pxl show sketch.pxl -s hero
+
+# 3. Check structure with coordinate grid
+pxl grid sketch.pxl -s hero
+
+# 4. Get human-readable breakdown
+pxl explain sketch.pxl -s hero
+
+# 5. Iterate: Edit file, re-run pxl show (fast feedback!)
+
+# 6. When satisfied, render final PNG
+pxl render sketch.pxl -o hero.png --scale 4
+```
+
+**Benefits:**
+- Instant feedback with `pxl show`
+- No file clutter from preview PNGs
+- `pxl grid` shows coordinates for precise edits
+- `pxl explain` helps understand AI output
+
 ## Verification
 
 Always verify generated output:
 
 ```bash
+# Quick preview in terminal
+pxl show generated.pxl -s test
+
+# View with coordinates
+pxl grid generated.pxl -s test
+
 # Render to PNG
 pxl render generated.pxl -o output.png
 
@@ -293,4 +330,7 @@ pxl render generated.pxl --strict
 
 # Format for consistency
 pxl fmt generated.pxl
+
+# Get fix suggestions
+pxl suggest generated.pxl
 ```
