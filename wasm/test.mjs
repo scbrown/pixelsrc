@@ -12,7 +12,7 @@ const wasmPath = join(__dirname, 'pkg', 'pixelsrc_bg.wasm');
 const wasmBytes = readFileSync(wasmPath);
 await init(wasmBytes);
 
-console.log('Running @pixelsrc/wasm tests...\n');
+console.log('Running @stiwi/pixelsrc-wasm tests...\n');
 
 // Test 1: Minimal sprite
 const minimalSprite = '{"type":"sprite","name":"dot","palette":{"{x}":"#FF0000"},"grid":["{x}"]}';

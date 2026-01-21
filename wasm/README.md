@@ -1,17 +1,17 @@
-# @pixelsrc/wasm
+# @stiwi/pixelsrc-wasm
 
-WebAssembly build of [pixelsrc](https://github.com/pixelsrc/pixelsrc) - a GenAI-native pixel art format and renderer.
+WebAssembly build of [pixelsrc](https://github.com/scbrown/pixelsrc) - a GenAI-native pixel art format and renderer.
 
 ## Installation
 
 ```bash
-npm install @pixelsrc/wasm
+npm install @stiwi/pixelsrc-wasm
 ```
 
 ## Usage (Browser)
 
 ```javascript
-import init, { render_to_png, render_to_rgba, list_sprites } from '@pixelsrc/wasm';
+import init, { render_to_png, render_to_rgba, list_sprites } from '@stiwi/pixelsrc-wasm';
 
 // Initialize WASM module (required before first use)
 await init();
@@ -45,7 +45,7 @@ console.log('Sprites:', sprites);
 
 ```javascript
 import { readFileSync, writeFileSync } from 'fs';
-import init, { render_to_png } from '@pixelsrc/wasm';
+import init, { render_to_png } from '@stiwi/pixelsrc-wasm';
 
 await init();
 
@@ -84,7 +84,7 @@ pixelsrc uses JSONL (JSON Lines) format. Each line is a self-contained JSON obje
 {"type":"sprite","name":"checker","palette":"mono","grid":["{on}{off}{on}{off}","{off}{on}{off}{on}"]}
 ```
 
-See the [full documentation](https://github.com/pixelsrc/pixelsrc) for more details.
+See the [full documentation](https://github.com/scbrown/pixelsrc) for more details.
 
 ## License
 

@@ -1,24 +1,24 @@
 # WASM Module
 
-The `@pixelsrc/wasm` package provides a WebAssembly build of the Pixelsrc renderer for use in browsers and Node.js.
+The `@stiwi/pixelsrc-wasm` package provides a WebAssembly build of the Pixelsrc renderer for use in browsers and Node.js.
 
 ## Installation
 
 ```bash
-npm install @pixelsrc/wasm
+npm install @stiwi/pixelsrc-wasm
 ```
 
 Or with other package managers:
 
 ```bash
-yarn add @pixelsrc/wasm
-pnpm add @pixelsrc/wasm
+yarn add @stiwi/pixelsrc-wasm
+pnpm add @stiwi/pixelsrc-wasm
 ```
 
 ## Browser Usage
 
 ```javascript
-import init, { render_to_png, render_to_rgba, list_sprites } from '@pixelsrc/wasm';
+import init, { render_to_png, render_to_rgba, list_sprites } from '@stiwi/pixelsrc-wasm';
 
 // Initialize WASM module (required before first use)
 await init();
@@ -53,7 +53,7 @@ ctx.putImageData(imageData, 0, 0);
 
 ```javascript
 import { readFileSync, writeFileSync } from 'fs';
-import init, { render_to_png } from '@pixelsrc/wasm';
+import init, { render_to_png } from '@stiwi/pixelsrc-wasm';
 
 await init();
 
@@ -140,7 +140,7 @@ Common errors:
 
 ```jsx
 import { useEffect, useState, useRef } from 'react';
-import init, { render_to_png } from '@pixelsrc/wasm';
+import init, { render_to_png } from '@stiwi/pixelsrc-wasm';
 
 function PixelSprite({ jsonl }) {
   const [imgUrl, setImgUrl] = useState(null);
@@ -172,7 +172,7 @@ function PixelSprite({ jsonl }) {
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import init, { render_to_png } from '@pixelsrc/wasm';
+import init, { render_to_png } from '@stiwi/pixelsrc-wasm';
 
 const props = defineProps(['jsonl']);
 const imgUrl = ref(null);
