@@ -1118,7 +1118,7 @@ mod tests {
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["error_count"], 0);
-        assert!(parsed["colors"].as_array().unwrap().len() >= 1);
+        assert!(!parsed["colors"].as_array().unwrap().is_empty());
     }
 
     // === Timing Function Analysis Tests ===
@@ -1233,7 +1233,7 @@ mod tests {
 
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(parsed["animations"].as_array().unwrap().len() >= 1);
+        assert!(!parsed["animations"].as_array().unwrap().is_empty());
     }
 
     #[test]

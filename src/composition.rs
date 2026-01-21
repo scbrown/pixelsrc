@@ -3466,7 +3466,7 @@ mod tests {
 
     mod nested {
         use super::super::{
-            render_composition_nested, Composition, CompositionError, RenderContext, Warning,
+            render_composition_nested, Composition, CompositionError, RenderContext,
         };
         use crate::registry::CompositionRegistry;
         use image::{Rgba, RgbaImage};

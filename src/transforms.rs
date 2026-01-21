@@ -5505,7 +5505,7 @@ mod tests {
     fn test_expression_evaluator_numbers() {
         let eval = ExpressionEvaluator::new(std::collections::HashMap::new());
         assert!((eval.evaluate("42").unwrap() - 42.0).abs() < f64::EPSILON);
-        assert!((eval.evaluate("3.14").unwrap() - 3.14).abs() < 0.001);
+        assert!((eval.evaluate("2.5").unwrap() - 2.5).abs() < 0.001);
         assert!((eval.evaluate("-5").unwrap() - (-5.0)).abs() < f64::EPSILON);
     }
 
