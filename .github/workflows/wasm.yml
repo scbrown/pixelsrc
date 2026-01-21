@@ -68,8 +68,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           # No registry-url: OIDC trusted publishing only works when no token is present
+
+      - name: Update npm for OIDC support
+        run: npm install -g npm@latest
 
       - name: Sync version from Cargo.toml
         run: |
@@ -81,6 +84,5 @@ jobs:
       - name: Publish to npm
         run: |
           cd wasm
-          npm publish --access public
+          npm publish --provenance --access public
         # No token needed - using OIDC trusted publishing
-        # Provenance attestations are automatic with OIDC
