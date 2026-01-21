@@ -22,14 +22,10 @@ Text-based JSONL format for pixel art. Generate text, render to PNG with `pxl re
 ```
 Operations: `mirror-h`, `mirror-v`, `rotate:90/180/270`, `scale:x,y`, `sel-out`, `dither`, `shadow`
 
-**Animation** - CSS Keyframes (recommended):
+**Animation** - CSS Keyframes or frame sequence:
 ```json
-{"type": "animation", "name": "x", "keyframes": {"0%": {"sprite": "s", "opacity": 1.0}, "50%": {"sprite": "s", "transform": "scale(1.2)"}}, "duration": "1s", "timing_function": "ease-in-out"}
-```
-
-**Animation** - Frame sequence (legacy):
-```json
-{"type": "animation", "name": "x", "frames": ["sprite1", "sprite2"], "duration": 100}
+{"type": "animation", "name": "x", "keyframes": {"0%": {"sprite": "s"}, "50%": {"sprite": "s", "transform": "scale(1.2)"}}, "duration": "1s"}
+{"type": "animation", "name": "y", "frames": ["sprite1", "sprite2"], "duration": 100}
 ```
 
 ## Token Syntax
@@ -53,22 +49,27 @@ Operations: `mirror-h`, `mirror-v`, `rotate:90/180/270`, `scale:x,y`, `sel-out`,
 3. **Consistent rows** - All rows same token count
 4. **Small sprites** - 8x8, 16x16, 32x32 typical
 5. **Use `{_}` for transparency**
-6. **Use CSS variables** - `--name` for base colors, `var(--name)` for tokens
-7. **Use color-mix()** - Auto-generate shadows: `color-mix(in oklch, color 70%, black)`
-8. **Use CSS keyframes** - Percentage-based timing with `timing_function`
+6. **Use CSS variables** - `--name` for bases, `var(--name)` for tokens
+7. **Use color-mix()** - `color-mix(in oklch, color 70%, black)` for shadows
 
 ## Common Errors
 
 - **Row mismatch**: All rows need same token count
 - **Undefined token**: Every `{token}` must be in palette
-- **Invalid color**: Use `#RGB`, `#RRGGBB`, `#RRGGBBAA`, or CSS colors (`red`, `rgb()`, `hsl()`)
+- **Invalid color**: Use `#RGB`, `#RRGGBB`, `#RRGGBBAA`, or CSS names
 - **Forward reference**: Palette must come before sprite
 
 ## Commands
 
 ```bash
-pxl render file.jsonl              # Render to PNG
+pxl render file.jsonl             # Render to PNG
 pxl render file.jsonl --scale 4    # 4x upscale
 pxl render file.jsonl --gif        # Animated GIF
 pxl validate file.jsonl            # Check for errors
+pxl suggest file.jsonl             # Suggest fixes
+pxl show file.jsonl --sprite x     # Terminal display
+pxl explain file.jsonl --sprite x  # Explain structure
+pxl diff a.jsonl b.jsonl           # Compare sprites
+pxl import image.png -o out.jsonl  # Import PNG
+pxl fmt file.jsonl                 # Format file
 ```
