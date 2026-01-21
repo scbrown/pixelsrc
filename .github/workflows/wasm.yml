@@ -8,6 +8,8 @@ on:
       - 'Cargo.toml'
       - 'wasm/**'
       - '.github/workflows/wasm.yml'
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
     paths:
@@ -57,7 +59,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
 

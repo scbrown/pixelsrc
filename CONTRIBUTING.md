@@ -249,7 +249,7 @@ git push origin main --tags
 
 ### 3. What Happens
 
-The release workflow automatically:
+**CLI Binaries** (release.yml):
 - Builds binaries for 6 platforms:
   - Linux (x86_64, aarch64)
   - macOS (x86_64, aarch64)
@@ -257,16 +257,22 @@ The release workflow automatically:
 - Generates SHA256 checksums
 - Creates a GitHub Release with all assets
 
+**WASM Package** (wasm.yml):
+- Builds the WASM module with wasm-pack
+- Syncs version from Cargo.toml to package.json
+- Publishes `@stiwi/pixelsrc-wasm` to npm with provenance
+
 ### 4. Verify
 
 After pushing the tag:
 1. Check [Actions](../../actions) tab for workflow progress
 2. Once complete, verify the [Releases](../../releases) page has all artifacts
 3. Download and test a binary on your platform
+4. Verify npm package: `npm view @stiwi/pixelsrc-wasm`
 
 ### Release Assets
 
-Each release includes:
+**GitHub Release** includes:
 - `pxl-v{version}-x86_64-unknown-linux-gnu.tar.gz`
 - `pxl-v{version}-aarch64-unknown-linux-gnu.tar.gz`
 - `pxl-v{version}-x86_64-apple-darwin.tar.gz`
@@ -274,6 +280,9 @@ Each release includes:
 - `pxl-v{version}-x86_64-pc-windows-msvc.zip`
 - `pxl-v{version}-aarch64-pc-windows-msvc.zip`
 - `SHA256SUMS.txt`
+
+**npm** publishes:
+- `@stiwi/pixelsrc-wasm@{version}`
 
 ---
 
