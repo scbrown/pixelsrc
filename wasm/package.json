@@ -37,7 +37,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/scbrown/pixelsrc"
+    "url": "git+https://github.com/scbrown/pixelsrc.git"
   },
   "bugs": {
     "url": "https://github.com/scbrown/pixelsrc/issues"
