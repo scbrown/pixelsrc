@@ -153,6 +153,51 @@ Complete separation. More files to manage.
 
 ---
 
+## Nested Compositions (Compositions Referencing Compositions)
+
+**Related to:** Phase 12 (Composition Tiling)
+
+### The Problem
+
+Currently, a composition's `sprites` map can only reference sprites, not other compositions. This limits hierarchical scene building - for example, you can't define a "building" composition and then tile multiple buildings into a "city" composition.
+
+### Current Workaround
+
+You must either:
+1. Flatten everything into sprites (losing composition benefits)
+2. Pre-render compositions to PNG and import them back as sprites
+3. Manually duplicate sprite placements across compositions
+
+### Proposed Solution
+
+Allow compositions to reference other compositions in their sprite maps:
+
+```jsonl
+{"type": "composition", "name": "building_tall", "size": [24, 80], "cell_size": [8, 8],
+  "sprites": {"T": "bldg_top", "W": "window", ...},
+  "layers": [{"map": ["TTT", "LWR", ...]}]}
+
+{"type": "composition", "name": "city", "size": [1280, 720], "cell_size": [24, 80],
+  "sprites": {"B": "building_tall", "S": "building_short", ...},  // compositions work here
+  "layers": [{"map": ["B.S.B.S.B..."]}]}
+```
+
+### Implementation Notes
+
+- Composition lookup should check both sprite registry and composition registry
+- Referenced compositions are rendered to images at placement time
+- Size validation: referenced composition size should match or be <= cell_size
+- Cycle detection needed to prevent infinite recursion (A refs B refs A)
+
+### Benefits
+
+1. **Hierarchical scenes** - Build complex scenes from simpler building blocks
+2. **Reusability** - Define a building once, use it many times with variations
+3. **Context efficiency** - AI can work on smaller compositions individually
+4. **Cleaner organization** - Logical grouping of related elements
+
+---
+
 ## Compositions as Animation Frames
 
 **Related to:** Phase 3 (Animation), Phase 2 (Composition)

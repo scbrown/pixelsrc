@@ -38,6 +38,7 @@ See [personas](../personas.md) for user context on feature complexity.
 
 | Idea | Personas | Description |
 |------|----------|-------------|
+| [Nested Compositions](./nested-compositions.md) | Game Dev, Pixel Artist+ | Compositions referencing compositions for hierarchical scenes |
 | [Persona Integration](./persona-integration.md) | All | Personas in `pxl prime`, frontmatter tags in docs |
 | VS Code Extension | All | Syntax highlighting + live preview |
 | Token Efficiency | All | Run-length encoding, row repetition, compression |
