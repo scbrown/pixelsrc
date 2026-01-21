@@ -3,6 +3,86 @@
 
 # atlas Demos
 
+## Godot Atlas Export
+
+Export atlas metadata to Godot .tres resource files for game character sprites.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
+{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
+{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
+```
+
+</div>
+
+<div class="demo-container" data-demo="godot">
+</div>
+
+## Godot Export File Generation
+
+Generates AtlasTexture, SpriteFrames, and AnimationLibrary .tres files.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
+{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
+{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
+```
+
+</div>
+
+<div class="demo-container" data-demo="godot_files">
+</div>
+
+## Godot Export Content Verification
+
+Verify AtlasTexture contains correct Rect2 and resource references.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
+{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
+{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
+```
+
+</div>
+
+<div class="demo-container" data-demo="godot_content">
+</div>
+
+## Godot Export with Sprite Origins
+
+Sprites with origin metadata preserve positioning information.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
+{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
+{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
+```
+
+</div>
+
+<div class="demo-container" data-demo="godot_origin">
+</div>
+
 ## libGDX Atlas Export
 
 Export atlas metadata to libGDX TextureAtlas format for RPG game items.
@@ -161,86 +241,6 @@ Use the Exporter trait for generic export handling.
 </div>
 
 <div class="demo-container" data-demo="libgdx_trait">
-</div>
-
-## Godot Atlas Export
-
-Export atlas metadata to Godot .tres resource files for game character sprites.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
-{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
-{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
-```
-
-</div>
-
-<div class="demo-container" data-demo="godot">
-</div>
-
-## Godot Export File Generation
-
-Generates AtlasTexture, SpriteFrames, and AnimationLibrary .tres files.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
-{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
-{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
-```
-
-</div>
-
-<div class="demo-container" data-demo="godot_files">
-</div>
-
-## Godot Export Content Verification
-
-Verify AtlasTexture contains correct Rect2 and resource references.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
-{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
-{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
-```
-
-</div>
-
-<div class="demo-container" data-demo="godot_content">
-</div>
-
-## Godot Export with Sprite Origins
-
-Sprites with origin metadata preserve positioning information.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
-{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
-{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}
-```
-
-</div>
-
-<div class="demo-container" data-demo="godot_origin">
 </div>
 
 ## Unity Atlas Export

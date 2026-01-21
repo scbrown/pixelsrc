@@ -37,40 +37,6 @@ Standard alpha compositing (source over destination). The default blend mode.
 <div class="demo-container" data-demo="normal">
 </div>
 
-## Overlay Blend Mode
-
-Combines multiply and screen based on base brightness. Dark base colors are multiplied, light base colors are screened. Useful for contrast enhancement.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "sprite", "name": "gradient_base", "palette": {"{1}": "#222222", "{2}": "#444444", "{3}": "#666666", "{4}": "#888888", "{5}": "#AAAAAA", "{6}": "#CCCCCC"}, "grid": ["{1}{1}{1}{1}{1}{1}", "{2}{2}{2}{2}{2}{2}", "{3}{3}{3}{3}{3}{3}", "{4}{4}{4}{4}{4}{4}", "{5}{5}{5}{5}{5}{5}", "{6}{6}{6}{6}{6}{6}"]}
-{"type": "sprite", "name": "color_band", "palette": {"{.}": "#00000000", "{o}": "#FF8800"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_overlay_demo", "size": [6, 6], "sprites": {"G": "gradient_base", "C": "color_band"}, "layers": [{"map": ["G"]}, {"map": ["C"], "blend": "overlay"}]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="overlay">
-</div>
-
-## Screen Blend Mode
-
-Lightens underlying colors: result = 1 - (1 - base) * (1 - blend). Useful for highlights and lightening effects.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "sprite", "name": "dark_base", "palette": {"{k}": "#000000", "{d}": "#333333"}, "grid": ["{k}{k}{k}{k}{k}{k}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}"]}
-{"type": "sprite", "name": "bright_overlay", "palette": {"{.}": "#00000000", "{r}": "#FF4444", "{g}": "#44FF44", "{b}": "#4444FF"}, "grid": ["{r}{r}{r}{r}{r}{.}", "{r}{r}{r}{r}{r}{.}", "{g}{g}{g}{g}{g}{.}", "{g}{g}{g}{g}{g}{.}", "{b}{b}{b}{b}{b}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_screen_demo", "size": [6, 6], "sprites": {"D": "dark_base", "B": "bright_overlay"}, "layers": [{"map": ["D"]}, {"map": ["B"], "blend": "screen"}]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="screen">
-</div>
-
 ## Darken Blend Mode
 
 Keeps darker color per channel: result = min(base, blend).
@@ -154,5 +120,39 @@ Color difference: result = abs(base - blend). Creates inverted/negative effects 
 </div>
 
 <div class="demo-container" data-demo="difference">
+</div>
+
+## Overlay Blend Mode
+
+Combines multiply and screen based on base brightness. Dark base colors are multiplied, light base colors are screened. Useful for contrast enhancement.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "sprite", "name": "gradient_base", "palette": {"{1}": "#222222", "{2}": "#444444", "{3}": "#666666", "{4}": "#888888", "{5}": "#AAAAAA", "{6}": "#CCCCCC"}, "grid": ["{1}{1}{1}{1}{1}{1}", "{2}{2}{2}{2}{2}{2}", "{3}{3}{3}{3}{3}{3}", "{4}{4}{4}{4}{4}{4}", "{5}{5}{5}{5}{5}{5}", "{6}{6}{6}{6}{6}{6}"]}
+{"type": "sprite", "name": "color_band", "palette": {"{.}": "#00000000", "{o}": "#FF8800"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{o}{o}{o}{o}{.}", "{.}{.}{.}{.}{.}{.}"]}
+{"type": "composition", "name": "blend_overlay_demo", "size": [6, 6], "sprites": {"G": "gradient_base", "C": "color_band"}, "layers": [{"map": ["G"]}, {"map": ["C"], "blend": "overlay"}]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="overlay">
+</div>
+
+## Screen Blend Mode
+
+Lightens underlying colors: result = 1 - (1 - base) * (1 - blend). Useful for highlights and lightening effects.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "sprite", "name": "dark_base", "palette": {"{k}": "#000000", "{d}": "#333333"}, "grid": ["{k}{k}{k}{k}{k}{k}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}"]}
+{"type": "sprite", "name": "bright_overlay", "palette": {"{.}": "#00000000", "{r}": "#FF4444", "{g}": "#44FF44", "{b}": "#4444FF"}, "grid": ["{r}{r}{r}{r}{r}{.}", "{r}{r}{r}{r}{r}{.}", "{g}{g}{g}{g}{g}{.}", "{g}{g}{g}{g}{g}{.}", "{b}{b}{b}{b}{b}{.}", "{.}{.}{.}{.}{.}{.}"]}
+{"type": "composition", "name": "blend_screen_demo", "size": [6, 6], "sprites": {"D": "dark_base", "B": "bright_overlay"}, "layers": [{"map": ["D"]}, {"map": ["B"], "blend": "screen"}]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="screen">
 </div>
 

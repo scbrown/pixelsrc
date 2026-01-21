@@ -545,7 +545,7 @@ main() {
     local test_files=()
     while IFS= read -r -d '' file; do
         test_files+=("$file")
-    done < <(find "$TESTS_DIR" -name "*.rs" -print0 2>/dev/null || true)
+    done < <(find "$TESTS_DIR" -name "*.rs" -print0 2>/dev/null | sort -z || true)
 
     if [[ ${#test_files[@]} -eq 0 ]]; then
         log_warn "No test files found in $TESTS_DIR"
