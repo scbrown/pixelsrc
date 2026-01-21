@@ -13,6 +13,7 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
+use crate::color::generate_ramp;
 use crate::models::{Composition, Palette, PaletteRef, Sprite, TransformSpec, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
@@ -42,6 +43,7 @@ use crate::transforms::{self, Transform, TransformError};
 /// let palette = Palette {
 ///     name: "mono".to_string(),
 ///     colors: HashMap::from([("{on}".to_string(), "#FFFFFF".to_string())]),
+///     ..Default::default()
 /// };
 /// registry.register(palette);
 ///
@@ -178,8 +180,57 @@ impl PaletteRegistry {
     /// Register a palette in the registry.
     ///
     /// If a palette with the same name already exists, it is replaced.
+    /// Color ramps are automatically expanded into individual color tokens.
     pub fn register(&mut self, palette: Palette) {
-        self.palettes.insert(palette.name.clone(), palette);
+        let expanded = Self::expand_ramps(palette);
+        self.palettes.insert(expanded.name.clone(), expanded);
+    }
+
+    /// Expand color ramps into individual color tokens.
+    ///
+    /// For each ramp, generates tokens like:
+    /// - `{skin_2}` (darkest shadow)
+    /// - `{skin_1}` (shadow)
+    /// - `{skin}` (base)
+    /// - `{skin+1}` (highlight)
+    /// - `{skin+2}` (brightest)
+    fn expand_ramps(mut palette: Palette) -> Palette {
+        let Some(ramps) = palette.ramps.take() else {
+            return palette;
+        };
+
+        for (name, ramp) in ramps {
+            let shadow = ramp.shadow_shift();
+            let highlight = ramp.highlight_shift();
+
+            // Generate the ramp colors
+            let ramp_colors = generate_ramp(
+                &ramp.base,
+                ramp.steps(),
+                (
+                    shadow.hue.unwrap_or(0.0),
+                    shadow.saturation.unwrap_or(0.0),
+                    shadow.lightness.unwrap_or(0.0),
+                ),
+                (
+                    highlight.hue.unwrap_or(0.0),
+                    highlight.saturation.unwrap_or(0.0),
+                    highlight.lightness.unwrap_or(0.0),
+                ),
+            );
+
+            // Add generated colors to the palette
+            if let Ok(colors) = ramp_colors {
+                for (suffix, color) in colors {
+                    let token = format!("{{{}{}}}", name, suffix);
+                    palette.colors.insert(token, color);
+                }
+            }
+            // If generation fails (e.g., invalid base color), silently skip
+            // The invalid color will be caught during rendering
+        }
+
+        palette
     }
 
     /// Get a palette by name.
@@ -1633,6 +1684,7 @@ mod tests {
                 ("{on}".to_string(), "#FFFFFF".to_string()),
                 ("{off}".to_string(), "#000000".to_string()),
             ]),
+            ..Default::default()
         }
     }
 
@@ -1696,10 +1748,12 @@ mod tests {
         let palette1 = Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{a}".to_string(), "#FF0000".to_string())]),
+            ..Default::default()
         };
         let palette2 = Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{b}".to_string(), "#00FF00".to_string())]),
+            ..Default::default()
         };
 
         registry.register(palette1);
@@ -2531,7 +2585,7 @@ mod tests {
         assert!(!registry.is_empty());
         assert_eq!(registry.len(), 1);
 
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new() });
+        registry.register(Palette { name: "other".to_string(), colors: HashMap::new(), ..Default::default() });
         assert_eq!(registry.len(), 2);
 
         registry.clear();
@@ -2542,7 +2596,7 @@ mod tests {
     fn test_palette_registry_trait_names() {
         let mut registry = PaletteRegistry::new();
         registry.register(mono_palette());
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new() });
+        registry.register(Palette { name: "other".to_string(), colors: HashMap::new(), ..Default::default() });
 
         let names: Vec<_> = registry.names().collect();
         assert_eq!(names.len(), 2);
@@ -2863,5 +2917,156 @@ mod tests {
 
         let result = lookup_renderable("nonexistent", &sprite_registry, &composition_registry);
         assert!(result.is_none());
+    }
+
+    // ========================================================================
+    // Palette Ramp Expansion Tests
+    // ========================================================================
+
+    #[test]
+    fn test_palette_ramp_expansion() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "skin_tones".to_string(),
+            colors: HashMap::from([("{_}".to_string(), "#00000000".to_string())]),
+            ramps: Some(HashMap::from([(
+                "skin".to_string(),
+                ColorRamp {
+                    base: "#E8B89D".to_string(),
+                    steps: Some(3),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+        };
+
+        registry.register(palette);
+
+        let stored = registry.get("skin_tones").unwrap();
+
+        // The ramp should have been expanded into colors
+        assert!(stored.colors.contains_key("{skin}"), "Base color token should exist");
+        assert!(stored.colors.contains_key("{skin_1}"), "Shadow token should exist");
+        assert!(stored.colors.contains_key("{skin+1}"), "Highlight token should exist");
+
+        // Verify base color is correct
+        assert_eq!(stored.colors.get("{skin}").unwrap(), "#E8B89D");
+
+        // Ramps should be cleared after expansion
+        assert!(stored.ramps.is_none(), "Ramps should be None after expansion");
+    }
+
+    #[test]
+    fn test_palette_ramp_expansion_5_steps() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "metals".to_string(),
+            colors: HashMap::new(),
+            ramps: Some(HashMap::from([(
+                "gold".to_string(),
+                ColorRamp {
+                    base: "#FFD700".to_string(),
+                    steps: Some(5),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+        };
+
+        registry.register(palette);
+        let stored = registry.get("metals").unwrap();
+
+        // 5 steps: _2, _1, base, +1, +2
+        assert!(stored.colors.contains_key("{gold_2}"), "Darkest shadow should exist");
+        assert!(stored.colors.contains_key("{gold_1}"), "Shadow should exist");
+        assert!(stored.colors.contains_key("{gold}"), "Base should exist");
+        assert!(stored.colors.contains_key("{gold+1}"), "Highlight should exist");
+        assert!(stored.colors.contains_key("{gold+2}"), "Brightest should exist");
+        assert_eq!(stored.colors.len(), 5);
+    }
+
+    #[test]
+    fn test_palette_ramp_preserves_existing_colors() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "character".to_string(),
+            colors: HashMap::from([
+                ("{_}".to_string(), "#00000000".to_string()),
+                ("{hair}".to_string(), "#4A3728".to_string()),
+            ]),
+            ramps: Some(HashMap::from([(
+                "skin".to_string(),
+                ColorRamp {
+                    base: "#E8B89D".to_string(),
+                    steps: Some(3),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+        };
+
+        registry.register(palette);
+        let stored = registry.get("character").unwrap();
+
+        // Original colors should still be there
+        assert_eq!(stored.colors.get("{_}").unwrap(), "#00000000");
+        assert_eq!(stored.colors.get("{hair}").unwrap(), "#4A3728");
+
+        // Plus the ramp colors
+        assert!(stored.colors.contains_key("{skin}"));
+        assert!(stored.colors.contains_key("{skin_1}"));
+        assert!(stored.colors.contains_key("{skin+1}"));
+    }
+
+    #[test]
+    fn test_palette_multiple_ramps() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "sprite".to_string(),
+            colors: HashMap::new(),
+            ramps: Some(HashMap::from([
+                (
+                    "skin".to_string(),
+                    ColorRamp {
+                        base: "#E8B89D".to_string(),
+                        steps: Some(3),
+                        shadow_shift: None,
+                        highlight_shift: None,
+                    },
+                ),
+                (
+                    "hair".to_string(),
+                    ColorRamp {
+                        base: "#4A3728".to_string(),
+                        steps: Some(3),
+                        shadow_shift: None,
+                        highlight_shift: None,
+                    },
+                ),
+            ])),
+        };
+
+        registry.register(palette);
+        let stored = registry.get("sprite").unwrap();
+
+        // Both ramps should be expanded
+        assert!(stored.colors.contains_key("{skin}"));
+        assert!(stored.colors.contains_key("{skin_1}"));
+        assert!(stored.colors.contains_key("{skin+1}"));
+        assert!(stored.colors.contains_key("{hair}"));
+        assert!(stored.colors.contains_key("{hair_1}"));
+        assert!(stored.colors.contains_key("{hair+1}"));
     }
 }
