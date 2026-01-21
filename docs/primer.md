@@ -327,7 +327,9 @@ Invalid hex characters and unknown color names render as magenta in lenient mode
 ```
 Hex colors and [CSS named colors](colors.md) both work.
 
-## Output Commands
+## Commands
+
+### Rendering
 
 ```bash
 # Render all sprites to PNG
@@ -347,6 +349,99 @@ pxl render input.jsonl --spritesheet
 
 # Strict mode (fail on warnings)
 pxl render input.jsonl --strict
+```
+
+### Validation & Analysis
+
+```bash
+# Validate file for common mistakes
+pxl validate input.jsonl
+
+# Suggest fixes for issues (missing tokens, row completion)
+pxl suggest input.jsonl
+
+# Analyze corpus metrics (token frequency, dimensions)
+pxl analyze input.jsonl
+
+# Compare sprites between files
+pxl diff file1.jsonl file2.jsonl --sprite hero
+```
+
+### Inspection & Display
+
+```bash
+# Show sprite with colored terminal output (ANSI)
+pxl show input.jsonl --sprite hero
+
+# Explain sprite structure in human-readable format
+pxl explain input.jsonl --sprite hero
+
+# Display grid with row/column coordinates
+pxl grid input.jsonl --sprite hero
+```
+
+### Import & Export
+
+```bash
+# Import PNG image to pixelsrc format
+pxl import image.png -o output.jsonl
+
+# Import with max color limit
+pxl import image.png --max-colors 16
+
+# Build all assets per pxl.toml config
+pxl build
+```
+
+### Formatting & Editing
+
+```bash
+# Format pixelsrc file for readability
+pxl fmt input.jsonl
+
+# Expand grid with column-aligned spacing
+pxl inline input.jsonl --sprite hero
+
+# Extract repeated patterns into aliases (JSON output)
+pxl alias input.jsonl --sprite hero
+
+# Transform sprites (mirror, rotate, etc.)
+pxl transform input.jsonl --sprite hero --mirror-h -o flipped.jsonl
+```
+
+### Project Setup
+
+```bash
+# Initialize new pixelsrc project
+pxl init my-project
+
+# Create new asset from template
+pxl new sprite hero
+
+# List built-in palettes
+pxl palette list
+
+# Show details of built-in palette
+pxl palette show gameboy
+```
+
+### AI Integration
+
+```bash
+# Print format guide for AI context injection
+pxl prime
+
+# Print brief format guide
+pxl prime --brief
+
+# Print specific section (format, examples, tips)
+pxl prime --section format
+
+# Verify content (JSON API for AI agents)
+pxl verify input.jsonl
+
+# GenAI prompt templates
+pxl prompt
 ```
 
 ## Workflow
