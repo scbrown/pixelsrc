@@ -62,8 +62,8 @@ jobs:
       - name: Copy WASM assets to book
         run: |
           mkdir -p docs/book/wasm-assets
-          cp wasm/pkg/pixelsrc_wasm.js docs/book/wasm-assets/
-          cp wasm/pkg/pixelsrc_wasm_bg.wasm docs/book/wasm-assets/
+          cp wasm/pkg/pixelsrc.js docs/book/wasm-assets/
+          cp wasm/pkg/pixelsrc_bg.wasm docs/book/wasm-assets/
 
       - name: Build mdbook
         run: mdbook build docs/book
