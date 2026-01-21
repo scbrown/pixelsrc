@@ -12,7 +12,8 @@ name = "pxl"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["lsp"]
+lsp = ["tower-lsp", "tokio"]
 wasm = ["wasm-bindgen", "console_error_panic_hook"]
 
 [dependencies]
@@ -33,8 +34,8 @@ lightningcss = { version = "1.0.0-alpha.68", default-features = false, features 
 notify-debouncer-mini = "0.4"
 rayon = "1.10"
 thiserror = "1.0"
-tower-lsp = "0.20"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"] }
+tower-lsp = { version = "0.20", optional = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"

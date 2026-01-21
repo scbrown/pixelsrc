@@ -546,6 +546,7 @@ pub enum Commands {
     },
 
     /// Start the Language Server Protocol server (for editor integration)
+    #[cfg(feature = "lsp")]
     #[command(hide = true)]
     Lsp,
 
@@ -763,19 +764,14 @@ pub fn run() -> ExitCode {
             stdin,
             allow_large,
         ),
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(feature = "lsp")]
         Commands::Lsp => run_lsp(),
-        #[cfg(target_arch = "wasm32")]
-        Commands::Lsp => {
-            eprintln!("Error: LSP is not available in WASM builds");
-            ExitCode::from(EXIT_ERROR)
-        }
         Commands::Agent { action } => run_agent(action),
     }
 }
 
 /// Execute the LSP server command
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "lsp")]
 fn run_lsp() -> ExitCode {
     use tokio::runtime::Runtime;
 

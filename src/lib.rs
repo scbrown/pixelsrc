@@ -23,6 +23,7 @@ pub mod gif;
 pub mod import;
 pub mod include;
 pub mod init;
+#[cfg(feature = "lsp")]
 pub mod lsp;
 pub mod lsp_agent_client;
 pub mod models;
