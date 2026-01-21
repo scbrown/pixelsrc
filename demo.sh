@@ -780,7 +780,63 @@ echo -e "  ${DIM}•${NC} Multiple file arguments"
 pause
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 27: Phase 16 - .pxl Format
+# SLIDE 27: Terminal Display Commands
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Terminal Display Commands"
+
+echo -e "  ${CYAN}pxl show${NC} - Display sprite with ANSI colors in terminal"
+echo -e "  ${DIM}\$ pxl show examples/heart.jsonl -s heart${NC}"
+echo ""
+./target/release/pxl show examples/heart.jsonl -s heart 2>&1 | head -15 | sed 's/^/  /'
+echo ""
+echo -e "  ${CYAN}pxl grid${NC} - Display grid with row/column coordinates"
+echo -e "  ${DIM}\$ pxl grid examples/coin.jsonl -s coin${NC}"
+echo ""
+./target/release/pxl grid examples/coin.jsonl -s coin 2>&1 | head -12 | sed 's/^/  /'
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 28: Editing & Formatting Commands
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Editing & Formatting Commands"
+
+echo -e "  ${CYAN}pxl alias${NC} - Extract repeated patterns into single-letter aliases"
+echo -e "  ${DIM}\$ pxl alias examples/heart.jsonl -s heart${NC}"
+echo ""
+./target/release/pxl alias examples/heart.jsonl -s heart 2>&1 | head -10 | sed 's/^/  /'
+echo ""
+echo -e "  ${CYAN}pxl inline${NC} - Expand grid with column-aligned spacing"
+echo -e "  ${DIM}\$ pxl inline examples/coin.jsonl -s coin${NC}"
+echo ""
+./target/release/pxl inline examples/coin.jsonl -s coin 2>&1 | head -10 | sed 's/^/  /'
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 29: Transform & Palette Commands
+# ═══════════════════════════════════════════════════════════════════════════════
+slide "Transform & Palette Commands"
+
+echo -e "  ${CYAN}pxl transform${NC} - Transform sprites (mirror, rotate, scale)"
+echo -e "  ${DIM}\$ pxl transform examples/heart.jsonl -s heart --mirror-h${NC}"
+echo ""
+./target/release/pxl transform examples/heart.jsonl -s heart --mirror-h 2>&1 | head -8 | sed 's/^/  /'
+echo ""
+echo -e "  ${CYAN}pxl palette list${NC} - List built-in palettes"
+echo -e "  ${DIM}\$ pxl palette list${NC}"
+echo ""
+./target/release/pxl palette list 2>&1 | head -10 | sed 's/^/  /'
+echo ""
+echo -e "  ${CYAN}pxl palette show${NC} - Show palette details"
+echo -e "  ${DIM}\$ pxl palette show gameboy${NC}"
+echo ""
+./target/release/pxl palette show gameboy 2>&1 | head -8 | sed 's/^/  /'
+
+pause
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLIDE 30: Phase 16 - .pxl Format
 # ═══════════════════════════════════════════════════════════════════════════════
 slide "Phase 16: .pxl Format & Formatting"
 
@@ -865,10 +921,21 @@ echo -e "  ${DIM}\$ pxl prime                    # Format guide for AI${NC}"
 echo -e "  ${DIM}\$ pxl validate sprite.jsonl    # Check for mistakes${NC}"
 echo -e "  ${DIM}\$ pxl explain examples/*.jsonl # Describe sprites${NC}"
 echo -e "  ${DIM}\$ pxl analyze examples/        # Corpus metrics${NC}"
+echo -e "  ${DIM}\$ pxl suggest sprite.jsonl     # Suggest fixes${NC}"
+echo -e "  ${DIM}\$ pxl diff a.jsonl b.jsonl     # Compare sprites${NC}"
 echo ""
-echo -e "  ${BOLD}Formatting:${NC}"
+echo -e "  ${BOLD}Display & Formatting:${NC}"
+echo -e "  ${DIM}\$ pxl show sprite.jsonl -s x   # Terminal display (ANSI)${NC}"
+echo -e "  ${DIM}\$ pxl grid sprite.jsonl -s x   # Grid with coordinates${NC}"
+echo -e "  ${DIM}\$ pxl inline sprite.jsonl      # Column-aligned grid${NC}"
+echo -e "  ${DIM}\$ pxl alias sprite.jsonl       # Extract aliases${NC}"
 echo -e "  ${DIM}\$ pxl fmt sprite.pxl           # Auto-format${NC}"
 echo -e "  ${DIM}\$ pxl fmt --check *.jsonl      # CI check${NC}"
+echo ""
+echo -e "  ${BOLD}Transform & Palettes:${NC}"
+echo -e "  ${DIM}\$ pxl transform sprite.jsonl --mirror-h  # Transform${NC}"
+echo -e "  ${DIM}\$ pxl palette list             # List built-in palettes${NC}"
+echo -e "  ${DIM}\$ pxl palette show gameboy     # Show palette details${NC}"
 echo ""
 echo -e "  ${BOLD}Build System:${NC}"
 echo -e "  ${DIM}\$ pxl build                    # Build all sprites in project${NC}"
