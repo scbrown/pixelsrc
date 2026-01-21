@@ -104,6 +104,41 @@ Use the system prompt as a "System" message, then use "User" messages for reques
 
 ---
 
+## Sketch Workflow
+
+The sketch workflow lets you iterate quickly without waiting for PNG renders:
+
+```bash
+# 1. Generate sprite with AI and save to file
+cat > sketch.pxl << 'EOF'
+{"type": "sprite", "name": "hero", "palette": {...}, "grid": [...]}
+EOF
+
+# 2. Preview instantly in terminal with ANSI colors
+pxl show sketch.pxl -s hero
+
+# 3. Check structure with coordinate grid
+pxl grid sketch.pxl -s hero
+
+# 4. Get human-readable breakdown
+pxl explain sketch.pxl -s hero
+
+# 5. Iterate: Edit the file, then re-run pxl show
+#    Much faster feedback loop than rendering PNGs!
+
+# 6. When satisfied, render final PNG
+pxl render sketch.pxl -o hero.png --scale 4
+```
+
+### Why Use Sketch Workflow?
+
+- **Instant feedback**: `pxl show` displays in terminal immediately
+- **No file clutter**: Skip generating preview PNGs
+- **Structural debugging**: `pxl grid` shows coordinates for pixel-perfect edits
+- **Understand output**: `pxl explain` breaks down token usage and dimensions
+
+---
+
 ## Verification
 
 Test generated output with the Pixelsrc CLI:
@@ -116,6 +151,12 @@ cat > generated.pxl << 'EOF'
 ]}
 EOF
 
+# Quick preview in terminal (fastest feedback)
+pxl show generated.pxl -s test
+
+# View with coordinates for debugging
+pxl grid generated.pxl -s test
+
 # Render to PNG
 pxl render generated.pxl -o output.png
 
@@ -124,4 +165,7 @@ pxl render generated.pxl --strict
 
 # Format for consistent style
 pxl fmt generated.pxl
+
+# Get suggestions for improvements
+pxl suggest generated.pxl
 ```
