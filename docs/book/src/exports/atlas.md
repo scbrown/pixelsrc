@@ -222,6 +222,58 @@ Sprites are sorted by height and packed into horizontal shelves for efficient sp
 
 ## Examples
 
+### Basic Atlas Export
+
+<!-- DEMOS exports/atlas#basic -->
+**JSON Atlas Export**
+
+Pack multiple sprites into a single atlas with JSON metadata.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "items", "colors": {"{_}": "#00000000", "{g}": "#ffd700", "{s}": "#c0c0c0", "{r}": "#ff4444"}}
+{"type": "sprite", "name": "coin", "palette": "items", "grid": ["{_}{g}{_}", "{g}{g}{g}", "{_}{g}{_}"]}
+{"type": "sprite", "name": "key", "palette": "items", "grid": ["{s}{s}{_}", "{_}{s}{_}", "{_}{s}{s}"]}
+{"type": "sprite", "name": "heart", "palette": "items", "grid": ["{r}{_}{r}", "{r}{r}{r}", "{_}{r}{_}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl render items.pxl --format atlas -o items
+```
+<!-- /DEMOS -->
+
+### Godot Export
+
+<!-- DEMOS exports/atlas#godot -->
+**Godot Atlas Export**
+
+Generate Godot-compatible atlas resources.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "ui", "colors": {"{_}": "#00000000", "{w}": "#ffffff", "{g}": "#888888", "{b}": "#333333"}}
+{"type": "sprite", "name": "btn_normal", "palette": "ui", "grid": ["{b}{g}{g}{b}", "{g}{w}{w}{g}", "{b}{g}{g}{b}"]}
+{"type": "sprite", "name": "btn_hover", "palette": "ui", "grid": ["{g}{w}{w}{g}", "{w}{w}{w}{w}", "{g}{w}{w}{g}"]}
+{"type": "sprite", "name": "btn_pressed", "palette": "ui", "grid": ["{b}{b}{b}{b}", "{b}{g}{g}{b}", "{b}{b}{b}{b}"]}
+```
+
+</div>
+
+<div class="demo-container" data-demo="godot">
+</div>
+
+```bash
+pxl render ui.pxl --format atlas-godot --padding 1 -o ui_atlas
+```
+<!-- /DEMOS -->
+
 ### Production Game Assets
 
 ```bash

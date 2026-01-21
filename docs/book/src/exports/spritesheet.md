@@ -138,9 +138,57 @@ Use **atlas** for production game assets with multiple sprites and animations.
 
 ### Basic Export
 
-```bash
-pxl render character.pxl --spritesheet -o character_walk.png
+<!-- DEMOS exports/spritesheet#basic -->
+**Horizontal Spritesheet**
+
+Export animation frames as a horizontal strip.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "flag", "colors": {"{_}": "#00000000", "{r}": "#ff0000", "{w}": "#ffffff", "{p}": "#8b4513"}}
+{"type": "sprite", "name": "flag_1", "palette": "flag", "grid": ["{r}{r}{_}", "{w}{w}{_}", "{p}{_}{_}"]}
+{"type": "sprite", "name": "flag_2", "palette": "flag", "grid": ["{_}{r}{r}", "{_}{w}{w}", "{p}{_}{_}"]}
+{"type": "sprite", "name": "flag_3", "palette": "flag", "grid": ["{r}{r}{_}", "{w}{w}{_}", "{p}{_}{_}"]}
+{"type": "animation", "name": "wave", "frames": ["flag_1", "flag_2", "flag_3"], "duration": 150}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl render flag.pxl --spritesheet -o flag_sheet.png
+```
+<!-- /DEMOS -->
+
+### Scaled for Preview
+
+<!-- DEMOS exports/spritesheet#scaled -->
+**Scaled Spritesheet**
+
+Scale up spritesheets for better visibility.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "bounce", "colors": {"{_}": "#00000000", "{b}": "#3498db", "{s}": "#2980b9"}}
+{"type": "sprite", "name": "ball_1", "palette": "bounce", "grid": ["{_}{b}{_}", "{b}{s}{b}", "{_}{b}{_}"]}
+{"type": "sprite", "name": "ball_2", "palette": "bounce", "grid": ["{b}{b}{b}", "{b}{s}{b}", "{b}{b}{b}"]}
+{"type": "sprite", "name": "ball_3", "palette": "bounce", "grid": ["{_}{b}{_}", "{b}{s}{b}", "{_}{b}{_}"]}
+{"type": "animation", "name": "bounce", "frames": ["ball_1", "ball_2", "ball_3", "ball_2"], "duration": 100}
+```
+
+</div>
+
+<div class="demo-container" data-demo="scaled">
+</div>
+
+```bash
+pxl render bounce.pxl --spritesheet --scale 4 -o bounce_4x.png
+```
+<!-- /DEMOS -->
 
 ### Multiple Animations
 
@@ -149,13 +197,6 @@ pxl render character.pxl --spritesheet -o character_walk.png
 for anim in idle walk run attack; do
   pxl render character.pxl --spritesheet --animation "$anim" -o "sheets/${anim}.png"
 done
-```
-
-### Scaled for Preview
-
-```bash
-# 8x scale for documentation/preview
-pxl render character.pxl --spritesheet --scale 8 -o docs/walk_preview.png
 ```
 
 ## Related
