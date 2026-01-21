@@ -119,6 +119,7 @@ just render coin # Render an example sprite
 
 ## Documentation
 
+- **[📚 Documentation Book](https://scbrown.github.io/pixelsrc/book/)** - Complete user guide with interactive examples
 - [Format Specification](docs/spec/format.md) - Complete JSONL schema
 - [Implementation Plan](docs/plan/README.md) - Roadmap and phase status
 - [Vision & Philosophy](docs/VISION.md) - Design principles
