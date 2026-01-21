@@ -37,6 +37,20 @@ fmt-check:
 # Run all checks (format, lint, test)
 check: fmt-check lint test
 
+# === Coverage ===
+
+# Generate coverage report (requires cargo-llvm-cov: cargo install cargo-llvm-cov)
+coverage:
+    cargo llvm-cov --all-features {{ if verbose == "true" { "--html" } else { "" } }}
+
+# Generate coverage and open HTML report
+coverage-html:
+    cargo llvm-cov --all-features --html --open
+
+# Generate LCOV format (for CI/Codecov)
+coverage-lcov:
+    cargo llvm-cov --all-features --lcov --output-path lcov.info
+
 # Clean build artifacts
 clean:
     cargo clean

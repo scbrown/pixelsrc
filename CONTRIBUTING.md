@@ -102,6 +102,30 @@ fn parse_row(...) -> (Vec<Token>, Vec<Warning>) { ... }
 
 Each fixture should be a minimal reproduction of the case it tests.
 
+### Coverage
+
+We track test coverage via [Codecov](https://codecov.io). Coverage targets:
+- **Project coverage**: 70% (overall codebase)
+- **Patch coverage**: 80% (new/modified code in PRs)
+
+To generate coverage locally:
+
+```bash
+# Install cargo-llvm-cov (one-time)
+cargo install cargo-llvm-cov
+
+# Generate coverage report (text summary)
+just coverage
+
+# Generate and open HTML report
+just coverage-html
+
+# Generate LCOV format (for tooling)
+just coverage-lcov
+```
+
+Coverage reports are automatically generated in CI and uploaded to Codecov.
+
 ---
 
 ## Development Workflow
