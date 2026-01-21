@@ -2585,7 +2585,11 @@ mod tests {
         assert!(!registry.is_empty());
         assert_eq!(registry.len(), 1);
 
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new(), ..Default::default() });
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+            ..Default::default()
+        });
         assert_eq!(registry.len(), 2);
 
         registry.clear();
@@ -2596,7 +2600,11 @@ mod tests {
     fn test_palette_registry_trait_names() {
         let mut registry = PaletteRegistry::new();
         registry.register(mono_palette());
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new(), ..Default::default() });
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+            ..Default::default()
+        });
 
         let names: Vec<_> = registry.names().collect();
         assert_eq!(names.len(), 2);

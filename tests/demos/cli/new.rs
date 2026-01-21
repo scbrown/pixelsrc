@@ -85,10 +85,7 @@ fn test_new_sprite_with_palette() {
     assert!(result.is_ok(), "Should create sprite: {:?}", result.err());
     let path = result.unwrap();
     let content = fs::read_to_string(&path).unwrap();
-    assert!(
-        content.contains("\"palette\": \"enemies\""),
-        "Should reference enemies palette"
-    );
+    assert!(content.contains("\"palette\": \"enemies\""), "Should reference enemies palette");
 }
 
 // ============================================================================
@@ -136,14 +133,8 @@ fn test_new_animation_includes_frames() {
     let content = fs::read_to_string(&path).unwrap();
 
     // Should include frame sprites
-    assert!(
-        content.contains("\"name\": \"run_1\""),
-        "Should include run_1 frame"
-    );
-    assert!(
-        content.contains("\"name\": \"run_2\""),
-        "Should include run_2 frame"
-    );
+    assert!(content.contains("\"name\": \"run_1\""), "Should include run_1 frame");
+    assert!(content.contains("\"name\": \"run_2\""), "Should include run_2 frame");
 
     // Animation should reference frames
     assert!(content.contains("\"run_1\""));
@@ -285,12 +276,7 @@ fn test_valid_asset_names() {
     for name in valid_names.iter() {
         let temp = TempDir::new().unwrap();
         let result = in_project(&temp, || new_sprite(name, None));
-        assert!(
-            result.is_ok(),
-            "Name '{}' should be valid: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Name '{}' should be valid: {:?}", name, result.err());
     }
 }
 

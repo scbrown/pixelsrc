@@ -3,9 +3,7 @@
 //! Demonstrates the `pxl suggest` command functionality for finding
 //! potential improvements and fixes in pixelsrc files.
 
-use pixelsrc::suggest::{
-    format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType,
-};
+use pixelsrc::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
 use std::io::Cursor;
 
 // ============================================================================
@@ -22,10 +20,7 @@ fn test_suggest_typo_correction() {
     // "shin" is close to "skin"
     let suggestions = suggest("shin", &candidates, 2);
 
-    assert!(
-        suggestions.contains(&"skin"),
-        "Should suggest 'skin' for typo 'shin'"
-    );
+    assert!(suggestions.contains(&"skin"), "Should suggest 'skin' for typo 'shin'");
 }
 
 /// @demo cli/suggest#typo_distance
@@ -37,17 +32,11 @@ fn test_suggest_distance_threshold() {
 
     // "reed" is distance 1 from "red"
     let close_suggestions = suggest("reed", &candidates, 1);
-    assert!(
-        close_suggestions.contains(&"red"),
-        "Should suggest 'red' within distance 1"
-    );
+    assert!(close_suggestions.contains(&"red"), "Should suggest 'red' within distance 1");
 
     // "xyz" is far from all candidates
     let far_suggestions = suggest("xyz", &candidates, 2);
-    assert!(
-        far_suggestions.is_empty(),
-        "Should not suggest anything for very different input"
-    );
+    assert!(far_suggestions.is_empty(), "Should not suggest anything for very different input");
 }
 
 /// @demo cli/suggest#format_suggestions
@@ -62,10 +51,7 @@ fn test_format_suggestions() {
 
     assert!(formatted.is_some(), "Should have formatted output");
     let output = formatted.unwrap();
-    assert!(
-        output.contains("skin"),
-        "Formatted output should mention suggested token"
-    );
+    assert!(output.contains("skin"), "Formatted output should mention suggested token");
 }
 
 // ============================================================================
@@ -90,12 +76,11 @@ fn test_suggest_missing_token() {
         .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
         .collect();
 
+    assert!(!missing_token_suggestions.is_empty(), "Should detect missing token {{b}}");
     assert!(
-        !missing_token_suggestions.is_empty(),
-        "Should detect missing token {{b}}"
-    );
-    assert!(
-        missing_token_suggestions.iter().any(|s| s.message.contains("{b}") || s.message.contains("b")),
+        missing_token_suggestions
+            .iter()
+            .any(|s| s.message.contains("{b}") || s.message.contains("b")),
         "Should mention the missing token {{b}}"
     );
 }
@@ -152,10 +137,7 @@ fn test_suggest_row_completion() {
         .filter(|s| s.suggestion_type == SuggestionType::RowCompletion)
         .collect();
 
-    assert!(
-        !row_completion_suggestions.is_empty(),
-        "Should detect short row needing completion"
-    );
+    assert!(!row_completion_suggestions.is_empty(), "Should detect short row needing completion");
 }
 
 /// @demo cli/suggest#row_completion_fix
@@ -204,10 +186,7 @@ fn test_suggest_report_counts() {
     suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
     let report = suggester.into_report();
 
-    assert!(
-        report.has_suggestions(),
-        "Should have suggestions for both issues"
-    );
+    assert!(report.has_suggestions(), "Should have suggestions for both issues");
 
     let missing_count = report.count_by_type(SuggestionType::MissingToken);
     let completion_count = report.count_by_type(SuggestionType::RowCompletion);
@@ -255,10 +234,7 @@ fn test_suggest_no_suggestions_valid_file() {
     suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
     let report = suggester.into_report();
 
-    assert!(
-        !report.has_suggestions(),
-        "Valid file should have no suggestions"
-    );
+    assert!(!report.has_suggestions(), "Valid file should have no suggestions");
 }
 
 /// @demo cli/suggest#multiple_sprites
@@ -277,14 +253,8 @@ fn test_suggest_multiple_sprites() {
 
     // Each sprite should have a missing token suggestion
     let sprite_names: Vec<_> = report.suggestions.iter().map(|s| s.sprite.clone()).collect();
-    assert!(
-        sprite_names.contains(&"sprite_a".to_string()),
-        "Should have suggestion for sprite_a"
-    );
-    assert!(
-        sprite_names.contains(&"sprite_b".to_string()),
-        "Should have suggestion for sprite_b"
-    );
+    assert!(sprite_names.contains(&"sprite_a".to_string()), "Should have suggestion for sprite_a");
+    assert!(sprite_names.contains(&"sprite_b".to_string()), "Should have suggestion for sprite_b");
 }
 
 /// @demo cli/suggest#line_numbers
@@ -301,13 +271,7 @@ fn test_suggest_line_numbers() {
 
     if !report.suggestions.is_empty() {
         let suggestion = &report.suggestions[0];
-        assert!(
-            suggestion.line > 0,
-            "Line number should be 1-indexed and positive"
-        );
-        assert_eq!(
-            suggestion.line, 2,
-            "Missing token should be on line 2 (sprite line)"
-        );
+        assert!(suggestion.line > 0, "Line number should be 1-indexed and positive");
+        assert_eq!(suggestion.line, 2, "Missing token should be on line 2 (sprite line)");
     }
 }

@@ -248,11 +248,7 @@ pub fn rgb_to_hsl(r: u8, g: u8, b: u8) -> Hsl {
     }
 
     // Saturation
-    let s = if l < 0.5 {
-        delta / (max + min)
-    } else {
-        delta / (2.0 - max - min)
-    };
+    let s = if l < 0.5 { delta / (max + min) } else { delta / (2.0 - max - min) };
 
     // Hue
     let h = if max == r {
@@ -278,22 +274,14 @@ pub fn hsl_to_rgb(hsl: &Hsl) -> (u8, u8, u8) {
         return (v, v, v);
     }
 
-    let q = if l < 0.5 {
-        l * (1.0 + s)
-    } else {
-        l + s - l * s
-    };
+    let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
     let p = 2.0 * l - q;
 
     let r = hue_to_rgb(p, q, h + 1.0 / 3.0);
     let g = hue_to_rgb(p, q, h);
     let b = hue_to_rgb(p, q, h - 1.0 / 3.0);
 
-    (
-        (r * 255.0).round() as u8,
-        (g * 255.0).round() as u8,
-        (b * 255.0).round() as u8,
-    )
+    ((r * 255.0).round() as u8, (g * 255.0).round() as u8, (b * 255.0).round() as u8)
 }
 
 /// Helper function for HSL to RGB conversion
@@ -346,7 +334,7 @@ pub fn apply_color_shift(
 pub fn generate_ramp(
     base_color: &str,
     steps: u32,
-    shadow_shift: (f64, f64, f64),  // (hue, saturation, lightness)
+    shadow_shift: (f64, f64, f64), // (hue, saturation, lightness)
     highlight_shift: (f64, f64, f64),
 ) -> Result<Vec<(String, String)>, ColorError> {
     let base_rgba = parse_color(base_color)?;
@@ -863,19 +851,32 @@ mod tests {
     #[test]
     fn test_hsl_roundtrip() {
         // Test that RGB -> HSL -> RGB roundtrips correctly
-        let test_colors = [
-            (255, 128, 64),
-            (100, 150, 200),
-            (50, 50, 50),
-            (200, 100, 100),
-        ];
+        let test_colors = [(255, 128, 64), (100, 150, 200), (50, 50, 50), (200, 100, 100)];
 
         for (r, g, b) in test_colors {
             let hsl = rgb_to_hsl(r, g, b);
             let (r2, g2, b2) = hsl_to_rgb(&hsl);
-            assert!((r as i16 - r2 as i16).abs() <= 1, "R roundtrip failed for ({}, {}, {})", r, g, b);
-            assert!((g as i16 - g2 as i16).abs() <= 1, "G roundtrip failed for ({}, {}, {})", r, g, b);
-            assert!((b as i16 - b2 as i16).abs() <= 1, "B roundtrip failed for ({}, {}, {})", r, g, b);
+            assert!(
+                (r as i16 - r2 as i16).abs() <= 1,
+                "R roundtrip failed for ({}, {}, {})",
+                r,
+                g,
+                b
+            );
+            assert!(
+                (g as i16 - g2 as i16).abs() <= 1,
+                "G roundtrip failed for ({}, {}, {})",
+                r,
+                g,
+                b
+            );
+            assert!(
+                (b as i16 - b2 as i16).abs() <= 1,
+                "B roundtrip failed for ({}, {}, {})",
+                r,
+                g,
+                b
+            );
         }
     }
 
@@ -912,9 +913,10 @@ mod tests {
         let result = generate_ramp(
             "#FF0000",
             3,
-            (0.0, 0.0, -20.0),  // shadow: just darker
-            (0.0, 0.0, 20.0),   // highlight: just lighter
-        ).unwrap();
+            (0.0, 0.0, -20.0), // shadow: just darker
+            (0.0, 0.0, 20.0),  // highlight: just lighter
+        )
+        .unwrap();
 
         assert_eq!(result.len(), 3, "3-step ramp should have 3 colors");
         assert_eq!(result[0].0, "_1", "First suffix should be _1");
@@ -925,12 +927,7 @@ mod tests {
 
     #[test]
     fn test_generate_ramp_5_steps() {
-        let result = generate_ramp(
-            "#808080",
-            5,
-            (0.0, 0.0, -15.0),
-            (0.0, 0.0, 15.0),
-        ).unwrap();
+        let result = generate_ramp("#808080", 5, (0.0, 0.0, -15.0), (0.0, 0.0, 15.0)).unwrap();
 
         assert_eq!(result.len(), 5, "5-step ramp should have 5 colors");
         assert_eq!(result[0].0, "_2");
@@ -943,11 +940,12 @@ mod tests {
     #[test]
     fn test_generate_ramp_with_hue_shift() {
         let result = generate_ramp(
-            "#FF8080",  // Light red
+            "#FF8080", // Light red
             3,
-            (15.0, 0.0, -15.0),  // Shadow shifts toward orange
+            (15.0, 0.0, -15.0), // Shadow shifts toward orange
             (-10.0, 0.0, 15.0), // Highlight shifts toward pink
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(result.len(), 3);
 
@@ -967,12 +965,7 @@ mod tests {
 
     #[test]
     fn test_generate_ramp_invalid_color() {
-        let result = generate_ramp(
-            "not_a_color",
-            3,
-            (0.0, 0.0, -15.0),
-            (0.0, 0.0, 15.0),
-        );
+        let result = generate_ramp("not_a_color", 3, (0.0, 0.0, -15.0), (0.0, 0.0, 15.0));
         assert!(result.is_err(), "Invalid color should return error");
     }
 

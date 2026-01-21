@@ -1214,9 +1214,9 @@ mod tests {
                 let is_bottom = y >= 8;
 
                 let color = match (is_left || is_right, is_top || is_bottom) {
-                    (true, true) => red,     // corners
-                    (false, true) => green,  // top/bottom edges
-                    (true, false) => blue,   // left/right edges
+                    (true, true) => red,      // corners
+                    (false, true) => green,   // top/bottom edges
+                    (true, false) => blue,    // left/right edges
                     (false, false) => yellow, // center
                 };
                 source.put_pixel(x, y, color);

@@ -32,10 +32,7 @@ fn test_prompts_character() {
 
     // Character template should have key sections
     assert!(!content.is_empty(), "Character template should not be empty");
-    assert!(
-        content.len() > 100,
-        "Character template should have substantial content"
-    );
+    assert!(content.len() > 100, "Character template should have substantial content");
 }
 
 /// @demo cli/prompts#item
@@ -47,10 +44,7 @@ fn test_prompts_item() {
 
     // Item template should have key sections
     assert!(!content.is_empty(), "Item template should not be empty");
-    assert!(
-        content.len() > 100,
-        "Item template should have substantial content"
-    );
+    assert!(content.len() > 100, "Item template should have substantial content");
 }
 
 /// @demo cli/prompts#tileset
@@ -62,10 +56,7 @@ fn test_prompts_tileset() {
 
     // Tileset template should have key sections
     assert!(!content.is_empty(), "Tileset template should not be empty");
-    assert!(
-        content.len() > 100,
-        "Tileset template should have substantial content"
-    );
+    assert!(content.len() > 100, "Tileset template should have substantial content");
 }
 
 /// @demo cli/prompts#animation
@@ -77,8 +68,5 @@ fn test_prompts_animation() {
 
     // Animation template should have key sections
     assert!(!content.is_empty(), "Animation template should not be empty");
-    assert!(
-        content.len() > 100,
-        "Animation template should have substantial content"
-    );
+    assert!(content.len() > 100, "Animation template should have substantial content");
 }

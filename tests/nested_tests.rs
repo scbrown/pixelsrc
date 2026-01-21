@@ -17,12 +17,7 @@ use pixelsrc::renderer::render_resolved;
 /// Parse a JSONL file and return registries
 fn parse_file(
     path: &Path,
-) -> (
-    PaletteRegistry,
-    SpriteRegistry,
-    CompositionRegistry,
-    HashMap<String, image::RgbaImage>,
-) {
+) -> (PaletteRegistry, SpriteRegistry, CompositionRegistry, HashMap<String, image::RgbaImage>) {
     let content = fs::read_to_string(path).expect("Failed to read fixture");
     parse_content(&content)
 }
@@ -30,12 +25,7 @@ fn parse_file(
 /// Parse JSONL content and return registries
 fn parse_content(
     jsonl: &str,
-) -> (
-    PaletteRegistry,
-    SpriteRegistry,
-    CompositionRegistry,
-    HashMap<String, image::RgbaImage>,
-) {
+) -> (PaletteRegistry, SpriteRegistry, CompositionRegistry, HashMap<String, image::RgbaImage>) {
     let cursor = Cursor::new(jsonl);
     let parse_result = parse_stream(cursor);
 
@@ -62,12 +52,7 @@ fn parse_content(
         }
     }
 
-    (
-        palette_registry,
-        sprite_registry,
-        composition_registry,
-        sprite_images,
-    )
+    (palette_registry, sprite_registry, composition_registry, sprite_images)
 }
 
 // ============================================================================
@@ -81,9 +66,7 @@ fn test_nested_composition_basic() {
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
     // Render the outer composition which references inner_comp
-    let outer = composition_registry
-        .get("outer_comp")
-        .expect("outer_comp not found");
+    let outer = composition_registry.get("outer_comp").expect("outer_comp not found");
 
     let mut ctx = RenderContext::new();
     let result = render_composition_nested(
@@ -113,9 +96,7 @@ fn test_nested_composition_inner_rendered() {
     let path = Path::new("tests/fixtures/compositions/nested_composition.jsonl");
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
-    let outer = composition_registry
-        .get("outer_comp")
-        .expect("outer_comp not found");
+    let outer = composition_registry.get("outer_comp").expect("outer_comp not found");
 
     let mut ctx = RenderContext::new();
     let (image, _) = render_composition_nested(
@@ -149,9 +130,7 @@ fn test_nested_composition_caching() {
     let path = Path::new("tests/fixtures/compositions/nested_composition.jsonl");
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
-    let outer = composition_registry
-        .get("outer_comp")
-        .expect("outer_comp not found");
+    let outer = composition_registry.get("outer_comp").expect("outer_comp not found");
 
     let mut ctx = RenderContext::new();
 
@@ -167,10 +146,7 @@ fn test_nested_composition_caching() {
     .expect("Should render");
 
     // inner_comp should be cached
-    assert!(
-        ctx.is_cached("inner_comp"),
-        "inner_comp should be cached after rendering"
-    );
+    assert!(ctx.is_cached("inner_comp"), "inner_comp should be cached after rendering");
 }
 
 // ============================================================================
@@ -184,9 +160,7 @@ fn test_composition_cycle_detected() {
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
     // comp_a references comp_b which references comp_a
-    let comp_a = composition_registry
-        .get("comp_a")
-        .expect("comp_a not found");
+    let comp_a = composition_registry.get("comp_a").expect("comp_a not found");
 
     let mut ctx = RenderContext::new();
     let result = render_composition_nested(
@@ -202,10 +176,7 @@ fn test_composition_cycle_detected() {
 
     match result {
         Err(CompositionError::CycleDetected { cycle_path }) => {
-            assert!(
-                cycle_path.len() >= 2,
-                "Cycle path should contain at least 2 elements"
-            );
+            assert!(cycle_path.len() >= 2, "Cycle path should contain at least 2 elements");
         }
         Err(e) => panic!("Expected CycleDetected error, got: {:?}", e),
         Ok(_) => panic!("Expected error, got success"),
@@ -220,9 +191,7 @@ fn test_composition_self_reference_detected() {
 
     let (_, _, composition_registry, sprite_images) = parse_content(jsonl);
 
-    let comp = composition_registry
-        .get("self_ref")
-        .expect("self_ref not found");
+    let comp = composition_registry.get("self_ref").expect("self_ref not found");
 
     let mut ctx = RenderContext::new();
     let result = render_composition_nested(
@@ -254,9 +223,7 @@ fn test_example_nested_building() {
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
     // Render the city_block which references building_3w compositions
-    let city_block = composition_registry
-        .get("city_block")
-        .expect("city_block not found");
+    let city_block = composition_registry.get("city_block").expect("city_block not found");
 
     let mut ctx = RenderContext::new();
     let result = render_composition_nested(
@@ -268,11 +235,7 @@ fn test_example_nested_building() {
         None,
     );
 
-    assert!(
-        result.is_ok(),
-        "nested_building example should render: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "nested_building example should render: {:?}", result.err());
 
     let (image, _) = result.unwrap();
 
@@ -281,10 +244,7 @@ fn test_example_nested_building() {
     assert_eq!(image.height(), 48, "Height should be 48");
 
     // building_3w should be cached
-    assert!(
-        ctx.is_cached("building_3w"),
-        "building_3w should be cached"
-    );
+    assert!(ctx.is_cached("building_3w"), "building_3w should be cached");
 }
 
 /// Test that nested_ui.jsonl example renders successfully
@@ -294,9 +254,8 @@ fn test_example_nested_ui() {
     let (_, _, composition_registry, sprite_images) = parse_file(path);
 
     // Render the settings_panel which has multiple levels of nesting
-    let settings_panel = composition_registry
-        .get("settings_panel")
-        .expect("settings_panel not found");
+    let settings_panel =
+        composition_registry.get("settings_panel").expect("settings_panel not found");
 
     let mut ctx = RenderContext::new();
     let result = render_composition_nested(
@@ -308,11 +267,7 @@ fn test_example_nested_ui() {
         None,
     );
 
-    assert!(
-        result.is_ok(),
-        "nested_ui example should render: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "nested_ui example should render: {:?}", result.err());
 
     let (image, _) = result.unwrap();
 

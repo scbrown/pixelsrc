@@ -49,10 +49,7 @@ fn test_explain_basic_sprite() {
     assert_eq!(explanation.width, 3);
     assert_eq!(explanation.height, 3);
     assert_eq!(explanation.total_cells, 9);
-    assert!(
-        explanation.tokens.len() >= 2,
-        "Should list all tokens used"
-    );
+    assert!(explanation.tokens.len() >= 2, "Should list all tokens used");
 }
 
 /// @demo cli/explain#sprite_tokens
@@ -62,12 +59,7 @@ fn test_explain_basic_sprite() {
 fn test_explain_token_usage() {
     let sprite = make_sprite(
         "checker",
-        vec![
-            "{a}{b}{a}{b}",
-            "{b}{a}{b}{a}",
-            "{a}{b}{a}{b}",
-            "{b}{a}{b}{a}",
-        ],
+        vec!["{a}{b}{a}{b}", "{b}{a}{b}{a}", "{a}{b}{a}{b}", "{b}{a}{b}{a}"],
         PaletteRef::Inline(HashMap::from([
             ("{a}".to_string(), "#FF0000".to_string()),
             ("{b}".to_string(), "#00FF00".to_string()),
@@ -218,12 +210,7 @@ fn test_explain_composition() {
 fn test_format_explanation() {
     let sprite = make_sprite(
         "coin",
-        vec![
-            "{_}{g}{g}{_}",
-            "{g}{g}{g}{g}",
-            "{g}{g}{g}{g}",
-            "{_}{g}{g}{_}",
-        ],
+        vec!["{_}{g}{g}{_}", "{g}{g}{g}{g}", "{g}{g}{g}{g}", "{_}{g}{g}{_}"],
         PaletteRef::Inline(HashMap::from([
             ("{_}".to_string(), "#0000".to_string()),
             ("{g}".to_string(), "#FFD700".to_string()),
@@ -252,9 +239,7 @@ fn test_explain_inline_vs_named_palette() {
     let sprite_inline = make_sprite(
         "inline_test",
         vec!["{x}"],
-        PaletteRef::Inline(HashMap::from([
-            ("{x}".to_string(), "#FF0000".to_string()),
-        ])),
+        PaletteRef::Inline(HashMap::from([("{x}".to_string(), "#FF0000".to_string())])),
     );
 
     let palette_colors = resolve_palette_colors(&sprite_inline.palette, &HashMap::new());
@@ -262,11 +247,8 @@ fn test_explain_inline_vs_named_palette() {
     assert_eq!(explanation.palette_ref, "inline");
 
     // Named palette
-    let sprite_named = make_sprite(
-        "named_test",
-        vec!["{x}"],
-        PaletteRef::Named("my_palette".to_string()),
-    );
+    let sprite_named =
+        make_sprite("named_test", vec!["{x}"], PaletteRef::Named("my_palette".to_string()));
 
     let empty_palettes = HashMap::new();
     let palette_colors = resolve_palette_colors(&sprite_named.palette, &empty_palettes);
@@ -282,20 +264,15 @@ fn test_explain_inconsistent_rows() {
     let sprite = make_sprite(
         "uneven",
         vec![
-            "{x}{x}{x}",   // 3 tokens
-            "{x}{x}",      // 2 tokens - inconsistent!
-            "{x}{x}{x}",   // 3 tokens
+            "{x}{x}{x}", // 3 tokens
+            "{x}{x}",    // 2 tokens - inconsistent!
+            "{x}{x}{x}", // 3 tokens
         ],
-        PaletteRef::Inline(HashMap::from([
-            ("{x}".to_string(), "#FF0000".to_string()),
-        ])),
+        PaletteRef::Inline(HashMap::from([("{x}".to_string(), "#FF0000".to_string())])),
     );
 
     let palette_colors = resolve_palette_colors(&sprite.palette, &HashMap::new());
     let explanation = explain_sprite(&sprite, palette_colors.as_ref());
 
-    assert!(
-        !explanation.consistent_rows,
-        "Should detect inconsistent row widths"
-    );
+    assert!(!explanation.consistent_rows, "Should detect inconsistent row widths");
 }

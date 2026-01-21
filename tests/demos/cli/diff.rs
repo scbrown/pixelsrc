@@ -35,8 +35,10 @@ fn test_diff_identical_sprites() {
         ("{x}".to_string(), "#FF0000".to_string()),
     ]);
 
-    let sprite_a = make_sprite("test", vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"], palette.clone());
-    let sprite_b = make_sprite("test", vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"], palette.clone());
+    let sprite_a =
+        make_sprite("test", vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"], palette.clone());
+    let sprite_b =
+        make_sprite("test", vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"], palette.clone());
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
 
@@ -52,12 +54,11 @@ fn test_diff_identical_sprites() {
 /// @description Detects when sprite size has changed.
 #[test]
 fn test_diff_dimension_change() {
-    let palette = HashMap::from([
-        ("{x}".to_string(), "#FF0000".to_string()),
-    ]);
+    let palette = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
 
     // 3x3 sprite
-    let sprite_a = make_sprite("test", vec!["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"], palette.clone());
+    let sprite_a =
+        make_sprite("test", vec!["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"], palette.clone());
     // 4x4 sprite
     let sprite_b = make_sprite(
         "test",
@@ -67,10 +68,7 @@ fn test_diff_dimension_change() {
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
 
-    assert!(
-        diff.dimension_change.is_some(),
-        "Should detect dimension change"
-    );
+    assert!(diff.dimension_change.is_some(), "Should detect dimension change");
     let dim_change = diff.dimension_change.unwrap();
     assert_eq!(dim_change.old, (3, 3));
     assert_eq!(dim_change.new, (4, 4));
@@ -81,9 +79,7 @@ fn test_diff_dimension_change() {
 /// @description Detects when only width changes (height stays the same).
 #[test]
 fn test_diff_width_only_change() {
-    let palette = HashMap::from([
-        ("{x}".to_string(), "#FF0000".to_string()),
-    ]);
+    let palette = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
 
     let sprite_a = make_sprite("test", vec!["{x}{x}", "{x}{x}"], palette.clone());
     let sprite_b = make_sprite("test", vec!["{x}{x}{x}", "{x}{x}{x}"], palette.clone());
@@ -118,10 +114,7 @@ fn test_diff_palette_color_changed() {
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette_a, &palette_b);
 
-    assert!(
-        !diff.palette_changes.is_empty(),
-        "Should detect palette color change"
-    );
+    assert!(!diff.palette_changes.is_empty(), "Should detect palette color change");
 
     let change = &diff.palette_changes[0];
     match change {
@@ -139,9 +132,7 @@ fn test_diff_palette_color_changed() {
 /// @description Detects when a new token is added to the palette.
 #[test]
 fn test_diff_palette_token_added() {
-    let palette_a = HashMap::from([
-        ("{x}".to_string(), "#FF0000".to_string()),
-    ]);
+    let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
     let palette_b = HashMap::from([
         ("{x}".to_string(), "#FF0000".to_string()),
         ("{y}".to_string(), "#00FF00".to_string()), // New token
@@ -152,16 +143,10 @@ fn test_diff_palette_token_added() {
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette_a, &palette_b);
 
-    let added_changes: Vec<_> = diff
-        .palette_changes
-        .iter()
-        .filter(|c| matches!(c, PaletteChange::Added { .. }))
-        .collect();
+    let added_changes: Vec<_> =
+        diff.palette_changes.iter().filter(|c| matches!(c, PaletteChange::Added { .. })).collect();
 
-    assert!(
-        !added_changes.is_empty(),
-        "Should detect added palette token"
-    );
+    assert!(!added_changes.is_empty(), "Should detect added palette token");
 }
 
 /// @demo cli/diff#palette_token_removed
@@ -189,10 +174,7 @@ fn test_diff_palette_token_removed() {
         .filter(|c| matches!(c, PaletteChange::Removed { .. }))
         .collect();
 
-    assert!(
-        !removed_changes.is_empty(),
-        "Should detect removed palette token"
-    );
+    assert!(!removed_changes.is_empty(), "Should detect removed palette token");
 }
 
 // ============================================================================
@@ -209,11 +191,8 @@ fn test_diff_grid_content_changed() {
         ("{x}".to_string(), "#FF0000".to_string()),
     ]);
 
-    let sprite_a = make_sprite(
-        "test",
-        vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"],
-        palette.clone(),
-    );
+    let sprite_a =
+        make_sprite("test", vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"], palette.clone());
     let sprite_b = make_sprite(
         "test",
         vec!["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"], // Changed from diamond to square
@@ -222,15 +201,9 @@ fn test_diff_grid_content_changed() {
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
 
-    assert!(
-        !diff.grid_changes.is_empty(),
-        "Should detect grid content changes"
-    );
+    assert!(!diff.grid_changes.is_empty(), "Should detect grid content changes");
     // Rows 0 and 2 changed (they had transparent corners)
-    assert!(
-        diff.grid_changes.len() >= 2,
-        "Should detect changes in multiple rows"
-    );
+    assert!(diff.grid_changes.len() >= 2, "Should detect changes in multiple rows");
 }
 
 /// @demo cli/diff#single_pixel_changed
@@ -243,11 +216,8 @@ fn test_diff_single_pixel_changed() {
         ("{b}".to_string(), "#00FF00".to_string()),
     ]);
 
-    let sprite_a = make_sprite(
-        "test",
-        vec!["{a}{a}{a}", "{a}{a}{a}", "{a}{a}{a}"],
-        palette.clone(),
-    );
+    let sprite_a =
+        make_sprite("test", vec!["{a}{a}{a}", "{a}{a}{a}", "{a}{a}{a}"], palette.clone());
     let sprite_b = make_sprite(
         "test",
         vec!["{a}{a}{a}", "{a}{b}{a}", "{a}{a}{a}"], // Center pixel changed
@@ -256,10 +226,7 @@ fn test_diff_single_pixel_changed() {
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
 
-    assert!(
-        !diff.grid_changes.is_empty(),
-        "Should detect single pixel change"
-    );
+    assert!(!diff.grid_changes.is_empty(), "Should detect single pixel change");
     // Only row 1 should be changed
     let changed_row = &diff.grid_changes[0];
     assert_eq!(changed_row.row, 1, "Should identify row 1 as changed");
@@ -274,15 +241,12 @@ fn test_diff_single_pixel_changed() {
 /// @description Diff results can be formatted as human-readable text.
 #[test]
 fn test_format_diff_output() {
-    let palette_a = HashMap::from([
-        ("{x}".to_string(), "#FF0000".to_string()),
-    ]);
-    let palette_b = HashMap::from([
-        ("{x}".to_string(), "#00FF00".to_string()),
-    ]);
+    let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
+    let palette_b = HashMap::from([("{x}".to_string(), "#00FF00".to_string())]);
 
     let sprite_a = make_sprite("test", vec!["{x}{x}", "{x}{x}"], palette_a.clone());
-    let sprite_b = make_sprite("test", vec!["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"], palette_b.clone());
+    let sprite_b =
+        make_sprite("test", vec!["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"], palette_b.clone());
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette_a, &palette_b);
     let formatted = format_diff("test", &diff, "file_a.pxl", "file_b.pxl");
@@ -291,10 +255,7 @@ fn test_format_diff_output() {
         formatted.contains("test") || formatted.contains("diff"),
         "Output should reference the sprite name or diff"
     );
-    assert!(
-        !formatted.is_empty(),
-        "Formatted output should not be empty"
-    );
+    assert!(!formatted.is_empty(), "Formatted output should not be empty");
 }
 
 // ============================================================================
@@ -306,9 +267,7 @@ fn test_format_diff_output() {
 /// @description Handles comparison when one sprite is effectively empty.
 #[test]
 fn test_diff_empty_to_content() {
-    let palette_a = HashMap::from([
-        ("{_}".to_string(), "#0000".to_string()),
-    ]);
+    let palette_a = HashMap::from([("{_}".to_string(), "#0000".to_string())]);
     let palette_b = HashMap::from([
         ("{_}".to_string(), "#0000".to_string()),
         ("{x}".to_string(), "#FF0000".to_string()),
@@ -331,20 +290,13 @@ fn test_diff_empty_to_content() {
 /// @description Diff includes a human-readable summary of all changes.
 #[test]
 fn test_diff_summary() {
-    let palette_a = HashMap::from([
-        ("{x}".to_string(), "#FF0000".to_string()),
-    ]);
-    let palette_b = HashMap::from([
-        ("{x}".to_string(), "#00FF00".to_string()),
-    ]);
+    let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
+    let palette_b = HashMap::from([("{x}".to_string(), "#00FF00".to_string())]);
 
     let sprite_a = make_sprite("test", vec!["{x}"], palette_a.clone());
     let sprite_b = make_sprite("test", vec!["{x}{x}"], palette_b.clone());
 
     let diff = diff_sprites(&sprite_a, &sprite_b, &palette_a, &palette_b);
 
-    assert!(
-        !diff.summary.is_empty(),
-        "Diff should include a summary"
-    );
+    assert!(!diff.summary.is_empty(), "Diff should include a summary");
 }

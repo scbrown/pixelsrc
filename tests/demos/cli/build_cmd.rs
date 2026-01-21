@@ -106,16 +106,10 @@ fn test_build_result_skipped() {
 /// @description Target result for successful build with outputs.
 #[test]
 fn test_target_result_success() {
-    let outputs = vec![
-        PathBuf::from("dist/hero.png"),
-        PathBuf::from("dist/hero@2x.png"),
-    ];
+    let outputs = vec![PathBuf::from("dist/hero.png"), PathBuf::from("dist/hero@2x.png")];
 
-    let result = TargetResult::success(
-        "hero".to_string(),
-        outputs.clone(),
-        Duration::from_millis(100),
-    );
+    let result =
+        TargetResult::success("hero".to_string(), outputs.clone(), Duration::from_millis(100));
 
     assert!(result.is_success(), "Should be success");
     assert_eq!(result.target_id, "hero");

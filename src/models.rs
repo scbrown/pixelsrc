@@ -217,20 +217,12 @@ pub struct ColorShift {
 impl ColorShift {
     /// Default shadow shift: darker, warmer (hue shifts toward red/orange)
     pub fn default_shadow() -> Self {
-        Self {
-            lightness: Some(-15.0),
-            hue: Some(10.0),
-            saturation: Some(5.0),
-        }
+        Self { lightness: Some(-15.0), hue: Some(10.0), saturation: Some(5.0) }
     }
 
     /// Default highlight shift: lighter, cooler (hue shifts toward blue)
     pub fn default_highlight() -> Self {
-        Self {
-            lightness: Some(12.0),
-            hue: Some(-5.0),
-            saturation: Some(-10.0),
-        }
+        Self { lightness: Some(12.0), hue: Some(-5.0), saturation: Some(-10.0) }
     }
 }
 

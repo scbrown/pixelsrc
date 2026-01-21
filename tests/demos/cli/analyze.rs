@@ -81,14 +81,8 @@ fn test_analyze_token_percentage() {
     let percentage_a = counter.percentage("{a}");
     let percentage_b = counter.percentage("{b}");
 
-    assert!(
-        (percentage_a - 50.0).abs() < 0.1,
-        "Token {{a}} should be ~50%"
-    );
-    assert!(
-        (percentage_b - 50.0).abs() < 0.1,
-        "Token {{b}} should be ~50%"
-    );
+    assert!((percentage_a - 50.0).abs() < 0.1, "Token {{a}} should be ~50%");
+    assert!((percentage_b - 50.0).abs() < 0.1, "Token {{b}} should be ~50%");
 }
 
 /// @demo cli/analyze#top_tokens
@@ -149,11 +143,13 @@ fn test_analyze_top_pairs() {
 
     // Create sprites where certain pairs co-occur frequently
     for _ in 0..10 {
-        let tokens: HashSet<String> = vec!["{a}".to_string(), "{b}".to_string()].into_iter().collect();
+        let tokens: HashSet<String> =
+            vec!["{a}".to_string(), "{b}".to_string()].into_iter().collect();
         matrix.record_sprite(&tokens);
     }
     for _ in 0..5 {
-        let tokens: HashSet<String> = vec!["{c}".to_string(), "{d}".to_string()].into_iter().collect();
+        let tokens: HashSet<String> =
+            vec!["{c}".to_string(), "{d}".to_string()].into_iter().collect();
         matrix.record_sprite(&tokens);
     }
 
@@ -264,10 +260,7 @@ fn test_analyze_row_repetition() {
     let row_stats = CompressionEstimator::analyze_row_repetition(&sprite);
 
     assert_eq!(row_stats.total_rows, 5);
-    assert!(
-        row_stats.repeated_rows > 0,
-        "Should detect repeated (consecutive identical) rows"
-    );
+    assert!(row_stats.repeated_rows > 0, "Should detect repeated (consecutive identical) rows");
 }
 
 // ============================================================================
@@ -306,10 +299,7 @@ fn test_analyze_text_format() {
 
     let sprite = make_sprite(
         "hero",
-        vec![
-            "{hair}{hair}{hair}",
-            "{skin}{skin}{skin}",
-        ],
+        vec!["{hair}{hair}{hair}", "{skin}{skin}{skin}"],
         HashMap::from([
             ("{skin}".to_string(), "#FFD5B4".to_string()),
             ("{hair}".to_string(), "#8B4513".to_string()),
