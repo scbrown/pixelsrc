@@ -4,6 +4,35 @@
 //! - Parse JSONL files containing palette and sprite definitions
 //! - Render sprites to PNG images
 //! - Support both lenient and strict error modes
+//!
+//! # Quick Start
+//!
+//! ```no_run
+//! use pixelsrc::{parse_stream, TtpObject, PaletteRegistry, SpriteRegistry, render_resolved};
+//! use std::io::BufReader;
+//! use std::fs::File;
+//!
+//! // Parse a .pxl file
+//! let file = File::open("sprites.pxl").unwrap();
+//! let result = parse_stream(BufReader::new(file));
+//!
+//! // Build registries
+//! let mut palettes = PaletteRegistry::new();
+//! let mut sprites = SpriteRegistry::new();
+//!
+//! for obj in result.objects {
+//!     match obj {
+//!         TtpObject::Palette(p) => palettes.register(p),
+//!         TtpObject::Sprite(s) => sprites.register_sprite(s),
+//!         TtpObject::Variant(v) => sprites.register_variant(v),
+//!         _ => {}
+//!     }
+//! }
+//!
+//! // Resolve and render a sprite
+//! let resolved = sprites.resolve("my_sprite", &palettes, false).unwrap();
+//! let (image, warnings) = render_resolved(&resolved);
+//! ```
 
 pub mod alias;
 pub mod analyze;
@@ -50,3 +79,31 @@ pub mod watch;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
+
+// ============================================================================
+// Re-exports for convenience
+// ============================================================================
+
+// Core data types
+pub use models::{
+    Animation, Composition, CompositionLayer, Palette, PaletteRef, Sprite, TransformSpec,
+    TtpObject, Variant, Warning,
+};
+
+// Parsing
+pub use parser::{parse_line, parse_stream, ParseError, ParseResult};
+
+// Color
+pub use color::{parse_color, ColorError};
+
+// Registry types
+pub use registry::{
+    PaletteError, PaletteRegistry, PaletteSource, Registry, ResolvedPalette, ResolvedSprite,
+    SpriteRegistry,
+};
+
+// Rendering
+pub use renderer::{render_resolved, render_sprite};
+
+// Tokenizer
+pub use tokenizer::tokenize;
