@@ -26,18 +26,30 @@ Instead of storing API tokens as GitHub secrets, we use OpenID Connect (OIDC) to
 
 **Workflow:** `.github/workflows/wasm.yml`
 
+> **Note:** Unlike crates.io, npm does NOT support fully tokenless OIDC publishing.
+> The `--provenance` flag adds attestations but doesn't replace authentication.
+> A granular access token is still required.
+
 **Setup on npmjs.com:**
-1. Go to https://www.npmjs.com/package/@stiwi/pixelsrc-wasm/access
-2. Under "Publishing access", click "Add a trusted publisher"
-3. Select "GitHub Actions" and configure:
-   - Repository owner: `scbrown`
-   - Repository name: `pixelsrc`
-   - Workflow filename: `wasm.yml`
+1. Go to https://www.npmjs.com/ → Avatar → Access Tokens
+2. Generate New Token → **Granular Access Token**
+3. Configure:
+   - Token name: `github-actions-pixelsrc`
+   - Expiration: No expiration
+   - Packages: Only select packages → `@stiwi/pixelsrc-wasm`
+   - Permissions: Read and write
+   - Organizations: No access
+4. Copy the token
+
+**Setup on GitHub:**
+1. Go to repo Settings → Secrets → Actions
+2. Add secret: `NPM_TOKEN` with the token value
 
 **Workflow requirements:**
-- Permission: `id-token: write`
-- Flag: `npm publish --provenance`
-- Do NOT use `registry-url` in `setup-node` (it creates an .npmrc expecting tokens)
+- Permission: `id-token: write` (for provenance attestations)
+- Secret: `NPM_TOKEN` (for authentication)
+- Flag: `npm publish --provenance` (adds attestations)
+- Use `registry-url` in `setup-node` to configure .npmrc
 
 ## Troubleshooting
 
