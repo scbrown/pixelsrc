@@ -10,10 +10,13 @@ fn test_prompts_list() {
     // These are the available prompt templates
     let expected_templates = vec!["character", "item", "tileset", "animation"];
 
+    // Get the project root directory
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
     // Each template should be available
     for template in &expected_templates {
         // Templates are loaded from docs/prompts/templates/{name}.txt
-        let path = format!("docs/prompts/templates/{}.txt", template);
+        let path = format!("{}/docs/prompts/templates/{}.txt", manifest_dir, template);
         assert!(
             std::path::Path::new(&path).exists(),
             "Template '{}' should exist at {}",
