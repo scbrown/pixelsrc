@@ -63,6 +63,7 @@ pub mod palette_cycle;
 pub mod palette_parser;
 pub mod palettes;
 pub mod parser;
+pub mod path;
 pub mod prime;
 pub mod registry;
 pub mod renderer;
