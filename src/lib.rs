@@ -67,6 +67,7 @@ pub mod prime;
 pub mod registry;
 pub mod renderer;
 pub mod scaffold;
+pub mod shapes;
 pub mod spritesheet;
 pub mod suggest;
 pub mod templates;
@@ -104,6 +105,12 @@ pub use registry::{
 
 // Rendering
 pub use renderer::{render_resolved, render_sprite};
+
+// Shapes
+pub use shapes::{
+    rasterize_ellipse, rasterize_line, rasterize_points, rasterize_polygon, rasterize_rect,
+    rasterize_stroke,
+};
 
 // Tokenizer
 pub use tokenizer::tokenize;
