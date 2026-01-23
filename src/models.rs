@@ -347,6 +347,9 @@ pub struct Sprite {
     /// Sprite metadata for game engine integration (origin, collision boxes)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<SpriteMetadata>,
+    /// Structured regions definition for Format v2 sprites
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub regions: Option<HashMap<String, RegionDef>>,
     /// Nine-slice region definition for scalable UI sprites
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub nine_slice: Option<NineSlice>,

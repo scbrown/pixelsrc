@@ -226,6 +226,18 @@ pub fn render_sprite(
 pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
     let mut warnings = Vec::new();
 
+    // Check if this is a structured sprite (regions format)
+    if let Some(regions) = &resolved.regions {
+        let (image, mut region_warnings) = crate::structured::render_structured(
+            regions,
+            resolved.size,
+            &resolved.palette,
+        );
+        warnings.append(&mut region_warnings);
+        warnings.append(&mut resolved.warnings.iter().map(|w| Warning::new(w.message.clone())).collect());
+        return (image, warnings);
+    }
+
     // Parse all grid rows into tokens
     let mut parsed_rows: Vec<Vec<String>> = Vec::new();
     for row in &resolved.grid {
@@ -961,6 +973,7 @@ mod tests {
                 ("{b}".to_string(), "#0000FF".to_string()),
             ]),
             warnings: vec![],
+            regions: None,
             nine_slice: None,
         };
 
@@ -989,6 +1002,7 @@ mod tests {
             ],
             palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
             warnings: vec![],
+            regions: None,
             nine_slice: None,
         };
 
@@ -1013,6 +1027,7 @@ mod tests {
                 // {unknown} not in palette
             ]),
             warnings: vec![],
+            regions: None,
             nine_slice: None,
         };
 
@@ -1036,6 +1051,7 @@ mod tests {
             grid: vec![],
             palette: HashMap::new(),
             warnings: vec![],
+            regions: None,
             nine_slice: None,
         };
 
@@ -1062,6 +1078,7 @@ mod tests {
                 ("{skin}".to_string(), "#FF6666".to_string()), // Overridden color
             ]),
             warnings: vec![],
+            regions: None,
             nine_slice: None,
         };
 

@@ -1321,6 +1321,7 @@ fn run_render(
                 grid: final_grid,
                 palette: final_palette,
                 warnings: vec![],
+                regions: sprite.regions.clone(),
                 nine_slice: sprite.nine_slice.clone(),
             };
 
@@ -1603,6 +1604,7 @@ fn render_composition_to_image(
             grid: resolved_sprite.grid.clone(),
             palette: final_palette,
             warnings: vec![],
+            regions: resolved_sprite.regions.clone(),
             nine_slice: resolved_sprite.nine_slice.clone(),
         };
 

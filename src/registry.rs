@@ -488,6 +488,8 @@ pub struct ResolvedSprite {
     pub palette: HashMap<String, String>,
     /// Any warnings generated during resolution
     pub warnings: Vec<SpriteWarning>,
+    /// Structured regions definition (from base sprite)
+    pub regions: Option<HashMap<String, crate::models::RegionDef>>,
     /// Nine-slice region definition (from base sprite)
     pub nine_slice: Option<crate::models::NineSlice>,
 }
@@ -1026,6 +1028,7 @@ impl SpriteRegistry {
                 grid: vec![],
                 palette: HashMap::new(),
                 warnings: vec![SpriteWarning::not_found(name)],
+                regions: None,
                 nine_slice: None,
             })
         }
@@ -1072,6 +1075,7 @@ impl SpriteRegistry {
                     warnings: vec![SpriteWarning {
                         message: format!("Circular reference detected: {}", visited.join(" -> ")),
                     }],
+                    regions: None,
                     nine_slice: None,
                 });
             }
@@ -1158,6 +1162,7 @@ impl SpriteRegistry {
             grid,
             palette,
             warnings,
+            regions: sprite.regions.clone(),
             nine_slice: sprite.nine_slice.clone(),
         })
     }
@@ -1245,6 +1250,7 @@ impl SpriteRegistry {
                         grid: vec![],
                         palette: HashMap::new(),
                         warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
+                        regions: None,
                         nine_slice: None,
                     });
                 }
@@ -1306,6 +1312,7 @@ impl SpriteRegistry {
             grid,
             palette: merged_palette,
             warnings,
+            regions: base_sprite.regions.clone(),
             nine_slice: base_sprite.nine_slice.clone(),
         })
     }
