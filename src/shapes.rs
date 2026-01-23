@@ -384,6 +384,203 @@ pub fn rasterize_polygon(vertices: &[(i32, i32)]) -> HashSet<(i32, i32)> {
     pixels
 }
 
+// ============================================================================
+// Fill Operations
+// ============================================================================
+
+/// Perform a flood fill operation starting from a seed point.
+///
+/// Fills all pixels reachable from the seed that are not part of the boundary
+/// and are within the canvas bounds. Uses a standard 4-connected flood fill
+/// algorithm (BFS).
+///
+/// # Arguments
+/// * `boundary` - Set of pixels that cannot be filled (the boundary/walls)
+/// * `seed` - Optional starting point. If None, auto-detects interior center
+/// * `canvas_size` - (width, height) tuple for bounds checking
+///
+/// # Returns
+/// A HashSet containing all filled pixels.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::{flood_fill, rasterize_rect, rasterize_stroke};
+/// use std::collections::HashSet;
+///
+/// // Create a hollow rectangle boundary
+/// let boundary = rasterize_stroke(0, 0, 5, 5, 1);
+///
+/// // Fill from the center
+/// let filled = flood_fill(&boundary, Some((2, 2)), (10, 10));
+///
+/// // Should fill the interior (3x3 = 9 pixels)
+/// assert_eq!(filled.len(), 9);
+/// assert!(filled.contains(&(2, 2)));
+/// assert!(!filled.contains(&(0, 0))); // Boundary not filled
+/// ```
+pub fn flood_fill(
+    boundary: &HashSet<(i32, i32)>,
+    seed: Option<(i32, i32)>,
+    canvas_size: (i32, i32),
+) -> HashSet<(i32, i32)> {
+    let (width, height) = canvas_size;
+
+    // Auto-detect seed if not provided
+    let seed = match seed {
+        Some(s) => s,
+        None => match find_interior_seed(boundary, canvas_size) {
+            Some(s) => s,
+            None => return HashSet::new(), // No valid seed found
+        },
+    };
+
+    // Validate seed is within bounds and not on boundary
+    if seed.0 < 0 || seed.0 >= width || seed.1 < 0 || seed.1 >= height {
+        return HashSet::new();
+    }
+    if boundary.contains(&seed) {
+        return HashSet::new();
+    }
+
+    // BFS flood fill
+    let mut filled = HashSet::new();
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(seed);
+    filled.insert(seed);
+
+    while let Some((x, y)) = queue.pop_front() {
+        // Check 4-connected neighbors
+        for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+            let nx = x + dx;
+            let ny = y + dy;
+
+            // Bounds check
+            if nx < 0 || nx >= width || ny < 0 || ny >= height {
+                continue;
+            }
+
+            let neighbor = (nx, ny);
+
+            // Skip if already filled or on boundary
+            if filled.contains(&neighbor) || boundary.contains(&neighbor) {
+                continue;
+            }
+
+            filled.insert(neighbor);
+            queue.push_back(neighbor);
+        }
+    }
+
+    filled
+}
+
+/// Find an interior seed point for flood fill auto-detection.
+///
+/// Attempts to find a point inside the boundary by looking at the bounding box
+/// center and searching outward if necessary.
+fn find_interior_seed(
+    boundary: &HashSet<(i32, i32)>,
+    canvas_size: (i32, i32),
+) -> Option<(i32, i32)> {
+    if boundary.is_empty() {
+        // No boundary - use canvas center
+        let (width, height) = canvas_size;
+        if width > 0 && height > 0 {
+            return Some((width / 2, height / 2));
+        }
+        return None;
+    }
+
+    // Find bounding box of boundary
+    let min_x = boundary.iter().map(|(x, _)| *x).min()?;
+    let max_x = boundary.iter().map(|(x, _)| *x).max()?;
+    let min_y = boundary.iter().map(|(_, y)| *y).min()?;
+    let max_y = boundary.iter().map(|(_, y)| *y).max()?;
+
+    // Start from center of bounding box and search for a non-boundary point
+    let center_x = (min_x + max_x) / 2;
+    let center_y = (min_y + max_y) / 2;
+
+    let (width, height) = canvas_size;
+
+    // Try center first
+    if center_x >= 0
+        && center_x < width
+        && center_y >= 0
+        && center_y < height
+        && !boundary.contains(&(center_x, center_y))
+    {
+        return Some((center_x, center_y));
+    }
+
+    // Search in expanding squares from center
+    let max_radius = ((max_x - min_x).max(max_y - min_y) / 2 + 1).max(1);
+    for r in 1..=max_radius {
+        for dx in -r..=r {
+            for dy in -r..=r {
+                if dx.abs() != r && dy.abs() != r {
+                    continue; // Only check the perimeter of the square
+                }
+                let x = center_x + dx;
+                let y = center_y + dy;
+                if x >= 0 && x < width && y >= 0 && y < height && !boundary.contains(&(x, y)) {
+                    return Some((x, y));
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Fill a region bounded by a boundary, excluding specified holes.
+///
+/// This is a convenience function that combines flood fill with hole exclusion.
+/// The holes are added to the boundary before filling, so the fill will go
+/// around them.
+///
+/// # Arguments
+/// * `boundary` - The outer boundary of the region to fill
+/// * `holes` - Regions to exclude from the fill (treated as additional boundaries)
+/// * `seed` - Optional starting point. If None, auto-detects interior center
+/// * `canvas_size` - (width, height) tuple for bounds checking
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::{flood_fill_with_holes, rasterize_stroke, rasterize_rect};
+/// use std::collections::HashSet;
+///
+/// // Outer boundary (5x5 hollow rectangle)
+/// let outer = rasterize_stroke(0, 0, 7, 7, 1);
+///
+/// // Inner hole (small filled rectangle)
+/// let hole = rasterize_rect(3, 3, 1, 1);
+///
+/// // Fill with hole excluded
+/// let filled = flood_fill_with_holes(&outer, &[hole], Some((1, 1)), (10, 10));
+///
+/// // The fill should not include the hole
+/// assert!(!filled.contains(&(3, 3)));
+/// ```
+pub fn flood_fill_with_holes(
+    boundary: &HashSet<(i32, i32)>,
+    holes: &[HashSet<(i32, i32)>],
+    seed: Option<(i32, i32)>,
+    canvas_size: (i32, i32),
+) -> HashSet<(i32, i32)> {
+    // Combine boundary with all holes
+    let mut combined_boundary = boundary.clone();
+    for hole in holes {
+        for pixel in hole {
+            combined_boundary.insert(*pixel);
+        }
+    }
+
+    flood_fill(&combined_boundary, seed, canvas_size)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -753,5 +950,214 @@ mod tests {
         let result = intersect(&[region1, region2, region3]);
         assert_eq!(result.len(), 1);
         assert!(result.contains(&(2, 0)));
+    }
+
+    // ========================================================================
+    // Flood Fill Tests
+    // ========================================================================
+
+    #[test]
+    fn test_flood_fill_basic() {
+        // Create a hollow rectangle boundary
+        let boundary = rasterize_stroke(0, 0, 5, 5, 1);
+
+        // Fill from the center
+        let filled = flood_fill(&boundary, Some((2, 2)), (10, 10));
+
+        // Interior is 3x3 = 9 pixels
+        assert_eq!(filled.len(), 9);
+        assert!(filled.contains(&(1, 1)));
+        assert!(filled.contains(&(2, 2)));
+        assert!(filled.contains(&(3, 3)));
+
+        // Boundary should not be filled
+        assert!(!filled.contains(&(0, 0)));
+        assert!(!filled.contains(&(4, 0)));
+    }
+
+    #[test]
+    fn test_flood_fill_auto_seed() {
+        // Create a hollow rectangle boundary
+        let boundary = rasterize_stroke(0, 0, 5, 5, 1);
+
+        // Fill without explicit seed
+        let filled = flood_fill(&boundary, None, (10, 10));
+
+        // Should fill interior (auto-detect center)
+        assert_eq!(filled.len(), 9);
+        assert!(filled.contains(&(2, 2)));
+    }
+
+    #[test]
+    fn test_flood_fill_empty_boundary() {
+        let boundary = HashSet::new();
+
+        // Fill entire canvas
+        let filled = flood_fill(&boundary, Some((0, 0)), (3, 3));
+
+        // Should fill all 9 pixels
+        assert_eq!(filled.len(), 9);
+    }
+
+    #[test]
+    fn test_flood_fill_seed_on_boundary() {
+        let boundary: HashSet<(i32, i32)> = [(2, 2)].into_iter().collect();
+
+        // Seed on boundary should return empty
+        let filled = flood_fill(&boundary, Some((2, 2)), (5, 5));
+        assert_eq!(filled.len(), 0);
+    }
+
+    #[test]
+    fn test_flood_fill_seed_out_of_bounds() {
+        let boundary = HashSet::new();
+
+        // Seed outside canvas
+        let filled = flood_fill(&boundary, Some((10, 10)), (5, 5));
+        assert_eq!(filled.len(), 0);
+
+        // Negative seed
+        let filled = flood_fill(&boundary, Some((-1, 0)), (5, 5));
+        assert_eq!(filled.len(), 0);
+    }
+
+    #[test]
+    fn test_flood_fill_bounded_by_canvas() {
+        // No boundary, but limited by canvas
+        let boundary = HashSet::new();
+        let filled = flood_fill(&boundary, Some((0, 0)), (3, 3));
+
+        // Should fill only within 3x3 canvas
+        assert_eq!(filled.len(), 9);
+        assert!(!filled.contains(&(3, 0)));
+        assert!(!filled.contains(&(0, 3)));
+    }
+
+    #[test]
+    fn test_flood_fill_complex_boundary() {
+        // Create an L-shaped boundary
+        let mut boundary = HashSet::new();
+        // Vertical part
+        for y in 0..5 {
+            boundary.insert((0, y));
+        }
+        // Horizontal part
+        for x in 0..5 {
+            boundary.insert((x, 4));
+        }
+        // Close the shape
+        for y in 0..5 {
+            boundary.insert((4, y));
+        }
+        boundary.insert((0, 0));
+
+        // Fill from inside
+        let filled = flood_fill(&boundary, Some((2, 2)), (10, 10));
+
+        // Should fill inside the L
+        assert!(filled.contains(&(2, 2)));
+        assert!(filled.contains(&(1, 1)));
+
+        // Should not fill boundary
+        assert!(!filled.contains(&(0, 0)));
+        assert!(!filled.contains(&(0, 4)));
+    }
+
+    #[test]
+    fn test_flood_fill_with_holes_basic() {
+        // Outer boundary (7x7 hollow rectangle)
+        let outer = rasterize_stroke(0, 0, 7, 7, 1);
+
+        // Inner hole (small filled rectangle in center)
+        let hole = rasterize_rect(3, 3, 1, 1);
+
+        // Fill with hole excluded
+        let filled = flood_fill_with_holes(&outer, &[hole], Some((1, 1)), (10, 10));
+
+        // The fill should not include the hole
+        assert!(!filled.contains(&(3, 3)));
+
+        // But should include surrounding interior
+        assert!(filled.contains(&(1, 1)));
+        assert!(filled.contains(&(2, 2)));
+        assert!(filled.contains(&(4, 4)));
+    }
+
+    #[test]
+    fn test_flood_fill_with_multiple_holes() {
+        // Outer boundary
+        let outer = rasterize_stroke(0, 0, 9, 9, 1);
+
+        // Two holes
+        let hole1: HashSet<(i32, i32)> = [(2, 2)].into_iter().collect();
+        let hole2: HashSet<(i32, i32)> = [(6, 6)].into_iter().collect();
+
+        let filled = flood_fill_with_holes(&outer, &[hole1, hole2], Some((4, 4)), (10, 10));
+
+        // Neither hole should be filled
+        assert!(!filled.contains(&(2, 2)));
+        assert!(!filled.contains(&(6, 6)));
+
+        // Interior should be filled
+        assert!(filled.contains(&(4, 4)));
+    }
+
+    #[test]
+    fn test_flood_fill_with_empty_holes() {
+        let boundary = rasterize_stroke(0, 0, 5, 5, 1);
+
+        // No holes
+        let filled_no_holes = flood_fill_with_holes(&boundary, &[], Some((2, 2)), (10, 10));
+
+        // Should be same as regular flood fill
+        let filled_regular = flood_fill(&boundary, Some((2, 2)), (10, 10));
+
+        assert_eq!(filled_no_holes, filled_regular);
+    }
+
+    #[test]
+    fn test_flood_fill_disconnected_regions() {
+        // Create two separate boundaries
+        let mut boundary = HashSet::new();
+
+        // First box
+        for x in 0..3 {
+            boundary.insert((x, 0));
+            boundary.insert((x, 2));
+        }
+        boundary.insert((0, 1));
+        boundary.insert((2, 1));
+
+        // Second box (separate)
+        for x in 5..8 {
+            boundary.insert((x, 0));
+            boundary.insert((x, 2));
+        }
+        boundary.insert((5, 1));
+        boundary.insert((7, 1));
+
+        // Fill first box
+        let filled = flood_fill(&boundary, Some((1, 1)), (10, 10));
+
+        // Should only fill first box interior
+        assert!(filled.contains(&(1, 1)));
+        assert!(!filled.contains(&(6, 1))); // Second box interior
+    }
+
+    #[test]
+    fn test_flood_fill_single_pixel_interior() {
+        // Create boundary with single pixel interior
+        let mut boundary = HashSet::new();
+        for x in 0..3 {
+            boundary.insert((x, 0));
+            boundary.insert((x, 2));
+        }
+        boundary.insert((0, 1));
+        boundary.insert((2, 1));
+
+        let filled = flood_fill(&boundary, Some((1, 1)), (10, 10));
+
+        assert_eq!(filled.len(), 1);
+        assert!(filled.contains(&(1, 1)));
     }
 }
