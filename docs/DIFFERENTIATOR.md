@@ -157,3 +157,108 @@ REXPaint produces stunning ASCII art and roguelike graphics. Examples from their
 - [PixelLab](https://www.pixellab.ai/) - AI sprite generator
 - [CryPixels](https://crypixels.com/) - Procedural pixel art
 - [Lospec Generator](https://lospec.com/procedural-pixel-art-generator/) - Random sprites
+
+---
+
+## Why Not Just Use SVG + CSS?
+
+> Added January 2026, addressing Format v2 design questions
+
+### What overlaps with web tech
+
+- Shape primitives (`rect`, `ellipse`, `polygon`, `path`) → basically SVG
+- CSS variables, `color-mix()` → already CSS
+- JSON-based format → nothing new
+- Animations with keyframes → CSS animations
+
+### What's genuinely different
+
+#### 1. Semantic tokens, not just shapes
+
+SVG:
+```xml
+<rect fill="#FFD5B4"/>
+```
+It's just a color.
+
+Pixelsrc:
+```json5
+skin: { rect: [...] }
+```
+With:
+```json5
+roles: { skin: "fill" }
+relationships: { "skin-shadow": { "derives-from": "skin" } }
+```
+
+The token carries meaning through the entire pipeline—theming, transforms, game logic.
+
+#### 2. Pixel-art output, not vectors
+
+SVG renders anti-aliased vectors. Getting crisp pixels requires fighting the format (`image-rendering: pixelated`, careful coordinate alignment). Pixelsrc outputs actual pixel grids—every shape rasterizes to discrete coordinates. No anti-aliasing, no subpixel ambiguity.
+
+#### 3. AI context efficiency
+
+A 32×32 sprite in SVG might be 2KB of verbose XML. The structured format describes the same sprite in ~400 chars of semantic intent. LLMs can reason about "skin region" vs "eye region" rather than parsing coordinate soup.
+
+| Format | 32×32 sprite |
+|--------|--------------|
+| SVG | ~2,000 chars |
+| Pixelsrc v1 (grid) | ~8,000 chars |
+| Pixelsrc v2 (structured) | ~400 chars |
+
+#### 4. Game engine integration
+
+Designed for Unity/Godot/etc workflows, not browsers:
+
+- Export spritesheets with animation metadata
+- Hit regions and collision shapes from semantic tokens
+- Role classifications for runtime effects
+- State rules for damage/poison/freeze without separate sprites
+
+#### 5. Constraint validation
+
+```json5
+pupil: {
+  points: [[4, 6]],
+  inside: "eye"  // validated at compile time
+}
+```
+
+The compiler verifies that `pupil` pixels fall within `eye` bounds. SVG has no equivalent—you'd need external tooling.
+
+#### 6. Relationship-aware transforms
+
+Roles inform transform algorithms:
+
+| Role | Transform Behavior |
+|------|-------------------|
+| `boundary` | High priority, preserve connectivity |
+| `anchor` | Must survive (min 1px) |
+| `fill` | Can shrink, low priority |
+
+Future semantic rotation will use this to keep eyes visible and outlines connected when rotating sprites—something SVG rotation destroys.
+
+### Honest assessment
+
+**If you're making web content, use SVG + CSS.** It's mature, universal, and has great tooling.
+
+Pixelsrc's value is narrower:
+
+- **Pixel art specifically** (not vectors)
+- **AI generation workflows** (context-efficient, semantic)
+- **Game asset pipelines** (spritesheets, metadata, state rules)
+- **Semantic meaning** that survives through transforms and theming
+
+If those aren't your use cases, web tech is probably better.
+
+### The niche
+
+Pixelsrc exists because **pixel art + AI + games** is a specific combination where the semantic approach pays off:
+
+1. AI needs compact, meaningful formats to generate assets
+2. Games need metadata (hit regions, animation data, state effects)
+3. Pixel art needs discrete coordinates, not vector approximations
+4. Artists need semantic theming (change skin color, all shadows update)
+
+Web tech solves none of these well. Pixelsrc solves all of them in one format.
