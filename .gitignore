@@ -1,2 +1,8 @@
 /target/
 **/.DS_STORE
+
+# Gas Town (added by gt)
+.runtime/
+.claude/
+.beads/
+.logs/
