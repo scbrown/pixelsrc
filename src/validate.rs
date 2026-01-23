@@ -177,14 +177,14 @@ impl Validator {
             return;
         }
 
-        // Check 1: JSON syntax
-        let json_value: Value = match serde_json::from_str(content) {
+        // Check 1: JSON5 syntax
+        let json_value: Value = match json5::from_str(content) {
             Ok(v) => v,
             Err(e) => {
                 self.issues.push(ValidationIssue::error(
                     line_number,
                     IssueType::JsonSyntax,
-                    format!("Invalid JSON: {}", e),
+                    format!("Invalid JSON5: {}", e),
                 ));
                 return;
             }
@@ -242,7 +242,7 @@ impl Validator {
         }
 
         // Now parse as TtpObject for semantic validation
-        let ttp_obj: TtpObject = match serde_json::from_str(content) {
+        let ttp_obj: TtpObject = match json5::from_str(content) {
             Ok(obj) => obj,
             Err(e) => {
                 // This shouldn't happen if type is valid, but handle gracefully

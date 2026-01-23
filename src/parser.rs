@@ -1,7 +1,7 @@
-//! Streaming JSON parsing for Pixelsrc objects
+//! Streaming JSON5 parsing for Pixelsrc objects
 //!
-//! Supports both single-line JSONL and multi-line JSON formats.
-//! Uses serde_json's StreamDeserializer for concatenated JSON parsing.
+//! Supports both single-line JSONL and multi-line JSON5 formats.
+//! JSON5 adds support for comments, trailing commas, and unquoted keys.
 
 use crate::models::{TtpObject, Warning};
 use std::io::Read;
@@ -22,36 +22,105 @@ pub struct ParseResult {
     pub warnings: Vec<Warning>,
 }
 
-/// Parse a single JSON string into a TtpObject.
+/// Parse a single JSON5 string into a TtpObject.
 ///
 /// Returns `Ok(TtpObject)` on success, or `Err(ParseError)` if parsing fails.
+/// Supports JSON5 features: comments, trailing commas, and unquoted keys.
 pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseError> {
-    serde_json::from_str(line).map_err(|e| ParseError { message: e.to_string(), line: line_number })
+    json5::from_str(line).map_err(|e| ParseError { message: e.to_string(), line: line_number })
 }
 
-/// Parse a stream of JSON objects into Pixelsrc objects.
+/// Parse a stream of JSON5 objects into Pixelsrc objects.
 ///
 /// Supports both formats:
-/// - Single-line JSONL (one JSON object per line)
-/// - Multi-line JSON (objects can span multiple lines, separated by whitespace)
+/// - Single-line JSONL (one JSON5 object per line)
+/// - Multi-line JSON5 (objects can span multiple lines, separated by whitespace)
 ///
-/// Uses serde_json's StreamDeserializer for proper concatenated JSON parsing.
+/// JSON5 features supported:
+/// - Comments (// single-line and /* multi-line */)
+/// - Trailing commas in arrays and objects
+/// - Unquoted object keys
+///
 /// Collects warnings for malformed objects and continues parsing.
 pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
+    use std::io::BufRead;
+
     let mut result = ParseResult::default();
+    let buf_reader = std::io::BufReader::new(reader);
+    let mut lines = buf_reader.lines();
 
-    let deserializer = serde_json::Deserializer::from_reader(reader);
-    let iterator = deserializer.into_iter::<TtpObject>();
+    let mut accumulator = String::new();
+    let mut start_line = 1;
+    let mut current_line = 1;
+    let mut brace_depth = 0;
+    let mut bracket_depth = 0;
+    let mut in_string = false;
+    let mut escape_next = false;
 
-    for item in iterator {
-        match item {
+    while let Some(Ok(line)) = lines.next() {
+        // Skip empty lines when not accumulating
+        if accumulator.is_empty() && line.trim().is_empty() {
+            current_line += 1;
+            continue;
+        }
+
+        // Add line to accumulator
+        if !accumulator.is_empty() {
+            accumulator.push('\n');
+        }
+        accumulator.push_str(&line);
+
+        // Track brace/bracket depth to detect complete objects
+        for ch in line.chars() {
+            if escape_next {
+                escape_next = false;
+                continue;
+            }
+
+            match ch {
+                '\\' if in_string => escape_next = true,
+                '"' if !in_string => in_string = true,
+                '"' if in_string => in_string = false,
+                '{' if !in_string => brace_depth += 1,
+                '}' if !in_string => brace_depth -= 1,
+                '[' if !in_string => bracket_depth += 1,
+                ']' if !in_string => bracket_depth -= 1,
+                _ => {}
+            }
+        }
+
+        // Try to parse when braces are balanced
+        if brace_depth == 0 && bracket_depth == 0 && !accumulator.trim().is_empty() {
+            match json5::from_str::<TtpObject>(&accumulator) {
+                Ok(obj) => result.objects.push(obj),
+                Err(e) => {
+                    result.warnings.push(Warning {
+                        message: e.to_string(),
+                        line: start_line,
+                    });
+                    // Stop parsing after error - can't reliably find next object boundary
+                    return result;
+                }
+            }
+
+            accumulator.clear();
+            start_line = current_line + 1;
+            in_string = false;
+            escape_next = false;
+        }
+
+        current_line += 1;
+    }
+
+    // Handle any remaining accumulated content
+    if !accumulator.trim().is_empty() {
+        match json5::from_str::<TtpObject>(&accumulator) {
             Ok(obj) => result.objects.push(obj),
             Err(e) => {
-                // Check if this is EOF (not a real error)
-                if e.is_eof() {
-                    break;
-                }
-                result.warnings.push(Warning { message: e.to_string(), line: e.line() });
+                result.warnings.push(Warning {
+                    message: e.to_string(),
+                    line: start_line,
+                });
             }
         }
     }
@@ -215,6 +284,89 @@ mod tests {
         let result = parse_stream(Cursor::new(input));
         assert_eq!(result.objects.len(), 3);
         assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_json5_comments() {
+        let input = r##"{
+  // Single-line comment
+  type: "palette",
+  name: "test", /* inline comment */
+  colors: {
+    "{x}": "#FF0000" // trailing comment
+  }
+}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 1);
+        assert!(result.warnings.is_empty());
+        match &result.objects[0] {
+            TtpObject::Palette(p) => {
+                assert_eq!(p.name, "test");
+                assert_eq!(p.colors.get("{x}"), Some(&"#FF0000".to_string()));
+            }
+            _ => panic!("Expected palette"),
+        }
+    }
+
+    #[test]
+    fn test_parse_json5_trailing_commas() {
+        let input = r##"{
+  type: "palette",
+  name: "colors",
+  colors: {
+    "{_}": "#0000",
+    "{a}": "#FF00",
+  },
+}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 1);
+        assert!(result.warnings.is_empty());
+        match &result.objects[0] {
+            TtpObject::Palette(p) => {
+                assert_eq!(p.name, "colors");
+                assert_eq!(p.colors.len(), 2);
+            }
+            _ => panic!("Expected palette"),
+        }
+    }
+
+    #[test]
+    fn test_parse_json5_unquoted_keys() {
+        let input = r##"{type: "palette", name: "test", colors: {"{_}": "#0000"}}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 1);
+        assert!(result.warnings.is_empty());
+        match &result.objects[0] {
+            TtpObject::Palette(p) => {
+                assert_eq!(p.name, "test");
+                assert_eq!(p.colors.get("{_}"), Some(&"#0000".to_string()));
+            }
+            _ => panic!("Expected palette"),
+        }
+    }
+
+    #[test]
+    fn test_parse_json5_all_features() {
+        // Test all JSON5 features together
+        let input = r##"{
+  // This is a palette with JSON5 features
+  type: "palette",
+  name: "test",
+  colors: {
+    "{_}": "#0000", // transparent
+    "{x}": "#FF00", // red
+  }, // trailing comma after colors object
+}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 1);
+        assert!(result.warnings.is_empty());
+        match &result.objects[0] {
+            TtpObject::Palette(p) => {
+                assert_eq!(p.name, "test");
+                assert_eq!(p.colors.len(), 2);
+            }
+            _ => panic!("Expected palette"),
+        }
     }
 
     #[test]
