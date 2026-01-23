@@ -80,11 +80,12 @@ pub fn extract_aliases(grid: &[String]) -> (HashMap<char, String>, Vec<String>) 
             let (tokens, _) = tokenize(row);
             tokens
                 .iter()
-                .map(|t| {
+                .fold(String::new(), |mut acc, t| {
                     let alias = token_to_alias.get(t).unwrap_or(&'?');
-                    format!("{{{}}}", alias)
+                    use std::fmt::Write;
+                    let _ = write!(acc, "{{{}}}", alias);
+                    acc
                 })
-                .collect()
         })
         .collect();
 
@@ -175,11 +176,12 @@ pub fn format_columns(rows: Vec<Vec<String>>) -> Vec<String> {
         .map(|row| {
             row.iter()
                 .enumerate()
-                .map(|(i, token)| {
+                .fold(String::new(), |mut acc, (i, token)| {
                     let padding = col_widths.get(i).unwrap_or(&0).saturating_sub(token.len());
-                    format!("{}{}", token, " ".repeat(padding + 2)) // +2 for gap
+                    use std::fmt::Write;
+                    let _ = write!(acc, "{}{}", token, " ".repeat(padding + 2)); // +2 for gap
+                    acc
                 })
-                .collect::<String>()
                 .trim_end()
                 .to_string()
         })
@@ -260,8 +262,16 @@ pub fn simple_grid_to_sprite(
     }
 
     // Build grid strings with {token} format
-    let grid_strings: Vec<String> =
-        grid.iter().map(|row| row.iter().map(|t| format!("{{{}}}", t)).collect()).collect();
+    let grid_strings: Vec<String> = grid
+        .iter()
+        .map(|row| {
+            row.iter().fold(String::new(), |mut acc, t| {
+                use std::fmt::Write;
+                let _ = write!(acc, "{{{}}}", t);
+                acc
+            })
+        })
+        .collect();
 
     // Build result based on palette_ref
     if let Some(palette_name) = palette_ref {

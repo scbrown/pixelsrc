@@ -148,20 +148,21 @@ pub fn render_sprite(
         let row_len = row_tokens.len();
 
         // Check for row length mismatches
-        if row_len < width {
-            warnings.push(Warning::new(format!(
+        use std::cmp::Ordering;
+        match row_len.cmp(&width) {
+            Ordering::Less => warnings.push(Warning::new(format!(
                 "Row {} has {} tokens, expected {}",
                 y + 1,
                 row_len,
                 width
-            )));
-        } else if row_len > width {
-            warnings.push(Warning::new(format!(
+            ))),
+            Ordering::Greater => warnings.push(Warning::new(format!(
                 "Row {} has {} tokens, expected {}, truncating",
                 y + 1,
                 row_len,
                 width
-            )));
+            ))),
+            Ordering::Equal => {}
         }
 
         // Process tokens that exist (up to width)
@@ -289,20 +290,21 @@ pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
 
         let row_len = row_tokens.len();
 
-        if row_len < width {
-            warnings.push(Warning::new(format!(
+        use std::cmp::Ordering;
+        match row_len.cmp(&width) {
+            Ordering::Less => warnings.push(Warning::new(format!(
                 "Row {} has {} tokens, expected {}",
                 y + 1,
                 row_len,
                 width
-            )));
-        } else if row_len > width {
-            warnings.push(Warning::new(format!(
+            ))),
+            Ordering::Greater => warnings.push(Warning::new(format!(
                 "Row {} has {} tokens, expected {}, truncating",
                 y + 1,
                 row_len,
                 width
-            )));
+            ))),
+            Ordering::Equal => {}
         }
 
         for (x, token) in row_tokens.iter().take(width).enumerate() {

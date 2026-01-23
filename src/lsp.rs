@@ -1042,12 +1042,11 @@ impl LanguageServer for PixelsrcLanguageServer {
         // Try to parse grid context at the cursor position
         if let Some(grid_info) = Self::parse_grid_context(line, pos.character) {
             // Format alignment status
-            let alignment_status = if grid_info.row_width == grid_info.expected_width {
-                "✓ Aligned".to_string()
-            } else if grid_info.row_width < grid_info.expected_width {
-                format!("⚠ Short by {} token(s)", grid_info.expected_width - grid_info.row_width)
-            } else {
-                format!("⚠ Long by {} token(s)", grid_info.row_width - grid_info.expected_width)
+            use std::cmp::Ordering;
+            let alignment_status = match grid_info.row_width.cmp(&grid_info.expected_width) {
+                Ordering::Equal => "✓ Aligned".to_string(),
+                Ordering::Less => format!("⚠ Short by {} token(s)", grid_info.expected_width - grid_info.row_width),
+                Ordering::Greater => format!("⚠ Long by {} token(s)", grid_info.row_width - grid_info.expected_width),
             };
 
             let hover_text = format!(
