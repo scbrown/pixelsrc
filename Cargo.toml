@@ -43,6 +43,7 @@ rayon = "1.10"
 thiserror = "1.0"
 tower-lsp = { version = "0.20", optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"], optional = true }
+rand = "0.8"
 
 [dev-dependencies]
 tempfile = "3"

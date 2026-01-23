@@ -1,5 +1,6 @@
 /target/
 **/.DS_STORE
+.opencode/
 
 # Gas Town (added by gt)
 .runtime/

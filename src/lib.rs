@@ -56,6 +56,7 @@ pub mod init;
 pub mod lsp;
 pub mod lsp_agent_client;
 pub mod models;
+pub mod modifiers;
 pub mod motion;
 pub mod onion;
 pub mod output;
