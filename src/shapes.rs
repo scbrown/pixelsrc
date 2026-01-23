@@ -217,6 +217,96 @@ pub fn rasterize_ellipse(cx: i32, cy: i32, rx: i32, ry: i32) -> HashSet<(i32, i3
     pixels
 }
 
+// ============================================================================
+// Compound Operations
+// ============================================================================
+
+/// Combine all pixels from multiple regions into a single set.
+///
+/// Returns the union of all input regions. Empty regions are skipped.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::union;
+/// use std::collections::HashSet;
+///
+/// let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+/// let region2: HashSet<(i32, i32)> = [(1, 0), (2, 0)].into_iter().collect();
+/// let result = union(&[region1, region2]);
+/// assert_eq!(result.len(), 3);
+/// assert!(result.contains(&(0, 0)));
+/// assert!(result.contains(&(1, 0)));
+/// assert!(result.contains(&(2, 0)));
+/// ```
+pub fn union(regions: &[HashSet<(i32, i32)>]) -> HashSet<(i32, i32)> {
+    let mut result = HashSet::new();
+    for region in regions {
+        for pixel in region {
+            result.insert(*pixel);
+        }
+    }
+    result
+}
+
+/// Remove pixels from a base region that appear in any of the removal regions.
+///
+/// Returns pixels that are in `base` but not in any of `removals`.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::subtract;
+/// use std::collections::HashSet;
+///
+/// let base: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0)].into_iter().collect();
+/// let remove: HashSet<(i32, i32)> = [(1, 0)].into_iter().collect();
+/// let result = subtract(&base, &[remove]);
+/// assert_eq!(result.len(), 2);
+/// assert!(result.contains(&(0, 0)));
+/// assert!(result.contains(&(2, 0)));
+/// assert!(!result.contains(&(1, 0)));
+/// ```
+pub fn subtract(base: &HashSet<(i32, i32)>, removals: &[HashSet<(i32, i32)>]) -> HashSet<(i32, i32)> {
+    let mut result = base.clone();
+    for removal in removals {
+        for pixel in removal {
+            result.remove(pixel);
+        }
+    }
+    result
+}
+
+/// Find pixels that appear in all input regions.
+///
+/// Returns the intersection of all input regions. If no regions are provided,
+/// returns an empty set. If only one region is provided, returns a copy of it.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::intersect;
+/// use std::collections::HashSet;
+///
+/// let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0)].into_iter().collect();
+/// let region2: HashSet<(i32, i32)> = [(1, 0), (2, 0), (3, 0)].into_iter().collect();
+/// let result = intersect(&[region1, region2]);
+/// assert_eq!(result.len(), 2);
+/// assert!(result.contains(&(1, 0)));
+/// assert!(result.contains(&(2, 0)));
+/// ```
+pub fn intersect(regions: &[HashSet<(i32, i32)>]) -> HashSet<(i32, i32)> {
+    if regions.is_empty() {
+        return HashSet::new();
+    }
+
+    let mut result = regions[0].clone();
+    for region in &regions[1..] {
+        result.retain(|pixel| region.contains(pixel));
+    }
+    result
+}
+
 /// Helper function to draw ellipse points with fill.
 fn draw_ellipse_points(cx: i64, cy: i64, x: i64, y: i64, pixels: &mut HashSet<(i32, i32)>) {
     // Fill horizontal lines for each y-coordinate
@@ -484,5 +574,184 @@ mod tests {
         let pixels = rasterize_polygon(&triangle);
         assert!(pixels.len() > 0);
         assert!(pixels.contains(&(0, 0)));
+    }
+
+    // ========================================================================
+    // Compound Operations Tests
+    // ========================================================================
+
+    #[test]
+    fn test_union_basic() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(1, 0), (2, 0)].into_iter().collect();
+        let result = union(&[region1, region2]);
+        assert_eq!(result.len(), 3);
+        assert!(result.contains(&(0, 0)));
+        assert!(result.contains(&(1, 0)));
+        assert!(result.contains(&(2, 0)));
+    }
+
+    #[test]
+    fn test_union_no_overlap() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(5, 5), (6, 5)].into_iter().collect();
+        let result = union(&[region1, region2]);
+        assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    fn test_union_full_overlap() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = union(&[region1, region2]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_union_empty_input() {
+        let result: HashSet<(i32, i32)> = union(&[]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_union_single_region() {
+        let region: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = union(&[region]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_union_with_empty_region() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = HashSet::new();
+        let result = union(&[region1, region2]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_union_multiple_regions() {
+        let region1: HashSet<(i32, i32)> = [(0, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(1, 0)].into_iter().collect();
+        let region3: HashSet<(i32, i32)> = [(2, 0)].into_iter().collect();
+        let result = union(&[region1, region2, region3]);
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_subtract_basic() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0)].into_iter().collect();
+        let remove: HashSet<(i32, i32)> = [(1, 0)].into_iter().collect();
+        let result = subtract(&base, &[remove]);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&(0, 0)));
+        assert!(result.contains(&(2, 0)));
+        assert!(!result.contains(&(1, 0)));
+    }
+
+    #[test]
+    fn test_subtract_no_overlap() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let remove: HashSet<(i32, i32)> = [(5, 5)].into_iter().collect();
+        let result = subtract(&base, &[remove]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_subtract_full_removal() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let remove: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = subtract(&base, &[remove]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_subtract_empty_base() {
+        let base: HashSet<(i32, i32)> = HashSet::new();
+        let remove: HashSet<(i32, i32)> = [(1, 0)].into_iter().collect();
+        let result = subtract(&base, &[remove]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_subtract_empty_removals() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = subtract(&base, &[]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_subtract_with_empty_removal() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let remove: HashSet<(i32, i32)> = HashSet::new();
+        let result = subtract(&base, &[remove]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_subtract_multiple_removals() {
+        let base: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0), (3, 0)].into_iter().collect();
+        let remove1: HashSet<(i32, i32)> = [(0, 0)].into_iter().collect();
+        let remove2: HashSet<(i32, i32)> = [(3, 0)].into_iter().collect();
+        let result = subtract(&base, &[remove1, remove2]);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&(1, 0)));
+        assert!(result.contains(&(2, 0)));
+    }
+
+    #[test]
+    fn test_intersect_basic() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(1, 0), (2, 0), (3, 0)].into_iter().collect();
+        let result = intersect(&[region1, region2]);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&(1, 0)));
+        assert!(result.contains(&(2, 0)));
+    }
+
+    #[test]
+    fn test_intersect_no_overlap() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(5, 5), (6, 5)].into_iter().collect();
+        let result = intersect(&[region1, region2]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_intersect_full_overlap() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = intersect(&[region1, region2]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_intersect_empty_input() {
+        let result: HashSet<(i32, i32)> = intersect(&[]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_intersect_single_region() {
+        let region: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let result = intersect(&[region]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_intersect_with_empty_region() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = HashSet::new();
+        let result = intersect(&[region1, region2]);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_intersect_multiple_regions() {
+        let region1: HashSet<(i32, i32)> = [(0, 0), (1, 0), (2, 0)].into_iter().collect();
+        let region2: HashSet<(i32, i32)> = [(1, 0), (2, 0), (3, 0)].into_iter().collect();
+        let region3: HashSet<(i32, i32)> = [(2, 0), (3, 0), (4, 0)].into_iter().collect();
+        let result = intersect(&[region1, region2, region3]);
+        assert_eq!(result.len(), 1);
+        assert!(result.contains(&(2, 0)));
     }
 }
