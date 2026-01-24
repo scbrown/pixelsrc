@@ -1275,53 +1275,264 @@ fn perform_analysis(
 
     // Generate naming hints if requested
     if options.hints {
-        analysis.naming_hints = generate_naming_hints(&analysis.roles, token_pixels);
+        analysis.naming_hints = generate_naming_hints(
+            &analysis.roles,
+            token_pixels,
+            &token_to_color,
+            width,
+            height,
+        );
     }
 
     analysis
+}
+
+/// Semantic region position within the sprite.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SemanticPosition {
+    TopCenter,     // Hair region
+    Center,        // Face/body center
+    Bottom,        // Feet/base
+    Edge,          // Border/background
+    TopCorner,     // Hair edge or accessory
+    Surrounding,   // Background
+}
+
+/// Analyze the semantic position of a region within the sprite.
+fn analyze_semantic_position(
+    pixels: &HashSet<(i32, i32)>,
+    width: u32,
+    height: u32,
+) -> (SemanticPosition, f64) {
+    if pixels.is_empty() {
+        return (SemanticPosition::Edge, 0.0);
+    }
+
+    let total_pixels = (width * height) as f64;
+    let coverage = pixels.len() as f64 / total_pixels;
+
+    // Large coverage suggests background
+    if coverage > 0.5 {
+        return (SemanticPosition::Surrounding, 0.9);
+    }
+
+    // Calculate centroid
+    let sum_x: i32 = pixels.iter().map(|(x, _)| *x).sum();
+    let sum_y: i32 = pixels.iter().map(|(_, y)| *y).sum();
+    let centroid_x = sum_x as f64 / pixels.len() as f64;
+    let centroid_y = sum_y as f64 / pixels.len() as f64;
+
+    // Normalize to 0-1 range
+    let norm_x = centroid_x / width as f64;
+    let norm_y = centroid_y / height as f64;
+
+    // Check if region touches edges (potential background)
+    let touches_left = pixels.iter().any(|(x, _)| *x == 0);
+    let touches_right = pixels.iter().any(|(x, _)| *x as u32 == width - 1);
+    let touches_top = pixels.iter().any(|(_, y)| *y == 0);
+    let touches_bottom = pixels.iter().any(|(_, y)| *y as u32 == height - 1);
+    let edge_count = [touches_left, touches_right, touches_top, touches_bottom]
+        .iter()
+        .filter(|&&b| b)
+        .count();
+
+    // Touches multiple edges and moderate coverage = background
+    if edge_count >= 2 && coverage > 0.15 {
+        return (SemanticPosition::Surrounding, 0.8);
+    }
+
+    // Determine position based on centroid
+    let is_center_x = (0.25..0.75).contains(&norm_x);
+    let is_top = norm_y < 0.33;
+    let is_middle = (0.33..0.66).contains(&norm_y);
+    let is_bottom = norm_y >= 0.66;
+
+    if is_center_x && is_top {
+        (SemanticPosition::TopCenter, 0.7)
+    } else if is_center_x && is_middle {
+        (SemanticPosition::Center, 0.7)
+    } else if is_center_x && is_bottom {
+        (SemanticPosition::Bottom, 0.7)
+    } else if is_top && !is_center_x {
+        (SemanticPosition::TopCorner, 0.6)
+    } else {
+        (SemanticPosition::Edge, 0.5)
+    }
+}
+
+/// Check if a color is a skin tone (various skin tones).
+fn is_skin_tone(color: &[u8; 4]) -> bool {
+    let lab = LabColor::from_rgb(color[0], color[1], color[2]);
+
+    // Skin tones have:
+    // - Moderate to high lightness (L: 40-90)
+    // - Positive a (reddish)
+    // - Moderate positive b (yellowish)
+    lab.l > 40.0 && lab.l < 90.0 && lab.a > 5.0 && lab.a < 40.0 && lab.b > 5.0 && lab.b < 50.0
+}
+
+/// Check if a color is dark (potential outline/shadow/hair).
+fn is_dark_color(color: &[u8; 4]) -> bool {
+    let lab = LabColor::from_rgb(color[0], color[1], color[2]);
+    lab.l < 35.0
+}
+
+/// Check if a color is light (potential highlight/white).
+fn is_light_color(color: &[u8; 4]) -> bool {
+    let lab = LabColor::from_rgb(color[0], color[1], color[2]);
+    lab.l > 85.0
 }
 
 /// Generate token naming suggestions based on detected features.
 fn generate_naming_hints(
     roles: &HashMap<String, Role>,
     token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+    token_colors: &HashMap<String, [u8; 4]>,
+    width: u32,
+    height: u32,
 ) -> Vec<NamingHint> {
     let mut hints = Vec::new();
+    let total_pixels = (width * height) as usize;
 
-    for (token, role) in roles {
+    for (token, pixels) in token_pixels {
         // Skip transparent token
         if token == "{_}" {
             continue;
         }
 
-        let suggested = match role {
-            Role::Boundary => format!("{{outline}}"),
-            Role::Anchor => {
-                // Small features might be eyes, buttons, etc.
-                let size = token_pixels.get(token).map(|p| p.len()).unwrap_or(0);
-                if size == 1 {
-                    "{dot}".to_string()
-                } else if size <= 4 {
-                    "{eye}".to_string()
-                } else {
-                    "{marker}".to_string()
-                }
-            }
-            Role::Fill => "{fill}".to_string(),
-            Role::Shadow => "{shadow}".to_string(),
-            Role::Highlight => "{highlight}".to_string(),
-        };
+        let color = token_colors.get(token);
+        let role = roles.get(token);
+        let (position, position_confidence) = analyze_semantic_position(pixels, width, height);
+        let size = pixels.len();
+        let coverage = size as f64 / total_pixels as f64;
 
-        if token != &suggested {
-            hints.push(NamingHint {
-                token: token.clone(),
-                suggested_name: suggested,
-                reason: format!("Detected as {} role", role),
-            });
+        // Build suggestion based on multiple factors
+        let (suggested, reason) = suggest_semantic_name(
+            position,
+            position_confidence,
+            color,
+            role,
+            size,
+            coverage,
+            width,
+            height,
+        );
+
+        if let Some(suggested_name) = suggested {
+            if token != &suggested_name {
+                hints.push(NamingHint {
+                    token: token.clone(),
+                    suggested_name,
+                    reason,
+                });
+            }
         }
     }
 
     hints
+}
+
+/// Suggest a semantic name based on position, color, role, and size.
+fn suggest_semantic_name(
+    position: SemanticPosition,
+    position_confidence: f64,
+    color: Option<&[u8; 4]>,
+    role: Option<&Role>,
+    size: usize,
+    coverage: f64,
+    _width: u32,
+    _height: u32,
+) -> (Option<String>, String) {
+    // Background detection: large coverage or surrounding position
+    if coverage > 0.4 || position == SemanticPosition::Surrounding {
+        return (Some("{bg}".to_string()), "Large coverage, likely background".to_string());
+    }
+
+    // Check for skin tones in center = face/skin
+    if let Some(c) = color {
+        if is_skin_tone(c) {
+            if position == SemanticPosition::Center {
+                return (Some("{face}".to_string()), "Skin tone in center region".to_string());
+            } else if position == SemanticPosition::TopCenter {
+                return (Some("{skin}".to_string()), "Skin tone in upper region".to_string());
+            } else if coverage > 0.05 {
+                return (Some("{skin}".to_string()), "Detected skin tone color".to_string());
+            }
+        }
+
+        // Dark colors
+        if is_dark_color(c) {
+            // Top center dark = hair
+            if position == SemanticPosition::TopCenter {
+                return (Some("{hair}".to_string()), "Dark color in top center".to_string());
+            }
+            // Small dark spots near center = eyes
+            if size <= 6 && position == SemanticPosition::Center {
+                return (Some("{eye}".to_string()), "Small dark region in center".to_string());
+            }
+            // Role-based dark suggestions
+            if matches!(role, Some(Role::Boundary)) {
+                return (Some("{outline}".to_string()), "Dark boundary region".to_string());
+            }
+            if matches!(role, Some(Role::Shadow)) {
+                return (Some("{shadow}".to_string()), "Dark shadow region".to_string());
+            }
+            // Generic dark
+            if position == SemanticPosition::Edge {
+                return (Some("{outline}".to_string()), "Dark edge region".to_string());
+            }
+        }
+
+        // Light colors
+        if is_light_color(c) {
+            if matches!(role, Some(Role::Highlight)) {
+                return (Some("{highlight}".to_string()), "Light highlight region".to_string());
+            }
+            // Small light spots = eyes/reflections
+            if size <= 4 {
+                return (Some("{gleam}".to_string()), "Small light region (reflection)".to_string());
+            }
+        }
+    }
+
+    // Size-based suggestions for small features
+    if size == 1 {
+        return (Some("{dot}".to_string()), "Single pixel feature".to_string());
+    }
+    if size <= 4 {
+        if position == SemanticPosition::Center {
+            return (Some("{eye}".to_string()), "Small centered feature".to_string());
+        }
+        return (Some("{detail}".to_string()), "Small detail region".to_string());
+    }
+
+    // Position-based fallbacks
+    match position {
+        SemanticPosition::TopCenter if position_confidence > 0.6 => {
+            (Some("{top}".to_string()), "Top center region".to_string())
+        }
+        SemanticPosition::Center if position_confidence > 0.6 => {
+            (Some("{body}".to_string()), "Central body region".to_string())
+        }
+        SemanticPosition::Bottom if position_confidence > 0.6 => {
+            (Some("{base}".to_string()), "Bottom base region".to_string())
+        }
+        _ => {
+            // Fall back to role-based hints
+            if let Some(r) = role {
+                let name = match r {
+                    Role::Boundary => "{outline}",
+                    Role::Anchor => "{marker}",
+                    Role::Fill => "{fill}",
+                    Role::Shadow => "{shadow}",
+                    Role::Highlight => "{highlight}",
+                };
+                (Some(name.to_string()), format!("Detected as {} role", r))
+            } else {
+                (None, String::new())
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1631,5 +1842,166 @@ mod tests {
         // Check that z values are included in regions
         assert!(jsonl.contains("\"z\":0") || jsonl.contains("\"z\": 0"));
         assert!(jsonl.contains("\"z\":1") || jsonl.contains("\"z\": 1"));
+    }
+
+    #[test]
+    fn test_semantic_position_surrounding() {
+        // Large region covering >50% = surrounding
+        let mut pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 0..8 {
+            for y in 0..8 {
+                pixels.insert((x, y));
+            }
+        }
+
+        let (pos, conf) = analyze_semantic_position(&pixels, 10, 10);
+        assert_eq!(pos, SemanticPosition::Surrounding);
+        assert!(conf > 0.8);
+    }
+
+    #[test]
+    fn test_semantic_position_top_center() {
+        // Region in top center
+        let pixels: HashSet<(i32, i32)> = [(4, 1), (5, 1), (4, 2), (5, 2)].into_iter().collect();
+
+        let (pos, _conf) = analyze_semantic_position(&pixels, 10, 10);
+        assert_eq!(pos, SemanticPosition::TopCenter);
+    }
+
+    #[test]
+    fn test_semantic_position_center() {
+        // Region in center
+        let pixels: HashSet<(i32, i32)> = [(4, 4), (5, 4), (4, 5), (5, 5)].into_iter().collect();
+
+        let (pos, _conf) = analyze_semantic_position(&pixels, 10, 10);
+        assert_eq!(pos, SemanticPosition::Center);
+    }
+
+    #[test]
+    fn test_semantic_position_bottom() {
+        // Region at bottom
+        let pixels: HashSet<(i32, i32)> = [(4, 8), (5, 8), (4, 9), (5, 9)].into_iter().collect();
+
+        let (pos, _conf) = analyze_semantic_position(&pixels, 10, 10);
+        assert_eq!(pos, SemanticPosition::Bottom);
+    }
+
+    #[test]
+    fn test_is_skin_tone() {
+        // Light skin tone (typical Caucasian/light skin)
+        assert!(is_skin_tone(&[255, 220, 185, 255]));
+        // Medium skin tone
+        assert!(is_skin_tone(&[210, 160, 120, 255]));
+        // Not skin: pure red
+        assert!(!is_skin_tone(&[255, 0, 0, 255]));
+        // Not skin: pure white
+        assert!(!is_skin_tone(&[255, 255, 255, 255]));
+        // Not skin: pure black
+        assert!(!is_skin_tone(&[0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_is_dark_color() {
+        assert!(is_dark_color(&[0, 0, 0, 255]));       // Black
+        assert!(is_dark_color(&[30, 30, 30, 255]));    // Dark gray
+        assert!(!is_dark_color(&[128, 128, 128, 255])); // Medium gray
+        assert!(!is_dark_color(&[255, 255, 255, 255])); // White
+    }
+
+    #[test]
+    fn test_is_light_color() {
+        assert!(is_light_color(&[255, 255, 255, 255])); // White
+        assert!(is_light_color(&[240, 240, 240, 255])); // Near white
+        assert!(!is_light_color(&[128, 128, 128, 255])); // Medium gray
+        assert!(!is_light_color(&[0, 0, 0, 255]));       // Black
+    }
+
+    #[test]
+    fn test_semantic_naming_background() {
+        // Large coverage = background
+        let (name, reason) = suggest_semantic_name(
+            SemanticPosition::Edge,
+            0.5,
+            None,
+            None,
+            60,
+            0.6, // 60% coverage
+            10,
+            10,
+        );
+        assert_eq!(name, Some("{bg}".to_string()));
+        assert!(reason.contains("background"));
+    }
+
+    #[test]
+    fn test_semantic_naming_dark_top_center() {
+        // Dark color in top center = hair
+        let dark_color = [20, 20, 20, 255];
+        let (name, reason) = suggest_semantic_name(
+            SemanticPosition::TopCenter,
+            0.8,
+            Some(&dark_color),
+            None,
+            20,
+            0.2,
+            10,
+            10,
+        );
+        assert_eq!(name, Some("{hair}".to_string()));
+        assert!(reason.contains("Dark"));
+    }
+
+    #[test]
+    fn test_semantic_naming_skin_center() {
+        // Skin tone in center = face
+        let skin_color = [220, 180, 150, 255];
+        let (name, reason) = suggest_semantic_name(
+            SemanticPosition::Center,
+            0.8,
+            Some(&skin_color),
+            None,
+            30,
+            0.3,
+            10,
+            10,
+        );
+        assert_eq!(name, Some("{face}".to_string()));
+        assert!(reason.contains("Skin tone"));
+    }
+
+    #[test]
+    fn test_semantic_naming_small_dark_center() {
+        // Small dark spot in center = eye
+        let dark_color = [10, 10, 10, 255];
+        let (name, reason) = suggest_semantic_name(
+            SemanticPosition::Center,
+            0.8,
+            Some(&dark_color),
+            None,
+            4,   // Small
+            0.04,
+            10,
+            10,
+        );
+        assert_eq!(name, Some("{eye}".to_string()));
+        assert!(reason.contains("Small dark"));
+    }
+
+    #[test]
+    fn test_semantic_naming_small_light() {
+        // Small light spot = gleam/reflection
+        let light_color = [250, 250, 250, 255];
+        let (name, reason) = suggest_semantic_name(
+            SemanticPosition::Center,
+            0.8,
+            Some(&light_color),
+            None,
+            2,   // Very small
+            0.02,
+            10,
+            10,
+        );
+        assert_eq!(name, Some("{gleam}".to_string()));
+        assert!(reason.contains("reflection"));
     }
 }
