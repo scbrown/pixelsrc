@@ -10,25 +10,40 @@
 
 Pixelsrc is a semantic, human-readable text format for defining pixel art. Unlike traditional editors or hex-based formats, it's designed from the ground up for AI systems to generate reliably.
 
-```jsonl
-{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#FFD700", "{shine}": "#FFFACD"}}
-{"type": "sprite", "name": "coin", "size": [8, 8], "palette": "coin", "grid": [
-  "{_}{_}{gold}{gold}{gold}{gold}{_}{_}",
-  "{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}{gold}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{gold}{gold}{gold}",
-  "{_}{gold}{gold}{gold}{gold}{gold}{gold}{_}",
-  "{_}{_}{gold}{gold}{gold}{gold}{_}{_}"
-]}
+```json5
+// coin.pxl - A simple coin sprite
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    outline: "#8B6914",
+    gold: "#FFD700",
+    shine: "#FFFACD",
+  },
+}
+
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    _: "background",
+    outline: { stroke: [1, 1, 6, 6], round: 2 },
+    gold: { fill: "inside(outline)" },
+    shine: { points: [[3, 2], [4, 3]] },
+  },
+}
 ```
 
 ## Why Pixelsrc?
 
-- **Semantic tokens** - Use meaningful names like `{skin}`, `{gold}`, `{shadow}` instead of single characters or hex codes
-- **GenAI-native** - No coordinate systems or spatial reasoning; just sequential rows that LLMs can generate reliably
-- **Streaming-first** - JSONL format enables real-time parsing as AI generates each line
+- **Semantic regions** - Define shapes like `rect`, `circle`, `fill` instead of individual pixels
+- **Context-efficient** - 64x64 sprites take the same space as 8x8 with similar structure
+- **GenAI-native** - Describe intent, the compiler resolves pixels
+- **JSON5 format** - Comments, trailing commas, unquoted keys for readability
 - **Lenient by default** - Fills gaps and continues on small errors; strict mode available for CI
-- **Human-readable** - Git diffs of sprite changes are meaningful and reviewable
 
 ## Installation
 
@@ -52,18 +67,32 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
 
 1. Create a file `hero.pxl`:
 
-```jsonl
-{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFD5B4", "{hair}": "#8B4513", "{shirt}": "#4169E1"}}
-{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "hero", "grid": [
-  "{_}{_}{hair}{hair}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{hair}{hair}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{_}{shirt}{shirt}{shirt}{shirt}{_}{_}",
-  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
-  "{_}{_}{skin}{_}{_}{skin}{_}{_}",
-  "{_}{_}{skin}{_}{_}{skin}{_}{_}"
-]}
+```json5
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#000000",
+    skin: "#FFD5B4",
+    hair: "#8B4513",
+    eye: "#4169E1",
+  },
+}
+
+{
+  type: "sprite",
+  name: "hero",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    _: "background",
+    "head-outline": { stroke: [4, 2, 8, 10], round: 2 },
+    hair: { fill: "inside(head-outline)", y: [2, 5] },
+    skin: { fill: "inside(head-outline)", y: [5, 12], except: ["eye"] },
+    eye: { rect: [6, 7, 2, 2], symmetric: "x" },
+  },
+}
 ```
 
 2. Render it:
@@ -84,20 +113,23 @@ pxl render hero.pxl -o hero.png --scale 8
 
 | Command | Description |
 |---------|-------------|
-| `pxl render <file>` | Render .pxl/.jsonl to PNG |
+| `pxl render <file>` | Render .pxl to PNG |
 | `pxl render --gif` | Export animations to GIF |
 | `pxl render --spritesheet` | Generate sprite sheets |
 | `pxl fmt <files>` | Format files for readability |
+| `pxl validate <file>` | Check for errors |
 | `pxl palettes list` | List built-in palettes |
 | `pxl import <image>` | Convert PNG to .pxl |
 
 ### Format Capabilities
 
-- **Palettes** - Define reusable color schemes
-- **Sprites** - Pixel grids with semantic tokens
+- **Palettes** - Define reusable color schemes with semantic roles
+- **Sprites** - Define images using geometric regions
+- **Regions** - Shapes: `rect`, `stroke`, `circle`, `ellipse`, `polygon`, `fill`
+- **Modifiers** - `symmetric`, range constraints (`x`, `y`), `except`
 - **Animations** - Frame sequences with timing
 - **Compositions** - Layer sprites into scenes
-- **Built-in palettes** - Gameboy, Dracula, and more
+- **State Rules** - Visual states without separate sprites
 
 ### Integrations
 
@@ -119,8 +151,9 @@ just render coin # Render an example sprite
 
 ## Documentation
 
-- **[📚 Documentation Book](https://scbrown.github.io/pixelsrc/book/)** - Complete user guide with interactive examples
-- [Format Specification](docs/spec/format.md) - Complete JSONL schema
+- **[Documentation Book](https://scbrown.github.io/pixelsrc/book/)** - Complete user guide with interactive examples
+- [Format Specification](docs/spec/format.md) - Complete format schema
+- [AI Primer](docs/primer.md) - Guide for AI generation
 - [Implementation Plan](docs/plan/README.md) - Roadmap and phase status
 - [Vision & Philosophy](docs/VISION.md) - Design principles
 - [Contributing](CONTRIBUTING.md) - Development guide
