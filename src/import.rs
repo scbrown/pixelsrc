@@ -29,6 +29,57 @@ pub enum StructuredRegion {
     Points(Vec<[u32; 2]>),
 }
 
+/// How to handle detected dither patterns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DitherHandling {
+    /// Keep dithered regions as-is (separate color tokens).
+    #[default]
+    Keep,
+    /// Merge dithered regions into a single averaged color.
+    Merge,
+    /// Only detect and flag dithered regions (no merging).
+    Analyze,
+}
+
+/// A detected dither pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DitherPattern {
+    /// Checkerboard pattern (alternating colors in 2x2 grid).
+    Checkerboard,
+    /// Ordered dither (Bayer matrix patterns).
+    Ordered,
+    /// Horizontal line dither.
+    HorizontalLines,
+    /// Vertical line dither.
+    VerticalLines,
+}
+
+impl std::fmt::Display for DitherPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DitherPattern::Checkerboard => write!(f, "checkerboard"),
+            DitherPattern::Ordered => write!(f, "ordered"),
+            DitherPattern::HorizontalLines => write!(f, "horizontal-lines"),
+            DitherPattern::VerticalLines => write!(f, "vertical-lines"),
+        }
+    }
+}
+
+/// Information about a detected dithered region.
+#[derive(Debug, Clone)]
+pub struct DitherInfo {
+    /// The tokens involved in the dither pattern.
+    pub tokens: Vec<String>,
+    /// The detected pattern type.
+    pub pattern: DitherPattern,
+    /// Bounding box of the dithered region [x, y, width, height].
+    pub bounds: [u32; 4],
+    /// Suggested merged color (hex) if merging is desired.
+    pub merged_color: String,
+    /// Confidence of the detection (0.0-1.0).
+    pub confidence: f64,
+}
+
 /// Options for PNG import.
 #[derive(Debug, Clone, Default)]
 pub struct ImportOptions {
@@ -43,6 +94,8 @@ pub struct ImportOptions {
     /// Export only half the sprite data when symmetry is detected.
     /// The symmetry flag will indicate how to mirror the data during rendering.
     pub half_sprite: bool,
+    /// How to handle dither patterns.
+    pub dither_handling: DitherHandling,
 }
 
 /// A naming hint for a token based on detected features.
@@ -70,6 +123,8 @@ pub struct ImportAnalysis {
     /// Inferred z-order from spatial containment (token -> z-level)
     /// Higher z means the region should be rendered on top.
     pub z_order: HashMap<String, i32>,
+    /// Detected dither patterns and their info.
+    pub dither_patterns: Vec<DitherInfo>,
 }
 
 /// Filter points to only include the primary half based on symmetry.
@@ -370,6 +425,24 @@ impl ImportResult {
                     // Just add as hint (underscore prefix indicates metadata)
                     sprite_obj["_symmetry"] = serde_json::json!(sym_str);
                 }
+            }
+
+            // Add dither pattern info if detected
+            if !analysis.dither_patterns.is_empty() {
+                let dither_info: Vec<serde_json::Value> = analysis
+                    .dither_patterns
+                    .iter()
+                    .map(|d| {
+                        serde_json::json!({
+                            "tokens": d.tokens,
+                            "pattern": d.pattern.to_string(),
+                            "bounds": d.bounds,
+                            "merged_color": d.merged_color,
+                            "confidence": d.confidence
+                        })
+                    })
+                    .collect();
+                sprite_obj["_dither"] = serde_json::json!(dither_info);
             }
         }
 
@@ -1356,6 +1429,316 @@ fn infer_z_order(
     z_order
 }
 
+/// Detect dither patterns in the image.
+///
+/// Looks for common dithering patterns:
+/// - Checkerboard: alternating colors in a 2x2 grid pattern
+/// - Horizontal lines: alternating colors in horizontal stripes
+/// - Vertical lines: alternating colors in vertical stripes
+/// - Ordered dither: Bayer matrix patterns (2x2, 4x4)
+fn detect_dither_patterns(
+    width: u32,
+    height: u32,
+    token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+    token_to_color: &HashMap<String, [u8; 4]>,
+) -> Vec<DitherInfo> {
+    let mut dither_patterns = Vec::new();
+
+    // Build a grid for quick token lookup
+    let mut pixel_to_token: HashMap<(i32, i32), String> = HashMap::new();
+    for (token, pixels) in token_pixels {
+        for &(x, y) in pixels {
+            pixel_to_token.insert((x, y), token.clone());
+        }
+    }
+
+    // Get all token pairs to check for dithering
+    let tokens: Vec<String> = token_pixels.keys().cloned().collect();
+
+    for i in 0..tokens.len() {
+        for j in (i + 1)..tokens.len() {
+            let token1 = &tokens[i];
+            let token2 = &tokens[j];
+
+            // Skip transparent token
+            if token1 == "{_}" || token2 == "{_}" {
+                continue;
+            }
+
+            // Get pixels for both tokens
+            let pixels1 = &token_pixels[token1];
+            let pixels2 = &token_pixels[token2];
+
+            // Check for checkerboard pattern between these two tokens
+            if let Some(info) = detect_checkerboard_pattern(
+                token1,
+                token2,
+                pixels1,
+                pixels2,
+                &pixel_to_token,
+                token_to_color,
+                width,
+                height,
+            ) {
+                dither_patterns.push(info);
+            }
+
+            // Check for horizontal line pattern
+            if let Some(info) = detect_line_pattern(
+                token1,
+                token2,
+                pixels1,
+                pixels2,
+                &pixel_to_token,
+                token_to_color,
+                width,
+                height,
+                true, // horizontal
+            ) {
+                dither_patterns.push(info);
+            }
+
+            // Check for vertical line pattern
+            if let Some(info) = detect_line_pattern(
+                token1,
+                token2,
+                pixels1,
+                pixels2,
+                &pixel_to_token,
+                token_to_color,
+                width,
+                height,
+                false, // vertical
+            ) {
+                dither_patterns.push(info);
+            }
+        }
+    }
+
+    dither_patterns
+}
+
+/// Check if two tokens form a checkerboard dither pattern.
+fn detect_checkerboard_pattern(
+    token1: &str,
+    token2: &str,
+    pixels1: &HashSet<(i32, i32)>,
+    pixels2: &HashSet<(i32, i32)>,
+    pixel_to_token: &HashMap<(i32, i32), String>,
+    token_to_color: &HashMap<String, [u8; 4]>,
+    width: u32,
+    height: u32,
+) -> Option<DitherInfo> {
+    // Find overlapping bounding box
+    let min_x1 = pixels1.iter().map(|(x, _)| *x).min().unwrap_or(0);
+    let max_x1 = pixels1.iter().map(|(x, _)| *x).max().unwrap_or(0);
+    let min_y1 = pixels1.iter().map(|(_, y)| *y).min().unwrap_or(0);
+    let max_y1 = pixels1.iter().map(|(_, y)| *y).max().unwrap_or(0);
+
+    let min_x2 = pixels2.iter().map(|(x, _)| *x).min().unwrap_or(0);
+    let max_x2 = pixels2.iter().map(|(x, _)| *x).max().unwrap_or(0);
+    let min_y2 = pixels2.iter().map(|(_, y)| *y).min().unwrap_or(0);
+    let max_y2 = pixels2.iter().map(|(_, y)| *y).max().unwrap_or(0);
+
+    // Find the intersection of bounding boxes
+    let min_x = min_x1.max(min_x2);
+    let max_x = max_x1.min(max_x2);
+    let min_y = min_y1.max(min_y2);
+    let max_y = max_y1.min(max_y2);
+
+    // Must have overlap
+    if max_x < min_x || max_y < min_y {
+        return None;
+    }
+
+    // Count checkerboard matches
+    let mut checkerboard_matches = 0;
+    let mut total_cells = 0;
+
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            // Expected token based on checkerboard pattern
+            let is_even_cell = (x + y) % 2 == 0;
+            let expected_token = if is_even_cell { token1 } else { token2 };
+
+            if let Some(actual_token) = pixel_to_token.get(&(x, y)) {
+                total_cells += 1;
+                if actual_token == expected_token {
+                    checkerboard_matches += 1;
+                }
+            }
+        }
+    }
+
+    // Also try the inverse pattern
+    let mut inverse_matches = 0;
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let is_even_cell = (x + y) % 2 == 0;
+            let expected_token = if is_even_cell { token2 } else { token1 };
+
+            if let Some(actual_token) = pixel_to_token.get(&(x, y)) {
+                if actual_token == expected_token {
+                    inverse_matches += 1;
+                }
+            }
+        }
+    }
+
+    let best_matches = checkerboard_matches.max(inverse_matches);
+
+    // Minimum coverage and match ratio for detection
+    let coverage = total_cells as f64 / ((max_x - min_x + 1) * (max_y - min_y + 1)) as f64;
+    let match_ratio = if total_cells > 0 {
+        best_matches as f64 / total_cells as f64
+    } else {
+        0.0
+    };
+
+    // Need at least 4 cells (2x2 minimum) and 80% match ratio
+    if total_cells >= 4 && match_ratio >= 0.8 && coverage >= 0.7 {
+        // Compute merged color
+        let color1 = token_to_color.get(token1).copied().unwrap_or([0, 0, 0, 255]);
+        let color2 = token_to_color.get(token2).copied().unwrap_or([0, 0, 0, 255]);
+        let merged = average_colors(&[color1, color2]);
+
+        Some(DitherInfo {
+            tokens: vec![token1.to_string(), token2.to_string()],
+            pattern: DitherPattern::Checkerboard,
+            bounds: [min_x as u32, min_y as u32, (max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32],
+            merged_color: format!("#{:02X}{:02X}{:02X}", merged[0], merged[1], merged[2]),
+            confidence: match_ratio * coverage,
+        })
+    } else {
+        None
+    }
+}
+
+/// Check if two tokens form a horizontal or vertical line dither pattern.
+fn detect_line_pattern(
+    token1: &str,
+    token2: &str,
+    pixels1: &HashSet<(i32, i32)>,
+    pixels2: &HashSet<(i32, i32)>,
+    pixel_to_token: &HashMap<(i32, i32), String>,
+    token_to_color: &HashMap<String, [u8; 4]>,
+    width: u32,
+    height: u32,
+    horizontal: bool,
+) -> Option<DitherInfo> {
+    // Find overlapping bounding box
+    let min_x1 = pixels1.iter().map(|(x, _)| *x).min().unwrap_or(0);
+    let max_x1 = pixels1.iter().map(|(x, _)| *x).max().unwrap_or(0);
+    let min_y1 = pixels1.iter().map(|(_, y)| *y).min().unwrap_or(0);
+    let max_y1 = pixels1.iter().map(|(_, y)| *y).max().unwrap_or(0);
+
+    let min_x2 = pixels2.iter().map(|(x, _)| *x).min().unwrap_or(0);
+    let max_x2 = pixels2.iter().map(|(x, _)| *x).max().unwrap_or(0);
+    let min_y2 = pixels2.iter().map(|(_, y)| *y).min().unwrap_or(0);
+    let max_y2 = pixels2.iter().map(|(_, y)| *y).max().unwrap_or(0);
+
+    let min_x = min_x1.max(min_x2);
+    let max_x = max_x1.min(max_x2);
+    let min_y = min_y1.max(min_y2);
+    let max_y = max_y1.min(max_y2);
+
+    if max_x < min_x || max_y < min_y {
+        return None;
+    }
+
+    // Count line pattern matches
+    let mut line_matches = 0;
+    let mut total_cells = 0;
+
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            // Expected token based on line pattern
+            let line_idx = if horizontal { y } else { x };
+            let is_even_line = line_idx % 2 == 0;
+            let expected_token = if is_even_line { token1 } else { token2 };
+
+            if let Some(actual_token) = pixel_to_token.get(&(x, y)) {
+                total_cells += 1;
+                if actual_token == expected_token {
+                    line_matches += 1;
+                }
+            }
+        }
+    }
+
+    // Also try inverse
+    let mut inverse_matches = 0;
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let line_idx = if horizontal { y } else { x };
+            let is_even_line = line_idx % 2 == 0;
+            let expected_token = if is_even_line { token2 } else { token1 };
+
+            if let Some(actual_token) = pixel_to_token.get(&(x, y)) {
+                if actual_token == expected_token {
+                    inverse_matches += 1;
+                }
+            }
+        }
+    }
+
+    let best_matches = line_matches.max(inverse_matches);
+    let coverage = total_cells as f64 / ((max_x - min_x + 1) * (max_y - min_y + 1)) as f64;
+    let match_ratio = if total_cells > 0 {
+        best_matches as f64 / total_cells as f64
+    } else {
+        0.0
+    };
+
+    // Need at least 4 cells and 90% match ratio for line patterns (stricter than checkerboard)
+    // Also need at least 2 lines in the primary direction
+    let line_count = if horizontal { max_y - min_y + 1 } else { max_x - min_x + 1 };
+
+    if total_cells >= 4 && match_ratio >= 0.9 && coverage >= 0.8 && line_count >= 2 {
+        let color1 = token_to_color.get(token1).copied().unwrap_or([0, 0, 0, 255]);
+        let color2 = token_to_color.get(token2).copied().unwrap_or([0, 0, 0, 255]);
+        let merged = average_colors(&[color1, color2]);
+
+        let pattern = if horizontal {
+            DitherPattern::HorizontalLines
+        } else {
+            DitherPattern::VerticalLines
+        };
+
+        Some(DitherInfo {
+            tokens: vec![token1.to_string(), token2.to_string()],
+            pattern,
+            bounds: [min_x as u32, min_y as u32, (max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32],
+            merged_color: format!("#{:02X}{:02X}{:02X}", merged[0], merged[1], merged[2]),
+            confidence: match_ratio * coverage,
+        })
+    } else {
+        None
+    }
+}
+
+/// Average multiple colors together.
+fn average_colors(colors: &[[u8; 4]]) -> [u8; 4] {
+    if colors.is_empty() {
+        return [0, 0, 0, 255];
+    }
+
+    let mut r: u32 = 0;
+    let mut g: u32 = 0;
+    let mut b: u32 = 0;
+    let mut a: u32 = 0;
+
+    for c in colors {
+        r += c[0] as u32;
+        g += c[1] as u32;
+        b += c[2] as u32;
+        a += c[3] as u32;
+    }
+
+    let n = colors.len() as u32;
+    [(r / n) as u8, (g / n) as u8, (b / n) as u8, (a / n) as u8]
+}
+
 /// Perform analysis on imported regions.
 fn perform_analysis(
     width: u32,
@@ -1435,6 +1818,14 @@ fn perform_analysis(
     // Infer z-order from containment relationships
     let tokens: Vec<String> = token_pixels.keys().cloned().collect();
     analysis.z_order = infer_z_order(&tokens, &analysis.relationships);
+
+    // Detect dither patterns if dither handling is not Keep
+    if options.dither_handling != DitherHandling::Keep {
+        let mut patterns = detect_dither_patterns(width, height, token_pixels, &token_to_color);
+        // Filter by confidence threshold
+        patterns.retain(|p| p.confidence >= options.confidence_threshold);
+        analysis.dither_patterns = patterns;
+    }
 
     // Generate naming hints if requested
     if options.hints {
@@ -1988,6 +2379,7 @@ mod tests {
             symmetry: None,
             naming_hints: vec![],
             z_order,
+            dither_patterns: vec![],
         };
 
         let result = ImportResult {
@@ -2322,6 +2714,7 @@ mod tests {
             symmetry: Some(Symmetric::X),
             naming_hints: vec![],
             z_order: HashMap::new(),
+            dither_patterns: vec![],
         };
 
         let result = ImportResult {
@@ -2366,6 +2759,7 @@ mod tests {
             symmetry: Some(Symmetric::X),
             naming_hints: vec![],
             z_order: HashMap::new(),
+            dither_patterns: vec![],
         };
 
         let result = ImportResult {
@@ -2408,6 +2802,7 @@ mod tests {
             symmetry: None, // No symmetry detected
             naming_hints: vec![],
             z_order: HashMap::new(),
+            dither_patterns: vec![],
         };
 
         let result = ImportResult {
@@ -2429,5 +2824,308 @@ mod tests {
         assert!(!jsonl.contains("full_size"));
         // All points should be present
         assert!(jsonl.contains("[3,0]") || jsonl.contains("[3, 0]"));
+    }
+
+    // ========================================================================
+    // Dither Detection Tests (TTP-trwxq.6)
+    // ========================================================================
+
+    #[test]
+    fn test_detect_checkerboard_pattern_basic() {
+        // 4x4 checkerboard pattern
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        // Checkerboard: c1 on even cells, c2 on odd cells
+        for y in 0..4 {
+            for x in 0..4 {
+                if (x + y) % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    c2_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        token_to_color.insert("{c1}".to_string(), [255, 0, 0, 255]);
+        token_to_color.insert("{c2}".to_string(), [0, 0, 255, 255]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        assert!(!patterns.is_empty(), "Should detect checkerboard pattern");
+        let pattern = &patterns[0];
+        assert_eq!(pattern.pattern, DitherPattern::Checkerboard);
+        assert!(pattern.confidence > 0.8);
+        assert!(pattern.tokens.contains(&"{c1}".to_string()));
+        assert!(pattern.tokens.contains(&"{c2}".to_string()));
+    }
+
+    #[test]
+    fn test_detect_checkerboard_pattern_merged_color() {
+        // Verify merged color is average of the two colors
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        for y in 0..4 {
+            for x in 0..4 {
+                if (x + y) % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    c2_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        // Red (255, 0, 0) and Blue (0, 0, 255) average to (127, 0, 127) => purple
+        token_to_color.insert("{c1}".to_string(), [254, 0, 0, 255]);
+        token_to_color.insert("{c2}".to_string(), [0, 0, 254, 255]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        assert!(!patterns.is_empty());
+        let pattern = &patterns[0];
+        // Average of 254 and 0 is 127
+        assert_eq!(pattern.merged_color, "#7F007F");
+    }
+
+    #[test]
+    fn test_detect_horizontal_line_pattern() {
+        // Alternating horizontal lines
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        for y in 0..4 {
+            for x in 0..4 {
+                if y % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    c2_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        token_to_color.insert("{c1}".to_string(), [255, 255, 255, 255]);
+        token_to_color.insert("{c2}".to_string(), [0, 0, 0, 255]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        let line_pattern = patterns.iter().find(|p| p.pattern == DitherPattern::HorizontalLines);
+        assert!(line_pattern.is_some(), "Should detect horizontal line pattern");
+    }
+
+    #[test]
+    fn test_detect_vertical_line_pattern() {
+        // Alternating vertical lines
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        for y in 0..4 {
+            for x in 0..4 {
+                if x % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    c2_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        token_to_color.insert("{c1}".to_string(), [255, 255, 255, 255]);
+        token_to_color.insert("{c2}".to_string(), [0, 0, 0, 255]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        let line_pattern = patterns.iter().find(|p| p.pattern == DitherPattern::VerticalLines);
+        assert!(line_pattern.is_some(), "Should detect vertical line pattern");
+    }
+
+    #[test]
+    fn test_no_dither_pattern_solid_regions() {
+        // Two separate solid regions - no dither
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        // c1 fills left half
+        for y in 0..4 {
+            for x in 0..2 {
+                c1_pixels.insert((x, y));
+            }
+        }
+        // c2 fills right half
+        for y in 0..4 {
+            for x in 2..4 {
+                c2_pixels.insert((x, y));
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        token_to_color.insert("{c1}".to_string(), [255, 0, 0, 255]);
+        token_to_color.insert("{c2}".to_string(), [0, 0, 255, 255]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        assert!(patterns.is_empty(), "Should not detect dither in solid regions");
+    }
+
+    #[test]
+    fn test_dither_detection_skips_transparent() {
+        // Transparent token should not be considered for dithering
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut transparent_pixels = HashSet::new();
+
+        // Checkerboard with transparent
+        for y in 0..4 {
+            for x in 0..4 {
+                if (x + y) % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    transparent_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{_}".to_string(), transparent_pixels);
+        token_to_color.insert("{c1}".to_string(), [255, 0, 0, 255]);
+        token_to_color.insert("{_}".to_string(), [0, 0, 0, 0]);
+
+        let patterns = detect_dither_patterns(4, 4, &token_pixels, &token_to_color);
+
+        assert!(patterns.is_empty(), "Should not detect dither with transparent token");
+    }
+
+    #[test]
+    fn test_dither_bounds_calculation() {
+        // Partial checkerboard - verify bounds are correct
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut c1_pixels = HashSet::new();
+        let mut c2_pixels = HashSet::new();
+
+        // Checkerboard only in region (2,2) to (5,5) within 8x8 image
+        for y in 2..6 {
+            for x in 2..6 {
+                if (x + y) % 2 == 0 {
+                    c1_pixels.insert((x, y));
+                } else {
+                    c2_pixels.insert((x, y));
+                }
+            }
+        }
+
+        token_pixels.insert("{c1}".to_string(), c1_pixels);
+        token_pixels.insert("{c2}".to_string(), c2_pixels);
+        token_to_color.insert("{c1}".to_string(), [100, 100, 100, 255]);
+        token_to_color.insert("{c2}".to_string(), [200, 200, 200, 255]);
+
+        let patterns = detect_dither_patterns(8, 8, &token_pixels, &token_to_color);
+
+        assert!(!patterns.is_empty());
+        let pattern = &patterns[0];
+        assert_eq!(pattern.bounds, [2, 2, 4, 4], "Bounds should be [2, 2, 4, 4]");
+    }
+
+    #[test]
+    fn test_dither_handling_default_is_keep() {
+        let options = ImportOptions::default();
+        assert_eq!(options.dither_handling, DitherHandling::Keep);
+    }
+
+    #[test]
+    fn test_average_colors() {
+        // Test averaging colors
+        let colors = [[255, 0, 0, 255], [0, 255, 0, 255]];
+        let avg = average_colors(&colors);
+        assert_eq!(avg, [127, 127, 0, 255]);
+
+        let colors2 = [[100, 100, 100, 255], [200, 200, 200, 255]];
+        let avg2 = average_colors(&colors2);
+        assert_eq!(avg2, [150, 150, 150, 255]);
+
+        // Empty colors
+        let empty: &[[u8; 4]] = &[];
+        assert_eq!(average_colors(empty), [0, 0, 0, 255]);
+    }
+
+    #[test]
+    fn test_dither_info_in_structured_jsonl() {
+        // Verify dither info is included in structured JSONL
+        let mut palette = HashMap::new();
+        palette.insert("{c1}".to_string(), "#FF0000".to_string());
+        palette.insert("{c2}".to_string(), "#0000FF".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{c1}".to_string(), vec![[0, 0], [1, 1], [0, 2], [1, 3]]);
+        regions.insert("{c2}".to_string(), vec![[1, 0], [0, 1], [1, 2], [0, 3]]);
+
+        let dither_patterns = vec![DitherInfo {
+            tokens: vec!["{c1}".to_string(), "{c2}".to_string()],
+            pattern: DitherPattern::Checkerboard,
+            bounds: [0, 0, 2, 4],
+            merged_color: "#7F007F".to_string(),
+            confidence: 0.95,
+        }];
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: None,
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+            dither_patterns,
+        };
+
+        let result = ImportResult {
+            name: "test".to_string(),
+            width: 2,
+            height: 4,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: false,
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        assert!(jsonl.contains("_dither"), "Should include _dither field");
+        assert!(jsonl.contains("checkerboard"), "Should include pattern type");
+        assert!(jsonl.contains("#7F007F"), "Should include merged color");
+    }
+
+    #[test]
+    fn test_dither_pattern_display() {
+        assert_eq!(DitherPattern::Checkerboard.to_string(), "checkerboard");
+        assert_eq!(DitherPattern::Ordered.to_string(), "ordered");
+        assert_eq!(DitherPattern::HorizontalLines.to_string(), "horizontal-lines");
+        assert_eq!(DitherPattern::VerticalLines.to_string(), "vertical-lines");
     }
 }
