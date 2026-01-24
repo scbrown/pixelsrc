@@ -64,6 +64,9 @@ pub struct ImportAnalysis {
     pub symmetry: Option<Symmetric>,
     /// Token naming hints
     pub naming_hints: Vec<NamingHint>,
+    /// Inferred z-order from spatial containment (token -> z-level)
+    /// Higher z means the region should be rendered on top.
+    pub z_order: HashMap<String, i32>,
 }
 
 /// Result of importing a PNG image.
@@ -151,16 +154,39 @@ impl ImportResult {
             }
         }
 
-        // Build regions object - use structured regions if available
+        // Build regions object - use structured regions if available, adding z-order if present
+        let z_order = self.analysis.as_ref().map(|a| &a.z_order);
         let regions: HashMap<String, serde_json::Value> = if let Some(ref structured) = self.structured_regions {
             structured
                 .iter()
-                .map(|(token, region)| (token.clone(), region.to_json()))
+                .map(|(token, region)| {
+                    let mut region_json = region.to_json();
+                    // Add z-order if available
+                    if let Some(z_map) = z_order {
+                        if let Some(&z) = z_map.get(token) {
+                            if let serde_json::Value::Object(ref mut obj) = region_json {
+                                obj.insert("z".to_string(), serde_json::json!(z));
+                            }
+                        }
+                    }
+                    (token.clone(), region_json)
+                })
                 .collect()
         } else {
             self.regions
                 .iter()
-                .map(|(token, points)| (token.clone(), serde_json::json!({ "points": points })))
+                .map(|(token, points)| {
+                    let mut region_json = serde_json::json!({ "points": points });
+                    // Add z-order if available
+                    if let Some(z_map) = z_order {
+                        if let Some(&z) = z_map.get(token) {
+                            if let serde_json::Value::Object(ref mut obj) = region_json {
+                                obj.insert("z".to_string(), serde_json::json!(z));
+                            }
+                        }
+                    }
+                    (token.clone(), region_json)
+                })
                 .collect()
         };
 
@@ -1093,6 +1119,80 @@ pub fn import_png_with_options<P: AsRef<Path>>(
     })
 }
 
+/// Infer z-order values from spatial containment relationships.
+///
+/// If region A is contained within region B, A should be rendered on top (higher z).
+/// This computes z-levels by finding how deeply nested each region is.
+///
+/// Algorithm:
+/// 1. Build a containment graph from ContainedWithin relationships
+/// 2. For each region, z = 1 + max(z of all containers)
+/// 3. Regions not contained get z = 0
+fn infer_z_order(
+    tokens: &[String],
+    relationships: &[(String, RelationshipType, String)],
+) -> HashMap<String, i32> {
+    // Build containment graph: token -> set of tokens it's contained in
+    let mut contained_in: HashMap<String, Vec<String>> = HashMap::new();
+
+    for (source, rel_type, target) in relationships {
+        if matches!(rel_type, RelationshipType::ContainedWithin) {
+            // source is contained within target
+            contained_in
+                .entry(source.clone())
+                .or_default()
+                .push(target.clone());
+        }
+    }
+
+    // Compute z-order using memoization
+    let mut z_order: HashMap<String, i32> = HashMap::new();
+    let mut computing: HashSet<String> = HashSet::new(); // Cycle detection
+
+    fn compute_z(
+        token: &str,
+        contained_in: &HashMap<String, Vec<String>>,
+        z_order: &mut HashMap<String, i32>,
+        computing: &mut HashSet<String>,
+    ) -> i32 {
+        // Already computed
+        if let Some(&z) = z_order.get(token) {
+            return z;
+        }
+
+        // Cycle detection - return 0 if we're in a cycle
+        if computing.contains(token) {
+            return 0;
+        }
+        computing.insert(token.to_string());
+
+        // Get containers
+        let z = if let Some(containers) = contained_in.get(token) {
+            // z = 1 + max(z of containers)
+            let max_container_z = containers
+                .iter()
+                .map(|c| compute_z(c, contained_in, z_order, computing))
+                .max()
+                .unwrap_or(0);
+            max_container_z + 1
+        } else {
+            // Not contained in anything - base level
+            0
+        };
+
+        computing.remove(token);
+        z_order.insert(token.to_string(), z);
+        z
+    }
+
+    // Compute z for all tokens
+    for token in tokens {
+        compute_z(token, &contained_in, &mut z_order, &mut computing);
+    }
+
+    z_order
+}
+
 /// Perform analysis on imported regions.
 fn perform_analysis(
     width: u32,
@@ -1168,6 +1268,10 @@ fn perform_analysis(
             analysis.relationships.push((rel.source, rel.relationship_type, rel.target));
         }
     }
+
+    // Infer z-order from containment relationships
+    let tokens: Vec<String> = token_pixels.keys().cloned().collect();
+    analysis.z_order = infer_z_order(&tokens, &analysis.relationships);
 
     // Generate naming hints if requested
     if options.hints {
@@ -1371,5 +1475,161 @@ mod tests {
         assert!(jsonl.contains("\"type\":\"sprite\""));
         assert!(jsonl.contains("test_sprite_palette"));
         assert!(jsonl.contains("test_sprite"));
+    }
+
+    #[test]
+    fn test_infer_z_order_no_containment() {
+        // No containment relationships - all tokens get z = 0
+        let tokens = vec!["{a}".to_string(), "{b}".to_string(), "{c}".to_string()];
+        let relationships = vec![];
+
+        let z_order = infer_z_order(&tokens, &relationships);
+
+        assert_eq!(z_order.get("{a}"), Some(&0));
+        assert_eq!(z_order.get("{b}"), Some(&0));
+        assert_eq!(z_order.get("{c}"), Some(&0));
+    }
+
+    #[test]
+    fn test_infer_z_order_single_containment() {
+        // {inner} is contained within {outer}
+        // {inner} should have z = 1, {outer} should have z = 0
+        let tokens = vec!["{inner}".to_string(), "{outer}".to_string()];
+        let relationships = vec![(
+            "{inner}".to_string(),
+            RelationshipType::ContainedWithin,
+            "{outer}".to_string(),
+        )];
+
+        let z_order = infer_z_order(&tokens, &relationships);
+
+        assert_eq!(z_order.get("{inner}"), Some(&1));
+        assert_eq!(z_order.get("{outer}"), Some(&0));
+    }
+
+    #[test]
+    fn test_infer_z_order_nested_containment() {
+        // {innermost} contained in {middle}, {middle} contained in {outer}
+        // z-levels: innermost=2, middle=1, outer=0
+        let tokens = vec![
+            "{innermost}".to_string(),
+            "{middle}".to_string(),
+            "{outer}".to_string(),
+        ];
+        let relationships = vec![
+            (
+                "{innermost}".to_string(),
+                RelationshipType::ContainedWithin,
+                "{middle}".to_string(),
+            ),
+            (
+                "{middle}".to_string(),
+                RelationshipType::ContainedWithin,
+                "{outer}".to_string(),
+            ),
+        ];
+
+        let z_order = infer_z_order(&tokens, &relationships);
+
+        assert_eq!(z_order.get("{innermost}"), Some(&2));
+        assert_eq!(z_order.get("{middle}"), Some(&1));
+        assert_eq!(z_order.get("{outer}"), Some(&0));
+    }
+
+    #[test]
+    fn test_infer_z_order_multiple_containers() {
+        // {inner} is contained in both {outer1} and {outer2}
+        // {inner} z should be 1 (max of containers + 1)
+        let tokens = vec![
+            "{inner}".to_string(),
+            "{outer1}".to_string(),
+            "{outer2}".to_string(),
+        ];
+        let relationships = vec![
+            (
+                "{inner}".to_string(),
+                RelationshipType::ContainedWithin,
+                "{outer1}".to_string(),
+            ),
+            (
+                "{inner}".to_string(),
+                RelationshipType::ContainedWithin,
+                "{outer2}".to_string(),
+            ),
+        ];
+
+        let z_order = infer_z_order(&tokens, &relationships);
+
+        assert_eq!(z_order.get("{inner}"), Some(&1));
+        assert_eq!(z_order.get("{outer1}"), Some(&0));
+        assert_eq!(z_order.get("{outer2}"), Some(&0));
+    }
+
+    #[test]
+    fn test_infer_z_order_ignores_other_relationships() {
+        // Only ContainedWithin should affect z-order
+        let tokens = vec!["{a}".to_string(), "{b}".to_string()];
+        let relationships = vec![
+            (
+                "{a}".to_string(),
+                RelationshipType::AdjacentTo,
+                "{b}".to_string(),
+            ),
+            (
+                "{a}".to_string(),
+                RelationshipType::DerivesFrom,
+                "{b}".to_string(),
+            ),
+        ];
+
+        let z_order = infer_z_order(&tokens, &relationships);
+
+        assert_eq!(z_order.get("{a}"), Some(&0));
+        assert_eq!(z_order.get("{b}"), Some(&0));
+    }
+
+    #[test]
+    fn test_z_order_in_structured_jsonl() {
+        // Test that z-order is included in structured JSONL output
+        let mut palette = HashMap::new();
+        palette.insert("{outer}".to_string(), "#FF0000".to_string());
+        palette.insert("{inner}".to_string(), "#00FF00".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{outer}".to_string(), vec![[0, 0], [2, 0], [0, 2], [2, 2]]);
+        regions.insert("{inner}".to_string(), vec![[1, 1]]);
+
+        let mut z_order = HashMap::new();
+        z_order.insert("{outer}".to_string(), 0);
+        z_order.insert("{inner}".to_string(), 1);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![(
+                "{inner}".to_string(),
+                RelationshipType::ContainedWithin,
+                "{outer}".to_string(),
+            )],
+            symmetry: None,
+            naming_hints: vec![],
+            z_order,
+        };
+
+        let result = ImportResult {
+            name: "test".to_string(),
+            width: 3,
+            height: 3,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        // Check that z values are included in regions
+        assert!(jsonl.contains("\"z\":0") || jsonl.contains("\"z\": 0"));
+        assert!(jsonl.contains("\"z\":1") || jsonl.contains("\"z\": 1"));
     }
 }
