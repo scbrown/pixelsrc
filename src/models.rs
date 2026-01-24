@@ -405,7 +405,7 @@ pub struct Sprite {
     /// The grid data (mutually exclusive with `source` and `regions`)
     #[serde(default)]
     pub grid: Vec<String>,
-    /// Reference to another sprite by name (mutually exclusive with `grid`)
+    /// Reference to another sprite by name (mutually exclusive with `grid` and `regions`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
     /// Structured regions for v2 format (mutually exclusive with `grid`)

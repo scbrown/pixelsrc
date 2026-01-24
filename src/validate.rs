@@ -57,6 +57,16 @@ pub enum IssueType {
     InvalidRelationshipTarget,
     /// Circular dependency in derives-from relationships
     CircularDependency,
+    /// Region 'within' constraint references non-existent token
+    InvalidWithinReference,
+    /// Region 'adjacent-to' constraint references non-existent token
+    InvalidAdjacentReference,
+    /// Relationship references a non-existent token
+    InvalidRelationshipReference,
+    /// Circular relationship detected (e.g., A within B, B within A)
+    CircularRelationship,
+    /// Constraint validation is uncertain (e.g., overlapping regions)
+    UncertainConstraint,
 }
 
 impl std::fmt::Display for IssueType {
@@ -75,6 +85,11 @@ impl std::fmt::Display for IssueType {
             IssueType::InvalidRoleToken => write!(f, "invalid_role_token"),
             IssueType::InvalidRelationshipTarget => write!(f, "invalid_relationship_target"),
             IssueType::CircularDependency => write!(f, "circular_dependency"),
+            IssueType::InvalidWithinReference => write!(f, "invalid_within_ref"),
+            IssueType::InvalidAdjacentReference => write!(f, "invalid_adjacent_ref"),
+            IssueType::InvalidRelationshipReference => write!(f, "invalid_relationship_ref"),
+            IssueType::CircularRelationship => write!(f, "circular_relationship"),
+            IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
         }
     }
 }
@@ -471,6 +486,9 @@ impl Validator {
             );
         }
 
+        // Get palette tokens for grid validation
+        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
+
         // Check for empty grid
         if sprite.grid.is_empty() {
             self.issues.push(
@@ -483,9 +501,6 @@ impl Validator {
             );
             return;
         }
-
-        // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
 
         // Validate grid rows
         let mut first_row_count: Option<usize> = None;
