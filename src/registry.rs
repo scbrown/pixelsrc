@@ -2957,6 +2957,7 @@ mod tests {
                 },
             )])),
             roles: None,
+            relationships: None,
         };
 
         registry.register(palette);
@@ -2994,6 +2995,7 @@ mod tests {
                 },
             )])),
             roles: None,
+            relationships: None,
         };
 
         registry.register(palette);
@@ -3030,6 +3032,7 @@ mod tests {
                 },
             )])),
             roles: None,
+            relationships: None,
         };
 
         registry.register(palette);
@@ -3075,6 +3078,7 @@ mod tests {
                 ),
             ])),
             roles: None,
+            relationships: None,
         };
 
         registry.register(palette);
