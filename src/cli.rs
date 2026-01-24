@@ -170,6 +170,10 @@ pub enum Commands {
         /// Show token naming suggestions based on detected features
         #[arg(long)]
         hints: bool,
+
+        /// Extract structured shapes (polygons, rects) instead of raw points
+        #[arg(long)]
+        shapes: bool,
     },
 
     /// Show GenAI prompt templates for sprite generation
@@ -612,8 +616,8 @@ pub fn run() -> ExitCode {
             power_of_two,
             nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name, analyze, confidence, hints } => {
-            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints)
+        Commands::Import { input, output, max_colors, name, analyze, confidence, hints, shapes } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints, shapes)
         }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
@@ -2174,6 +2178,7 @@ fn run_import(
     analyze: bool,
     confidence: f64,
     hints: bool,
+    shapes: bool,
 ) -> ExitCode {
     // Validate max_colors
     if !(2..=256).contains(&max_colors) {
@@ -2197,6 +2202,7 @@ fn run_import(
         analyze,
         confidence_threshold: confidence,
         hints,
+        extract_shapes: shapes,
     };
 
     let result = match crate::import::import_png_with_options(input, &name, max_colors, &options) {
@@ -2260,6 +2266,33 @@ fn run_import(
                     println!("    {}: {}", hint.token, hint.suggested_name);
                 }
             }
+        }
+    }
+
+    // Print shape extraction results
+    if shapes {
+        if let Some(ref structured) = result.structured_regions {
+            let mut rects = 0;
+            let mut polys = 0;
+            let mut points = 0;
+            for region in structured.values() {
+                match region {
+                    crate::import::StructuredRegion::Rect(_) => rects += 1,
+                    crate::import::StructuredRegion::Polygon(_) => polys += 1,
+                    crate::import::StructuredRegion::Points(_) => points += 1,
+                    crate::import::StructuredRegion::Union(sub) => {
+                        for s in sub {
+                            match s {
+                                crate::import::StructuredRegion::Rect(_) => rects += 1,
+                                crate::import::StructuredRegion::Polygon(_) => polys += 1,
+                                crate::import::StructuredRegion::Points(_) => points += 1,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            println!("  Shapes extracted: {} rects, {} polygons, {} point arrays", rects, polys, points);
         }
     }
 

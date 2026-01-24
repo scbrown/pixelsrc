@@ -16,6 +16,19 @@ use crate::analyze::{
 };
 use crate::models::{RelationshipType, Role};
 
+/// A structured region representation extracted from points.
+#[derive(Debug, Clone)]
+pub enum StructuredRegion {
+    /// A simple rectangle [x, y, width, height]
+    Rect([u32; 4]),
+    /// A polygon defined by vertices
+    Polygon(Vec<[i32; 2]>),
+    /// A union of multiple shapes
+    Union(Vec<StructuredRegion>),
+    /// Raw points (fallback when no structure detected)
+    Points(Vec<[u32; 2]>),
+}
+
 /// Options for PNG import.
 #[derive(Debug, Clone, Default)]
 pub struct ImportOptions {
@@ -25,6 +38,8 @@ pub struct ImportOptions {
     pub confidence_threshold: f64,
     /// Generate token naming hints
     pub hints: bool,
+    /// Extract structured regions (polygons, rects) instead of raw points
+    pub extract_shapes: bool,
 }
 
 /// A naming hint for a token based on detected features.
@@ -64,8 +79,10 @@ pub struct ImportResult {
     pub palette: HashMap<String, String>,
     /// Grid rows with token sequences (legacy format).
     pub grid: Vec<String>,
-    /// Region definitions for each token (v2 format).
+    /// Region definitions for each token (v2 format) - raw points.
     pub regions: HashMap<String, Vec<[u32; 2]>>,
+    /// Structured region definitions (polygons, rects, unions).
+    pub structured_regions: Option<HashMap<String, StructuredRegion>>,
     /// Analysis results (if analysis was enabled).
     pub analysis: Option<ImportAnalysis>,
 }
@@ -134,14 +151,18 @@ impl ImportResult {
             }
         }
 
-        // Build regions object
-        let regions: HashMap<String, serde_json::Value> = self
-            .regions
-            .iter()
-            .map(|(token, points)| {
-                (token.clone(), serde_json::json!({ "points": points }))
-            })
-            .collect();
+        // Build regions object - use structured regions if available
+        let regions: HashMap<String, serde_json::Value> = if let Some(ref structured) = self.structured_regions {
+            structured
+                .iter()
+                .map(|(token, region)| (token.clone(), region.to_json()))
+                .collect()
+        } else {
+            self.regions
+                .iter()
+                .map(|(token, points)| (token.clone(), serde_json::json!({ "points": points })))
+                .collect()
+        };
 
         let mut sprite_obj = serde_json::json!({
             "type": "sprite",
@@ -165,6 +186,252 @@ impl ImportResult {
         }
 
         format!("{}\n{}", palette_obj, sprite_obj)
+    }
+}
+
+/// Extract structured regions from point arrays.
+///
+/// This converts raw point data into higher-level primitives:
+/// - Rectangles for rectangular regions
+/// - Polygons for irregular but contiguous regions
+/// - Unions for multiple disconnected components
+pub fn extract_structured_regions(points: &[[u32; 2]], width: u32, height: u32) -> StructuredRegion {
+    if points.is_empty() {
+        return StructuredRegion::Points(vec![]);
+    }
+
+    // Convert to HashSet for efficient lookups
+    let point_set: HashSet<(u32, u32)> = points.iter().map(|p| (p[0], p[1])).collect();
+
+    // Find connected components using flood fill
+    let components = find_connected_components(&point_set);
+
+    if components.is_empty() {
+        return StructuredRegion::Points(points.to_vec());
+    }
+
+    // Convert each component to a structured region
+    let mut structured: Vec<StructuredRegion> = Vec::new();
+
+    for component in components {
+        if component.len() < 3 {
+            // Too small for polygon, keep as points
+            let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
+            structured.push(StructuredRegion::Points(pts));
+            continue;
+        }
+
+        // Check if it's a rectangle
+        if let Some(rect) = try_extract_rect(&component) {
+            structured.push(StructuredRegion::Rect(rect));
+            continue;
+        }
+
+        // Extract polygon boundary
+        if let Some(polygon) = extract_polygon_boundary(&component) {
+            structured.push(StructuredRegion::Polygon(polygon));
+        } else {
+            // Fallback to points
+            let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
+            structured.push(StructuredRegion::Points(pts));
+        }
+    }
+
+    // Return single region or union
+    if structured.len() == 1 {
+        structured.pop().unwrap()
+    } else {
+        StructuredRegion::Union(structured)
+    }
+}
+
+/// Find connected components in a set of points using 4-connectivity.
+fn find_connected_components(points: &HashSet<(u32, u32)>) -> Vec<HashSet<(u32, u32)>> {
+    let mut remaining: HashSet<(u32, u32)> = points.clone();
+    let mut components = Vec::new();
+
+    while !remaining.is_empty() {
+        let start = *remaining.iter().next().unwrap();
+        let mut component = HashSet::new();
+        let mut queue = vec![start];
+
+        while let Some(p) = queue.pop() {
+            if remaining.remove(&p) {
+                component.insert(p);
+
+                // Check 4-connected neighbors
+                let (x, y) = p;
+                for (dx, dy) in &[(0i32, 1i32), (0, -1), (1, 0), (-1, 0)] {
+                    let nx = (x as i32 + dx) as u32;
+                    let ny = (y as i32 + dy) as u32;
+                    if remaining.contains(&(nx, ny)) {
+                        queue.push((nx, ny));
+                    }
+                }
+            }
+        }
+
+        if !component.is_empty() {
+            components.push(component);
+        }
+    }
+
+    components
+}
+
+/// Try to extract a rectangle from a component.
+/// Returns Some([x, y, width, height]) if the component is rectangular.
+fn try_extract_rect(component: &HashSet<(u32, u32)>) -> Option<[u32; 4]> {
+    if component.is_empty() {
+        return None;
+    }
+
+    let min_x = component.iter().map(|(x, _)| *x).min().unwrap();
+    let max_x = component.iter().map(|(x, _)| *x).max().unwrap();
+    let min_y = component.iter().map(|(_, y)| *y).min().unwrap();
+    let max_y = component.iter().map(|(_, y)| *y).max().unwrap();
+
+    let width = max_x - min_x + 1;
+    let height = max_y - min_y + 1;
+    let expected_size = (width * height) as usize;
+
+    // Check if all pixels in the bounding box are present
+    if component.len() == expected_size {
+        Some([min_x, min_y, width, height])
+    } else {
+        None
+    }
+}
+
+/// Extract a polygon boundary from a component using edge tracing.
+fn extract_polygon_boundary(component: &HashSet<(u32, u32)>) -> Option<Vec<[i32; 2]>> {
+    if component.len() < 3 {
+        return None;
+    }
+
+    // Find bounding box
+    let min_x = component.iter().map(|(x, _)| *x).min().unwrap();
+    let max_x = component.iter().map(|(x, _)| *x).max().unwrap();
+    let min_y = component.iter().map(|(_, y)| *y).min().unwrap();
+    let max_y = component.iter().map(|(_, y)| *y).max().unwrap();
+
+    // Group points by y coordinate to find left and right edges
+    let mut by_y: HashMap<u32, Vec<u32>> = HashMap::new();
+    for &(x, y) in component {
+        by_y.entry(y).or_default().push(x);
+    }
+
+    // Build left and right edges
+    let mut left_edge: Vec<[i32; 2]> = Vec::new();
+    let mut right_edge: Vec<[i32; 2]> = Vec::new();
+
+    for y in min_y..=max_y {
+        if let Some(xs) = by_y.get(&y) {
+            let min_x = *xs.iter().min().unwrap();
+            let max_x = *xs.iter().max().unwrap();
+            left_edge.push([min_x as i32, y as i32]);
+            right_edge.push([max_x as i32, y as i32]);
+        }
+    }
+
+    // Simplify edges using Douglas-Peucker algorithm
+    let left_simple = douglas_peucker(&left_edge, 1.5);
+    let right_simple = douglas_peucker(&right_edge, 1.5);
+
+    // Combine into closed polygon (left edge top-to-bottom, right edge bottom-to-top)
+    let mut polygon = left_simple;
+    polygon.extend(right_simple.into_iter().rev());
+
+    // Remove duplicate consecutive points
+    polygon.dedup();
+
+    // Limit polygon size for sanity
+    if polygon.len() > 50 {
+        // Subsample
+        let step = polygon.len() / 30;
+        polygon = polygon.into_iter().step_by(step.max(1)).collect();
+    }
+
+    if polygon.len() >= 3 {
+        Some(polygon)
+    } else {
+        None
+    }
+}
+
+/// Douglas-Peucker line simplification algorithm.
+fn douglas_peucker(points: &[[i32; 2]], epsilon: f64) -> Vec<[i32; 2]> {
+    if points.len() < 3 {
+        return points.to_vec();
+    }
+
+    // Find the point with maximum distance from the line
+    let start = points[0];
+    let end = points[points.len() - 1];
+
+    let mut max_dist = 0.0f64;
+    let mut max_idx = 0;
+
+    for (i, point) in points.iter().enumerate().skip(1).take(points.len() - 2) {
+        let dist = perpendicular_distance(point, &start, &end);
+        if dist > max_dist {
+            max_dist = dist;
+            max_idx = i;
+        }
+    }
+
+    if max_dist > epsilon {
+        // Recursively simplify
+        let mut left = douglas_peucker(&points[..=max_idx], epsilon);
+        let right = douglas_peucker(&points[max_idx..], epsilon);
+
+        left.pop(); // Remove duplicate point
+        left.extend(right);
+        left
+    } else {
+        // Return just endpoints
+        vec![start, end]
+    }
+}
+
+/// Calculate perpendicular distance from a point to a line.
+fn perpendicular_distance(point: &[i32; 2], line_start: &[i32; 2], line_end: &[i32; 2]) -> f64 {
+    let dx = line_end[0] - line_start[0];
+    let dy = line_end[1] - line_start[1];
+
+    let len_sq = (dx * dx + dy * dy) as f64;
+    if len_sq == 0.0 {
+        // Line is a point
+        let px = point[0] - line_start[0];
+        let py = point[1] - line_start[1];
+        return ((px * px + py * py) as f64).sqrt();
+    }
+
+    // Project point onto line
+    let t = ((point[0] - line_start[0]) * dx + (point[1] - line_start[1]) * dy) as f64 / len_sq;
+    let t = t.clamp(0.0, 1.0);
+
+    let proj_x = line_start[0] as f64 + t * dx as f64;
+    let proj_y = line_start[1] as f64 + t * dy as f64;
+
+    let dist_x = point[0] as f64 - proj_x;
+    let dist_y = point[1] as f64 - proj_y;
+
+    (dist_x * dist_x + dist_y * dist_y).sqrt()
+}
+
+impl StructuredRegion {
+    /// Convert to JSON value for serialization.
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            StructuredRegion::Rect(r) => serde_json::json!({ "rect": r }),
+            StructuredRegion::Polygon(p) => serde_json::json!({ "polygon": p }),
+            StructuredRegion::Union(regions) => {
+                let shapes: Vec<serde_json::Value> = regions.iter().map(|r| r.to_json()).collect();
+                serde_json::json!({ "union": shapes })
+            }
+            StructuredRegion::Points(p) => serde_json::json!({ "points": p }),
+        }
     }
 }
 
@@ -479,6 +746,20 @@ pub fn import_png_with_options<P: AsRef<Path>>(
         None
     };
 
+    // Extract structured regions if requested
+    let structured_regions = if options.extract_shapes {
+        Some(
+            regions
+                .iter()
+                .map(|(token, points)| {
+                    (token.clone(), extract_structured_regions(points, width, height))
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+
     Ok(ImportResult {
         name: name.to_string(),
         width,
@@ -486,6 +767,7 @@ pub fn import_png_with_options<P: AsRef<Path>>(
         palette,
         grid,
         regions,
+        structured_regions,
         analysis,
     })
 }
