@@ -221,31 +221,15 @@ pub fn extract_structured_regions(points: &[[u32; 2]], width: u32, height: u32) 
             continue;
         }
 
-        // Check if it's a rectangle
+        // Check if it's a rectangle (only use rects, not polygons, for pixel-perfect accuracy)
         if let Some(rect) = try_extract_rect(&component) {
             structured.push(StructuredRegion::Rect(rect));
             continue;
         }
 
-        // Extract polygon boundary and validate it matches the original shape
-        if let Some(polygon) = extract_polygon_boundary(&component) {
-            // Validate the polygon covers the same pixels as the original
-            let polygon_pixels = rasterize_polygon(&polygon);
-            let coverage = calculate_coverage(&component, &polygon_pixels);
-
-            // Only use polygon if coverage is good (>= 90% overlap)
-            if coverage >= 0.90 {
-                structured.push(StructuredRegion::Polygon(polygon));
-            } else {
-                // Poor coverage, fall back to points
-                let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
-                structured.push(StructuredRegion::Points(pts));
-            }
-        } else {
-            // Fallback to points
-            let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
-            structured.push(StructuredRegion::Points(pts));
-        }
+        // Fall back to points for non-rectangular shapes
+        let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
+        structured.push(StructuredRegion::Points(pts));
     }
 
     // Return single region or union
