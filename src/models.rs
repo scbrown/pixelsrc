@@ -265,6 +265,37 @@ impl ColorRamp {
     }
 }
 
+/// Semantic role for a color token in a palette.
+///
+/// Roles provide semantic meaning to tokens, enabling tools to understand
+/// the purpose of each color in the palette.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    /// Boundary/outline color (edges, borders)
+    Boundary,
+    /// Anchor/key color (main identifying color)
+    Anchor,
+    /// Fill color (interior regions)
+    Fill,
+    /// Shadow color (darker variants for depth)
+    Shadow,
+    /// Highlight color (lighter variants for emphasis)
+    Highlight,
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Role::Boundary => write!(f, "boundary"),
+            Role::Anchor => write!(f, "anchor"),
+            Role::Fill => write!(f, "fill"),
+            Role::Shadow => write!(f, "shadow"),
+            Role::Highlight => write!(f, "highlight"),
+        }
+    }
+}
+
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
@@ -275,6 +306,9 @@ pub struct Palette {
     /// Color ramps for automatic generation of shadow/highlight variants
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub ramps: Option<HashMap<String, ColorRamp>>,
+    /// Semantic roles for tokens (maps token to its role)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub roles: Option<HashMap<String, Role>>,
 }
 
 /// Reference to a palette - either a named reference or inline definition.
@@ -1243,6 +1277,122 @@ mod tests {
         let json = serde_json::to_string(&palette).unwrap();
         let parsed: Palette = serde_json::from_str(&json).unwrap();
         assert_eq!(palette, parsed);
+    }
+
+    #[test]
+    fn test_role_enum_values() {
+        // Test all Role enum values
+        assert_eq!(Role::Boundary.to_string(), "boundary");
+        assert_eq!(Role::Anchor.to_string(), "anchor");
+        assert_eq!(Role::Fill.to_string(), "fill");
+        assert_eq!(Role::Shadow.to_string(), "shadow");
+        assert_eq!(Role::Highlight.to_string(), "highlight");
+    }
+
+    #[test]
+    fn test_role_serialization() {
+        // Test that Role serializes to lowercase
+        let role = Role::Boundary;
+        let json = serde_json::to_string(&role).unwrap();
+        assert_eq!(json, "\"boundary\"");
+
+        let role = Role::Highlight;
+        let json = serde_json::to_string(&role).unwrap();
+        assert_eq!(json, "\"highlight\"");
+    }
+
+    #[test]
+    fn test_role_deserialization() {
+        // Test that Role deserializes from lowercase
+        let role: Role = serde_json::from_str("\"boundary\"").unwrap();
+        assert_eq!(role, Role::Boundary);
+
+        let role: Role = serde_json::from_str("\"anchor\"").unwrap();
+        assert_eq!(role, Role::Anchor);
+
+        let role: Role = serde_json::from_str("\"fill\"").unwrap();
+        assert_eq!(role, Role::Fill);
+
+        let role: Role = serde_json::from_str("\"shadow\"").unwrap();
+        assert_eq!(role, Role::Shadow);
+
+        let role: Role = serde_json::from_str("\"highlight\"").unwrap();
+        assert_eq!(role, Role::Highlight);
+    }
+
+    #[test]
+    fn test_invalid_role_deserialization() {
+        // Test that invalid role values fail to deserialize
+        let result: Result<Role, _> = serde_json::from_str("\"invalid\"");
+        assert!(result.is_err());
+
+        let result: Result<Role, _> = serde_json::from_str("\"BOUNDARY\"");
+        assert!(result.is_err(), "Role should be case-sensitive (lowercase only)");
+    }
+
+    #[test]
+    fn test_palette_with_roles_roundtrip() {
+        let palette = Palette {
+            name: "character".to_string(),
+            colors: HashMap::from([
+                ("{outline}".to_string(), "#000000".to_string()),
+                ("{skin}".to_string(), "#E8B89D".to_string()),
+                ("{skin_shadow}".to_string(), "#C49A82".to_string()),
+                ("{skin_highlight}".to_string(), "#FFD4BB".to_string()),
+            ]),
+            roles: Some(HashMap::from([
+                ("{outline}".to_string(), Role::Boundary),
+                ("{skin}".to_string(), Role::Anchor),
+                ("{skin_shadow}".to_string(), Role::Shadow),
+                ("{skin_highlight}".to_string(), Role::Highlight),
+            ])),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&palette).unwrap();
+        let parsed: Palette = serde_json::from_str(&json).unwrap();
+        assert_eq!(palette, parsed);
+    }
+
+    #[test]
+    fn test_palette_roles_json_parsing() {
+        // Test parsing palette with roles from JSON
+        let json = r##"{
+            "name": "skin",
+            "colors": {
+                "{base}": "#E8B89D",
+                "{shadow}": "#C49A82",
+                "{highlight}": "#FFD4BB"
+            },
+            "roles": {
+                "{base}": "anchor",
+                "{shadow}": "shadow",
+                "{highlight}": "highlight"
+            }
+        }"##;
+        let palette: Palette = serde_json::from_str(json).unwrap();
+        assert_eq!(palette.name, "skin");
+        assert_eq!(palette.colors.len(), 3);
+
+        let roles = palette.roles.unwrap();
+        assert_eq!(roles.len(), 3);
+        assert_eq!(roles.get("{base}"), Some(&Role::Anchor));
+        assert_eq!(roles.get("{shadow}"), Some(&Role::Shadow));
+        assert_eq!(roles.get("{highlight}"), Some(&Role::Highlight));
+    }
+
+    #[test]
+    fn test_ttp_object_palette_with_roles() {
+        let json = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "boundary", "{b}": "fill"}}"##;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Palette(palette) => {
+                assert_eq!(palette.name, "test");
+                let roles = palette.roles.unwrap();
+                assert_eq!(roles.get("{a}"), Some(&Role::Boundary));
+                assert_eq!(roles.get("{b}"), Some(&Role::Fill));
+            }
+            _ => panic!("Expected palette"),
+        }
     }
 
     #[test]

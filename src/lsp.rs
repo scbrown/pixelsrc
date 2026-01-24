@@ -378,8 +378,8 @@ impl PixelsrcLanguageServer {
 
     /// Collect all defined tokens from palettes in the document
     ///
-    /// Returns a list of (token, color) pairs from all palette definitions.
-    fn collect_defined_tokens(content: &str) -> Vec<(String, String)> {
+    /// Returns a list of (token, color, optional_role) tuples from all palette definitions.
+    fn collect_defined_tokens(content: &str) -> Vec<(String, String, Option<String>)> {
         let mut tokens = Vec::new();
 
         for line in content.lines() {
@@ -410,6 +410,9 @@ impl PixelsrcLanguageServer {
                 None => continue,
             };
 
+            // Get the roles object (if present)
+            let roles = obj.get("roles").and_then(|r| r.as_object());
+
             // Extract tokens (keys starting with '{' and ending with '}')
             for (key, value) in colors {
                 if key.starts_with('{') && key.ends_with('}') {
@@ -417,7 +420,12 @@ impl PixelsrcLanguageServer {
                         Some(s) => s.to_string(),
                         None => continue,
                     };
-                    tokens.push((key.clone(), color_str));
+                    // Look up role for this token
+                    let role = roles
+                        .and_then(|r| r.get(key))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    tokens.push((key.clone(), color_str, role));
                 }
             }
         }
@@ -1274,10 +1282,14 @@ impl LanguageServer for PixelsrcLanguageServer {
         });
 
         // Add defined tokens from palettes
-        for (token, color) in defined_tokens {
+        for (token, color, role) in defined_tokens {
+            let detail = match role {
+                Some(r) => format!("{} ({})", color, r),
+                None => color,
+            };
             completions.push(CompletionItem {
                 label: token.clone(),
-                detail: Some(color),
+                detail: Some(detail),
                 kind: Some(CompletionItemKind::COLOR),
                 insert_text: Some(token),
                 ..Default::default()
@@ -1575,8 +1587,8 @@ mod tests {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
 
         assert_eq!(tokens.len(), 2); // Only {a} and {b}, not --var
-        assert!(tokens.iter().any(|(t, c)| t == "{a}" && c == "#FF0000"));
-        assert!(tokens.iter().any(|(t, c)| t == "{b}" && c == "#00FF00"));
+        assert!(tokens.iter().any(|(t, c, _)| t == "{a}" && c == "#FF0000"));
+        assert!(tokens.iter().any(|(t, c, _)| t == "{b}" && c == "#00FF00"));
     }
 
     #[test]
@@ -1587,8 +1599,8 @@ mod tests {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
 
         assert_eq!(tokens.len(), 2);
-        assert!(tokens.iter().any(|(t, _)| t == "{red}"));
-        assert!(tokens.iter().any(|(t, _)| t == "{blue}"));
+        assert!(tokens.iter().any(|(t, _, _)| t == "{red}"));
+        assert!(tokens.iter().any(|(t, _, _)| t == "{blue}"));
     }
 
     #[test]
@@ -1602,6 +1614,36 @@ mod tests {
     fn test_collect_defined_tokens_empty_content() {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens("");
         assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_with_roles() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{outline}": "#000000", "{fill}": "#FF0000"}, "roles": {"{outline}": "boundary", "{fill}": "fill"}}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2);
+        let outline_token = tokens.iter().find(|(t, _, _)| t == "{outline}");
+        assert!(outline_token.is_some());
+        assert_eq!(outline_token.unwrap().2, Some("boundary".to_string()));
+
+        let fill_token = tokens.iter().find(|(t, _, _)| t == "{fill}");
+        assert!(fill_token.is_some());
+        assert_eq!(fill_token.unwrap().2, Some("fill".to_string()));
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_partial_roles() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "anchor"}}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2);
+        let a_token = tokens.iter().find(|(t, _, _)| t == "{a}");
+        assert!(a_token.is_some());
+        assert_eq!(a_token.unwrap().2, Some("anchor".to_string()));
+
+        let b_token = tokens.iter().find(|(t, _, _)| t == "{b}");
+        assert!(b_token.is_some());
+        assert_eq!(b_token.unwrap().2, None); // {b} has no role
     }
 
     // === Document Symbol Tests ===

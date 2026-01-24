@@ -4,7 +4,7 @@
 //! common mistakes like undefined tokens, row mismatches, and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{PaletteRef, Particle, TtpObject};
+use crate::models::{Palette, PaletteRef, Particle, TtpObject};
 use crate::tokenizer::tokenize;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -51,6 +51,8 @@ pub enum IssueType {
     EmptyGrid,
     /// Multiple objects with the same name
     DuplicateName,
+    /// Role references a token not defined in palette colors
+    InvalidRoleToken,
 }
 
 impl std::fmt::Display for IssueType {
@@ -66,6 +68,7 @@ impl std::fmt::Display for IssueType {
             IssueType::SizeMismatch => write!(f, "size_mismatch"),
             IssueType::EmptyGrid => write!(f, "empty_grid"),
             IssueType::DuplicateName => write!(f, "duplicate_name"),
+            IssueType::InvalidRoleToken => write!(f, "invalid_role_token"),
         }
     }
 }
@@ -258,7 +261,7 @@ impl Validator {
         // Validate based on object type
         match ttp_obj {
             TtpObject::Palette(palette) => {
-                self.validate_palette(line_number, &palette.name, &palette.colors);
+                self.validate_palette(line_number, &palette);
             }
             TtpObject::Sprite(sprite) => {
                 self.validate_sprite(line_number, &sprite);
@@ -311,12 +314,10 @@ impl Validator {
     }
 
     /// Validate a palette definition
-    fn validate_palette(
-        &mut self,
-        line_number: usize,
-        name: &str,
-        colors: &HashMap<String, String>,
-    ) {
+    fn validate_palette(&mut self, line_number: usize, palette: &Palette) {
+        let name = &palette.name;
+        let colors = &palette.colors;
+
         // Check for duplicate name
         if !self.palette_names.insert(name.to_string()) {
             self.issues.push(
@@ -344,6 +345,25 @@ impl Validator {
                     )
                     .with_context(format!("palette \"{}\"", name)),
                 );
+            }
+        }
+
+        // Validate role token references
+        if let Some(roles) = &palette.roles {
+            for (token, role) in roles {
+                if !defined_tokens.contains(token) {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::InvalidRoleToken,
+                            format!(
+                                "Role \"{}\" references undefined token {}",
+                                role, token
+                            ),
+                        )
+                        .with_context(format!("palette \"{}\"", name)),
+                    );
+                }
             }
         }
 
@@ -1158,5 +1178,61 @@ mod tests {
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");
+    }
+
+    #[test]
+    fn test_validate_palette_with_valid_roles() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "boundary", "{b}": "fill"}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Valid roles should not produce issues");
+    }
+
+    #[test]
+    fn test_validate_palette_with_invalid_role_token() {
+        let mut validator = Validator::new();
+        // Role references {c} which is not defined in colors
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "roles": {"{c}": "boundary"}}"##,
+        );
+
+        let invalid_role_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRoleToken)
+            .collect();
+        assert_eq!(invalid_role_issues.len(), 1);
+        assert!(invalid_role_issues[0].message.contains("{c}"));
+        assert!(invalid_role_issues[0].message.contains("boundary"));
+    }
+
+    #[test]
+    fn test_validate_palette_with_multiple_invalid_role_tokens() {
+        let mut validator = Validator::new();
+        // Roles reference {b} and {c} which are not defined in colors
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "roles": {"{b}": "shadow", "{c}": "highlight"}}"##,
+        );
+
+        let invalid_role_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRoleToken)
+            .collect();
+        assert_eq!(invalid_role_issues.len(), 2);
+    }
+
+    #[test]
+    fn test_validate_palette_with_all_role_types() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF", "{d}": "#FFFF00", "{e}": "#FF00FF"}, "roles": {"{a}": "boundary", "{b}": "anchor", "{c}": "fill", "{d}": "shadow", "{e}": "highlight"}}"##,
+        );
+        assert!(validator.issues().is_empty(), "All valid role types should be accepted");
     }
 }
