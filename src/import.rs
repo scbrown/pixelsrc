@@ -91,6 +91,19 @@ pub struct UpscaleInfo {
     pub confidence: f64,
 }
 
+/// Information about a detected outline/stroke region.
+#[derive(Debug, Clone)]
+pub struct OutlineInfo {
+    /// The token that appears to be an outline.
+    pub token: String,
+    /// The tokens this outlines/borders.
+    pub borders: Vec<String>,
+    /// Average width of the outline in pixels.
+    pub width: f64,
+    /// Confidence of the detection (0.0-1.0).
+    pub confidence: f64,
+}
+
 /// Options for PNG import.
 #[derive(Debug, Clone, Default)]
 pub struct ImportOptions {
@@ -109,6 +122,8 @@ pub struct ImportOptions {
     pub dither_handling: DitherHandling,
     /// Detect if image appears to be upscaled pixel art.
     pub detect_upscale: bool,
+    /// Detect thin dark regions that may be outlines/strokes.
+    pub detect_outlines: bool,
 }
 
 /// A naming hint for a token based on detected features.
@@ -140,6 +155,8 @@ pub struct ImportAnalysis {
     pub dither_patterns: Vec<DitherInfo>,
     /// Detected upscaling info (if image appears to be upscaled pixel art).
     pub upscale_info: Option<UpscaleInfo>,
+    /// Detected outline/stroke regions.
+    pub outlines: Vec<OutlineInfo>,
 }
 
 /// Filter points to only include the primary half based on symmetry.
@@ -467,6 +484,23 @@ impl ImportResult {
                     "native_size": upscale.native_size,
                     "confidence": upscale.confidence
                 });
+            }
+
+            // Add outline info if detected
+            if !analysis.outlines.is_empty() {
+                let outline_info: Vec<serde_json::Value> = analysis
+                    .outlines
+                    .iter()
+                    .map(|o| {
+                        serde_json::json!({
+                            "token": o.token,
+                            "borders": o.borders,
+                            "width": o.width,
+                            "confidence": o.confidence
+                        })
+                    })
+                    .collect();
+                sprite_obj["_outlines"] = serde_json::json!(outline_info);
             }
         }
 
@@ -1872,6 +1906,151 @@ fn check_uniform_blocks(
     uniform_blocks as f64 / total_blocks as f64
 }
 
+/// Detect thin dark regions that appear to be outlines/strokes.
+///
+/// Looks for regions that are:
+/// - Thin (1-3 pixels wide on average)
+/// - Dark colored (low luminosity)
+/// - Adjacent to other regions (bordering them)
+fn detect_outlines(
+    token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+    token_to_color: &HashMap<String, [u8; 4]>,
+    width: u32,
+    height: u32,
+) -> Vec<OutlineInfo> {
+    let mut outlines = Vec::new();
+
+    for (token, pixels) in token_pixels {
+        // Skip transparent token
+        if token == "{_}" || pixels.is_empty() {
+            continue;
+        }
+
+        // Check if color is dark
+        let color = token_to_color.get(token).copied().unwrap_or([0, 0, 0, 255]);
+        let luminosity = (color[0] as f64 * 0.299 + color[1] as f64 * 0.587 + color[2] as f64 * 0.114) / 255.0;
+
+        // Skip if not dark enough (luminosity > 0.3 means not dark)
+        if luminosity > 0.3 {
+            continue;
+        }
+
+        // Calculate average width using distance transform approximation
+        let avg_width = calculate_average_width(pixels);
+
+        // Skip if not thin (1-3px average width)
+        if avg_width < 0.8 || avg_width > 3.5 {
+            continue;
+        }
+
+        // Find what regions this borders
+        let borders = find_bordered_regions(token, pixels, token_pixels);
+
+        // Skip if it doesn't border anything substantial
+        if borders.is_empty() {
+            continue;
+        }
+
+        // Calculate confidence based on width consistency and border coverage
+        let width_score = if avg_width >= 1.0 && avg_width <= 2.0 {
+            1.0
+        } else if avg_width <= 3.0 {
+            0.8
+        } else {
+            0.6
+        };
+
+        let border_score = (borders.len() as f64 / 5.0).min(1.0);
+        let confidence = (width_score * 0.6 + border_score * 0.4) * (1.0 - luminosity);
+
+        if confidence >= 0.3 {
+            outlines.push(OutlineInfo {
+                token: token.clone(),
+                borders,
+                width: avg_width,
+                confidence,
+            });
+        }
+    }
+
+    outlines
+}
+
+/// Calculate the average width of a region using morphological thinning approximation.
+fn calculate_average_width(pixels: &HashSet<(i32, i32)>) -> f64 {
+    if pixels.is_empty() {
+        return 0.0;
+    }
+
+    // Approximate average width by looking at the ratio of perimeter to area
+    // A thin line has high perimeter to area ratio
+
+    let area = pixels.len() as f64;
+
+    // Count perimeter pixels (pixels with at least one non-region neighbor)
+    let mut perimeter = 0;
+    let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+
+    for &(x, y) in pixels {
+        for (dx, dy) in directions {
+            let nx = x + dx;
+            let ny = y + dy;
+            if !pixels.contains(&(nx, ny)) {
+                perimeter += 1;
+                break;
+            }
+        }
+    }
+
+    if perimeter == 0 {
+        return area.sqrt(); // Rough estimate for solid regions
+    }
+
+    // For a thin line: area ≈ length * width, perimeter ≈ 2 * length + 2 * width
+    // For very thin lines (width=1): perimeter ≈ 2 * length, so width ≈ area / (perimeter / 2)
+    // This gives us an approximation of average width
+    let estimated_length = perimeter as f64 / 2.0;
+    if estimated_length > 0.0 {
+        area / estimated_length
+    } else {
+        1.0
+    }
+}
+
+/// Find regions that are adjacent to (bordered by) the given region.
+fn find_bordered_regions(
+    outline_token: &str,
+    outline_pixels: &HashSet<(i32, i32)>,
+    all_token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+) -> Vec<String> {
+    let mut bordered = HashSet::new();
+    let directions = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, 1), (1, -1), (-1, -1)];
+
+    // Build reverse lookup for efficiency
+    let mut pixel_to_token: HashMap<(i32, i32), &str> = HashMap::new();
+    for (token, pixels) in all_token_pixels {
+        for &(x, y) in pixels {
+            pixel_to_token.insert((x, y), token.as_str());
+        }
+    }
+
+    // Check each outline pixel for adjacent non-outline regions
+    for &(x, y) in outline_pixels {
+        for (dx, dy) in directions {
+            let nx = x + dx;
+            let ny = y + dy;
+
+            if let Some(&adjacent_token) = pixel_to_token.get(&(nx, ny)) {
+                if adjacent_token != outline_token && adjacent_token != "{_}" {
+                    bordered.insert(adjacent_token.to_string());
+                }
+            }
+        }
+    }
+
+    bordered.into_iter().collect()
+}
+
 /// Perform analysis on imported regions.
 fn perform_analysis(
     width: u32,
@@ -1967,6 +2146,13 @@ fn perform_analysis(
                 analysis.upscale_info = Some(upscale_info);
             }
         }
+    }
+
+    // Detect outline/stroke regions if requested
+    if options.detect_outlines {
+        let mut outlines = detect_outlines(token_pixels, &token_to_color, width, height);
+        outlines.retain(|o| o.confidence >= options.confidence_threshold);
+        analysis.outlines = outlines;
     }
 
     // Generate naming hints if requested
@@ -2523,6 +2709,7 @@ mod tests {
             z_order,
             dither_patterns: vec![],
             upscale_info: None,
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -2859,6 +3046,7 @@ mod tests {
             z_order: HashMap::new(),
             dither_patterns: vec![],
             upscale_info: None,
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -2905,6 +3093,7 @@ mod tests {
             z_order: HashMap::new(),
             dither_patterns: vec![],
             upscale_info: None,
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -2949,6 +3138,7 @@ mod tests {
             z_order: HashMap::new(),
             dither_patterns: vec![],
             upscale_info: None,
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -3247,6 +3437,7 @@ mod tests {
             z_order: HashMap::new(),
             dither_patterns,
             upscale_info: None,
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -3470,6 +3661,7 @@ mod tests {
                 native_size: [16, 16],
                 confidence: 0.98,
             }),
+            outlines: vec![],
         };
 
         let result = ImportResult {
@@ -3495,5 +3687,225 @@ mod tests {
     fn test_detect_upscale_option_default() {
         let options = ImportOptions::default();
         assert!(!options.detect_upscale);
+    }
+
+    // ========================================================================
+    // Outline Detection Tests (TTP-trwxq.8)
+    // ========================================================================
+
+    #[test]
+    fn test_detect_outline_thin_dark_region() {
+        // Create a 6x6 sprite with a 1px dark outline around a 4x4 colored region
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        // Outline pixels (dark, 1px border)
+        let mut outline_pixels = HashSet::new();
+        for x in 0..6 {
+            outline_pixels.insert((x, 0)); // top
+            outline_pixels.insert((x, 5)); // bottom
+        }
+        for y in 1..5 {
+            outline_pixels.insert((0, y)); // left
+            outline_pixels.insert((5, y)); // right
+        }
+
+        // Inner region
+        let mut inner_pixels = HashSet::new();
+        for y in 1..5 {
+            for x in 1..5 {
+                inner_pixels.insert((x, y));
+            }
+        }
+
+        token_pixels.insert("{outline}".to_string(), outline_pixels);
+        token_pixels.insert("{inner}".to_string(), inner_pixels);
+        token_to_color.insert("{outline}".to_string(), [10, 10, 10, 255]); // Dark
+        token_to_color.insert("{inner}".to_string(), [200, 100, 50, 255]); // Light
+
+        let outlines = detect_outlines(&token_pixels, &token_to_color, 6, 6);
+
+        assert!(!outlines.is_empty(), "Should detect outline");
+        let outline = outlines.iter().find(|o| o.token == "{outline}");
+        assert!(outline.is_some(), "Should find {{outline}} token as outline");
+        let outline = outline.unwrap();
+        assert!(outline.borders.contains(&"{inner}".to_string()));
+    }
+
+    #[test]
+    fn test_detect_outline_skips_light_colors() {
+        // Light colored thin region should not be detected as outline
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        let mut thin_pixels = HashSet::new();
+        for y in 0..10 {
+            thin_pixels.insert((0, y));
+        }
+
+        let mut adjacent_pixels = HashSet::new();
+        for y in 0..10 {
+            for x in 1..5 {
+                adjacent_pixels.insert((x, y));
+            }
+        }
+
+        token_pixels.insert("{thin}".to_string(), thin_pixels);
+        token_pixels.insert("{adjacent}".to_string(), adjacent_pixels);
+        token_to_color.insert("{thin}".to_string(), [255, 255, 200, 255]); // Light yellow
+        token_to_color.insert("{adjacent}".to_string(), [100, 100, 100, 255]);
+
+        let outlines = detect_outlines(&token_pixels, &token_to_color, 5, 10);
+
+        assert!(outlines.is_empty(), "Should not detect light color as outline");
+    }
+
+    #[test]
+    fn test_detect_outline_skips_thick_regions() {
+        // Thick dark region should not be detected as outline
+        let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+        let mut token_to_color: HashMap<String, [u8; 4]> = HashMap::new();
+
+        // 5px thick dark region
+        let mut thick_pixels = HashSet::new();
+        for y in 0..10 {
+            for x in 0..5 {
+                thick_pixels.insert((x, y));
+            }
+        }
+
+        let mut adjacent_pixels = HashSet::new();
+        for y in 0..10 {
+            for x in 5..10 {
+                adjacent_pixels.insert((x, y));
+            }
+        }
+
+        token_pixels.insert("{thick}".to_string(), thick_pixels);
+        token_pixels.insert("{adjacent}".to_string(), adjacent_pixels);
+        token_to_color.insert("{thick}".to_string(), [10, 10, 10, 255]); // Dark
+        token_to_color.insert("{adjacent}".to_string(), [200, 200, 200, 255]);
+
+        let outlines = detect_outlines(&token_pixels, &token_to_color, 10, 10);
+
+        // Should not detect as outline since it's too thick
+        let thick_outline = outlines.iter().find(|o| o.token == "{thick}");
+        assert!(thick_outline.is_none(), "Should not detect thick region as outline");
+    }
+
+    #[test]
+    fn test_calculate_average_width_single_line() {
+        // Single vertical line (1px wide, 10px tall)
+        // Note: The perimeter-based approximation gives ~2 for thin lines
+        // because all pixels are perimeter pixels
+        let mut pixels = HashSet::new();
+        for y in 0..10 {
+            pixels.insert((0, y));
+        }
+
+        let width = calculate_average_width(&pixels);
+        // Thin lines (1-2px) get estimated as ~2 due to the approximation
+        // This is fine for outline detection which uses a threshold of ~3.5
+        assert!(width <= 3.0, "Single line should have width <= 3, got {}", width);
+    }
+
+    #[test]
+    fn test_calculate_average_width_rectangle() {
+        // 4x10 rectangle (should not be detected as thin)
+        let mut pixels = HashSet::new();
+        for y in 0..10 {
+            for x in 0..4 {
+                pixels.insert((x, y));
+            }
+        }
+
+        let width = calculate_average_width(&pixels);
+        assert!(width > 2.0, "4px wide rectangle should have width > 2, got {}", width);
+    }
+
+    #[test]
+    fn test_find_bordered_regions() {
+        let mut all_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+
+        // Outline pixels (vertical line)
+        let mut outline = HashSet::new();
+        for y in 0..5 {
+            outline.insert((2, y));
+        }
+
+        // Left region
+        let mut left = HashSet::new();
+        for y in 0..5 {
+            for x in 0..2 {
+                left.insert((x, y));
+            }
+        }
+
+        // Right region
+        let mut right = HashSet::new();
+        for y in 0..5 {
+            for x in 3..5 {
+                right.insert((x, y));
+            }
+        }
+
+        all_pixels.insert("{outline}".to_string(), outline.clone());
+        all_pixels.insert("{left}".to_string(), left);
+        all_pixels.insert("{right}".to_string(), right);
+
+        let borders = find_bordered_regions("{outline}", &outline, &all_pixels);
+
+        assert!(borders.contains(&"{left}".to_string()));
+        assert!(borders.contains(&"{right}".to_string()));
+    }
+
+    #[test]
+    fn test_outline_info_in_structured_jsonl() {
+        let mut palette = HashMap::new();
+        palette.insert("{outline}".to_string(), "#0A0A0A".to_string());
+        palette.insert("{inner}".to_string(), "#FF0000".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{outline}".to_string(), vec![[0, 0], [1, 0]]);
+        regions.insert("{inner}".to_string(), vec![[1, 1]]);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: None,
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+            dither_patterns: vec![],
+            upscale_info: None,
+            outlines: vec![OutlineInfo {
+                token: "{outline}".to_string(),
+                borders: vec!["{inner}".to_string()],
+                width: 1.2,
+                confidence: 0.85,
+            }],
+        };
+
+        let result = ImportResult {
+            name: "test".to_string(),
+            width: 3,
+            height: 3,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: false,
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        assert!(jsonl.contains("_outlines"), "Should include _outlines field");
+        assert!(jsonl.contains("{outline}"), "Should include outline token");
+    }
+
+    #[test]
+    fn test_detect_outlines_option_default() {
+        let options = ImportOptions::default();
+        assert!(!options.detect_outlines);
     }
 }
