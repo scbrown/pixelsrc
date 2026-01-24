@@ -1501,8 +1501,7 @@ mod tests {
 
     #[test]
     fn test_minimal_dot_fixture() {
-        // {"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}
-        let json = r##"{"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+        let json = r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]]}}}"##;
         let obj: TtpObject = serde_json::from_str(json).unwrap();
         match obj {
             TtpObject::Sprite(sprite) => {
@@ -1510,7 +1509,7 @@ mod tests {
                 assert!(sprite.size.is_none());
                 match sprite.palette {
                     PaletteRef::Inline(colors) => {
-                        assert_eq!(colors.get("{x}"), Some(&"#FF0000".to_string()));
+                        assert_eq!(colors.get("x"), Some(&"#FF0000".to_string()));
                     }
                     _ => panic!("Expected inline palette"),
                 }

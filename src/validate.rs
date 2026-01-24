@@ -1,7 +1,7 @@
 //! Validation logic for Pixelsrc files
 //!
 //! Provides semantic validation beyond basic JSON parsing, checking for
-//! common mistakes like undefined tokens, row mismatches, and invalid colors.
+//! common mistakes like undefined tokens and invalid colors.
 
 use crate::color::parse_color;
 use crate::models::{Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject};
@@ -36,18 +36,12 @@ pub enum IssueType {
     MissingType,
     /// Line has a "type" field but value is not recognized
     UnknownType,
-    /// Token used in grid but not defined in palette
+    /// Token used in region but not defined in palette
     UndefinedToken,
-    /// Rows in a sprite have different token counts
-    RowLengthMismatch,
     /// Sprite references a palette that doesn't exist
     MissingPalette,
     /// Color value is not valid hex format
     InvalidColor,
-    /// Grid dimensions don't match declared size
-    SizeMismatch,
-    /// Sprite has no grid rows
-    EmptyGrid,
     /// Multiple objects with the same name
     DuplicateName,
     /// Role references a token not defined in palette colors
@@ -66,6 +60,8 @@ pub enum IssueType {
     CircularRelationship,
     /// Constraint validation is uncertain (e.g., overlapping regions)
     UncertainConstraint,
+    /// Range validation (reused for constraint checking)
+    RangeValidation,
 }
 
 impl std::fmt::Display for IssueType {
@@ -75,11 +71,8 @@ impl std::fmt::Display for IssueType {
             IssueType::MissingType => write!(f, "missing_type"),
             IssueType::UnknownType => write!(f, "unknown_type"),
             IssueType::UndefinedToken => write!(f, "undefined_token"),
-            IssueType::RowLengthMismatch => write!(f, "row_length"),
             IssueType::MissingPalette => write!(f, "missing_palette"),
             IssueType::InvalidColor => write!(f, "invalid_color"),
-            IssueType::SizeMismatch => write!(f, "size_mismatch"),
-            IssueType::EmptyGrid => write!(f, "empty_grid"),
             IssueType::DuplicateName => write!(f, "duplicate_name"),
             IssueType::InvalidRoleToken => write!(f, "invalid_role_token"),
             IssueType::InvalidRelationshipTarget => write!(f, "invalid_relationship_target"),
@@ -89,6 +82,7 @@ impl std::fmt::Display for IssueType {
             IssueType::InvalidRelationshipReference => write!(f, "invalid_relationship_ref"),
             IssueType::CircularRelationship => write!(f, "circular_relationship"),
             IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
+            IssueType::RangeValidation => write!(f, "range_validation"),
         }
     }
 }
@@ -327,7 +321,7 @@ impl Validator {
                 self.issues.push(
                     ValidationIssue::warning(
                         line_number,
-                        IssueType::EmptyGrid,
+                        IssueType::RangeValidation,
                         "Transform has 0 frames".to_string(),
                     )
                     .with_context(format!("transform \"{}\"", transform.name)),
@@ -535,8 +529,35 @@ impl Validator {
             );
         }
 
-        // Still validate palette tokens are defined
-        let _ = palette_tokens; // Silence unused variable warning
+        // Collect all tokens used in regions
+        let mut all_tokens_used: HashSet<String> = HashSet::new();
+        if let Some(regions) = &sprite.regions {
+            for token in regions.keys() {
+                all_tokens_used.insert(token.clone());
+            }
+        }
+
+        // Check for undefined tokens (only if we have palette info)
+        if let Some(ref defined_tokens) = palette_tokens {
+            for token in &all_tokens_used {
+                if !defined_tokens.contains(token) {
+                    let mut issue = ValidationIssue::warning(
+                        line_number,
+                        IssueType::UndefinedToken,
+                        format!("Undefined token {}", token),
+                    )
+                    .with_context(format!("sprite \"{}\"", name));
+
+                    // Try to suggest a correction
+                    let known: Vec<&str> = defined_tokens.iter().map(|s| s.as_str()).collect();
+                    if let Some(suggestion) = suggest_token(token, &known) {
+                        issue = issue.with_suggestion(format!("did you mean {}?", suggestion));
+                    }
+
+                    self.issues.push(issue);
+                }
+            }
+        }
     }
 
     /// Get tokens defined in a palette reference
@@ -694,7 +715,7 @@ impl Validator {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
-                    IssueType::SizeMismatch, // Reusing for range validation
+                    IssueType::RangeValidation,
                     format!(
                         "Particle lifetime min ({}) > max ({})",
                         particle.emitter.lifetime[0], particle.emitter.lifetime[1]
@@ -1012,8 +1033,10 @@ mod tests {
         );
         assert_eq!(validator.issues().len(), 1);
         assert_eq!(validator.issues()[0].issue_type, IssueType::InvalidColor);
-    }    #[test]
-    fn test_validate_empty_grid() {
+    }
+
+    #[test]
+    fn test_validate_no_regions() {
         let mut validator = Validator::new();
         validator.validate_line(
             1,
@@ -1021,12 +1044,30 @@ mod tests {
         );
         validator.validate_line(
             2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": []}"#,
+            r#"{"type": "sprite", "name": "test", "palette": "test"}"#,
         );
 
-        let empty_grid_issues: Vec<_> =
+        let empty_issues: Vec<_> =
             validator.issues().iter().filter(|i| i.issue_type == IssueType::EmptyGrid).collect();
-        assert_eq!(empty_grid_issues.len(), 1);
+        assert_eq!(empty_issues.len(), 1);
+    }
+
+    #[test]
+    fn test_validate_undefined_token() {
+        let mut validator = Validator::new();
+        // First define a palette
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"a": "#FF0000"}}"##,
+        );
+        // Then a sprite using undefined token (b is not in palette)
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "test", "regions": {"b": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+        assert_eq!(validator.issues().len(), 1);
+        assert_eq!(validator.issues()[0].issue_type, IssueType::UndefinedToken);
+        assert_eq!(validator.issues()[0].line, 2);
     }
 
     #[test]
@@ -1054,7 +1095,7 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_line(
             1,
-            r#"{"type": "sprite", "name": "test", "palette": "nonexistent", "grid": ["{a}"]}"#,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "nonexistent", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
         );
 
         let missing_palette_issues: Vec<_> = validator
@@ -1063,7 +1104,30 @@ mod tests {
             .filter(|i| i.issue_type == IssueType::MissingPalette)
             .collect();
         assert_eq!(missing_palette_issues.len(), 1);
-    }    #[test]
+    }
+
+    #[test]
+    fn test_validate_inline_palette() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"a": "#FF0000"}, "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
+        );
+        assert!(validator.issues().is_empty());
+    }
+
+    #[test]
+    fn test_validate_inline_palette_invalid_color() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"a": "#INVALID"}, "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
+        );
+        assert_eq!(validator.issues().len(), 1);
+        assert_eq!(validator.issues()[0].issue_type, IssueType::InvalidColor);
+    }
+
+    #[test]
     #[serial]
     #[ignore = "Grid format deprecated"]
     fn test_validate_file_errors() {
@@ -1077,20 +1141,13 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_file(fixture_path).unwrap();
 
-        // Should have warnings for undefined token {b} and row length mismatch
+        // Should have warnings for undefined tokens
         let undefined_token_issues: Vec<_> = validator
             .issues()
             .iter()
             .filter(|i| i.issue_type == IssueType::UndefinedToken)
             .collect();
-        assert!(!undefined_token_issues.is_empty(), "Expected undefined token warning for {{b}}");
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert!(!row_mismatch_issues.is_empty(), "Expected row length mismatch warning");
+        assert!(!undefined_token_issues.is_empty(), "Expected undefined token warning");
     }
 
     #[test]

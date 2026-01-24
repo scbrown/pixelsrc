@@ -100,6 +100,19 @@ pub fn rasterize_region(
         } else {
             warnings.push(Warning::new(format!("Invalid fill reference: {}", fill_ref)));
         }
+    } else if let Some(source_name) = &region.auto_shadow {
+        // Generate shadow by offsetting source region's pixels
+        if let Some(source_pixels) = all_regions.get(source_name) {
+            let offset = region.offset.unwrap_or([1, 1]);
+            for (x, y) in source_pixels {
+                pixels.insert((x + offset[0], y + offset[1]));
+            }
+        } else {
+            warnings.push(Warning::new(format!(
+                "Unknown token '{}' in auto-shadow reference",
+                source_name
+            )));
+        }
     }
     // Handle compound operations
     else if let Some(union_regions) = &region.union {
@@ -312,13 +325,13 @@ pub fn render_structured(
     let mut rasterized_regions: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
 
     // We need to rasterize in dependency order. For now, we'll do a simple two-pass:
-    // 1. Rasterize regions without fill references
-    // 2. Rasterize regions with fill references
+    // 1. Rasterize regions without fill/auto-shadow references
+    // 2. Rasterize regions with fill/auto-shadow references
     let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
 
     for (token, region) in regions {
-        if region.fill.is_some() {
-            // Defer regions with fill references
+        if region.fill.is_some() || region.auto_shadow.is_some() {
+            // Defer regions with fill or auto-shadow references
             pending_regions.push((token.clone(), region.clone()));
         } else {
             let pixels = rasterize_region(region, &rasterized_regions, width, height, &mut warnings);
@@ -326,7 +339,7 @@ pub fn render_structured(
         }
     }
 
-    // Now process regions with fill references
+    // Now process regions with fill/auto-shadow references
     for (token, region) in pending_regions {
         let pixels = rasterize_region(&region, &rasterized_regions, width, height, &mut warnings);
         rasterized_regions.insert(token, pixels);
@@ -541,5 +554,73 @@ mod tests {
         assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
         assert_eq!(*image.get_pixel(4, 4), Rgba([255, 0, 0, 255]));
         assert_eq!(*image.get_pixel(6, 6), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_rasterize_auto_shadow() {
+        // Create a body region first
+        let mut all_regions = HashMap::new();
+        let body_region = RegionDef {
+            rect: Some([2, 2, 4, 4]),
+            ..Default::default()
+        };
+        let mut warnings = Vec::new();
+        let body_pixels = rasterize_region(&body_region, &all_regions, 10, 10, &mut warnings);
+        all_regions.insert("body".to_string(), body_pixels);
+
+        // Now create an auto-shadow region with offset
+        let shadow_region = RegionDef {
+            auto_shadow: Some("body".to_string()),
+            offset: Some([2, 2]),
+            ..Default::default()
+        };
+
+        let pixels = rasterize_region(&shadow_region, &all_regions, 10, 10, &mut warnings);
+
+        // Shadow should be offset by [2, 2] from body
+        // Body is at (2,2) to (5,5), so shadow should be at (4,4) to (7,7)
+        assert!(pixels.contains(&(4, 4)));
+        assert!(pixels.contains(&(7, 7)));
+        assert!(!pixels.contains(&(2, 2))); // Body position, not shadow
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_render_structured_with_auto_shadow() {
+        let mut regions = HashMap::new();
+        regions.insert(
+            "body".to_string(),
+            RegionDef {
+                rect: Some([1, 1, 4, 4]),
+                z: Some(1),
+                ..Default::default()
+            },
+        );
+        regions.insert(
+            "shadow".to_string(),
+            RegionDef {
+                auto_shadow: Some("body".to_string()),
+                offset: Some([1, 1]),
+                z: Some(0), // Shadow behind body
+                ..Default::default()
+            },
+        );
+
+        let mut palette = HashMap::new();
+        palette.insert("body".to_string(), "#FF0000".to_string());
+        palette.insert("shadow".to_string(), "#000000".to_string());
+
+        let (image, warnings) = render_structured("test", Some([8, 8]), &regions, &palette);
+
+        assert_eq!(image.width(), 8);
+        assert_eq!(image.height(), 8);
+        assert!(warnings.is_empty(), "Unexpected warnings: {:?}", warnings);
+
+        // Body at (1,1)-(4,4) should be red
+        assert_eq!(*image.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+        assert_eq!(*image.get_pixel(4, 4), Rgba([255, 0, 0, 255]));
+
+        // Shadow visible at offset (5,5) where body doesn't overlap
+        assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 0, 255]));
     }
 }

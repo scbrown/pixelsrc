@@ -54,7 +54,7 @@ pub fn render_sprite(
     sprite: &Sprite,
     palette: &HashMap<String, String>,
 ) -> (RgbaImage, Vec<Warning>) {
-    // Check if this is a structured sprite (has regions)
+    // Structured sprites use regions for rendering
     if let Some(regions) = &sprite.regions {
         return render_structured(&sprite.name, sprite.size, regions, palette);
     }
@@ -70,7 +70,7 @@ pub fn render_sprite(
 /// Render a ResolvedSprite (sprite or expanded variant) to an RGBA image buffer.
 ///
 /// This function is similar to `render_sprite` but takes a `ResolvedSprite`
-/// which already has the merged palette and grid data ready for rendering.
+/// which already has the merged palette ready for rendering.
 ///
 /// # Examples
 ///
@@ -79,18 +79,10 @@ pub fn render_sprite(
 /// use pixelsrc::registry::ResolvedSprite;
 /// use std::collections::HashMap;
 ///
-/// let resolved = ResolvedSprite {
-///     name: "dot".to_string(),
-///     size: None,
-///     grid: vec!["{x}".to_string()],
-///     palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
-///     warnings: vec![],
-/// };
-///
 /// let (image, warnings) = render_resolved(&resolved);
 /// ```
 pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
-    // Check if this is a structured sprite (has regions)
+    // Structured sprites use regions for rendering
     if let Some(regions) = &resolved.regions {
         return render_structured(&resolved.name, resolved.size, regions, &resolved.palette);
     }
