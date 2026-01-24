@@ -305,40 +305,20 @@ impl AnalysisReport {
     }
 
     /// Analyze a sprite and add its data to the report.
+    ///
+    /// NOTE: This function requires update for v2 region-based format.
+    /// Grid-based analysis is deprecated. See TTP-7i4v for grid removal.
     pub fn analyze_sprite(&mut self, sprite: &Sprite) {
         self.total_sprites += 1;
 
-        // Extract dimensions from grid
-        let height = sprite.grid.len() as u32;
-        let width = if height > 0 {
-            // Tokenize first row to get width
-            let (tokens, _) = tokenize(&sprite.grid[0]);
-            tokens.len() as u32
-        } else {
-            0
-        };
-
-        // Use explicit size if provided, otherwise use grid dimensions
-        let (w, h) = match sprite.size {
-            Some([sw, sh]) => (sw, sh),
-            None => (width, height),
-        };
-        self.dimension_stats.add(w, h);
-
-        // Collect all unique tokens in this sprite for co-occurrence tracking
-        let mut sprite_tokens: HashSet<String> = HashSet::new();
-
-        // Count all tokens in the grid
-        for row in &sprite.grid {
-            let (tokens, _) = tokenize(row);
-            for token in tokens {
-                self.token_counter.add(&token);
-                sprite_tokens.insert(token);
-            }
+        // Use explicit size if provided
+        if let Some([w, h]) = sprite.size {
+            self.dimension_stats.add(w, h);
         }
 
-        // Record co-occurrences
-        self.co_occurrence.record_sprite(&sprite_tokens);
+        // TODO: Update for v2 region-based format
+        // Grid-based token analysis is deprecated.
+        // For now, we only count sprites and record explicit sizes.
     }
 
     /// Analyze a single file and add results to the report.
@@ -730,45 +710,30 @@ impl CompressionEstimator {
         (token_count, run_count, unique_count)
     }
 
-    /// Analyze RLE opportunities across all rows of a sprite
-    pub fn analyze_sprite_rle(sprite: &Sprite) -> RleStats {
-        let mut stats = RleStats::default();
-
-        for row in &sprite.grid {
-            let (tokens, runs, unique) = Self::analyze_row_rle(row);
-            stats.total_tokens += tokens;
-            stats.total_runs += runs;
-            stats.total_rows += 1;
-            stats.total_unique_per_row += unique;
-        }
-
-        stats
-    }
-
-    /// Detect repeated rows in a sprite
+    /// Analyze RLE opportunities across all rows of a sprite.
     ///
-    /// A row is considered "repeated" if it's identical to the previous row.
-    pub fn analyze_row_repetition(sprite: &Sprite) -> RowRepetitionStats {
-        let mut stats = RowRepetitionStats {
-            total_rows: sprite.grid.len(),
-            repeated_rows: 0,
-            sprites_analyzed: 1,
-        };
-
-        if sprite.grid.len() < 2 {
-            return stats;
-        }
-
-        for i in 1..sprite.grid.len() {
-            if sprite.grid[i] == sprite.grid[i - 1] {
-                stats.repeated_rows += 1;
-            }
-        }
-
-        stats
+    /// NOTE: This function is deprecated for v2 region-based sprites.
+    /// Grid-based analysis is no longer supported. See TTP-7i4v.
+    #[allow(unused_variables)]
+    pub fn analyze_sprite_rle(_sprite: &Sprite) -> RleStats {
+        // TODO: Update for v2 region-based format
+        RleStats::default()
     }
 
-    /// Full compression analysis for a sprite
+    /// Detect repeated rows in a sprite.
+    ///
+    /// NOTE: This function is deprecated for v2 region-based sprites.
+    /// Grid-based analysis is no longer supported. See TTP-7i4v.
+    #[allow(unused_variables)]
+    pub fn analyze_row_repetition(_sprite: &Sprite) -> RowRepetitionStats {
+        // TODO: Update for v2 region-based format
+        RowRepetitionStats::default()
+    }
+
+    /// Full compression analysis for a sprite.
+    ///
+    /// NOTE: This function is deprecated for v2 region-based sprites.
+    /// Grid-based analysis is no longer supported. See TTP-7i4v.
     pub fn analyze_sprite(sprite: &Sprite) -> CompressionStats {
         CompressionStats {
             rle: Self::analyze_sprite_rle(sprite),
@@ -1090,14 +1055,7 @@ fn is_x_symmetric(pixels: &[u8], width: usize, height: usize, bpp: usize) -> boo
         }
     }
 
-
-    best_match.and_then(|(p0, p1, confidence)| {
-        if confidence >= 0.95 {
-            Some(ShapeDetection::new(vec![[p0.0, p0.1], [p1.0, p1.1]], confidence))
-        } else {
-            None
-        }
-    })
+    true
 }
 
 /// Detect if pixels form an ellipse.
@@ -1310,8 +1268,6 @@ pub fn detect_shape(pixels: &HashSet<(i32, i32)>) -> (DetectedShape, f64) {
     };
 
     (DetectedShape::Polygon(vertices), confidence)
-
-    true
 }
 
 /// Checks if the image is symmetric along the Y-axis (top-bottom mirroring).
@@ -1334,6 +1290,379 @@ fn is_y_symmetric(pixels: &[u8], width: usize, height: usize, bpp: usize) -> boo
     }
 
     true
+}
+
+// ============================================================================
+// Role Inference (24.14)
+// ============================================================================
+
+use crate::models::Role;
+
+/// Result of role inference with confidence score.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RoleInference {
+    /// The inferred role
+    pub role: Role,
+    /// Confidence score from 0.0 to 1.0
+    pub confidence: f64,
+}
+
+impl RoleInference {
+    /// Create a new role inference result.
+    pub fn new(role: Role, confidence: f64) -> Self {
+        Self { role, confidence: confidence.clamp(0.0, 1.0) }
+    }
+
+    /// Check if confidence is low (below threshold).
+    pub fn is_low_confidence(&self) -> bool {
+        self.confidence < 0.7
+    }
+}
+
+/// Warning generated when role inference has low confidence.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RoleInferenceWarning {
+    /// The token/region name this warning applies to
+    pub token: String,
+    /// The inferred role
+    pub role: Role,
+    /// The confidence score
+    pub confidence: f64,
+    /// Human-readable warning message
+    pub message: String,
+}
+
+/// Context for role inference - provides sprite dimensions and region relationships.
+#[derive(Debug, Clone)]
+pub struct RoleInferenceContext {
+    /// Sprite width in pixels
+    pub sprite_width: u32,
+    /// Sprite height in pixels
+    pub sprite_height: u32,
+}
+
+impl RoleInferenceContext {
+    /// Create a new inference context.
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { sprite_width: width, sprite_height: height }
+    }
+}
+
+/// Infers the semantic role of a region based on its properties.
+///
+/// Analyzes region characteristics to determine the most likely role:
+/// - **Boundary**: 1px wide regions on sprite edges
+/// - **Anchor**: Small isolated regions (< 4 pixels)
+/// - **Fill**: Large interior regions
+/// - **Shadow**: Darker than adjacent regions
+/// - **Highlight**: Lighter than adjacent regions
+///
+/// Returns the inferred role with confidence score, or None if no role can be inferred.
+pub struct RoleInferrer;
+
+impl RoleInferrer {
+    /// Infer the role of a region given its pixels and context.
+    ///
+    /// # Arguments
+    ///
+    /// * `pixels` - The set of pixels belonging to this region
+    /// * `ctx` - Context with sprite dimensions
+    /// * `color` - RGBA color of this region (for shadow/highlight detection)
+    /// * `adjacent_colors` - Colors of adjacent regions (for relative brightness)
+    ///
+    /// # Returns
+    ///
+    /// The inferred role with confidence, or None if no role matches.
+    pub fn infer_role(
+        pixels: &HashSet<(i32, i32)>,
+        ctx: &RoleInferenceContext,
+        color: Option<[u8; 4]>,
+        adjacent_colors: &[[u8; 4]],
+    ) -> Option<RoleInference> {
+        if pixels.is_empty() {
+            return None;
+        }
+
+        // Try each role inference in order of specificity
+        // Boundary is most specific (depends on position AND size)
+        if let Some(inference) = Self::infer_boundary(pixels, ctx) {
+            return Some(inference);
+        }
+
+        // Anchor is specific (small + isolated)
+        if let Some(inference) = Self::infer_anchor(pixels) {
+            return Some(inference);
+        }
+
+        // Shadow/highlight depend on color relationships
+        if let Some(col) = color {
+            if !adjacent_colors.is_empty() {
+                if let Some(inference) = Self::infer_shadow(col, adjacent_colors) {
+                    return Some(inference);
+                }
+                if let Some(inference) = Self::infer_highlight(col, adjacent_colors) {
+                    return Some(inference);
+                }
+            }
+        }
+
+        // Fill is the catch-all for large interior regions
+        if let Some(inference) = Self::infer_fill(pixels, ctx) {
+            return Some(inference);
+        }
+
+        None
+    }
+
+    /// Infer 'boundary' role: 1px wide regions on sprite edges.
+    ///
+    /// A boundary region must:
+    /// 1. Have at least one pixel on the sprite edge
+    /// 2. Be 1 pixel wide (in at least one direction)
+    ///
+    /// Confidence is based on what percentage of pixels are edge-adjacent.
+    pub fn infer_boundary(
+        pixels: &HashSet<(i32, i32)>,
+        ctx: &RoleInferenceContext,
+    ) -> Option<RoleInference> {
+        if pixels.is_empty() {
+            return None;
+        }
+
+        let (min_x, min_y, max_x, max_y) = bounding_box(pixels)?;
+
+        // Check if 1px wide in at least one dimension
+        let width = max_x - min_x + 1;
+        let height = max_y - min_y + 1;
+        let is_thin = width == 1 || height == 1;
+
+        // Count pixels on sprite edges
+        let edge_pixels = pixels
+            .iter()
+            .filter(|(x, y)| {
+                *x == 0
+                    || *y == 0
+                    || *x == (ctx.sprite_width as i32 - 1)
+                    || *y == (ctx.sprite_height as i32 - 1)
+            })
+            .count();
+
+        let edge_ratio = edge_pixels as f64 / pixels.len() as f64;
+
+        // Must have some edge pixels and be thin
+        if edge_pixels > 0 && is_thin {
+            // High confidence if mostly on edge and thin
+            let confidence = (edge_ratio * 0.7 + 0.3).min(1.0);
+            return Some(RoleInference::new(Role::Boundary, confidence));
+        }
+
+        // Even if not thin, if heavily on edge, might be boundary
+        if edge_ratio > 0.7 {
+            return Some(RoleInference::new(Role::Boundary, edge_ratio * 0.8));
+        }
+
+        None
+    }
+
+    /// Infer 'anchor' role: small isolated regions (< 4 pixels).
+    ///
+    /// An anchor is a small, distinctive region that serves as a key
+    /// identifying feature (like eyes, buttons, markers).
+    ///
+    /// Confidence is based on how small and isolated the region is.
+    pub fn infer_anchor(pixels: &HashSet<(i32, i32)>) -> Option<RoleInference> {
+        let size = pixels.len();
+
+        // Must be less than 4 pixels
+        if size >= 4 {
+            return None;
+        }
+
+        // Confidence based on size - smaller is more confident
+        let confidence = match size {
+            1 => 1.0,      // Single pixel is definitely an anchor
+            2 => 0.9,      // Two pixels - very likely anchor
+            3 => 0.8,      // Three pixels - likely anchor
+            _ => return None,
+        };
+
+        Some(RoleInference::new(Role::Anchor, confidence))
+    }
+
+    /// Infer 'fill' role: large interior regions.
+    ///
+    /// A fill region is large and mostly interior (not on edges).
+    ///
+    /// Confidence is based on size relative to sprite and interior ratio.
+    pub fn infer_fill(
+        pixels: &HashSet<(i32, i32)>,
+        ctx: &RoleInferenceContext,
+    ) -> Option<RoleInference> {
+        if pixels.is_empty() {
+            return None;
+        }
+
+        let size = pixels.len();
+        let sprite_area = (ctx.sprite_width * ctx.sprite_height) as usize;
+
+        // Must be a reasonably large region (at least 5% of sprite)
+        let size_ratio = size as f64 / sprite_area as f64;
+        if size_ratio < 0.05 {
+            return None;
+        }
+
+        // Count interior pixels (not on sprite edge)
+        let interior_pixels = pixels
+            .iter()
+            .filter(|(x, y)| {
+                *x > 0
+                    && *y > 0
+                    && *x < (ctx.sprite_width as i32 - 1)
+                    && *y < (ctx.sprite_height as i32 - 1)
+            })
+            .count();
+
+        let interior_ratio = interior_pixels as f64 / size as f64;
+
+        // Fill should be mostly interior
+        if interior_ratio < 0.5 {
+            return None;
+        }
+
+        // Confidence based on size and interior ratio
+        let confidence = (size_ratio.min(0.5) * 2.0 * 0.4 + interior_ratio * 0.6).min(1.0);
+
+        Some(RoleInference::new(Role::Fill, confidence))
+    }
+
+    /// Infer 'shadow' role: darker than adjacent regions.
+    ///
+    /// Compares the region's color brightness to adjacent regions.
+    /// A shadow should be noticeably darker.
+    ///
+    /// Confidence is based on how much darker it is.
+    pub fn infer_shadow(color: [u8; 4], adjacent_colors: &[[u8; 4]]) -> Option<RoleInference> {
+        if adjacent_colors.is_empty() {
+            return None;
+        }
+
+        let our_brightness = color_brightness(color);
+        let avg_adjacent_brightness: f64 =
+            adjacent_colors.iter().map(|c| color_brightness(*c)).sum::<f64>()
+                / adjacent_colors.len() as f64;
+
+        // Must be darker than adjacent
+        let brightness_diff = avg_adjacent_brightness - our_brightness;
+
+        // Need at least 15% darker to be a shadow
+        if brightness_diff < 0.15 {
+            return None;
+        }
+
+        // Confidence based on how much darker
+        // 15% darker = 0.7 confidence, 40%+ darker = 1.0 confidence
+        let confidence = ((brightness_diff - 0.15) / 0.25 * 0.3 + 0.7).min(1.0);
+
+        Some(RoleInference::new(Role::Shadow, confidence))
+    }
+
+    /// Infer 'highlight' role: lighter than adjacent regions.
+    ///
+    /// Compares the region's color brightness to adjacent regions.
+    /// A highlight should be noticeably lighter.
+    ///
+    /// Confidence is based on how much lighter it is.
+    pub fn infer_highlight(color: [u8; 4], adjacent_colors: &[[u8; 4]]) -> Option<RoleInference> {
+        if adjacent_colors.is_empty() {
+            return None;
+        }
+
+        let our_brightness = color_brightness(color);
+        let avg_adjacent_brightness: f64 =
+            adjacent_colors.iter().map(|c| color_brightness(*c)).sum::<f64>()
+                / adjacent_colors.len() as f64;
+
+        // Must be lighter than adjacent
+        let brightness_diff = our_brightness - avg_adjacent_brightness;
+
+        // Need at least 15% lighter to be a highlight
+        if brightness_diff < 0.15 {
+            return None;
+        }
+
+        // Confidence based on how much lighter
+        // 15% lighter = 0.7 confidence, 40%+ lighter = 1.0 confidence
+        let confidence = ((brightness_diff - 0.15) / 0.25 * 0.3 + 0.7).min(1.0);
+
+        Some(RoleInference::new(Role::Highlight, confidence))
+    }
+
+    /// Generate warnings for low-confidence inferences.
+    pub fn generate_warnings(
+        token: &str,
+        inference: &RoleInference,
+    ) -> Option<RoleInferenceWarning> {
+        if inference.is_low_confidence() {
+            Some(RoleInferenceWarning {
+                token: token.to_string(),
+                role: inference.role,
+                confidence: inference.confidence,
+                message: format!(
+                    "Low confidence ({:.0}%) inferring '{}' role for token '{}'. \
+                     Consider specifying the role explicitly.",
+                    inference.confidence * 100.0,
+                    inference.role,
+                    token
+                ),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Calculate perceived brightness of an RGBA color (0.0 to 1.0).
+///
+/// Uses the relative luminance formula weighted for human perception:
+/// Y = 0.299*R + 0.587*G + 0.114*B
+fn color_brightness(color: [u8; 4]) -> f64 {
+    let [r, g, b, _a] = color;
+    (0.299 * r as f64 + 0.587 * g as f64 + 0.114 * b as f64) / 255.0
+}
+
+/// Batch inference of roles for multiple regions.
+///
+/// Takes a map of region names to their pixels and colors, and returns
+/// inferred roles with any warnings.
+pub fn infer_roles_batch(
+    regions: &HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)>,
+    ctx: &RoleInferenceContext,
+) -> (HashMap<String, RoleInference>, Vec<RoleInferenceWarning>) {
+    let mut inferences = HashMap::new();
+    let mut warnings = Vec::new();
+
+    // Collect all colors for adjacency analysis
+    let all_colors: Vec<[u8; 4]> =
+        regions.values().filter_map(|(_, color)| *color).collect();
+
+    for (name, (pixels, color)) in regions {
+        // For shadow/highlight, use all other colors as "adjacent"
+        // This is a simplification - proper adjacency would check pixel neighbors
+        let adjacent: Vec<[u8; 4]> = all_colors
+            .iter()
+            .filter(|c| color.map(|col| **c != col).unwrap_or(true))
+            .copied()
+            .collect();
+
+        if let Some(inference) = RoleInferrer::infer_role(pixels, ctx, *color, &adjacent) {
+            if let Some(warning) = RoleInferrer::generate_warnings(name, &inference) {
+                warnings.push(warning);
+            }
+            inferences.insert(name.clone(), inference);
+        }
+    }
+
+    (inferences, warnings)
 }
 
 #[cfg(test)]
@@ -1514,19 +1843,16 @@ mod tests {
     // Compression estimation tests (13.4)
     // ========================================================================
 
-    fn make_compression_test_sprite(name: &str, grid: Vec<&str>) -> Sprite {
+    // NOTE: make_compression_test_sprite is deprecated - Sprite no longer has grid field.
+    // Compression tests that used this helper are now ignored. See TTP-7i4v.
+    #[allow(dead_code)]
+    fn make_compression_test_sprite(_name: &str, _grid: Vec<&str>) -> Sprite {
         use crate::models::PaletteRef;
-        use std::collections::HashMap;
+        // Return a minimal v2 sprite without grid
         Sprite {
-            name: name.to_string(),
+            name: _name.to_string(),
             size: None,
-            palette: PaletteRef::Inline(HashMap::from([
-                ("{_}".to_string(), "#00000000".to_string()),
-                ("{a}".to_string(), "#FF0000".to_string()),
-                ("{b}".to_string(), "#00FF00".to_string()),
-            ])),
-            grid: grid.into_iter().map(|s| s.to_string()).collect(),
-            metadata: None,
+            palette: PaletteRef::Named(String::new()),
             ..Default::default()
         }
     }
@@ -1567,6 +1893,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_analyze_sprite_rle() {
         let sprite = make_compression_test_sprite(
             "test",
@@ -1584,6 +1911,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_analyze_row_repetition_none() {
         let sprite = make_compression_test_sprite("test", vec!["{a}{b}", "{b}{a}", "{a}{a}"]);
         let stats = CompressionEstimator::analyze_row_repetition(&sprite);
@@ -1592,6 +1920,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_analyze_row_repetition_some() {
         let sprite = make_compression_test_sprite(
             "test",
@@ -1608,6 +1937,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_analyze_row_repetition_all() {
         let sprite =
             make_compression_test_sprite("test", vec!["{a}{a}", "{a}{a}", "{a}{a}", "{a}{a}"]);
@@ -1618,6 +1948,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_analyze_sprite_full() {
         let sprite = make_compression_test_sprite(
             "test",
@@ -1648,6 +1979,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
     fn test_realistic_hero_sprite() {
         // Simulating the hero_idle sprite pattern
         let sprite = make_compression_test_sprite(
@@ -2093,5 +2425,359 @@ mod tests {
         let grid: &[&[u8]] = &[&[0, 1, 2], &[3, 0, 1], &[3, 0, 1], &[0, 1, 2]];
         let pixels = make_pixel_grid(grid, 3, 4);
         assert_eq!(detect_symmetry(&pixels, 3, 4), Some(Symmetric::Y));
+    }
+
+    // ========================================================================
+    // Role Inference Tests (24.14)
+    // ========================================================================
+
+    #[test]
+    fn test_role_inference_new() {
+        let inference = RoleInference::new(Role::Boundary, 0.85);
+        assert_eq!(inference.role, Role::Boundary);
+        assert!((inference.confidence - 0.85).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_role_inference_clamps_confidence() {
+        let over = RoleInference::new(Role::Fill, 1.5);
+        assert!((over.confidence - 1.0).abs() < 0.001);
+
+        let under = RoleInference::new(Role::Fill, -0.5);
+        assert!((under.confidence - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_role_inference_low_confidence() {
+        let high = RoleInference::new(Role::Fill, 0.8);
+        assert!(!high.is_low_confidence());
+
+        let low = RoleInference::new(Role::Fill, 0.5);
+        assert!(low.is_low_confidence());
+
+        let boundary = RoleInference::new(Role::Fill, 0.7);
+        assert!(!boundary.is_low_confidence());
+    }
+
+    #[test]
+    fn test_infer_boundary_edge_thin() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // 1px wide vertical line on left edge
+        let pixels: HashSet<(i32, i32)> =
+            [(0, 2), (0, 3), (0, 4), (0, 5)].into_iter().collect();
+
+        let result = RoleInferrer::infer_boundary(&pixels, &ctx);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Boundary);
+        assert!(inference.confidence >= 0.9);
+    }
+
+    #[test]
+    fn test_infer_boundary_edge_horizontal() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // 1px tall horizontal line on top edge
+        let pixels: HashSet<(i32, i32)> =
+            [(2, 0), (3, 0), (4, 0), (5, 0)].into_iter().collect();
+
+        let result = RoleInferrer::infer_boundary(&pixels, &ctx);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Boundary);
+        assert!(inference.confidence >= 0.9);
+    }
+
+    #[test]
+    fn test_infer_boundary_not_on_edge() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // Interior thin line - not on sprite edge
+        let pixels: HashSet<(i32, i32)> =
+            [(5, 2), (5, 3), (5, 4), (5, 5)].into_iter().collect();
+
+        let result = RoleInferrer::infer_boundary(&pixels, &ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_anchor_single_pixel() {
+        let pixels: HashSet<(i32, i32)> = [(5, 5)].into_iter().collect();
+
+        let result = RoleInferrer::infer_anchor(&pixels);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Anchor);
+        assert!((inference.confidence - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_infer_anchor_two_pixels() {
+        let pixels: HashSet<(i32, i32)> = [(5, 5), (6, 5)].into_iter().collect();
+
+        let result = RoleInferrer::infer_anchor(&pixels);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Anchor);
+        assert!((inference.confidence - 0.9).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_infer_anchor_three_pixels() {
+        let pixels: HashSet<(i32, i32)> =
+            [(5, 5), (6, 5), (5, 6)].into_iter().collect();
+
+        let result = RoleInferrer::infer_anchor(&pixels);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Anchor);
+        assert!((inference.confidence - 0.8).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_infer_anchor_four_pixels_too_large() {
+        let pixels: HashSet<(i32, i32)> =
+            [(5, 5), (6, 5), (5, 6), (6, 6)].into_iter().collect();
+
+        let result = RoleInferrer::infer_anchor(&pixels);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_fill_large_interior() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // Large interior region (6x6 = 36 pixels, 36% of 100)
+        let mut pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 2..8 {
+            for y in 2..8 {
+                pixels.insert((x, y));
+            }
+        }
+
+        let result = RoleInferrer::infer_fill(&pixels, &ctx);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Fill);
+        assert!(inference.confidence >= 0.7);
+    }
+
+    #[test]
+    fn test_infer_fill_too_small() {
+        let ctx = RoleInferenceContext::new(100, 100);
+
+        // Small region - only 4 pixels out of 10000
+        let pixels: HashSet<(i32, i32)> =
+            [(50, 50), (51, 50), (50, 51), (51, 51)].into_iter().collect();
+
+        let result = RoleInferrer::infer_fill(&pixels, &ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_fill_on_edge() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // Region mostly on edge - not a fill
+        let mut pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 0..5 {
+            pixels.insert((x, 0));
+            pixels.insert((x, 1));
+        }
+
+        let result = RoleInferrer::infer_fill(&pixels, &ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_shadow_darker() {
+        // Dark color
+        let color = [50, 50, 50, 255];
+        // Brighter adjacent colors
+        let adjacent = [[150, 150, 150, 255], [200, 200, 200, 255]];
+
+        let result = RoleInferrer::infer_shadow(color, &adjacent);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Shadow);
+        assert!(inference.confidence >= 0.7);
+    }
+
+    #[test]
+    fn test_infer_shadow_not_dark_enough() {
+        // Similar brightness
+        let color = [140, 140, 140, 255];
+        let adjacent = [[150, 150, 150, 255]];
+
+        let result = RoleInferrer::infer_shadow(color, &adjacent);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_highlight_lighter() {
+        // Bright color
+        let color = [230, 230, 230, 255];
+        // Darker adjacent colors
+        let adjacent = [[100, 100, 100, 255], [80, 80, 80, 255]];
+
+        let result = RoleInferrer::infer_highlight(color, &adjacent);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Highlight);
+        assert!(inference.confidence >= 0.7);
+    }
+
+    #[test]
+    fn test_infer_highlight_not_light_enough() {
+        // Similar brightness
+        let color = [160, 160, 160, 255];
+        let adjacent = [[150, 150, 150, 255]];
+
+        let result = RoleInferrer::infer_highlight(color, &adjacent);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_color_brightness() {
+        // Black
+        let black = color_brightness([0, 0, 0, 255]);
+        assert!(black.abs() < 0.001);
+
+        // White
+        let white = color_brightness([255, 255, 255, 255]);
+        assert!((white - 1.0).abs() < 0.001);
+
+        // Pure red
+        let red = color_brightness([255, 0, 0, 255]);
+        assert!((red - 0.299).abs() < 0.001);
+
+        // Pure green (brightest component in perception)
+        let green = color_brightness([0, 255, 0, 255]);
+        assert!((green - 0.587).abs() < 0.001);
+
+        // Pure blue (darkest component in perception)
+        let blue = color_brightness([0, 0, 255, 255]);
+        assert!((blue - 0.114).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_generate_warnings_low_confidence() {
+        let low = RoleInference::new(Role::Shadow, 0.5);
+        let warning = RoleInferrer::generate_warnings("{test}", &low);
+        assert!(warning.is_some());
+        let w = warning.unwrap();
+        assert_eq!(w.token, "{test}");
+        assert_eq!(w.role, Role::Shadow);
+        assert!(w.message.contains("Low confidence"));
+    }
+
+    #[test]
+    fn test_generate_warnings_high_confidence() {
+        let high = RoleInference::new(Role::Fill, 0.9);
+        let warning = RoleInferrer::generate_warnings("{test}", &high);
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn test_infer_role_priority() {
+        let ctx = RoleInferenceContext::new(10, 10);
+
+        // 2-pixel region on edge - should be Boundary (takes priority over Anchor)
+        let pixels: HashSet<(i32, i32)> = [(0, 5), (0, 6)].into_iter().collect();
+
+        let result =
+            RoleInferrer::infer_role(&pixels, &ctx, None, &[]);
+        assert!(result.is_some());
+        let inference = result.unwrap();
+        assert_eq!(inference.role, Role::Boundary);
+    }
+
+    #[test]
+    fn test_infer_role_empty_pixels() {
+        let ctx = RoleInferenceContext::new(10, 10);
+        let pixels: HashSet<(i32, i32)> = HashSet::new();
+
+        let result = RoleInferrer::infer_role(&pixels, &ctx, None, &[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_roles_batch() {
+        let ctx = RoleInferenceContext::new(16, 16);
+
+        let mut regions: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = HashMap::new();
+
+        // Small anchor region
+        let anchor_pixels: HashSet<(i32, i32)> = [(8, 8)].into_iter().collect();
+        regions.insert("{eye}".to_string(), (anchor_pixels, Some([0, 0, 0, 255])));
+
+        // Large fill region
+        let mut fill_pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 4..12 {
+            for y in 4..12 {
+                fill_pixels.insert((x, y));
+            }
+        }
+        regions.insert("{body}".to_string(), (fill_pixels, Some([200, 150, 100, 255])));
+
+        let (inferences, warnings) = infer_roles_batch(&regions, &ctx);
+
+        // Should infer anchor for eye
+        assert!(inferences.contains_key("{eye}"));
+        assert_eq!(inferences["{eye}"].role, Role::Anchor);
+
+        // Should infer fill for body
+        assert!(inferences.contains_key("{body}"));
+        assert_eq!(inferences["{body}"].role, Role::Fill);
+
+        // No warnings expected for these clear cases
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_infer_roles_batch_with_shadow_highlight() {
+        let ctx = RoleInferenceContext::new(20, 20);
+
+        let mut regions: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = HashMap::new();
+
+        // Dark shadow region (must be large enough to not be anchor)
+        let mut shadow_pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 2..7 {
+            for y in 10..15 {
+                shadow_pixels.insert((x, y));
+            }
+        }
+        regions.insert("{shadow}".to_string(), (shadow_pixels, Some([30, 30, 30, 255])));
+
+        // Bright highlight region
+        let mut highlight_pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 12..17 {
+            for y in 3..8 {
+                highlight_pixels.insert((x, y));
+            }
+        }
+        regions.insert("{highlight}".to_string(), (highlight_pixels, Some([240, 240, 240, 255])));
+
+        // Medium base color region
+        let mut base_pixels: HashSet<(i32, i32)> = HashSet::new();
+        for x in 5..15 {
+            for y in 5..15 {
+                base_pixels.insert((x, y));
+            }
+        }
+        regions.insert("{base}".to_string(), (base_pixels, Some([128, 128, 128, 255])));
+
+        let (inferences, _warnings) = infer_roles_batch(&regions, &ctx);
+
+        // Shadow should be inferred (dark relative to others)
+        if let Some(shadow_inf) = inferences.get("{shadow}") {
+            assert_eq!(shadow_inf.role, Role::Shadow);
+        }
+
+        // Highlight should be inferred (bright relative to others)
+        if let Some(highlight_inf) = inferences.get("{highlight}") {
+            assert_eq!(highlight_inf.role, Role::Highlight);
+        }
     }
 }
