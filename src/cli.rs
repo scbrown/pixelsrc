@@ -1322,6 +1322,7 @@ fn run_render(
                 palette: final_palette,
                 warnings: vec![],
                 nine_slice: sprite.nine_slice.clone(),
+                regions: sprite.regions.clone(),
             };
 
             // Render the resolved sprite (transforms already applied)
@@ -1604,6 +1605,7 @@ fn render_composition_to_image(
             palette: final_palette,
             warnings: vec![],
             nine_slice: resolved_sprite.nine_slice.clone(),
+            regions: resolved_sprite.regions.clone(),
         };
 
         // Render the resolved sprite (transforms already applied)

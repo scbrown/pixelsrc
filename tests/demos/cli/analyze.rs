@@ -20,6 +20,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
         transform: None,
         metadata: None,
         nine_slice: None,
+        regions: None,
     }
 }
 

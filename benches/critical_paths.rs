@@ -110,6 +110,7 @@ fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
         palette,
         warnings: vec![],
         nine_slice: None,
+        regions: None,
     }
 }
 
