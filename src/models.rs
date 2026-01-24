@@ -393,22 +393,18 @@ pub struct NineSlice {
 
 /// A sprite definition.
 ///
-/// A sprite can either have a `grid` directly, or reference another sprite via `source`
-/// with optional transforms applied. The `grid` and `source` fields are mutually exclusive.
-/// Alternatively, a sprite can use `regions` for structured rendering (mutually exclusive with `grid`).
+/// A sprite uses `regions` for structured rendering, or can reference another sprite via `source`
+/// with optional transforms applied. The `regions` and `source` fields are mutually exclusive.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Sprite {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
     pub palette: PaletteRef,
-    /// The grid data (mutually exclusive with `source` and `regions`)
-    #[serde(default)]
-    pub grid: Vec<String>,
-    /// Reference to another sprite by name (mutually exclusive with `grid` and `regions`)
+    /// Reference to another sprite by name (mutually exclusive with `regions`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
-    /// Structured regions for v2 format (mutually exclusive with `grid`)
+    /// Structured regions for rendering
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub regions: Option<HashMap<String, RegionDef>>,
     /// Transforms to apply when resolving this sprite
@@ -654,7 +650,7 @@ pub struct Animation {
 /// A variant is a palette-only modification of a base sprite.
 ///
 /// Variants allow creating color variations of sprites without duplicating
-/// the grid data. The variant copies the base sprite's grid and applies
+/// the region data. The variant copies the base sprite's regions and applies
 /// palette overrides.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Variant {
