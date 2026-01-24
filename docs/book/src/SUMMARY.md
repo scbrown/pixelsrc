@@ -24,6 +24,9 @@
 - [Palette](format/palette.md)
 - [CSS Variables](format/css-variables.md)
 - [Sprite](format/sprite.md)
+- [Regions & Shapes](format/regions.md)
+- [Semantic Metadata](format/semantic.md)
+- [State Rules](format/state-rules.md)
 - [Animation](format/animation.md)
 - [Variant](format/variant.md)
 - [Composition](format/composition.md)
@@ -42,8 +45,6 @@
 - [diff](cli/diff.md)
 - [suggest](cli/suggest.md)
 - [show](cli/show.md)
-- [grid](cli/grid.md)
-- [inline](cli/inline.md)
 - [analyze](cli/analyze.md)
 - [prime](cli/prime.md)
 - [prompts](cli/prompts.md)
@@ -51,8 +52,6 @@
 - [build](cli/build.md)
 - [new](cli/new.md)
 - [init](cli/init.md)
-- [alias](cli/alias.md)
-- [sketch](cli/sketch.md)
 
 # Export Formats
 
