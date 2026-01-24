@@ -2205,6 +2205,7 @@ fn run_import(
         extract_shapes: shapes,
         half_sprite: false, // TODO: Add CLI flag when needed
         dither_handling: crate::import::DitherHandling::Keep, // TODO: Add CLI flag when needed
+        detect_upscale: analyze, // Enable upscale detection when analysis is on
     };
 
     let result = match crate::import::import_png_with_options(input, &name, max_colors, &options) {

@@ -80,6 +80,17 @@ pub struct DitherInfo {
     pub confidence: f64,
 }
 
+/// Information about detected upscaling.
+#[derive(Debug, Clone)]
+pub struct UpscaleInfo {
+    /// Detected scale factor (e.g., 2 means 2x upscaled).
+    pub scale: u32,
+    /// Native resolution [width, height] before upscaling.
+    pub native_size: [u32; 2],
+    /// Confidence of the detection (0.0-1.0).
+    pub confidence: f64,
+}
+
 /// Options for PNG import.
 #[derive(Debug, Clone, Default)]
 pub struct ImportOptions {
@@ -96,6 +107,8 @@ pub struct ImportOptions {
     pub half_sprite: bool,
     /// How to handle dither patterns.
     pub dither_handling: DitherHandling,
+    /// Detect if image appears to be upscaled pixel art.
+    pub detect_upscale: bool,
 }
 
 /// A naming hint for a token based on detected features.
@@ -125,6 +138,8 @@ pub struct ImportAnalysis {
     pub z_order: HashMap<String, i32>,
     /// Detected dither patterns and their info.
     pub dither_patterns: Vec<DitherInfo>,
+    /// Detected upscaling info (if image appears to be upscaled pixel art).
+    pub upscale_info: Option<UpscaleInfo>,
 }
 
 /// Filter points to only include the primary half based on symmetry.
@@ -443,6 +458,15 @@ impl ImportResult {
                     })
                     .collect();
                 sprite_obj["_dither"] = serde_json::json!(dither_info);
+            }
+
+            // Add upscale info if detected
+            if let Some(ref upscale) = analysis.upscale_info {
+                sprite_obj["_upscale"] = serde_json::json!({
+                    "scale": upscale.scale,
+                    "native_size": upscale.native_size,
+                    "confidence": upscale.confidence
+                });
             }
         }
 
@@ -1739,6 +1763,115 @@ fn average_colors(colors: &[[u8; 4]]) -> [u8; 4] {
     [(r / n) as u8, (g / n) as u8, (b / n) as u8, (a / n) as u8]
 }
 
+/// Detect if an image appears to be upscaled pixel art.
+///
+/// Checks for repeated NxN blocks of identical colors, which indicates
+/// the image was upscaled from a lower resolution using nearest-neighbor scaling.
+///
+/// Returns the detected scale and native resolution if upscaling is found.
+fn detect_upscale(
+    pixel_data: &[u8],
+    width: u32,
+    height: u32,
+) -> Option<UpscaleInfo> {
+    // Check common scale factors: 2x, 3x, 4x, 5x, 6x, 8x
+    let scales_to_check = [2, 3, 4, 5, 6, 8];
+
+    for scale in scales_to_check {
+        // Skip if dimensions aren't divisible by scale
+        if width % scale != 0 || height % scale != 0 {
+            continue;
+        }
+
+        let native_width = width / scale;
+        let native_height = height / scale;
+
+        // Check if all scale x scale blocks are uniform
+        let confidence = check_uniform_blocks(pixel_data, width, height, scale);
+
+        // Require high confidence (>95% of blocks are uniform)
+        if confidence >= 0.95 {
+            return Some(UpscaleInfo {
+                scale,
+                native_size: [native_width, native_height],
+                confidence,
+            });
+        }
+    }
+
+    None
+}
+
+/// Check what fraction of scale x scale blocks in the image are uniform.
+fn check_uniform_blocks(
+    pixel_data: &[u8],
+    width: u32,
+    height: u32,
+    scale: u32,
+) -> f64 {
+    let native_width = width / scale;
+    let native_height = height / scale;
+    let mut uniform_blocks = 0u64;
+    let total_blocks = (native_width * native_height) as u64;
+
+    for block_y in 0..native_height {
+        for block_x in 0..native_width {
+            // Get the color at the top-left of this block
+            let base_x = block_x * scale;
+            let base_y = block_y * scale;
+            let base_idx = ((base_y * width + base_x) * 4) as usize;
+
+            if base_idx + 3 >= pixel_data.len() {
+                continue;
+            }
+
+            let base_color = [
+                pixel_data[base_idx],
+                pixel_data[base_idx + 1],
+                pixel_data[base_idx + 2],
+                pixel_data[base_idx + 3],
+            ];
+
+            // Check if all pixels in this block match
+            let mut is_uniform = true;
+            'block_check: for dy in 0..scale {
+                for dx in 0..scale {
+                    let px = base_x + dx;
+                    let py = base_y + dy;
+                    let idx = ((py * width + px) * 4) as usize;
+
+                    if idx + 3 >= pixel_data.len() {
+                        is_uniform = false;
+                        break 'block_check;
+                    }
+
+                    let color = [
+                        pixel_data[idx],
+                        pixel_data[idx + 1],
+                        pixel_data[idx + 2],
+                        pixel_data[idx + 3],
+                    ];
+
+                    if color != base_color {
+                        is_uniform = false;
+                        break 'block_check;
+                    }
+                }
+            }
+
+            if is_uniform {
+                uniform_blocks += 1;
+            }
+        }
+    }
+
+    if total_blocks == 0 {
+        return 0.0;
+    }
+
+    uniform_blocks as f64 / total_blocks as f64
+}
+
 /// Perform analysis on imported regions.
 fn perform_analysis(
     width: u32,
@@ -1825,6 +1958,15 @@ fn perform_analysis(
         // Filter by confidence threshold
         patterns.retain(|p| p.confidence >= options.confidence_threshold);
         analysis.dither_patterns = patterns;
+    }
+
+    // Detect upscaled pixel art if requested
+    if options.detect_upscale {
+        if let Some(upscale_info) = detect_upscale(&pixel_data, width, height) {
+            if upscale_info.confidence >= options.confidence_threshold {
+                analysis.upscale_info = Some(upscale_info);
+            }
+        }
     }
 
     // Generate naming hints if requested
@@ -2380,6 +2522,7 @@ mod tests {
             naming_hints: vec![],
             z_order,
             dither_patterns: vec![],
+            upscale_info: None,
         };
 
         let result = ImportResult {
@@ -2715,6 +2858,7 @@ mod tests {
             naming_hints: vec![],
             z_order: HashMap::new(),
             dither_patterns: vec![],
+            upscale_info: None,
         };
 
         let result = ImportResult {
@@ -2760,6 +2904,7 @@ mod tests {
             naming_hints: vec![],
             z_order: HashMap::new(),
             dither_patterns: vec![],
+            upscale_info: None,
         };
 
         let result = ImportResult {
@@ -2803,6 +2948,7 @@ mod tests {
             naming_hints: vec![],
             z_order: HashMap::new(),
             dither_patterns: vec![],
+            upscale_info: None,
         };
 
         let result = ImportResult {
@@ -3100,6 +3246,7 @@ mod tests {
             naming_hints: vec![],
             z_order: HashMap::new(),
             dither_patterns,
+            upscale_info: None,
         };
 
         let result = ImportResult {
@@ -3127,5 +3274,226 @@ mod tests {
         assert_eq!(DitherPattern::Ordered.to_string(), "ordered");
         assert_eq!(DitherPattern::HorizontalLines.to_string(), "horizontal-lines");
         assert_eq!(DitherPattern::VerticalLines.to_string(), "vertical-lines");
+    }
+
+    // ========================================================================
+    // Upscale Detection Tests (TTP-trwxq.7)
+    // ========================================================================
+
+    #[test]
+    fn test_detect_upscale_2x() {
+        // 4x4 image that is actually 2x2 pixel art upscaled 2x
+        // Native pixels: [[R,G], [B,W]] becomes 4x4 with 2x2 blocks
+        let mut pixel_data = vec![0u8; 4 * 4 * 4]; // 4x4 RGBA
+
+        // Set up 2x2 blocks
+        // Block (0,0) = Red
+        for dy in 0..2 {
+            for dx in 0..2 {
+                let idx = ((dy * 4 + dx) * 4) as usize;
+                pixel_data[idx..idx + 4].copy_from_slice(&[255, 0, 0, 255]);
+            }
+        }
+        // Block (1,0) = Green
+        for dy in 0..2 {
+            for dx in 2..4 {
+                let idx = ((dy * 4 + dx) * 4) as usize;
+                pixel_data[idx..idx + 4].copy_from_slice(&[0, 255, 0, 255]);
+            }
+        }
+        // Block (0,1) = Blue
+        for dy in 2..4 {
+            for dx in 0..2 {
+                let idx = ((dy * 4 + dx) * 4) as usize;
+                pixel_data[idx..idx + 4].copy_from_slice(&[0, 0, 255, 255]);
+            }
+        }
+        // Block (1,1) = White
+        for dy in 2..4 {
+            for dx in 2..4 {
+                let idx = ((dy * 4 + dx) * 4) as usize;
+                pixel_data[idx..idx + 4].copy_from_slice(&[255, 255, 255, 255]);
+            }
+        }
+
+        let result = detect_upscale(&pixel_data, 4, 4);
+
+        assert!(result.is_some(), "Should detect 2x upscale");
+        let info = result.unwrap();
+        assert_eq!(info.scale, 2);
+        assert_eq!(info.native_size, [2, 2]);
+        assert!(info.confidence >= 0.95);
+    }
+
+    #[test]
+    fn test_detect_upscale_3x() {
+        // 6x6 image that is actually 2x2 pixel art upscaled 3x
+        let mut pixel_data = vec![0u8; 6 * 6 * 4]; // 6x6 RGBA
+
+        // Fill with 3x3 blocks
+        for block_y in 0..2 {
+            for block_x in 0..2 {
+                let color: [u8; 4] = match (block_x, block_y) {
+                    (0, 0) => [255, 0, 0, 255],   // Red
+                    (1, 0) => [0, 255, 0, 255],   // Green
+                    (0, 1) => [0, 0, 255, 255],   // Blue
+                    _ => [255, 255, 255, 255],    // White
+                };
+
+                for dy in 0..3 {
+                    for dx in 0..3 {
+                        let px = block_x * 3 + dx;
+                        let py = block_y * 3 + dy;
+                        let idx = ((py * 6 + px) * 4) as usize;
+                        pixel_data[idx..idx + 4].copy_from_slice(&color);
+                    }
+                }
+            }
+        }
+
+        let result = detect_upscale(&pixel_data, 6, 6);
+
+        assert!(result.is_some(), "Should detect 3x upscale");
+        let info = result.unwrap();
+        assert_eq!(info.scale, 3);
+        assert_eq!(info.native_size, [2, 2]);
+    }
+
+    #[test]
+    fn test_detect_upscale_none_for_native() {
+        // 4x4 image with no repeating pattern (native pixel art)
+        let mut pixel_data = vec![0u8; 4 * 4 * 4];
+
+        // Fill each pixel with a different color
+        for y in 0..4 {
+            for x in 0..4 {
+                let idx = ((y * 4 + x) * 4) as usize;
+                pixel_data[idx] = (x * 64) as u8;
+                pixel_data[idx + 1] = (y * 64) as u8;
+                pixel_data[idx + 2] = ((x + y) * 32) as u8;
+                pixel_data[idx + 3] = 255;
+            }
+        }
+
+        let result = detect_upscale(&pixel_data, 4, 4);
+
+        assert!(result.is_none(), "Should not detect upscale for native pixel art");
+    }
+
+    #[test]
+    fn test_detect_upscale_prefers_smaller_scale() {
+        // 8x8 image that is 2x2 upscaled 4x
+        // Should detect 4x, not 2x (which would also match but less efficiently)
+        let mut pixel_data = vec![0u8; 8 * 8 * 4];
+
+        // Fill with 4x4 blocks
+        for block_y in 0..2 {
+            for block_x in 0..2 {
+                let color: [u8; 4] = match (block_x, block_y) {
+                    (0, 0) => [255, 0, 0, 255],
+                    (1, 0) => [0, 255, 0, 255],
+                    (0, 1) => [0, 0, 255, 255],
+                    _ => [255, 255, 255, 255],
+                };
+
+                for dy in 0..4 {
+                    for dx in 0..4 {
+                        let px = block_x * 4 + dx;
+                        let py = block_y * 4 + dy;
+                        let idx = ((py * 8 + px) * 4) as usize;
+                        pixel_data[idx..idx + 4].copy_from_slice(&color);
+                    }
+                }
+            }
+        }
+
+        let result = detect_upscale(&pixel_data, 8, 8);
+
+        assert!(result.is_some());
+        let info = result.unwrap();
+        // Should detect smallest valid scale (2x) first
+        assert_eq!(info.scale, 2);
+    }
+
+    #[test]
+    fn test_check_uniform_blocks() {
+        // 4x4 with 2x2 uniform blocks
+        let mut pixel_data = vec![0u8; 4 * 4 * 4];
+        for i in 0..16 {
+            let idx = i * 4;
+            pixel_data[idx..idx + 4].copy_from_slice(&[128, 128, 128, 255]);
+        }
+
+        let confidence = check_uniform_blocks(&pixel_data, 4, 4, 2);
+        assert!((confidence - 1.0).abs() < 0.001, "All blocks should be uniform");
+    }
+
+    #[test]
+    fn test_check_uniform_blocks_partial() {
+        // 4x4 with some non-uniform 2x2 blocks
+        let mut pixel_data = vec![0u8; 4 * 4 * 4];
+
+        // First three blocks are uniform gray
+        for y in 0..4 {
+            for x in 0..4 {
+                let idx = ((y * 4 + x) * 4) as usize;
+                pixel_data[idx..idx + 4].copy_from_slice(&[128, 128, 128, 255]);
+            }
+        }
+
+        // Break uniformity in bottom-right block
+        let idx = ((3 * 4 + 3) * 4) as usize;
+        pixel_data[idx..idx + 4].copy_from_slice(&[255, 0, 0, 255]);
+
+        let confidence = check_uniform_blocks(&pixel_data, 4, 4, 2);
+        // 3 out of 4 blocks are uniform = 0.75
+        assert!((confidence - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_upscale_info_in_structured_jsonl() {
+        let mut palette = HashMap::new();
+        palette.insert("{c1}".to_string(), "#FF0000".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{c1}".to_string(), vec![[0, 0]]);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: None,
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+            dither_patterns: vec![],
+            upscale_info: Some(UpscaleInfo {
+                scale: 2,
+                native_size: [16, 16],
+                confidence: 0.98,
+            }),
+        };
+
+        let result = ImportResult {
+            name: "test".to_string(),
+            width: 32,
+            height: 32,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: false,
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        assert!(jsonl.contains("_upscale"), "Should include _upscale field");
+        assert!(jsonl.contains("\"scale\":2") || jsonl.contains("\"scale\": 2"));
+        assert!(jsonl.contains("[16,16]") || jsonl.contains("[16, 16]"));
+    }
+
+    #[test]
+    fn test_detect_upscale_option_default() {
+        let options = ImportOptions::default();
+        assert!(!options.detect_upscale);
     }
 }
