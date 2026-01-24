@@ -214,8 +214,8 @@ pub fn extract_structured_regions(points: &[[u32; 2]], width: u32, height: u32) 
     let mut structured: Vec<StructuredRegion> = Vec::new();
 
     for component in components {
-        if component.len() < 3 {
-            // Too small for polygon, keep as points
+        // Small components (< 16 pixels) - just use points for simplicity
+        if component.len() < 16 {
             let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
             structured.push(StructuredRegion::Points(pts));
             continue;
