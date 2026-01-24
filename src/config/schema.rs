@@ -6,6 +6,73 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+/// Format version configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FormatConfig {
+    /// Format version (default: 2 for structured regions)
+    #[serde(default = "default_format_version")]
+    pub version: u32,
+}
+
+impl Default for FormatConfig {
+    fn default() -> Self {
+        Self { version: default_format_version() }
+    }
+}
+
+fn default_format_version() -> u32 {
+    2
+}
+
+/// Import settings for PNG-to-pxl conversion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportConfig {
+    /// Confidence threshold for color clustering (0.0-1.0, default: 0.7)
+    #[serde(default = "default_confidence_threshold")]
+    pub confidence_threshold: f64,
+    /// Enable automatic role inference from region analysis
+    #[serde(default = "default_role_inference")]
+    pub role_inference: bool,
+}
+
+impl Default for ImportConfig {
+    fn default() -> Self {
+        Self {
+            confidence_threshold: default_confidence_threshold(),
+            role_inference: default_role_inference(),
+        }
+    }
+}
+
+fn default_confidence_threshold() -> f64 {
+    0.7
+}
+
+fn default_role_inference() -> bool {
+    true
+}
+
+/// Telemetry settings for error collection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryConfig {
+    /// Enable local error collection
+    #[serde(default)]
+    pub collect_errors: bool,
+    /// Path to error log file (default: .pxl-errors.jsonl)
+    #[serde(default = "default_error_log")]
+    pub error_log: PathBuf,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self { collect_errors: false, error_log: default_error_log() }
+    }
+}
+
+fn default_error_log() -> PathBuf {
+    PathBuf::from(".pxl-errors.jsonl")
+}
+
 /// Validation severity level for config issues
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -277,6 +344,15 @@ pub struct ValidateConfig {
     /// Treat warnings as errors
     #[serde(default)]
     pub strict: bool,
+    /// Allow region overflow beyond declared sprite size
+    #[serde(default)]
+    pub allow_overflow: bool,
+    /// Allow orphan tokens (defined but unused)
+    #[serde(default)]
+    pub allow_orphans: bool,
+    /// Allow circular dependencies in relationships
+    #[serde(default)]
+    pub allow_cycles: bool,
     /// How to handle unused palettes
     #[serde(default)]
     pub unused_palettes: ValidationLevel,
@@ -315,6 +391,15 @@ impl Default for WatchConfig {
 pub struct PxlConfig {
     /// Project metadata (required)
     pub project: ProjectConfig,
+    /// Format version settings
+    #[serde(default)]
+    pub format: FormatConfig,
+    /// Import settings
+    #[serde(default, rename = "import")]
+    pub import_config: ImportConfig,
+    /// Telemetry settings
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
     /// Default settings
     #[serde(default)]
     pub defaults: DefaultsConfig,
@@ -630,5 +715,111 @@ filter_mode = "bilinear"
 "#;
         let config: PxlConfig = toml::from_str(toml).unwrap();
         assert_eq!(config.exports.unity.filter_mode, FilterMode::Bilinear);
+    }
+
+    #[test]
+    fn test_format_config_defaults() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.format.version, 2);
+    }
+
+    #[test]
+    fn test_format_config_explicit() {
+        let toml = r#"
+[project]
+name = "test"
+
+[format]
+version = 3
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.format.version, 3);
+    }
+
+    #[test]
+    fn test_import_config_defaults() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!((config.import_config.confidence_threshold - 0.7).abs() < 0.001);
+        assert!(config.import_config.role_inference);
+    }
+
+    #[test]
+    fn test_import_config_explicit() {
+        let toml = r#"
+[project]
+name = "test"
+
+[import]
+confidence_threshold = 0.9
+role_inference = false
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!((config.import_config.confidence_threshold - 0.9).abs() < 0.001);
+        assert!(!config.import_config.role_inference);
+    }
+
+    #[test]
+    fn test_telemetry_config_defaults() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(!config.telemetry.collect_errors);
+        assert_eq!(config.telemetry.error_log, PathBuf::from(".pxl-errors.jsonl"));
+    }
+
+    #[test]
+    fn test_telemetry_config_explicit() {
+        let toml = r#"
+[project]
+name = "test"
+
+[telemetry]
+collect_errors = true
+error_log = "errors/pxl.jsonl"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(config.telemetry.collect_errors);
+        assert_eq!(config.telemetry.error_log, PathBuf::from("errors/pxl.jsonl"));
+    }
+
+    #[test]
+    fn test_validate_config_allow_flags() {
+        let toml = r#"
+[project]
+name = "test"
+
+[validate]
+strict = true
+allow_overflow = true
+allow_orphans = true
+allow_cycles = true
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(config.validate.strict);
+        assert!(config.validate.allow_overflow);
+        assert!(config.validate.allow_orphans);
+        assert!(config.validate.allow_cycles);
+    }
+
+    #[test]
+    fn test_validate_config_allow_flags_default_false() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(!config.validate.allow_overflow);
+        assert!(!config.validate.allow_orphans);
+        assert!(!config.validate.allow_cycles);
     }
 }

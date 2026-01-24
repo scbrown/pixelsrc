@@ -72,6 +72,7 @@ pub mod shapes;
 pub mod spritesheet;
 pub mod structured;
 pub mod suggest;
+pub mod telemetry;
 pub mod templates;
 pub mod terminal;
 pub mod transforms;
