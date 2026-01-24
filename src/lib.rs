@@ -70,6 +70,7 @@ pub mod renderer;
 pub mod scaffold;
 pub mod shapes;
 pub mod spritesheet;
+pub mod state;
 pub mod structured;
 pub mod suggest;
 pub mod telemetry;

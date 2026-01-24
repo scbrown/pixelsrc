@@ -1160,6 +1160,11 @@ pub struct RegionDef {
     /// Random seed for jitter
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub seed: Option<u32>,
+
+    // Semantic metadata
+    /// Semantic role of this region (boundary, fill, shadow, etc.)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub role: Option<Role>,
 }
 
 /// Jitter specification for controlled randomness.
@@ -1268,9 +1273,9 @@ impl TransformDef {
     }
 }
 
-/// A Pixelsrc object - Palette, Sprite, Variant, Composition, Animation, Particle, or Transform.
+/// A Pixelsrc object - Palette, Sprite, Variant, Composition, Animation, Particle, Transform, or StateRules.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum TtpObject {
     Palette(Palette),
     Sprite(Sprite),
@@ -1279,6 +1284,7 @@ pub enum TtpObject {
     Animation(Animation),
     Particle(Particle),
     Transform(TransformDef),
+    StateRules(crate::state::StateRules),
 }
 
 /// A warning message from parsing/rendering.

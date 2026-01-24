@@ -350,6 +350,9 @@ impl AnalysisReport {
                 TtpObject::Transform(_) => {
                     // User-defined transforms are handled during rendering
                 }
+                TtpObject::StateRules(_) => {
+                    // State rules are runtime styling, not analyzed
+                }
             }
         }
 

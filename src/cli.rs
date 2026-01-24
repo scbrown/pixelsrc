@@ -1087,6 +1087,9 @@ fn run_render(
                 // User-defined transforms are stored in transform registry
                 // (future: register in transform_registry)
             }
+            TtpObject::StateRules(_) => {
+                // State rules are runtime styling, applied during rendering
+            }
         }
     }
 
@@ -2821,6 +2824,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                 TtpObject::Variant(v) => v.name == name,
                 TtpObject::Particle(p) => p.name == name,
                 TtpObject::Transform(t) => t.name == name,
+                TtpObject::StateRules(sr) => sr.name == name,
             })
             .collect();
 
@@ -2838,6 +2842,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     TtpObject::Variant(v) => v.name.as_str(),
                     TtpObject::Particle(p) => p.name.as_str(),
                     TtpObject::Transform(t) => t.name.as_str(),
+                    TtpObject::StateRules(sr) => sr.name.as_str(),
                 })
                 .collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &all_names, 3)) {
