@@ -56,12 +56,22 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
     let mut bracket_depth = 0;
     let mut in_string = false;
     let mut escape_next = false;
+    let mut in_multi_line_comment = false;
 
     while let Some(Ok(line)) = lines.next() {
         // Skip empty lines when not accumulating
         if accumulator.is_empty() && line.trim().is_empty() {
             current_line += 1;
             continue;
+        }
+
+        // Skip standalone comment lines when not accumulating
+        if accumulator.is_empty() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("//") || trimmed.starts_with("/*") {
+                current_line += 1;
+                continue;
+            }
         }
 
         // Add line to accumulator
@@ -71,7 +81,41 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
         accumulator.push_str(&line);
 
         // Track brace/bracket depth to detect complete objects
+        // Must handle comments to avoid counting braces inside them
+        let mut in_single_line_comment = false;
+        let mut prev_char: Option<char> = None;
+
         for ch in line.chars() {
+            // Handle multi-line comment end
+            if in_multi_line_comment {
+                if prev_char == Some('*') && ch == '/' {
+                    in_multi_line_comment = false;
+                }
+                prev_char = Some(ch);
+                continue;
+            }
+
+            // Check for comment starts (when not in string)
+            if !in_string && !in_single_line_comment {
+                if prev_char == Some('/') && ch == '/' {
+                    in_single_line_comment = true;
+                    prev_char = Some(ch);
+                    continue;
+                }
+                if prev_char == Some('/') && ch == '*' {
+                    in_multi_line_comment = true;
+                    prev_char = Some(ch);
+                    continue;
+                }
+            }
+
+            prev_char = Some(ch);
+
+            // Skip if in comment
+            if in_single_line_comment {
+                continue;
+            }
+
             if escape_next {
                 escape_next = false;
                 continue;
@@ -441,6 +485,38 @@ mod tests {
                     path
                 );
             }
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_parse_jeff_goldblum_example() {
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new("examples/jeff_goldblum.pxl");
+        if !path.exists() {
+            return; // Skip if file not available
+        }
+
+        let file = fs::File::open(path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        let result = parse_stream(reader);
+
+        // Should have 2 objects: a palette and a sprite
+        assert_eq!(result.objects.len(), 2, "Expected 2 objects (palette + sprite), got {:?}", result.objects.len());
+        assert!(result.warnings.is_empty(), "Unexpected warnings: {:?}", result.warnings);
+
+        // First should be palette
+        match &result.objects[0] {
+            TtpObject::Palette(p) => assert_eq!(p.name, "goldblum"),
+            _ => panic!("Expected palette as first object"),
+        }
+
+        // Second should be sprite
+        match &result.objects[1] {
+            TtpObject::Sprite(s) => assert_eq!(s.name, "jeff_goldblum"),
+            _ => panic!("Expected sprite as second object"),
         }
     }
 }

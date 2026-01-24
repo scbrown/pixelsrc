@@ -10,6 +10,7 @@
     // Outline and details
     outline: "#1a1a1a",
     "outline-soft": "#2d2d2d",
+    "face-outline": "#1a1a1a",  // Used for skin fill boundary
 
     // Hair - dark curly
     hair: "#1c1c1c",
@@ -74,9 +75,6 @@
   size: [32, 32],
   palette: "goldblum",
   regions: {
-    // Background
-    _: "background",
-
     // === HAIR (voluminous, curly, iconic) ===
     // Main hair mass - tall and wavy
     hair: {

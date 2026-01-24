@@ -706,22 +706,131 @@ impl Validator {
     }
 
     /// Validate a file
+    ///
+    /// Supports both single-line JSONL and multi-line JSON5 formats.
     pub fn validate_file(&mut self, path: &Path) -> Result<(), std::io::Error> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
-        for (line_idx, line_result) in reader.lines().enumerate() {
-            let line_number = line_idx + 1;
-            match line_result {
-                Ok(line) => self.validate_line(line_number, &line),
+        let mut accumulator = String::new();
+        let mut start_line = 1;
+        let mut current_line = 0;
+        let mut brace_depth = 0;
+        let mut bracket_depth = 0;
+        let mut in_string = false;
+        let mut escape_next = false;
+        let mut in_single_line_comment = false;
+        let mut in_multi_line_comment = false;
+        let mut prev_char: Option<char> = None;
+
+        for line_result in reader.lines() {
+            current_line += 1;
+
+            let line = match line_result {
+                Ok(l) => l,
                 Err(e) => {
                     self.issues.push(ValidationIssue::error(
-                        line_number,
+                        current_line,
                         IssueType::JsonSyntax,
                         format!("IO error reading line: {}", e),
                     ));
+                    continue;
+                }
+            };
+
+            // Reset single-line comment flag at start of new line
+            in_single_line_comment = false;
+
+            // Skip empty lines when not accumulating
+            if accumulator.is_empty() && line.trim().is_empty() {
+                continue;
+            }
+
+            // Skip standalone comment lines when not accumulating
+            if accumulator.is_empty() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") || trimmed.starts_with("/*") {
+                    continue;
                 }
             }
+
+            // Start tracking from this line if accumulator was empty
+            if accumulator.is_empty() {
+                start_line = current_line;
+            }
+
+            // Add line to accumulator
+            if !accumulator.is_empty() {
+                accumulator.push('\n');
+            }
+            accumulator.push_str(&line);
+
+            // Track brace/bracket depth to detect complete objects
+            for ch in line.chars() {
+                // Handle multi-line comment end
+                if in_multi_line_comment {
+                    if prev_char == Some('*') && ch == '/' {
+                        in_multi_line_comment = false;
+                    }
+                    prev_char = Some(ch);
+                    continue;
+                }
+
+                // Check for comment starts
+                if !in_string && !in_single_line_comment {
+                    if prev_char == Some('/') && ch == '/' {
+                        in_single_line_comment = true;
+                        prev_char = Some(ch);
+                        continue;
+                    }
+                    if prev_char == Some('/') && ch == '*' {
+                        in_multi_line_comment = true;
+                        prev_char = Some(ch);
+                        continue;
+                    }
+                }
+
+                prev_char = Some(ch);
+
+                // Skip if in comment
+                if in_single_line_comment {
+                    continue;
+                }
+
+                if escape_next {
+                    escape_next = false;
+                    continue;
+                }
+
+                match ch {
+                    '\\' if in_string => escape_next = true,
+                    '"' if !in_string => in_string = true,
+                    '"' if in_string => in_string = false,
+                    '{' if !in_string => brace_depth += 1,
+                    '}' if !in_string => brace_depth -= 1,
+                    '[' if !in_string => bracket_depth += 1,
+                    ']' if !in_string => bracket_depth -= 1,
+                    _ => {}
+                }
+            }
+
+            // Reset prev_char at end of line (for comment detection across lines)
+            prev_char = None;
+
+            // Try to validate when braces are balanced
+            if brace_depth == 0 && bracket_depth == 0 && !accumulator.trim().is_empty() {
+                self.validate_line(start_line, &accumulator);
+
+                accumulator.clear();
+                in_string = false;
+                escape_next = false;
+                in_single_line_comment = false;
+            }
+        }
+
+        // Handle any remaining accumulated content
+        if !accumulator.trim().is_empty() {
+            self.validate_line(start_line, &accumulator);
         }
 
         Ok(())
