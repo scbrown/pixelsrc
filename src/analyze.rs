@@ -566,6 +566,87 @@ pub fn format_report_text(report: &AnalysisReport) -> String {
 }
 
 // ============================================================================
+// Symmetry Detection (24.13)
+// ============================================================================
+
+/// Types of symmetry that can be detected in a region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Symmetric {
+    /// Symmetric along x-axis (left-right mirror)
+    X,
+    /// Symmetric along y-axis (top-bottom mirror)
+    Y,
+    /// Symmetric along both axes
+    XY,
+}
+
+/// Detect symmetry in a pixel grid.
+///
+/// Checks for x-axis (left-right), y-axis (top-bottom), and combined symmetry.
+///
+/// # Arguments
+/// * `pixels` - Flat array of pixel values (tokens as strings), row-major order
+/// * `width` - Width of the region in pixels
+/// * `height` - Height of the region in pixels
+///
+/// # Returns
+/// * `Some(Symmetric::XY)` if symmetric on both axes
+/// * `Some(Symmetric::X)` if symmetric left-right only
+/// * `Some(Symmetric::Y)` if symmetric top-bottom only
+/// * `None` if not symmetric
+pub fn detect_symmetry(pixels: &[&str], width: usize, height: usize) -> Option<Symmetric> {
+    if pixels.len() != width * height {
+        return None;
+    }
+
+    if width == 0 || height == 0 {
+        return None;
+    }
+
+    let x_sym = check_x_symmetry(pixels, width, height);
+    let y_sym = check_y_symmetry(pixels, width, height);
+
+    match (x_sym, y_sym) {
+        (true, true) => Some(Symmetric::XY),
+        (true, false) => Some(Symmetric::X),
+        (false, true) => Some(Symmetric::Y),
+        (false, false) => None,
+    }
+}
+
+/// Check for x-axis (left-right) symmetry.
+///
+/// Compares columns from left and right edges moving inward.
+fn check_x_symmetry(pixels: &[&str], width: usize, height: usize) -> bool {
+    for y in 0..height {
+        for x in 0..width / 2 {
+            let left_idx = y * width + x;
+            let right_idx = y * width + (width - 1 - x);
+            if pixels[left_idx] != pixels[right_idx] {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Check for y-axis (top-bottom) symmetry.
+///
+/// Compares rows from top and bottom edges moving inward.
+fn check_y_symmetry(pixels: &[&str], width: usize, height: usize) -> bool {
+    for y in 0..height / 2 {
+        for x in 0..width {
+            let top_idx = y * width + x;
+            let bottom_idx = (height - 1 - y) * width + x;
+            if pixels[top_idx] != pixels[bottom_idx] {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+// ============================================================================
 // Compression Estimation (13.4)
 // ============================================================================
 
@@ -1107,5 +1188,138 @@ mod tests {
 
         // Should detect 1 repeated row
         assert_eq!(stats.row_repetition.repeated_rows, 1);
+    }
+
+    // ========================================================================
+    // Symmetry detection tests (24.13)
+    // ========================================================================
+
+    #[test]
+    fn test_detect_symmetry_x_axis() {
+        // 4x2 grid with left-right symmetry
+        // a b b a
+        // c d d c
+        let pixels = vec!["a", "b", "b", "a", "c", "d", "d", "c"];
+        assert_eq!(detect_symmetry(&pixels, 4, 2), Some(Symmetric::X));
+    }
+
+    #[test]
+    fn test_detect_symmetry_y_axis() {
+        // 2x4 grid with top-bottom symmetry
+        // a b
+        // c d
+        // c d
+        // a b
+        let pixels = vec!["a", "b", "c", "d", "c", "d", "a", "b"];
+        assert_eq!(detect_symmetry(&pixels, 2, 4), Some(Symmetric::Y));
+    }
+
+    #[test]
+    fn test_detect_symmetry_xy() {
+        // 4x4 grid with both symmetries
+        // a b b a
+        // c d d c
+        // c d d c
+        // a b b a
+        let pixels = vec![
+            "a", "b", "b", "a", "c", "d", "d", "c", "c", "d", "d", "c", "a", "b", "b", "a",
+        ];
+        assert_eq!(detect_symmetry(&pixels, 4, 4), Some(Symmetric::XY));
+    }
+
+    #[test]
+    fn test_detect_symmetry_none() {
+        // 2x2 grid with no symmetry
+        // a b
+        // c d
+        let pixels = vec!["a", "b", "c", "d"];
+        assert_eq!(detect_symmetry(&pixels, 2, 2), None);
+    }
+
+    #[test]
+    fn test_detect_symmetry_single_pixel() {
+        // Single pixel is symmetric on both axes
+        let pixels = vec!["a"];
+        assert_eq!(detect_symmetry(&pixels, 1, 1), Some(Symmetric::XY));
+    }
+
+    #[test]
+    fn test_detect_symmetry_single_row() {
+        // Single row with x-symmetry
+        // a b b a
+        let pixels = vec!["a", "b", "b", "a"];
+        assert_eq!(detect_symmetry(&pixels, 4, 1), Some(Symmetric::XY));
+    }
+
+    #[test]
+    fn test_detect_symmetry_single_column() {
+        // Single column with y-symmetry
+        // a
+        // b
+        // b
+        // a
+        let pixels = vec!["a", "b", "b", "a"];
+        assert_eq!(detect_symmetry(&pixels, 1, 4), Some(Symmetric::XY));
+    }
+
+    #[test]
+    fn test_detect_symmetry_empty() {
+        let pixels: Vec<&str> = vec![];
+        assert_eq!(detect_symmetry(&pixels, 0, 0), None);
+    }
+
+    #[test]
+    fn test_detect_symmetry_mismatched_size() {
+        // Pixels don't match width * height
+        let pixels = vec!["a", "b", "c"];
+        assert_eq!(detect_symmetry(&pixels, 2, 2), None);
+    }
+
+    #[test]
+    fn test_detect_symmetry_odd_width_x() {
+        // 3x2 grid with x-symmetry (odd width)
+        // a b a
+        // c d c
+        let pixels = vec!["a", "b", "a", "c", "d", "c"];
+        assert_eq!(detect_symmetry(&pixels, 3, 2), Some(Symmetric::X));
+    }
+
+    #[test]
+    fn test_detect_symmetry_odd_height_y() {
+        // 2x3 grid with y-symmetry (odd height)
+        // a b
+        // c d
+        // a b
+        let pixels = vec!["a", "b", "c", "d", "a", "b"];
+        assert_eq!(detect_symmetry(&pixels, 2, 3), Some(Symmetric::Y));
+    }
+
+    #[test]
+    fn test_detect_symmetry_x_only_not_y() {
+        // 4x2 grid: x-symmetric but not y-symmetric
+        // a b b a
+        // c d d c  (different from row 0)
+        let pixels = vec!["a", "b", "b", "a", "c", "d", "d", "c"];
+        let result = detect_symmetry(&pixels, 4, 2);
+        assert_eq!(result, Some(Symmetric::X));
+    }
+
+    #[test]
+    fn test_detect_symmetry_y_only_not_x() {
+        // 2x4 grid: y-symmetric but not x-symmetric
+        // a b
+        // c d
+        // c d
+        // a b
+        let pixels = vec!["a", "b", "c", "d", "c", "d", "a", "b"];
+        let result = detect_symmetry(&pixels, 2, 4);
+        assert_eq!(result, Some(Symmetric::Y));
+    }
+
+    #[test]
+    fn test_detect_symmetry_uniform() {
+        // All same token - symmetric on both axes
+        let pixels = vec!["x", "x", "x", "x", "x", "x"];
+        assert_eq!(detect_symmetry(&pixels, 3, 2), Some(Symmetric::XY));
     }
 }
