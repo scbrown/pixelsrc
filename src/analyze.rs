@@ -2310,120 +2310,13 @@ mod tests {
             palette: PaletteRef::Named(String::new()),
             ..Default::default()
         }
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated - RLE analysis stubbed"]
-    fn test_analyze_row_rle_simple() {
-        // 6 tokens, 2 runs, 2 unique
-        let (tokens, runs, unique) = CompressionEstimator::analyze_row_rle("{a}{a}{a}{b}{b}{b}");
-        assert_eq!(tokens, 6);
-        assert_eq!(runs, 2);
-        assert_eq!(unique, 2);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated - RLE analysis stubbed"]
-    fn test_analyze_row_rle_no_runs() {
-        // Alternating tokens - no compression opportunity
-        let (tokens, runs, unique) = CompressionEstimator::analyze_row_rle("{a}{b}{a}{b}");
-        assert_eq!(tokens, 4);
-        assert_eq!(runs, 4);
-        assert_eq!(unique, 2);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated - RLE analysis stubbed"]
-    fn test_analyze_row_rle_all_same() {
-        // All same token - maximum compression
-        let (tokens, runs, unique) = CompressionEstimator::analyze_row_rle("{a}{a}{a}{a}{a}");
-        assert_eq!(tokens, 5);
-        assert_eq!(runs, 1);
-        assert_eq!(unique, 1);
-    }
-
-    #[test]
+    }    #[test]
     fn test_analyze_row_rle_empty() {
         let (tokens, runs, unique) = CompressionEstimator::analyze_row_rle("");
         assert_eq!(tokens, 0);
         assert_eq!(runs, 0);
         assert_eq!(unique, 0);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_analyze_sprite_rle() {
-        let sprite = make_compression_test_sprite(
-            "test",
-            vec![
-                "{a}{a}{a}{b}{b}{b}", // 6 tokens, 2 runs
-                "{a}{b}{a}{b}",       // 4 tokens, 4 runs
-                "{a}{a}{a}{a}{a}",    // 5 tokens, 1 run
-            ],
-        );
-        let stats = CompressionEstimator::analyze_sprite_rle(&sprite);
-        assert_eq!(stats.total_tokens, 15);
-        assert_eq!(stats.total_runs, 7);
-        assert_eq!(stats.total_rows, 3);
-        assert!((stats.compression_ratio() - 15.0 / 7.0).abs() < 0.001);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_analyze_row_repetition_none() {
-        let sprite = make_compression_test_sprite("test", vec!["{a}{b}", "{b}{a}", "{a}{a}"]);
-        let stats = CompressionEstimator::analyze_row_repetition(&sprite);
-        assert_eq!(stats.total_rows, 3);
-        assert_eq!(stats.repeated_rows, 0);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_analyze_row_repetition_some() {
-        let sprite = make_compression_test_sprite(
-            "test",
-            vec![
-                "{a}{a}", "{a}{a}", // repeated
-                "{b}{b}", "{b}{b}", // repeated
-                "{b}{b}", // repeated
-            ],
-        );
-        let stats = CompressionEstimator::analyze_row_repetition(&sprite);
-        assert_eq!(stats.total_rows, 5);
-        assert_eq!(stats.repeated_rows, 3);
-        assert!((stats.repetition_percentage() - 60.0).abs() < 0.001);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_analyze_row_repetition_all() {
-        let sprite =
-            make_compression_test_sprite("test", vec!["{a}{a}", "{a}{a}", "{a}{a}", "{a}{a}"]);
-        let stats = CompressionEstimator::analyze_row_repetition(&sprite);
-        assert_eq!(stats.total_rows, 4);
-        assert_eq!(stats.repeated_rows, 3);
-        assert!((stats.compression_ratio() - 4.0).abs() < 0.001);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_analyze_sprite_full() {
-        let sprite = make_compression_test_sprite(
-            "test",
-            vec![
-                "{_}{_}{_}{_}{a}{a}{a}{_}{_}{_}{_}", // 11 tokens, lots of runs
-                "{_}{_}{_}{_}{a}{a}{a}{_}{_}{_}{_}", // repeated row
-                "{_}{_}{_}{a}{a}{a}{a}{a}{_}{_}{_}",
-            ],
-        );
-        let stats = CompressionEstimator::analyze_sprite(&sprite);
-
-        assert_eq!(stats.rle.total_tokens, 33);
-        assert_eq!(stats.row_repetition.total_rows, 3);
-        assert_eq!(stats.row_repetition.repeated_rows, 1);
-    }
-
-    #[test]
+    }    #[test]
     fn test_rle_stats_merge() {
         let mut stats1 =
             RleStats { total_tokens: 10, total_runs: 5, total_rows: 2, total_unique_per_row: 4 };
@@ -2434,32 +2327,7 @@ mod tests {
         assert_eq!(stats1.total_runs, 13);
         assert_eq!(stats1.total_rows, 5);
         assert_eq!(stats1.total_unique_per_row, 10);
-    }
-
-    #[test]
-    #[ignore = "Grid-based compression analysis deprecated - see TTP-7i4v"]
-    fn test_realistic_hero_sprite() {
-        // Simulating the hero_idle sprite pattern
-        let sprite = make_compression_test_sprite(
-            "hero",
-            vec![
-                "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-                "{_}{_}{_}{_}{_}{_}{a}{a}{a}{a}{_}{_}{_}{_}{_}{_}",
-                "{_}{_}{_}{_}{_}{a}{b}{b}{b}{b}{a}{_}{_}{_}{_}{_}",
-                "{_}{_}{_}{_}{a}{b}{b}{b}{b}{b}{b}{a}{_}{_}{_}{_}",
-                "{_}{_}{_}{_}{a}{b}{b}{b}{b}{b}{b}{a}{_}{_}{_}{_}", // repeated
-            ],
-        );
-        let stats = CompressionEstimator::analyze_sprite(&sprite);
-
-        // Should have good RLE compression (lots of {_} runs)
-        assert!(stats.rle.compression_ratio() > 1.5);
-
-        // Should detect 1 repeated row
-        assert_eq!(stats.row_repetition.repeated_rows, 1);
-    }
-
-    // ========================================================================
+    }    // ========================================================================
 
     // Shape Detection Tests (24.12)
     // ========================================================================
@@ -3159,90 +3027,7 @@ mod tests {
 
         let result = RoleInferrer::infer_role(&pixels, &ctx, None, &[]);
         assert!(result.is_none());
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_infer_roles_batch() {
-        let ctx = RoleInferenceContext::new(16, 16);
-
-        let mut regions: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = HashMap::new();
-
-        // Small anchor region
-        let anchor_pixels: HashSet<(i32, i32)> = [(8, 8)].into_iter().collect();
-        regions.insert("{eye}".to_string(), (anchor_pixels, Some([0, 0, 0, 255])));
-
-        // Large fill region
-        let mut fill_pixels: HashSet<(i32, i32)> = HashSet::new();
-        for x in 4..12 {
-            for y in 4..12 {
-                fill_pixels.insert((x, y));
-            }
-        }
-        regions.insert("{body}".to_string(), (fill_pixels, Some([200, 150, 100, 255])));
-
-        let (inferences, warnings) = infer_roles_batch(&regions, &ctx);
-
-        // Should infer anchor for eye
-        assert!(inferences.contains_key("{eye}"));
-        assert_eq!(inferences["{eye}"].role, Role::Anchor);
-
-        // Should infer fill for body
-        assert!(inferences.contains_key("{body}"));
-        assert_eq!(inferences["{body}"].role, Role::Fill);
-
-        // No warnings expected for these clear cases
-        assert!(warnings.is_empty());
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_infer_roles_batch_with_shadow_highlight() {
-        let ctx = RoleInferenceContext::new(20, 20);
-
-        let mut regions: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = HashMap::new();
-
-        // Dark shadow region (must be large enough to not be anchor)
-        let mut shadow_pixels: HashSet<(i32, i32)> = HashSet::new();
-        for x in 2..7 {
-            for y in 10..15 {
-                shadow_pixels.insert((x, y));
-            }
-        }
-        regions.insert("{shadow}".to_string(), (shadow_pixels, Some([30, 30, 30, 255])));
-
-        // Bright highlight region
-        let mut highlight_pixels: HashSet<(i32, i32)> = HashSet::new();
-        for x in 12..17 {
-            for y in 3..8 {
-                highlight_pixels.insert((x, y));
-            }
-        }
-        regions.insert("{highlight}".to_string(), (highlight_pixels, Some([240, 240, 240, 255])));
-
-        // Medium base color region
-        let mut base_pixels: HashSet<(i32, i32)> = HashSet::new();
-        for x in 5..15 {
-            for y in 5..15 {
-                base_pixels.insert((x, y));
-            }
-        }
-        regions.insert("{base}".to_string(), (base_pixels, Some([128, 128, 128, 255])));
-
-        let (inferences, _warnings) = infer_roles_batch(&regions, &ctx);
-
-        // Shadow should be inferred (dark relative to others)
-        if let Some(shadow_inf) = inferences.get("{shadow}") {
-            assert_eq!(shadow_inf.role, Role::Shadow);
-        }
-
-        // Highlight should be inferred (bright relative to others)
-        if let Some(highlight_inf) = inferences.get("{highlight}") {
-            assert_eq!(highlight_inf.role, Role::Highlight);
-        }
-    }
-
-    // ========================================================================
+    }    // ========================================================================
     // Relationship Inference Tests (24.15)
     // ========================================================================
 

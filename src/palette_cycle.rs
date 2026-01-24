@@ -291,56 +291,7 @@ mod tests {
         assert_eq!(gcd(7, 3), 1);
         assert_eq!(lcm(3, 4), 12);
         assert_eq!(lcm(6, 8), 24);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_generate_cycle_frames_basic() {
-        // Create a simple 2x1 sprite with two water tokens
-        let sprite = Sprite {
-            name: "water".to_string(),
-            size: Some([2, 1]),
-            palette: PaletteRef::Inline(HashMap::new()),
-            
-            metadata: None,
-            ..Default::default()
-        };
-
-        let palette = make_palette(&[("{w1}", "#0000FF"), ("{w2}", "#00FFFF")]);
-
-        let anim = Animation {
-            name: "water_cycle".to_string(),
-            frames: vec!["water".to_string()],
-            duration: Some(Duration::Milliseconds(100)),
-            r#loop: Some(true),
-            palette_cycle: Some(vec![PaletteCycle {
-                tokens: vec!["{w1}".to_string(), "{w2}".to_string()],
-                duration: Some(150),
-            }]),
-            tags: None,
-            frame_metadata: None,
-            attachments: None,
-            ..Default::default()
-        };
-
-        let (frames, warnings) = generate_cycle_frames(&sprite, &palette, &anim);
-
-        // Should generate 2 frames (cycle length = 2)
-        assert_eq!(frames.len(), 2);
-        assert!(warnings.is_empty());
-
-        // Frame 0: w1=#0000FF, w2=#00FFFF
-        let frame0 = &frames[0];
-        assert_eq!(frame0.get_pixel(0, 0).0, [0, 0, 255, 255]); // Blue
-        assert_eq!(frame0.get_pixel(1, 0).0, [0, 255, 255, 255]); // Cyan
-
-        // Frame 1: w1=#00FFFF (from w2), w2=#0000FF (from w1)
-        let frame1 = &frames[1];
-        assert_eq!(frame1.get_pixel(0, 0).0, [0, 255, 255, 255]); // Cyan
-        assert_eq!(frame1.get_pixel(1, 0).0, [0, 0, 255, 255]); // Blue
-    }
-
-    #[test]
+    }    #[test]
     fn test_get_cycle_duration() {
         // Animation with cycle that has explicit duration
         let anim1 = Animation {

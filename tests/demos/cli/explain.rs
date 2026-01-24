@@ -27,33 +27,6 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
 // ============================================================================
 // Sprite Explanation Tests
 // ============================================================================
-
-/// @demo cli/explain#sprite_basic
-/// @title Explain Basic Sprite
-/// @description `pxl explain` provides a human-readable breakdown of sprite structure.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_explain_basic_sprite() {
-    let sprite = make_sprite(
-        "star",
-        vec!["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"],
-        PaletteRef::Inline(HashMap::from([
-            ("{_}".to_string(), "#00000000".to_string()),
-            ("{y}".to_string(), "#FFD700".to_string()),
-        ])),
-    );
-
-    let palette_colors = resolve_palette_colors(&sprite.palette, &HashMap::new());
-    let explanation = explain_sprite(&sprite, palette_colors.as_ref());
-
-    assert_eq!(explanation.name, "star");
-    assert_eq!(explanation.width, 3);
-    assert_eq!(explanation.height, 3);
-    assert_eq!(explanation.total_cells, 9);
-    assert!(explanation.tokens.len() >= 2, "Should list all tokens used");
-}
-
-/// @demo cli/explain#sprite_tokens
 /// @title Explain Token Usage
 /// @description Shows token frequency and percentage of total grid cells.
 #[test]
@@ -79,41 +52,8 @@ fn test_explain_token_usage() {
         assert_eq!(token.count, 8, "Each token should appear 8 times in 4x4");
     }
 }
-
-/// @demo cli/explain#sprite_transparency
-/// @title Explain Transparency Ratio
-/// @description Shows percentage of transparent vs opaque cells.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_explain_transparency_ratio() {
-    let sprite = make_sprite(
-        "diamond",
-        vec!["{_}{x}{_}", "{x}{x}{x}", "{_}{x}{_}"],
-        PaletteRef::Inline(HashMap::from([
-            ("{_}".to_string(), "#00000000".to_string()),
-            ("{x}".to_string(), "#FF0000".to_string()),
-        ])),
-    );
-
-    let palette_colors = resolve_palette_colors(&sprite.palette, &HashMap::new());
-    let explanation = explain_sprite(&sprite, palette_colors.as_ref());
-
-    // 4 transparent out of 9
-    assert_eq!(explanation.transparent_count, 4);
-    let expected_ratio = 4.0 / 9.0 * 100.0;
-    assert!(
-        (explanation.transparency_ratio - expected_ratio).abs() < 1.0,
-        "Transparency ratio should be ~44.4%"
-    );
-}
-
-// ============================================================================
 // Palette Explanation Tests
 // ============================================================================
-
-/// @demo cli/explain#palette
-/// @title Explain Palette
-/// @description Shows palette name, color count, and color mappings.
 #[test]
 fn test_explain_palette() {
     let colors = HashMap::from([
@@ -138,10 +78,6 @@ fn test_explain_palette() {
 // ============================================================================
 // Animation Explanation Tests
 // ============================================================================
-
-/// @demo cli/explain#animation
-/// @title Explain Animation
-/// @description Shows frame sequence, timing, and loop settings.
 #[test]
 fn test_explain_animation() {
     let animation = Animation {
@@ -175,10 +111,6 @@ fn test_explain_animation() {
 // ============================================================================
 // Composition Explanation Tests
 // ============================================================================
-
-/// @demo cli/explain#composition
-/// @title Explain Composition
-/// @description Shows composition structure including layers and base sprite.
 #[test]
 fn test_explain_composition() {
     let composition = Composition {
@@ -204,10 +136,6 @@ fn test_explain_composition() {
 // ============================================================================
 // Format Explanation Tests
 // ============================================================================
-
-/// @demo cli/explain#format_output
-/// @title Formatted Explanation Output
-/// @description Explanations can be formatted as human-readable text.
 #[test]
 fn test_format_explanation() {
     let sprite = make_sprite(
@@ -231,10 +159,6 @@ fn test_format_explanation() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
-
-/// @demo cli/explain#inline_vs_named
-/// @title Explain Inline vs Named Palette
-/// @description Explanation distinguishes between inline and named palette references.
 #[test]
 fn test_explain_inline_vs_named_palette() {
     // Inline palette
@@ -256,26 +180,4 @@ fn test_explain_inline_vs_named_palette() {
     let palette_colors = resolve_palette_colors(&sprite_named.palette, &empty_palettes);
     let explanation = explain_sprite(&sprite_named, palette_colors.as_ref());
     assert_eq!(explanation.palette_ref, "my_palette");
-}
-
-/// @demo cli/explain#inconsistent_rows
-/// @title Explain Inconsistent Row Widths
-/// @description Detects and reports when grid rows have different widths.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_explain_inconsistent_rows() {
-    let sprite = make_sprite(
-        "uneven",
-        vec![
-            "{x}{x}{x}", // 3 tokens
-            "{x}{x}",    // 2 tokens - inconsistent!
-            "{x}{x}{x}", // 3 tokens
-        ],
-        PaletteRef::Inline(HashMap::from([("{x}".to_string(), "#FF0000".to_string())])),
-    );
-
-    let palette_colors = resolve_palette_colors(&sprite.palette, &HashMap::new());
-    let explanation = explain_sprite(&sprite, palette_colors.as_ref());
-
-    assert!(!explanation.consistent_rows, "Should detect inconsistent row widths");
 }

@@ -505,28 +505,7 @@ mod tests {
         let dim = diff.dimension_change.unwrap();
         assert_eq!(dim.old, (8, 8));
         assert_eq!(dim.new, (16, 16));
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_grid_change() {
-        let palette = HashMap::from([
-            ("{_}".to_string(), "#00000000".to_string()),
-            ("{a}".to_string(), "#FF0000".to_string()),
-            ("{b}".to_string(), "#00FF00".to_string()),
-        ]);
-
-        let sprite_a = make_sprite("test", palette.clone(), vec!["{a}{a}", "{_}{_}"]);
-        let sprite_b = make_sprite("test", palette.clone(), vec!["{a}{b}", "{_}{_}"]);
-
-        let diff = diff_sprites(&sprite_a, &sprite_b, &palette, &palette);
-
-        assert!(!diff.is_empty());
-        assert_eq!(diff.grid_changes.len(), 1);
-        assert_eq!(diff.grid_changes[0].row, 0);
-    }
-
-    #[test]
+    }    #[test]
     fn test_get_sprite_dimensions_from_size() {
         let sprite = Sprite {
             name: "test".to_string(),

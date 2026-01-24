@@ -3,10 +3,6 @@
 //! Origin points, collision boxes, and attachment points.
 
 use crate::demos::{assert_dimensions, assert_validates, parse_content};
-
-/// @demo format/sprite#origin
-/// @title Origin Point
-/// @description Sprite with an origin point `[x, y]` for positioning and rotation.
 #[test]
 fn test_metadata_origin() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
@@ -27,10 +23,6 @@ fn test_metadata_origin() {
         .resolve("player", &palette_registry, false)
         .expect("Player sprite should resolve");
 }
-
-/// @demo format/sprite#collision
-/// @title Collision Boxes
-/// @description Sprite with named collision boxes for hitbox detection.
 #[test]
 fn test_metadata_collision_boxes() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
@@ -57,10 +49,6 @@ fn test_metadata_collision_boxes() {
     assert_eq!(hit.w, 3, "hit.w should be 3");
     assert_eq!(hit.h, 2, "hit.h should be 2");
 }
-
-/// @demo format/sprite#attachments
-/// @title Attachment Points
-/// @description Sprite with attach_in and attach_out points for chaining sprites.
 #[test]
 fn test_metadata_attachments() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
@@ -78,16 +66,4 @@ fn test_metadata_attachments() {
     // Verify attach_out point (where next segment attaches)
     let attach_out = metadata.attach_out.expect("Should have attach_out point");
     assert_eq!(attach_out, [2, 4], "attach_out should be at [2, 4] (bottom center)");
-}
-
-/// @demo format/sprite#metadata_dimensions
-/// @title Metadata Sprite Dimensions
-/// @description Verifies sprite with metadata renders at expected dimensions.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_metadata_sprite_dimensions() {
-    let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
-
-    // Player sprite is 5x4 pixels
-    assert_dimensions(jsonl, "player", 5, 4);
 }

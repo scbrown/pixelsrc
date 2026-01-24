@@ -75,10 +75,6 @@ fn create_checkerboard_transparent() -> RgbaImage {
 // ============================================================================
 // Basic Import Tests
 // ============================================================================
-
-/// @demo cli/import#basic
-/// @title Basic PNG Import
-/// @description `pxl import image.png` converts PNG to Pixelsrc JSONL format.
 #[test]
 fn test_import_basic() {
     let path = ensure_png("cli_red_square", create_red_square);
@@ -101,10 +97,6 @@ fn test_import_basic() {
     let lines: Vec<&str> = jsonl.lines().collect();
     assert_eq!(lines.len(), 2, "Output should be palette + sprite lines");
 }
-
-/// @demo cli/import#output_file
-/// @title Import with Output File
-/// @description `pxl import image.png --output sprite.jsonl` specifies output path.
 #[test]
 fn test_import_output_specification() {
     let path = ensure_png("cli_red_square", create_red_square);
@@ -121,10 +113,6 @@ fn test_import_output_specification() {
 
     assert_eq!(sprite_json["name"], "custom_name");
 }
-
-/// @demo cli/import#max_colors
-/// @title Import with Color Limit
-/// @description `pxl import image.png --max-colors 4` limits palette size.
 #[test]
 fn test_import_max_colors() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -137,10 +125,6 @@ fn test_import_max_colors() {
     let result_2 = import_png(&path, "colors_2", 2).expect("Import should succeed");
     assert!(result_2.palette.len() <= 2, "Quantization should limit to 2 colors");
 }
-
-/// @demo cli/import#transparency
-/// @title Import with Transparency
-/// @description Import preserves transparent pixels with {_} token.
 #[test]
 fn test_import_transparency() {
     let path = ensure_png("cli_checkerboard", create_checkerboard_transparent);
@@ -164,10 +148,6 @@ fn test_import_transparency() {
     let jsonl = result.to_jsonl();
     assert!(jsonl.contains("{_}"), "Grid should contain transparent tokens");
 }
-
-/// @demo cli/import#name_derivation
-/// @title Sprite Name from Filename
-/// @description Default sprite name is derived from input filename.
 #[test]
 fn test_import_name_from_filename() {
     let path = ensure_png("cli_my_sprite_name", create_red_square);
@@ -192,10 +172,6 @@ fn test_import_name_from_filename() {
 // ============================================================================
 // Output Format Tests
 // ============================================================================
-
-/// @demo cli/import#jsonl_structure
-/// @title JSONL Output Structure
-/// @description Import produces valid JSONL with palette and sprite objects.
 #[test]
 fn test_import_jsonl_structure() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -220,10 +196,6 @@ fn test_import_jsonl_structure() {
     assert!(sprite["size"].is_array(), "Sprite should have size");
     assert!(sprite["grid"].is_array(), "Sprite should have grid");
 }
-
-/// @demo cli/import#token_generation
-/// @title Color Token Generation
-/// @description Import generates unique tokens for each palette color.
 #[test]
 fn test_import_token_generation() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -242,10 +214,6 @@ fn test_import_token_generation() {
         assert!(token.len() >= 3, "Token should have content between braces");
     }
 }
-
-/// @demo cli/import#grid_tokens
-/// @title Grid Token Mapping
-/// @description Imported grid uses palette tokens to represent pixels.
 #[test]
 fn test_import_grid_tokens() {
     let path = ensure_png("cli_red_square", create_red_square);
@@ -271,32 +239,4 @@ fn test_import_grid_tokens() {
             );
         }
     }
-}
-
-// ============================================================================
-// Round-Trip Validation
-// ============================================================================
-
-/// @demo cli/import#roundtrip
-/// @title Import Round-Trip Validation
-/// @description Imported JSONL can be parsed and rendered back.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_import_roundtrip() {
-    use crate::demos::assert_validates;
-
-    let path = ensure_png("cli_multicolor", create_multicolor_4x4);
-
-    let result = import_png(&path, "roundtrip", 16).expect("Import should succeed");
-    let jsonl = result.to_jsonl();
-
-    // Verify the generated JSONL is valid Pixelsrc
-    assert_validates(&jsonl, true);
-
-    // Verify it can be parsed and dimensions match
-    use crate::demos::capture_render_info;
-    let info = capture_render_info(&jsonl, "roundtrip");
-
-    assert_eq!(info.width, 4, "Round-trip width should match original");
-    assert_eq!(info.height, 4, "Round-trip height should match original");
 }

@@ -90,42 +90,7 @@ fn test_nested_composition_basic() {
     assert!(warnings.is_empty(), "Should have no warnings");
 }
 
-/// Test that inner composition is rendered correctly within outer
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid format"]
-fn test_nested_composition_inner_rendered() {
-    let path = Path::new("tests/fixtures/compositions/nested_composition.jsonl");
-    let (_, _, composition_registry, sprite_images) = parse_file(path);
-
-    let outer = composition_registry.get("outer_comp").expect("outer_comp not found");
-
-    let mut ctx = RenderContext::new();
-    let (image, _) = render_composition_nested(
-        outer,
-        &sprite_images,
-        Some(&composition_registry),
-        &mut ctx,
-        false,
-        None,
-    )
-    .expect("Should render");
-
-    // Check that the red block from inner_comp is visible at (0,0)
-    // Red block is #FF0000
-    let pixel = image.get_pixel(0, 0);
-    assert_eq!(pixel[0], 255, "Red channel should be 255");
-    assert_eq!(pixel[1], 0, "Green channel should be 0");
-    assert_eq!(pixel[2], 0, "Blue channel should be 0");
-
-    // Check that the green block from inner_comp is visible at (4,0)
-    // Green block is #00FF00
-    let pixel = image.get_pixel(4, 0);
-    assert_eq!(pixel[0], 0, "Red channel should be 0");
-    assert_eq!(pixel[1], 255, "Green channel should be 255");
-    assert_eq!(pixel[2], 0, "Blue channel should be 0");
-}
-
-/// Test caching works for repeated composition references
+/// Test that inner composition is rendered correctly within outer/// Test caching works for repeated composition references
 #[test]
 fn test_nested_composition_caching() {
     let path = Path::new("tests/fixtures/compositions/nested_composition.jsonl");

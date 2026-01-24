@@ -64,15 +64,7 @@ fn assert_renders_successfully(fixture_path: &str) {
 
 // ============================================================================
 // CSS-12: color-mix() Tests
-// ============================================================================
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_color_mix_fixture_renders() {
-    assert_renders_successfully("tests/fixtures/css/color_mix.jsonl");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_color_mix_produces_valid_output() {
     let fixture = Path::new("tests/fixtures/css/color_mix.jsonl");
     let output_dir = std::env::temp_dir().join("pxl_color_mix_test");
@@ -100,15 +92,7 @@ fn test_color_mix_produces_valid_output() {
 
 // ============================================================================
 // CSS-13: @keyframes Animation Tests
-// ============================================================================
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_keyframes_fixture_renders() {
-    assert_renders_successfully("tests/fixtures/css/keyframes.jsonl");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_keyframes_animation_output() {
     let fixture = Path::new("tests/fixtures/css/keyframes.jsonl");
     let output_dir = std::env::temp_dir().join("pxl_keyframes_test");
@@ -130,21 +114,7 @@ fn test_keyframes_animation_output() {
 
 // ============================================================================
 // CSS-14: Transform Tests
-// ============================================================================
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_transforms_jsonl_fixture_renders() {
-    assert_renders_successfully("tests/fixtures/css/transforms.jsonl");
-}
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_transforms_pxl_fixture_renders() {
-    assert_renders_successfully("tests/fixtures/css/transforms.pxl");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_transforms_all_rotations() {
     // Verify all rotation variants render correctly
     let fixture = Path::new("tests/fixtures/css/transforms.jsonl");
@@ -174,15 +144,7 @@ fn test_transforms_all_rotations() {
 
 // ============================================================================
 // Integrated CSS Features Tests
-// ============================================================================
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_integrated_css_fixture_renders() {
-    assert_renders_successfully("tests/fixtures/css/integrated.jsonl");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_integrated_variables_and_color_mix() {
     // Tests that CSS variables work correctly with color-mix()
     let fixture = Path::new("tests/fixtures/css/integrated.jsonl");
@@ -257,39 +219,3 @@ fn test_all_css_fixtures_render() {
 // ============================================================================
 // Strict Mode Tests
 // ============================================================================
-
-#[test]
-#[ignore = "Grid format deprecated - fixture uses grid"]
-fn test_css_fixtures_pass_strict_mode() {
-    let css_dir = Path::new("tests/fixtures/css");
-
-    for entry in fs::read_dir(css_dir).expect("Cannot read CSS fixtures directory") {
-        let entry = entry.expect("Cannot read directory entry");
-        let path = entry.path();
-
-        if path.extension().is_some_and(|e| e == "jsonl" || e == "pxl") {
-            let output_dir = std::env::temp_dir().join("pxl_css_strict_test");
-            fs::create_dir_all(&output_dir).ok();
-
-            let output_path = output_dir.join("strict_test.png");
-
-            let output = Command::new(pxl_binary())
-                .arg("render")
-                .arg(&path)
-                .arg("-o")
-                .arg(&output_path)
-                .arg("--strict")
-                .output()
-                .expect("Failed to execute pxl");
-
-            let stderr = String::from_utf8_lossy(&output.stderr);
-
-            assert!(
-                output.status.success(),
-                "CSS fixture {:?} failed in strict mode: {}",
-                path,
-                stderr
-            );
-        }
-    }
-}

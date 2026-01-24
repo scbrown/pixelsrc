@@ -609,40 +609,7 @@ mod tests {
         assert!(describe_color("#FF0000").unwrap().contains("red"));
         assert!(describe_color("#00FF00").unwrap().contains("green"));
         assert!(describe_color("#0000FF").unwrap().contains("blue"));
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_explain_sprite_basic() {
-        let sprite = Sprite {
-            name: "test".to_string(),
-            size: Some([2, 2]),
-            palette: PaletteRef::Inline(HashMap::from([
-                ("{_}".to_string(), "#00000000".to_string()),
-                ("{x}".to_string(), "#FF0000".to_string()),
-            ])),
-            metadata: None,
-            ..Default::default()
-        };
-
-        let colors = HashMap::from([
-            ("{_}".to_string(), "#00000000".to_string()),
-            ("{x}".to_string(), "#FF0000".to_string()),
-        ]);
-
-        let exp = explain_sprite(&sprite, Some(&colors));
-
-        assert_eq!(exp.name, "test");
-        assert_eq!(exp.width, 2);
-        assert_eq!(exp.height, 2);
-        assert_eq!(exp.total_cells, 4);
-        assert_eq!(exp.transparent_count, 2);
-        assert!((exp.transparency_ratio - 50.0).abs() < 0.01);
-        assert!(exp.consistent_rows);
-        assert!(exp.issues.is_empty());
-    }
-
-    #[test]
+    }    #[test]
     fn test_explain_sprite_no_size() {
         // With grid format deprecated, sprites without explicit size
         // will have width/height of 0

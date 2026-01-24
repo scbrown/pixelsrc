@@ -1399,70 +1399,7 @@ mod tests {
 
         assert_eq!(diagnostic.range.start.line, 2); // 0-indexed
         assert_eq!(diagnostic.message, "Undefined token {skni} (did you mean {skin}?)");
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_parse_grid_context_first_row_first_token() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-        // Find position of first {a} - after the opening quote of the first grid row
-        let grid_start = line.find("[\"").unwrap() + 2; // Position after ["
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 0);
-        assert_eq!(info.y, 0);
-        assert_eq!(info.token, "{a}");
-        assert_eq!(info.row_width, 3);
-        assert_eq!(info.expected_width, 3);
-        assert_eq!(info.sprite_name, "test");
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_parse_grid_context_second_token() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-        // Position within {b}
-        let grid_start = line.find("[\"").unwrap() + 2 + 3; // After [" and {a}
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 1);
-        assert_eq!(info.y, 0);
-        assert_eq!(info.token, "{b}");
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_parse_grid_context_second_row() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{a}", "{b}{b}"]}"#;
-        // Find position within second row
-        let second_row_start = line.rfind("\"{b}").unwrap() + 1; // Position after the quote
-        let info = PixelsrcLanguageServer::parse_grid_context(line, second_row_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 0);
-        assert_eq!(info.y, 1);
-        assert_eq!(info.token, "{b}");
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_parse_grid_context_with_size() {
-        let line = r#"{"type": "sprite", "name": "sized", "size": [4, 2], "grid": ["{a}{a}"]}"#;
-        let grid_start = line.find("[\"").unwrap() + 2;
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.row_width, 2);
-        assert_eq!(info.expected_width, 4); // From size field
-    }
-
-    #[test]
+    }    #[test]
     fn test_parse_grid_context_not_sprite() {
         let line = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
         let info = PixelsrcLanguageServer::parse_grid_context(line, 50);

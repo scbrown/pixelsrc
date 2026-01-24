@@ -812,23 +812,7 @@ mod tests {
         // Warning makes it invalid in strict mode
         assert!(!result.valid);
         assert_eq!(result.warning_count, 1);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_verify_undefined_token() {
-        let client = LspAgentClient::new();
-        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}
-{"type": "sprite", "name": "s", "palette": "test", "grid": ["{a}{b}"]}"##;
-        let result = client.verify_content(content);
-
-        // Undefined token {b} should be a warning
-        assert!(result.valid); // Still valid (only warning)
-        assert_eq!(result.warning_count, 1);
-        assert!(result.warnings[0].message.contains("{b}"));
-    }
-
-    #[test]
+    }    #[test]
     fn test_get_completions_basic() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}"##;
@@ -854,28 +838,7 @@ mod tests {
         let labels: Vec<&str> = result.items.iter().map(|i| i.label.as_str()).collect();
         assert!(labels.contains(&"{skin}"));
         assert!(labels.contains(&"{hair}"));
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_get_grid_position() {
-        let client = LspAgentClient::new();
-        let content = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-
-        // Position within {b}
-        let grid_start = content.find("[\"").unwrap() + 2 + 3; // After [" and {a}
-        let pos = client.get_grid_position(content, 1, grid_start);
-
-        assert!(pos.is_some());
-        let pos = pos.unwrap();
-        assert_eq!(pos.x, 1);
-        assert_eq!(pos.y, 0);
-        assert_eq!(pos.token, "{b}");
-        assert_eq!(pos.sprite_name, "test");
-        assert!(pos.aligned);
-    }
-
-    #[test]
+    }    #[test]
     fn test_verify_content_json() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
@@ -896,38 +859,7 @@ mod tests {
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed["items"].as_array().unwrap().len() >= 3);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_multiline_verification() {
-        let client = LspAgentClient::new();
-        let content = r##"{"type": "palette", "name": "p1", "colors": {"{a}": "#FF0000"}}
-{"type": "palette", "name": "p2", "colors": {"{b}": "#00FF00"}}
-{"type": "sprite", "name": "s1", "palette": "p1", "grid": ["{a}"]}
-{"type": "sprite", "name": "s2", "palette": "p2", "grid": ["{b}"]}"##;
-
-        let result = client.verify_content(content);
-        assert!(result.valid);
-        assert_eq!(result.error_count, 0);
-        assert_eq!(result.warning_count, 0);
-    }
-
-    #[test]
-    #[ignore = "Grid format deprecated"]
-    fn test_suggestion_in_diagnostic() {
-        let client = LspAgentClient::new();
-        // Typo: {skni} instead of {skin}
-        let content = r##"{"type": "palette", "name": "p", "colors": {"{skin}": "#FFE0BD"}}
-{"type": "sprite", "name": "s", "palette": "p", "grid": ["{skni}"]}"##;
-
-        let result = client.verify_content(content);
-        assert_eq!(result.warning_count, 1);
-        assert!(result.warnings[0].suggestion.is_some());
-        assert!(result.warnings[0].suggestion.as_ref().unwrap().contains("{skin}"));
-    }
-
-    #[test]
+    }    #[test]
     fn test_empty_content() {
         let client = LspAgentClient::new();
         let result = client.verify_content("");

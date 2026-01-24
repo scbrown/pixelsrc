@@ -49,10 +49,6 @@ fn build_atlas_metadata(jsonl: &str) -> AtlasMetadata {
         animations: HashMap::new(),
     }
 }
-
-/// @demo export/atlas#unity
-/// @title Unity Atlas Export
-/// @description Export atlas metadata to Unity JSON format for UI sprite components.
 #[test]
 fn test_atlas_unity_export() {
     let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
@@ -69,10 +65,6 @@ fn test_atlas_unity_export() {
     // Verify frame count
     assert_eq!(metadata.frames.len(), 4, "Should have 4 UI sprite frames");
 }
-
-/// @demo export/atlas#unity_files
-/// @title Unity Export File Generation
-/// @description Generates JSON metadata, .meta import settings, and .anim clips.
 #[test]
 fn test_atlas_unity_file_generation() {
     let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
@@ -92,38 +84,6 @@ fn test_atlas_unity_file_generation() {
     // Verify file count (JSON + meta, no .anim since no animations in fixture)
     assert!(outputs.len() >= 2, "Should generate at least 2 files");
 }
-
-/// @demo export/atlas#unity_json
-/// @title Unity JSON Metadata Content
-/// @description Verify JSON contains sprite rects with Unity coordinate system (Y-flipped).
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_atlas_unity_json_content() {
-    let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
-    let metadata = build_atlas_metadata(jsonl);
-
-    let exporter = UnityExporter::new().with_pixels_per_unit(16);
-    let options = UnityExportOptions::default();
-    let json = exporter.export_to_string(&metadata, &options).unwrap();
-
-    // Verify JSON structure
-    assert!(json.contains("\"texture\": \"ui_atlas.png\""), "Should contain texture reference");
-    assert!(json.contains("\"pixelsPerUnit\": 16"), "Should contain PPU setting");
-    assert!(json.contains("\"filterMode\": \"Point\""), "Should use point filtering for pixel art");
-    assert!(json.contains("\"sprites\""), "Should contain sprites array");
-
-    // Parse and verify sprite data
-    let data: serde_json::Value = serde_json::from_str(&json).unwrap();
-    let sprites = data["sprites"].as_array().unwrap();
-    assert_eq!(sprites.len(), 4, "Should have 4 sprites");
-
-    // Find button_normal sprite
-    let button = sprites.iter().find(|s| s["name"] == "button_normal").unwrap();
-    assert!(button["rect"]["w"].as_f64().unwrap() > 0.0, "Button should have positive width");
-    assert!(button["rect"]["h"].as_f64().unwrap() > 0.0, "Button should have positive height");
-}
-
-/// @demo export/atlas#unity_meta
 /// @title Unity Texture Meta File
 /// @description Verify .meta file contains TextureImporter settings with sprite slices.
 #[test]
@@ -150,41 +110,6 @@ fn test_atlas_unity_meta_content() {
     assert!(meta_content.contains("button_pressed"), "Should contain button_pressed sprite");
     assert!(meta_content.contains("icon_check"), "Should contain icon_check sprite");
 }
-
-/// @demo export/atlas#unity_pivot
-/// @title Unity Export with Pivot Points
-/// @description Sprites with origin metadata are converted to Unity pivot points.
-#[test]
-    #[ignore = "Grid format deprecated"]
-fn test_atlas_unity_pivot() {
-    let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
-    let metadata = build_atlas_metadata(jsonl);
-
-    // Check that sprites with origins have them preserved
-    if let Some(button_normal) = metadata.frames.get("button_normal") {
-        // button_normal has origin [3, 2] in the fixture (6 wide, 4 tall button)
-        if let Some(origin) = button_normal.origin {
-            assert_eq!(origin, [3, 2], "Origin should be [3, 2]");
-        }
-    }
-
-    // Export and verify pivot is in output
-    let exporter = UnityExporter::new();
-    let options = UnityExportOptions::default();
-    let json = exporter.export_to_string(&metadata, &options).unwrap();
-
-    let data: serde_json::Value = serde_json::from_str(&json).unwrap();
-    let sprites = data["sprites"].as_array().unwrap();
-
-    // All sprites should have pivot data
-    for sprite in sprites {
-        assert!(sprite["pivot"].is_object(), "Sprite should have pivot");
-        assert!(sprite["pivot"]["x"].is_number(), "Pivot should have x coordinate");
-        assert!(sprite["pivot"]["y"].is_number(), "Pivot should have y coordinate");
-    }
-}
-
-/// @demo export/atlas#unity_filter
 /// @title Unity Export Filter Modes
 /// @description Configure texture filtering for different use cases.
 #[test]
@@ -208,10 +133,6 @@ fn test_atlas_unity_filter_modes() {
 
     assert!(json_tri.contains("\"filterMode\": \"Trilinear\""), "Should use trilinear filtering");
 }
-
-/// @demo export/atlas#unity_exporter
-/// @title Unity Exporter Configuration
-/// @description Configure Unity exporter with custom options.
 #[test]
 fn test_atlas_unity_exporter_config() {
     let exporter = UnityExporter::new()
