@@ -2956,6 +2956,7 @@ mod tests {
                     highlight_shift: None,
                 },
             )])),
+            relationships: None,
         };
 
         registry.register(palette);
@@ -2992,6 +2993,7 @@ mod tests {
                     highlight_shift: None,
                 },
             )])),
+            relationships: None,
         };
 
         registry.register(palette);
@@ -3027,6 +3029,7 @@ mod tests {
                     highlight_shift: None,
                 },
             )])),
+            relationships: None,
         };
 
         registry.register(palette);
@@ -3071,6 +3074,7 @@ mod tests {
                     },
                 ),
             ])),
+            relationships: None,
         };
 
         registry.register(palette);

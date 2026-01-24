@@ -4,7 +4,7 @@
 //! common mistakes like undefined tokens, row mismatches, and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{PaletteRef, Particle, TtpObject};
+use crate::models::{PaletteRef, Particle, Relationship, RelationshipType, TtpObject};
 use crate::tokenizer::tokenize;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -51,6 +51,10 @@ pub enum IssueType {
     EmptyGrid,
     /// Multiple objects with the same name
     DuplicateName,
+    /// Relationship references a token that doesn't exist
+    InvalidRelationshipTarget,
+    /// Circular dependency in derives-from relationships
+    CircularDependency,
 }
 
 impl std::fmt::Display for IssueType {
@@ -66,6 +70,8 @@ impl std::fmt::Display for IssueType {
             IssueType::SizeMismatch => write!(f, "size_mismatch"),
             IssueType::EmptyGrid => write!(f, "empty_grid"),
             IssueType::DuplicateName => write!(f, "duplicate_name"),
+            IssueType::InvalidRelationshipTarget => write!(f, "invalid_relationship_target"),
+            IssueType::CircularDependency => write!(f, "circular_dependency"),
         }
     }
 }
@@ -258,7 +264,12 @@ impl Validator {
         // Validate based on object type
         match ttp_obj {
             TtpObject::Palette(palette) => {
-                self.validate_palette(line_number, &palette.name, &palette.colors);
+                self.validate_palette(
+                    line_number,
+                    &palette.name,
+                    &palette.colors,
+                    palette.relationships.as_ref(),
+                );
             }
             TtpObject::Sprite(sprite) => {
                 self.validate_sprite(line_number, &sprite);
@@ -316,6 +327,7 @@ impl Validator {
         line_number: usize,
         name: &str,
         colors: &HashMap<String, String>,
+        relationships: Option<&HashMap<String, Relationship>>,
     ) {
         // Check for duplicate name
         if !self.palette_names.insert(name.to_string()) {
@@ -347,8 +359,87 @@ impl Validator {
             }
         }
 
+        // Validate relationships
+        if let Some(rels) = relationships {
+            self.validate_relationships(line_number, name, &defined_tokens, rels);
+        }
+
         // Register palette tokens
         self.palettes.insert(name.to_string(), defined_tokens);
+    }
+
+    /// Validate palette relationships
+    fn validate_relationships(
+        &mut self,
+        line_number: usize,
+        palette_name: &str,
+        defined_tokens: &HashSet<String>,
+        relationships: &HashMap<String, Relationship>,
+    ) {
+        // Build derives-from graph for cycle detection
+        let mut derives_from: HashMap<&str, &str> = HashMap::new();
+
+        for (source_token, relationship) in relationships {
+            // Check that source token exists
+            if !defined_tokens.contains(source_token) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipTarget,
+                        format!(
+                            "Relationship source token {} is not defined in palette",
+                            source_token
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Check that target token exists
+            if !defined_tokens.contains(&relationship.target) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipTarget,
+                        format!(
+                            "Relationship target token {} is not defined in palette",
+                            relationship.target
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Collect derives-from edges for cycle detection
+            if relationship.relationship_type == RelationshipType::DerivesFrom {
+                derives_from.insert(source_token.as_str(), relationship.target.as_str());
+            }
+        }
+
+        // Check for circular dependencies in derives-from chains
+        for start_token in derives_from.keys() {
+            let mut visited = HashSet::new();
+            let mut current = *start_token;
+
+            while let Some(&next) = derives_from.get(current) {
+                if !visited.insert(current) {
+                    // We've seen this token before - cycle detected
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::CircularDependency,
+                            format!(
+                                "Circular dependency in derives-from chain involving token {}",
+                                current
+                            ),
+                        )
+                        .with_context(format!("palette \"{}\"", palette_name)),
+                    );
+                    break;
+                }
+                current = next;
+            }
+        }
     }
 
     /// Validate a sprite definition
@@ -1158,5 +1249,123 @@ mod tests {
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");
+    }
+
+    #[test]
+    fn test_validate_relationship_valid() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{base}": "#FF0000", "{shadow}": "#AA0000"}, "relationships": {"{shadow}": {"type": "derives-from", "target": "{base}"}}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Expected no issues for valid relationship");
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_source() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{base}": "#FF0000"}, "relationships": {"{undefined}": {"type": "derives-from", "target": "{base}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipTarget)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected 1 invalid relationship target issue");
+        assert!(issues[0].message.contains("{undefined}"));
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_target() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{shadow}": "#AA0000"}, "relationships": {"{shadow}": {"type": "derives-from", "target": "{undefined}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipTarget)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected 1 invalid relationship target issue");
+        assert!(issues[0].message.contains("{undefined}"));
+    }
+
+    #[test]
+    fn test_validate_relationship_circular_dependency() {
+        let mut validator = Validator::new();
+        // Create a cycle: a -> b -> c -> a
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "derives-from", "target": "{c}"}, "{c}": {"type": "derives-from", "target": "{a}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(!issues.is_empty(), "Expected circular dependency issue");
+    }
+
+    #[test]
+    fn test_validate_relationship_types() {
+        let mut validator = Validator::new();
+        // Test all relationship types
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF", "{d}": "#FFFF00", "{e}": "#FF00FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "contained-within", "target": "{c}"}, "{c}": {"type": "adjacent-to", "target": "{d}"}, "{d}": {"type": "paired-with", "target": "{e}"}}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Expected no issues for valid relationship types");
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_type() {
+        let mut validator = Validator::new();
+        // Invalid relationship type should fail JSON parsing
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "relationships": {"{a}": {"type": "invalid-type", "target": "{b}"}}}"##,
+        );
+        // This should result in a JSON syntax error because the enum doesn't include "invalid-type"
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::JsonSyntax)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected JSON syntax error for invalid relationship type");
+    }
+
+    #[test]
+    fn test_validate_relationship_no_cycle_in_chain() {
+        let mut validator = Validator::new();
+        // Linear chain without cycle: a -> b -> c (no cycle)
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "derives-from", "target": "{c}"}}}"##,
+        );
+        let cycle_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(cycle_issues.is_empty(), "Expected no circular dependency issues for linear chain");
+    }
+
+    #[test]
+    fn test_validate_relationship_self_reference() {
+        let mut validator = Validator::new();
+        // Self-reference: a -> a (single node cycle)
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "relationships": {"{a}": {"type": "derives-from", "target": "{a}"}}}"##,
+        );
+        let cycle_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(!cycle_issues.is_empty(), "Expected circular dependency issue for self-reference");
     }
 }

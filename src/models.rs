@@ -265,6 +265,35 @@ impl ColorRamp {
     }
 }
 
+/// Type of relationship between palette tokens.
+///
+/// Defines semantic relationships between color tokens for tooling and validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RelationshipType {
+    /// Token color is derived from another token (e.g., shadow from base)
+    DerivesFrom,
+    /// Token is visually contained within another region
+    ContainedWithin,
+    /// Token is adjacent to another (e.g., outline next to fill)
+    AdjacentTo,
+    /// Token is semantically paired with another (e.g., left/right eyes)
+    PairedWith,
+}
+
+/// A relationship definition for a palette token.
+///
+/// Defines how one token relates to another for semantic analysis,
+/// tooling hints, and validation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Relationship {
+    /// The type of relationship
+    #[serde(rename = "type")]
+    pub relationship_type: RelationshipType,
+    /// The target token this relationship points to
+    pub target: String,
+}
+
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
@@ -275,6 +304,9 @@ pub struct Palette {
     /// Color ramps for automatic generation of shadow/highlight variants
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub ramps: Option<HashMap<String, ColorRamp>>,
+    /// Semantic relationships between tokens
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub relationships: Option<HashMap<String, Relationship>>,
 }
 
 /// Reference to a palette - either a named reference or inline definition.
