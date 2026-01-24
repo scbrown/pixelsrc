@@ -1,5 +1,5 @@
 // jeff_goldblum.pxl - The man, the myth, the legend
-// A detailed 32x32 portrait sprite
+// A 32x32 portrait using structured regions
 
 {
   type: "palette",
@@ -7,65 +7,53 @@
   colors: {
     _: "transparent",
 
-    // Outline and details
-    outline: "#1a1a1a",
-    "outline-soft": "#2d2d2d",
-    "face-outline": "#1a1a1a",  // Used for skin fill boundary
+    // Structure
+    outline: "#0a0a0a",
 
-    // Hair - dark curly
-    hair: "#1c1c1c",
-    "hair-highlight": "#3d3d3d",
-    "hair-shadow": "#0a0a0a",
+    // Hair - dark, voluminous
+    hair: "#1a1a1a",
+    "hair-hi": "#2d2d2d",
 
-    // Skin tones
+    // Skin - warm tones with depth
     skin: "#d4a574",
-    "skin-light": "#e8c4a0",
-    "skin-shadow": "#b8865c",
-    "skin-deep": "#9a6b48",
+    "skin-hi": "#e8c4a0",
+    "skin-sh": "#b8865c",
+    "skin-dp": "#8a5a3c",
 
     // Eyes
-    "eye-white": "#f0ebe6",
-    iris: "#5c4a32",
+    "eye-w": "#f5f0eb",
+    iris: "#4a3c28",
     pupil: "#0a0a0a",
-    "eye-shadow": "#c9b8a4",
 
     // Eyebrows
-    brow: "#2a2a2a",
+    brow: "#1a1a1a",
 
-    // Lips
-    lip: "#c4756a",
-    "lip-shadow": "#a85f55",
+    // Nose and details
+    nose: "#c49a6a",
 
-    // Glasses frames
-    glasses: "#1a1a1a",
-    "glasses-lens": "#b8d4e8",
+    // Mouth
+    lip: "#b86860",
 
-    // Shirt (classic black)
+    // Glasses
+    frame: "#1a1a1a",
+    lens: "#88aabb60",
+
+    // Shirt
     shirt: "#1a1a1a",
-    "shirt-fold": "#2d2d2d",
-
-    // Stubble/beard shadow
-    stubble: "#a08068",
+    collar: "#2a2a2a",
   },
+
   roles: {
     outline: "boundary",
     skin: "fill",
     hair: "fill",
     iris: "anchor",
     pupil: "anchor",
-    glasses: "anchor",
-    "skin-shadow": "shadow",
-    "skin-light": "highlight",
-    "hair-highlight": "highlight",
-  },
-  relationships: {
-    "skin-shadow": { type: "derives-from", target: "skin" },
-    "skin-light": { type: "derives-from", target: "skin" },
-    "skin-deep": { type: "derives-from", target: "skin-shadow" },
-    "hair-highlight": { type: "derives-from", target: "hair" },
-    "hair-shadow": { type: "derives-from", target: "hair" },
-    pupil: { type: "contained-within", target: "iris" },
-    iris: { type: "contained-within", target: "eye-white" },
+    frame: "anchor",
+    "skin-sh": "shadow",
+    "skin-dp": "shadow",
+    "skin-hi": "highlight",
+    "hair-hi": "highlight",
   },
 }
 
@@ -74,201 +62,151 @@
   name: "jeff_goldblum",
   size: [32, 32],
   palette: "goldblum",
+
   regions: {
-    // === HAIR (voluminous, curly, iconic) ===
-    // Main hair mass - tall and wavy
+    // === HAIR (z: 0-9) ===
     hair: {
-      polygon: [
-        [8, 0], [24, 0], [26, 2], [27, 4], [27, 8], [26, 10],
-        [25, 11], [24, 12], [23, 11], [22, 12], [21, 11],
-        [11, 11], [10, 12], [9, 11], [8, 12], [7, 11],
-        [6, 10], [5, 8], [5, 4], [6, 2]
-      ]
+      union: [
+        { rect: [6, 0, 20, 4] },    // Top mass
+        { rect: [5, 4, 22, 4] },    // Mid section
+        { rect: [4, 8, 24, 4] },    // Lower (sides)
+      ],
+      z: 0,
     },
 
-    // Hair texture/highlights
-    "hair-highlight": {
+    "hair-hi": {
       points: [
-        [10, 2], [12, 1], [14, 2], [16, 1], [18, 2], [20, 1], [22, 2],
-        [9, 4], [11, 3], [13, 4], [15, 3], [17, 4], [19, 3], [21, 4], [23, 4],
-        [8, 6], [10, 5], [12, 6], [14, 5], [16, 6], [18, 5], [20, 6], [22, 5], [24, 6],
-        [7, 8], [9, 7], [11, 8], [13, 7], [15, 8], [17, 7], [19, 8], [21, 7], [23, 8], [25, 8]
-      ]
+        [9, 2], [12, 1], [15, 2], [18, 1], [21, 2],
+        [8, 4], [11, 3], [14, 4], [17, 3], [20, 4], [23, 3],
+        [7, 6], [10, 5], [13, 6], [16, 5], [19, 6], [22, 5], [25, 6],
+      ],
+      z: 1,
     },
 
-    // Hair shadow depth
-    "hair-shadow": {
-      points: [
-        [6, 5], [6, 7], [26, 5], [26, 7],
-        [7, 9], [8, 10], [24, 9], [25, 10]
-      ]
-    },
-
-    // === FACE SHAPE ===
-    // Face outline
-    "face-outline": {
-      polygon: [
-        [9, 10], [23, 10], [24, 11], [25, 13], [25, 18], [24, 21],
-        [23, 23], [22, 25], [20, 26], [16, 27], [12, 26], [10, 25],
-        [9, 23], [8, 21], [7, 18], [7, 13], [8, 11]
-      ]
-    },
-
-    // Main skin fill
+    // === FACE (z: 10-29) ===
     skin: {
-      fill: "inside(face-outline)",
-      except: ["eye-white", "iris", "pupil", "glasses", "glasses-lens", "lip", "lip-shadow", "brow"]
-    },
-
-    // Forehead highlight
-    "skin-light": {
-      points: [
-        [14, 11], [15, 11], [16, 11], [17, 11], [18, 11],
-        [13, 12], [14, 12], [15, 12], [16, 12], [17, 12], [18, 12], [19, 12]
-      ]
-    },
-
-    // Face shadow/contour (cheekbones, jaw)
-    "skin-shadow": {
-      points: [
-        // Left cheek contour
-        [8, 15], [8, 16], [8, 17], [9, 18], [9, 19],
-        // Right cheek contour
-        [24, 15], [24, 16], [24, 17], [23, 18], [23, 19],
-        // Under chin
-        [13, 25], [14, 26], [15, 26], [16, 26], [17, 26], [18, 25],
-        // Nose shadow
-        [17, 18], [17, 19], [17, 20]
-      ]
-    },
-
-    // Deep shadows (under cheekbones)
-    "skin-deep": {
-      points: [
-        [8, 18], [9, 20], [23, 18], [24, 20]
-      ]
-    },
-
-    // === EYES (with glasses) ===
-    // Glasses frames
-    glasses: {
       union: [
-        // Left frame
-        { stroke: [9, 13, 6, 5] },
-        // Right frame
-        { stroke: [17, 13, 6, 5] },
-        // Bridge
-        { line: [[15, 15], [17, 15]] },
-        // Left temple
-        { line: [[9, 15], [7, 14]] },
-        // Right temple
-        { line: [[23, 15], [25, 14]] }
-      ]
+        { rect: [8, 10, 16, 16] },   // Main face area
+        { rect: [10, 26, 12, 2] },   // Chin
+      ],
+      z: 10,
     },
 
-    // Glasses lenses (slight tint)
-    "glasses-lens": {
+    "skin-hi": {
+      rect: [11, 11, 10, 3],  // Forehead highlight
+      z: 11,
+    },
+
+    "skin-sh": {
       union: [
-        { rect: [10, 14, 4, 3] },
-        { rect: [18, 14, 4, 3] }
-      ]
+        { rect: [8, 16, 2, 6] },    // Left cheek shadow
+        { rect: [22, 16, 2, 6] },   // Right cheek shadow
+        { rect: [11, 24, 10, 2] },  // Jaw shadow
+      ],
+      z: 12,
     },
 
-    // Eye whites
-    "eye-white": {
-      union: [
-        { rect: [10, 14, 4, 3] },
-        { rect: [18, 14, 4, 3] }
-      ]
-    },
-
-    // Eye shadow (under brow)
-    "eye-shadow": {
+    "skin-dp": {
       points: [
-        [10, 14], [11, 14], [12, 14], [13, 14],
-        [18, 14], [19, 14], [20, 14], [21, 14]
-      ]
+        [8, 19], [8, 20], [23, 19], [23, 20],  // Deep cheek shadows
+        [13, 25], [18, 25],  // Under chin
+      ],
+      z: 13,
     },
 
-    // Irises
-    iris: {
-      union: [
-        { rect: [11, 15, 2, 2] },
-        { rect: [19, 15, 2, 2] }
-      ]
-    },
-
-    // Pupils
-    pupil: {
-      points: [[11, 15], [19, 15]],
-    },
-
-    // === EYEBROWS (expressive, arched) ===
+    // === EYES (z: 30-39) ===
     brow: {
       union: [
-        // Left brow - arched
-        { line: [[9, 12], [10, 11], [13, 11], [14, 12]] },
-        // Right brow - arched
-        { line: [[18, 12], [19, 11], [22, 11], [23, 12]] }
-      ]
+        { rect: [9, 13, 5, 1] },   // Left brow
+        { rect: [18, 13, 5, 1] },  // Right brow
+      ],
+      z: 30,
     },
 
-    // === NOSE ===
-    // Nose highlight
-    "outline-soft": {
-      points: [
-        [15, 17], [16, 17],
-        [15, 18], [16, 18],
-        [15, 19], [16, 19],
-        [14, 20], [15, 20], [16, 20], [17, 20]
-      ]
+    "eye-w": {
+      union: [
+        { rect: [10, 15, 4, 2] },  // Left eye white
+        { rect: [18, 15, 4, 2] },  // Right eye white
+      ],
+      z: 31,
     },
 
-    // === MOUTH/LIPS (slight smirk) ===
+    iris: {
+      union: [
+        { rect: [11, 15, 2, 2] },  // Left iris
+        { rect: [19, 15, 2, 2] },  // Right iris
+      ],
+      z: 32,
+    },
+
+    pupil: {
+      points: [[11, 16], [19, 16]],
+      z: 33,
+    },
+
+    // === NOSE (z: 40-44) ===
+    nose: {
+      union: [
+        { rect: [15, 16, 2, 4] },  // Bridge
+        { rect: [14, 20, 4, 1] },  // Tip
+      ],
+      z: 40,
+    },
+
+    // === MOUTH (z: 45-49) ===
     lip: {
-      polygon: [
-        [13, 22], [14, 21], [15, 21], [16, 21], [17, 21], [18, 21], [19, 22],
-        [18, 23], [17, 23], [16, 23], [15, 23], [14, 23], [13, 22]
-      ]
+      rect: [13, 22, 6, 2],
+      z: 45,
     },
 
-    "lip-shadow": {
-      points: [[14, 22], [15, 22], [16, 22], [17, 22], [18, 22]]
+    // === GLASSES (z: 50-59) ===
+    lens: {
+      union: [
+        { rect: [9, 14, 5, 4] },   // Left lens
+        { rect: [18, 14, 5, 4] },  // Right lens
+      ],
+      z: 50,
     },
 
-    // === STUBBLE ===
-    stubble: {
-      points: [
-        // Chin area
-        [14, 24], [16, 24], [18, 24],
-        [13, 24], [15, 25], [17, 25], [19, 24],
-        // Jaw line
-        [10, 22], [11, 23], [21, 23], [22, 22],
-        [10, 21], [22, 21]
-      ]
+    frame: {
+      union: [
+        // Left frame
+        { stroke: [9, 14, 5, 4] },
+        // Right frame
+        { stroke: [18, 14, 5, 4] },
+        // Bridge
+        { rect: [14, 15, 4, 1] },
+        // Left temple
+        { line: [[9, 16], [5, 14]] },
+        // Right temple
+        { line: [[23, 16], [27, 14]] },
+      ],
+      z: 51,
     },
 
-    // === SHIRT/COLLAR ===
+    // === SHIRT (z: 60-69) ===
     shirt: {
-      polygon: [
-        [8, 27], [10, 26], [12, 27], [14, 28], [18, 28], [20, 27], [22, 26], [24, 27],
-        [26, 29], [26, 32], [6, 32], [6, 29]
-      ]
+      rect: [4, 28, 24, 4],
+      z: 60,
     },
 
-    // Shirt fold/collar detail
-    "shirt-fold": {
-      points: [
-        [12, 28], [13, 29], [14, 30],
-        [20, 28], [19, 29], [18, 30],
-        [15, 29], [16, 29], [17, 29]
-      ]
+    collar: {
+      union: [
+        { line: [[12, 28], [16, 30]] },
+        { line: [[20, 28], [16, 30]] },
+      ],
+      z: 61,
     },
 
-    // === OUTLINE ===
+    // === OUTLINE (z: 90+) ===
     outline: {
-      "auto-outline": "face-outline",
-      thickness: 1
+      union: [
+        // Face contour
+        { stroke: [8, 10, 16, 16] },
+        // Neck/chin
+        { line: [[10, 26], [10, 28], [22, 28], [22, 26]] },
+      ],
+      z: 90,
     },
   },
 }
