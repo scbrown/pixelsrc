@@ -1506,7 +1506,8 @@ mod tests {
         match obj {
             TtpObject::Sprite(sprite) => {
                 assert_eq!(sprite.name, "dot");
-                assert!(sprite.size.is_none());
+                assert_eq!(sprite.size, Some([1, 1]));
+                assert!(sprite.regions.is_some());
                 match sprite.palette {
                     PaletteRef::Inline(colors) => {
                         assert_eq!(colors.get("x"), Some(&"#FF0000".to_string()));

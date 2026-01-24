@@ -47,31 +47,25 @@ fn test_format_suggestions() {
 // ============================================================================
 /// @title Missing Token Fix Suggestion
 /// @description Suggests adding the missing token to the palette with a color.// ============================================================================
-// Row Completion Tests
 // ============================================================================
-/// @title Row Completion Fix
-/// @description Suggests extending short rows with appropriate padding token.// ============================================================================
 // Report Tests
 // ============================================================================
 /// @title Filter Suggestions by Type
 /// @description Can filter suggestions to only show specific types.
 #[test]
 fn test_suggest_filter_by_type() {
-    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}{y}", "{x}"]}"##;
+    // Sprite with missing token in region
+    let jsonl = r##"{"type": "sprite", "name": "test", "size": [2, 2], "palette": {"x": "#FF0000"}, "regions": {"y": {"rect": [0, 0, 2, 2]}}}"##;
 
     let mut suggester = Suggester::new();
     suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
     let report = suggester.into_report();
 
     let missing_only = report.filter_by_type(SuggestionType::MissingToken);
-    let completion_only = report.filter_by_type(SuggestionType::RowCompletion);
 
     // All filtered suggestions should be of the requested type
     for suggestion in missing_only {
         assert_eq!(suggestion.suggestion_type, SuggestionType::MissingToken);
-    }
-    for suggestion in completion_only {
-        assert_eq!(suggestion.suggestion_type, SuggestionType::RowCompletion);
     }
 }
 

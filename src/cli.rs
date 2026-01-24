@@ -3134,9 +3134,8 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
     // Parse the --only filter
     let type_filter: Option<SuggestionType> = match only {
         Some("token") => Some(SuggestionType::MissingToken),
-        Some("row") => Some(SuggestionType::RowCompletion),
         Some(other) => {
-            eprintln!("Error: Unknown suggestion type '{}'. Use 'token' or 'row'.", other);
+            eprintln!("Error: Unknown suggestion type '{}'. Use 'token'.", other);
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         None => None,
@@ -3223,21 +3222,6 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                     SuggestionFix::AddToPalette { token, suggested_color } => {
                         println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
                     }
-                    SuggestionFix::ExtendRow {
-                        row_index,
-                        suggested,
-                        tokens_to_add,
-                        pad_token,
-                        ..
-                    } => {
-                        println!(
-                            "  Fix: Extend row {} by adding {} {} token(s)",
-                            row_index + 1,
-                            tokens_to_add,
-                            pad_token
-                        );
-                        println!("  Suggested: \"{}\"", suggested);
-                    }
                 }
                 println!();
             }
@@ -3247,21 +3231,9 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                 .iter()
                 .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
                 .count();
-            let row_count = suggestions
-                .iter()
-                .filter(|s| s.suggestion_type == SuggestionType::RowCompletion)
-                .count();
 
-            if token_count > 0 || row_count > 0 {
-                print!("Summary: ");
-                let mut parts = Vec::new();
-                if token_count > 0 {
-                    parts.push(format!("{} missing token(s)", token_count));
-                }
-                if row_count > 0 {
-                    parts.push(format!("{} row completion(s)", row_count));
-                }
-                println!("{}", parts.join(", "));
+            if token_count > 0 {
+                println!("Summary: {} missing token(s)", token_count);
             }
         }
     }

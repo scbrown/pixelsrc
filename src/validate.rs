@@ -62,6 +62,8 @@ pub enum IssueType {
     UncertainConstraint,
     /// Range validation (reused for constraint checking)
     RangeValidation,
+    /// Sprite has no regions defined or state-rules has no rules
+    EmptyGrid,
 }
 
 impl std::fmt::Display for IssueType {
@@ -83,6 +85,7 @@ impl std::fmt::Display for IssueType {
             IssueType::CircularRelationship => write!(f, "circular_relationship"),
             IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
             IssueType::RangeValidation => write!(f, "range_validation"),
+            IssueType::EmptyGrid => write!(f, "empty_grid"),
         }
     }
 }
