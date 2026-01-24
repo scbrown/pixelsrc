@@ -1,0 +1,350 @@
+// jeff_goldblum_popart.pxl - Pop art style portrait
+// 64x64 high-detail with bold color blocking
+
+{
+  type: "palette",
+  name: "goldblum-pop",
+  colors: {
+    _: "transparent",
+
+    // Structure
+    outline: "#1a1a1a",
+    "outline-soft": "#2d2d2d",
+
+    // Hair - multicolor streaks
+    "hair-base": "#1a1a2e",
+    "hair-blue": "#4a90d9",
+    "hair-purple": "#7b4397",
+    "hair-pink": "#d94e8f",
+    "hair-teal": "#2dd4bf",
+
+    // Face - pop art color blocks
+    "face-orange": "#e87b35",
+    "face-yellow": "#f5c842",
+    "face-teal": "#35a8a0",
+    "face-pink": "#e05580",
+    "face-peach": "#f0b090",
+
+    // Shadows and highlights
+    "shadow-deep": "#1a3040",
+    "shadow-mid": "#2d4a5a",
+    "highlight": "#fff5e0",
+
+    // Eyes
+    "eye-white": "#f5f0eb",
+    iris: "#3a5a40",
+    pupil: "#0a0a0a",
+
+    // Glasses
+    frame: "#1a1a1a",
+    lens: "#88bbdd50",
+    "lens-reflect": "#ffffff40",
+
+    // Lips
+    lip: "#c04060",
+    "lip-dark": "#8a3040",
+
+    // Shirt - colorful
+    "shirt-teal": "#20a0a0",
+    "shirt-orange": "#e08040",
+    "shirt-pink": "#d060a0",
+    "shirt-yellow": "#e0c040",
+  },
+
+  roles: {
+    outline: "boundary",
+    "face-orange": "fill",
+    "face-teal": "fill",
+    "hair-base": "fill",
+    iris: "anchor",
+    pupil: "anchor",
+    frame: "anchor",
+    "shadow-deep": "shadow",
+    "shadow-mid": "shadow",
+    highlight: "highlight",
+  },
+}
+
+{
+  type: "sprite",
+  name: "jeff_goldblum_popart",
+  size: [64, 64],
+  palette: "goldblum-pop",
+
+  regions: {
+    // ====== LAYER 0: HAIR BASE ======
+    "hair-base": {
+      union: [
+        { rect: [12, 0, 40, 8] },
+        { rect: [8, 8, 48, 8] },
+        { rect: [4, 16, 56, 8] },
+      ],
+      z: 0,
+    },
+
+    // Hair color streaks
+    "hair-blue": {
+      union: [
+        { rect: [16, 2, 8, 6] },
+        { rect: [12, 8, 6, 8] },
+        { rect: [8, 16, 8, 6] },
+        { rect: [40, 4, 6, 6] },
+        { rect: [48, 10, 6, 8] },
+      ],
+      z: 1,
+    },
+
+    "hair-purple": {
+      union: [
+        { rect: [26, 0, 10, 8] },
+        { rect: [22, 8, 8, 6] },
+        { rect: [36, 12, 8, 6] },
+        { rect: [18, 16, 6, 6] },
+      ],
+      z: 1,
+    },
+
+    "hair-pink": {
+      union: [
+        { rect: [38, 2, 8, 6] },
+        { rect: [32, 8, 6, 8] },
+        { rect: [44, 16, 8, 6] },
+        { rect: [26, 14, 6, 6] },
+      ],
+      z: 1,
+    },
+
+    "hair-teal": {
+      union: [
+        { rect: [48, 6, 6, 6] },
+        { rect: [6, 12, 6, 8] },
+        { rect: [54, 14, 4, 6] },
+      ],
+      z: 1,
+    },
+
+    // ====== LAYER 1: FACE BASE ======
+    // Pop art style - geometric color blocks
+
+    // Main face shape
+    "face-orange": {
+      union: [
+        // Right side of face (viewer's left)
+        { rect: [14, 20, 18, 28] },
+        { rect: [12, 24, 2, 20] },
+      ],
+      z: 10,
+    },
+
+    "face-teal": {
+      union: [
+        // Left side of face (viewer's right)
+        { rect: [32, 20, 18, 28] },
+        { rect: [50, 24, 2, 20] },
+      ],
+      z: 10,
+    },
+
+    "face-yellow": {
+      union: [
+        // Forehead highlight
+        { rect: [20, 20, 24, 6] },
+        // Chin
+        { rect: [22, 48, 20, 4] },
+      ],
+      z: 11,
+    },
+
+    "face-pink": {
+      union: [
+        // Cheek accents
+        { rect: [14, 34, 6, 8] },
+        { rect: [44, 34, 6, 8] },
+      ],
+      z: 12,
+    },
+
+    "face-peach": {
+      union: [
+        // Nose area
+        { rect: [28, 30, 8, 14] },
+        // Under eyes
+        { rect: [18, 32, 8, 4] },
+        { rect: [38, 32, 8, 4] },
+      ],
+      z: 13,
+    },
+
+    // ====== LAYER 2: SHADOWS ======
+    "shadow-deep": {
+      union: [
+        // Under hair
+        { rect: [10, 20, 4, 6] },
+        { rect: [50, 20, 4, 6] },
+        // Neck shadows
+        { rect: [18, 52, 4, 6] },
+        { rect: [42, 52, 4, 6] },
+        // Temple shadows
+        { rect: [8, 26, 4, 12] },
+        { rect: [52, 26, 4, 12] },
+      ],
+      z: 14,
+    },
+
+    "shadow-mid": {
+      union: [
+        // Cheekbone shadows
+        { rect: [12, 38, 4, 8] },
+        { rect: [48, 38, 4, 8] },
+        // Jaw line
+        { rect: [16, 46, 6, 4] },
+        { rect: [42, 46, 6, 4] },
+        // Under nose
+        { rect: [28, 44, 8, 2] },
+      ],
+      z: 15,
+    },
+
+    highlight: {
+      union: [
+        // Forehead shine
+        { rect: [26, 22, 12, 2] },
+        // Nose highlight
+        { rect: [30, 32, 4, 8] },
+        // Cheek highlights
+        { rect: [20, 36, 4, 2] },
+        { rect: [40, 36, 4, 2] },
+      ],
+      z: 16,
+    },
+
+    // ====== LAYER 3: EYEBROWS ======
+    outline: {
+      union: [
+        // Left brow
+        { rect: [16, 26, 10, 2] },
+        // Right brow
+        { rect: [38, 26, 10, 2] },
+      ],
+      z: 20,
+    },
+
+    // ====== LAYER 4: EYES ======
+    "eye-white": {
+      union: [
+        { rect: [18, 30, 8, 4] },
+        { rect: [38, 30, 8, 4] },
+      ],
+      z: 30,
+    },
+
+    iris: {
+      union: [
+        { rect: [20, 30, 4, 4] },
+        { rect: [40, 30, 4, 4] },
+      ],
+      z: 31,
+    },
+
+    pupil: {
+      union: [
+        { rect: [21, 31, 2, 2] },
+        { rect: [41, 31, 2, 2] },
+      ],
+      z: 32,
+    },
+
+    // ====== LAYER 5: GLASSES ======
+    lens: {
+      union: [
+        { rect: [15, 28, 12, 8] },
+        { rect: [37, 28, 12, 8] },
+      ],
+      z: 40,
+    },
+
+    "lens-reflect": {
+      union: [
+        { rect: [16, 29, 3, 2] },
+        { rect: [38, 29, 3, 2] },
+      ],
+      z: 41,
+    },
+
+    frame: {
+      union: [
+        // Left frame
+        { stroke: [15, 28, 12, 8] },
+        // Right frame
+        { stroke: [37, 28, 12, 8] },
+        // Bridge
+        { rect: [27, 31, 10, 2] },
+        // Left temple
+        { line: [[15, 31], [8, 28]] },
+        // Right temple
+        { line: [[49, 31], [56, 28]] },
+        // Frame thickness
+        { rect: [15, 28, 12, 1] },
+        { rect: [15, 35, 12, 1] },
+        { rect: [37, 28, 12, 1] },
+        { rect: [37, 35, 12, 1] },
+      ],
+      z: 42,
+    },
+
+    // ====== LAYER 6: NOSE ======
+    "outline-soft": {
+      union: [
+        // Nose bridge
+        { rect: [31, 34, 2, 8] },
+        // Nose tip outline
+        { rect: [28, 42, 8, 1] },
+        // Nostrils hint
+        { rect: [28, 43, 2, 1] },
+        { rect: [34, 43, 2, 1] },
+      ],
+      z: 45,
+    },
+
+    // ====== LAYER 7: MOUTH ======
+    lip: {
+      rect: [26, 46, 12, 3],
+      z: 50,
+    },
+
+    "lip-dark": {
+      rect: [27, 47, 10, 1],
+      z: 51,
+    },
+
+    // ====== LAYER 8: SHIRT ======
+    "shirt-teal": {
+      union: [
+        { rect: [8, 56, 20, 8] },
+        { rect: [24, 58, 8, 6] },
+      ],
+      z: 60,
+    },
+
+    "shirt-orange": {
+      rect: [36, 56, 20, 8],
+      z: 60,
+    },
+
+    "shirt-pink": {
+      union: [
+        { rect: [28, 54, 8, 4] },
+        { line: [[24, 56], [32, 62]] },
+        { line: [[40, 56], [32, 62]] },
+      ],
+      z: 61,
+    },
+
+    "shirt-yellow": {
+      union: [
+        { rect: [30, 58, 4, 6] },
+      ],
+      z: 62,
+    },
+  },
+}
