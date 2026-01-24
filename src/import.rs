@@ -227,9 +227,20 @@ pub fn extract_structured_regions(points: &[[u32; 2]], width: u32, height: u32) 
             continue;
         }
 
-        // Extract polygon boundary
+        // Extract polygon boundary and validate it matches the original shape
         if let Some(polygon) = extract_polygon_boundary(&component) {
-            structured.push(StructuredRegion::Polygon(polygon));
+            // Validate the polygon covers the same pixels as the original
+            let polygon_pixels = rasterize_polygon(&polygon);
+            let coverage = calculate_coverage(&component, &polygon_pixels);
+
+            // Only use polygon if coverage is good (>= 90% overlap)
+            if coverage >= 0.90 {
+                structured.push(StructuredRegion::Polygon(polygon));
+            } else {
+                // Poor coverage, fall back to points
+                let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
+                structured.push(StructuredRegion::Points(pts));
+            }
         } else {
             // Fallback to points
             let pts: Vec<[u32; 2]> = component.into_iter().map(|(x, y)| [x, y]).collect();
@@ -418,6 +429,72 @@ fn perpendicular_distance(point: &[i32; 2], line_start: &[i32; 2], line_end: &[i
     let dist_y = point[1] as f64 - proj_y;
 
     (dist_x * dist_x + dist_y * dist_y).sqrt()
+}
+
+/// Rasterize a polygon to get the set of pixels it covers.
+/// Uses scanline algorithm to fill the polygon.
+fn rasterize_polygon(polygon: &[[i32; 2]]) -> HashSet<(u32, u32)> {
+    let mut pixels = HashSet::new();
+
+    if polygon.len() < 3 {
+        return pixels;
+    }
+
+    // Find bounding box
+    let min_y = polygon.iter().map(|p| p[1]).min().unwrap();
+    let max_y = polygon.iter().map(|p| p[1]).max().unwrap();
+
+    // Scanline fill
+    for y in min_y..=max_y {
+        let mut intersections: Vec<i32> = Vec::new();
+
+        // Find intersections with polygon edges
+        for i in 0..polygon.len() {
+            let p1 = polygon[i];
+            let p2 = polygon[(i + 1) % polygon.len()];
+
+            // Check if edge crosses this scanline
+            if (p1[1] <= y && p2[1] > y) || (p2[1] <= y && p1[1] > y) {
+                // Calculate x intersection
+                let dy = p2[1] - p1[1];
+                if dy != 0 {
+                    let x = p1[0] + (y - p1[1]) * (p2[0] - p1[0]) / dy;
+                    intersections.push(x);
+                }
+            }
+        }
+
+        // Sort intersections and fill between pairs
+        intersections.sort();
+        for chunk in intersections.chunks(2) {
+            if chunk.len() == 2 {
+                for x in chunk[0]..=chunk[1] {
+                    if x >= 0 && y >= 0 {
+                        pixels.insert((x as u32, y as u32));
+                    }
+                }
+            }
+        }
+    }
+
+    pixels
+}
+
+/// Calculate coverage ratio between original component and polygon pixels.
+/// Returns value between 0.0 and 1.0, where 1.0 means perfect match.
+fn calculate_coverage(original: &HashSet<(u32, u32)>, polygon: &HashSet<(u32, u32)>) -> f64 {
+    if original.is_empty() || polygon.is_empty() {
+        return 0.0;
+    }
+
+    // Calculate intersection (pixels in both)
+    let intersection: HashSet<_> = original.intersection(polygon).collect();
+
+    // Calculate union (pixels in either)
+    let union: HashSet<_> = original.union(polygon).collect();
+
+    // Jaccard similarity: intersection / union
+    intersection.len() as f64 / union.len() as f64
 }
 
 impl StructuredRegion {

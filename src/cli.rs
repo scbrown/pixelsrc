@@ -171,9 +171,9 @@ pub enum Commands {
         #[arg(long)]
         hints: bool,
 
-        /// Extract structured shapes (polygons, rects) instead of raw points
+        /// Disable extraction of structured shapes (polygons, rects)
         #[arg(long)]
-        shapes: bool,
+        no_shapes: bool,
     },
 
     /// Show GenAI prompt templates for sprite generation
@@ -616,8 +616,8 @@ pub fn run() -> ExitCode {
             power_of_two,
             nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name, analyze, confidence, hints, shapes } => {
-            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints, shapes)
+        Commands::Import { input, output, max_colors, name, analyze, confidence, hints, no_shapes } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints, !no_shapes)
         }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
