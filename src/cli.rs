@@ -7,7 +7,6 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use crate::alias::{parse_simple_grid, simple_grid_to_sprite};
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
@@ -18,7 +17,7 @@ use crate::explain::{explain_object, format_explanation, resolve_palette_colors,
 use crate::fmt::format_pixelsrc;
 use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
-use crate::terminal::{render_ansi_grid, render_coordinate_grid};
+use crate::terminal::render_ansi_grid;
 use crate::validate::{Severity, Validator};
 use glob::glob;
 
@@ -330,40 +329,6 @@ pub enum Commands {
         only: Option<String>,
     },
 
-    /// Expand grid with column-aligned spacing for readability
-    Inline {
-        /// Input file containing sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple)
-        #[arg(long)]
-        sprite: Option<String>,
-    },
-
-    /// Extract repeated patterns into single-letter aliases (outputs JSON)
-    Alias {
-        /// Input file containing sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple)
-        #[arg(long)]
-        sprite: Option<String>,
-    },
-
-    /// Display grid with row/column coordinates for easy reference
-    Grid {
-        /// Input file containing palette and sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple sprites)
-        #[arg(long)]
-        sprite: Option<String>,
-
-        /// Show full token names instead of abbreviations
-        #[arg(long)]
-        full: bool,
-    },
-
     /// Display sprite with colored terminal output (ANSI true-color)
     Show {
         /// Input file containing sprite definitions
@@ -458,31 +423,6 @@ pub enum Commands {
         /// Preset template: minimal, artist, animator, game
         #[arg(long, default_value = "minimal")]
         preset: String,
-    },
-
-    /// Create sprite from simple text grid (space-separated characters)
-    ///
-    /// Input format: each line is a row, characters separated by spaces.
-    /// Use _ for transparent pixels. Example:
-    ///   _ _ b b
-    ///   _ b c b
-    ///   b c c b
-    Sketch {
-        /// Input file (omit to read from stdin)
-        #[arg()]
-        file: Option<PathBuf>,
-
-        /// Sprite name (default: "sketch")
-        #[arg(short, long, default_value = "sketch")]
-        name: String,
-
-        /// Reference a named palette instead of inline placeholder colors
-        #[arg(short, long)]
-        palette: Option<String>,
-
-        /// Output file (default: stdout)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
     },
 
     /// Transform sprites (mirror, rotate, tile, etc.)
@@ -700,9 +640,6 @@ pub fn run() -> ExitCode {
         Commands::Suggest { files, stdin, json, only } => {
             run_suggest(&files, stdin, json, only.as_deref())
         }
-        Commands::Inline { input, sprite } => run_inline(&input, sprite.as_deref()),
-        Commands::Alias { input, sprite } => run_alias(&input, sprite.as_deref()),
-        Commands::Grid { input, sprite, full } => run_grid(&input, sprite.as_deref(), full),
         Commands::Show {
             file,
             sprite,
@@ -734,9 +671,6 @@ pub fn run() -> ExitCode {
         }
         Commands::Init { path, name, preset } => {
             run_init(path.as_deref(), name.as_deref(), &preset)
-        }
-        Commands::Sketch { file, name, palette, output } => {
-            run_sketch(file.as_deref(), &name, palette.as_deref(), output.as_deref())
         }
         Commands::Transform {
             input,
@@ -3244,221 +3178,6 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
     ExitCode::from(EXIT_SUCCESS)
 }
 
-/// Execute the inline command
-fn run_inline(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
-    use crate::alias::{format_columns, parse_grid_row};
-    use crate::models::TtpObject;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites: Vec<_> = parse_result
-        .objects
-        .into_iter()
-        .filter_map(|obj| match obj {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .collect();
-
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Filter by sprite name if specified
-    if let Some(name) = sprite_filter {
-        // Collect names for suggestion before filtering
-        let sprite_names: Vec<String> = sprites.iter().map(|s| s.name.clone()).collect();
-        sprites.retain(|s| s.name == name);
-        if sprites.is_empty() {
-            eprintln!("Error: No sprite named '{}' found in input", name);
-            let name_refs: Vec<&str> = sprite_names.iter().map(|s| s.as_str()).collect();
-            if let Some(suggestion) = format_suggestion(&suggest(name, &name_refs, 3)) {
-                eprintln!("{}", suggestion);
-            }
-            return ExitCode::from(EXIT_ERROR);
-        }
-    }
-
-    // Process each sprite
-    for (i, sprite) in sprites.iter().enumerate() {
-        if i > 0 {
-            println!(); // Blank line between sprites
-        }
-
-        if sprites.len() > 1 {
-            println!("# {}", sprite.name);
-        }
-
-        // Convert grid rows to tokenized vectors
-        let rows: Vec<Vec<String>> = sprite.grid.iter().map(|row| parse_grid_row(row)).collect();
-
-        // Format with column alignment
-        let formatted = format_columns(rows);
-
-        // Output each row
-        for row in formatted {
-            println!("{}", row);
-        }
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
-/// Execute the alias command - extract repeated patterns into single-letter aliases
-fn run_alias(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
-    use crate::alias::extract_aliases;
-    use crate::models::TtpObject;
-    use serde_json::json;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites: Vec<_> = parse_result
-        .objects
-        .into_iter()
-        .filter_map(|obj| match obj {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .collect();
-
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Filter by sprite name if specified
-    if let Some(name) = sprite_filter {
-        // Collect names for suggestion before filtering
-        let sprite_names: Vec<String> = sprites.iter().map(|s| s.name.clone()).collect();
-        sprites.retain(|s| s.name == name);
-        if sprites.is_empty() {
-            eprintln!("Error: No sprite named '{}' found in input", name);
-            let name_refs: Vec<&str> = sprite_names.iter().map(|s| s.as_str()).collect();
-            if let Some(suggestion) = format_suggestion(&suggest(name, &name_refs, 3)) {
-                eprintln!("{}", suggestion);
-            }
-            return ExitCode::from(EXIT_ERROR);
-        }
-    }
-
-    // Process each sprite
-    for (i, sprite) in sprites.iter().enumerate() {
-        if i > 0 {
-            println!(); // Blank line between sprites
-        }
-
-        // Extract aliases from the grid
-        let (aliases, transformed_grid) = extract_aliases(&sprite.grid);
-
-        // Convert aliases HashMap to a sorted JSON object (char -> String)
-        // Sort by alias character for consistent output
-        let mut alias_pairs: Vec<_> = aliases.iter().collect();
-        alias_pairs.sort_by_key(|(c, _)| *c);
-        let aliases_map: serde_json::Map<String, serde_json::Value> =
-            alias_pairs.into_iter().map(|(c, name)| (c.to_string(), json!(name))).collect();
-
-        // Build output JSON
-        let output = json!({
-            "aliases": aliases_map,
-            "grid": transformed_grid
-        });
-
-        // Pretty-print the JSON
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
-/// Execute the grid command
-fn run_grid(input: &PathBuf, sprite_filter: Option<&str>, full_names: bool) -> ExitCode {
-    use crate::models::TtpObject;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites_by_name: std::collections::HashMap<String, crate::models::Sprite> =
-        std::collections::HashMap::new();
-
-    for obj in parse_result.objects {
-        if let TtpObject::Sprite(sprite) = obj {
-            sprites_by_name.insert(sprite.name.clone(), sprite);
-        }
-    }
-
-    if sprites_by_name.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Find the sprite to display
-    let sprite = if let Some(name) = sprite_filter {
-        match sprites_by_name.get(name) {
-            Some(s) => s,
-            None => {
-                eprintln!("Error: No sprite named '{}' found in input", name);
-                let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
-                if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
-                    eprintln!("{}", suggestion);
-                }
-                return ExitCode::from(EXIT_ERROR);
-            }
-        }
-    } else {
-        // Use the first sprite found
-        sprites_by_name.values().next().unwrap()
-    };
-
-    // Render the coordinate grid
-    let output = render_coordinate_grid(&sprite.grid, full_names);
-
-    // Print sprite name if there are multiple sprites
-    if sprites_by_name.len() > 1 || sprite_filter.is_some() {
-        println!("Sprite: {}", sprite.name);
-        println!();
-    }
-
-    print!("{}", output);
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
 /// Execute the show command - display sprite with colored terminal output
 fn run_show(
     file: &PathBuf,
@@ -3947,78 +3666,6 @@ fn run_init(path: Option<&Path>, name: Option<&str>, preset: &str) -> ExitCode {
             ExitCode::from(EXIT_ERROR)
         }
     }
-}
-
-/// Create sprite from simple text grid input
-fn run_sketch(
-    file: Option<&Path>,
-    name: &str,
-    palette: Option<&str>,
-    output: Option<&Path>,
-) -> ExitCode {
-    use std::io::{self, Read, Write};
-
-    // Read input
-    let input = match file {
-        Some(path) => match std::fs::read_to_string(path) {
-            Ok(content) => content,
-            Err(e) => {
-                eprintln!("Error: Cannot read '{}': {}", path.display(), e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-        },
-        None => {
-            // Read from stdin
-            let mut buffer = String::new();
-            if let Err(e) = io::stdin().read_to_string(&mut buffer) {
-                eprintln!("Error: Cannot read from stdin: {}", e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-            buffer
-        }
-    };
-
-    // Parse the simple grid
-    let grid = parse_simple_grid(&input);
-
-    if grid.is_empty() {
-        eprintln!("Error: Empty input - no grid data found");
-        return ExitCode::from(EXIT_INVALID_ARGS);
-    }
-
-    // Convert to sprite JSON
-    let sprite = simple_grid_to_sprite(grid, name, palette);
-
-    // Format output as pretty JSON
-    let json_output = match serde_json::to_string_pretty(&sprite) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Error: Failed to serialize sprite: {}", e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-    };
-
-    // Write output
-    match output {
-        Some(path) => {
-            let mut file = match std::fs::File::create(path) {
-                Ok(f) => f,
-                Err(e) => {
-                    eprintln!("Error: Cannot create '{}': {}", path.display(), e);
-                    return ExitCode::from(EXIT_ERROR);
-                }
-            };
-            if let Err(e) = writeln!(file, "{}", json_output) {
-                eprintln!("Error: Cannot write to '{}': {}", path.display(), e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-        }
-        None => {
-            println!("{}", json_output);
-        }
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
 }
 
 /// Transform sprites (mirror, rotate, tile, etc.)
