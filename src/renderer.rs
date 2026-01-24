@@ -3,6 +3,7 @@
 use crate::color::parse_color;
 use crate::models::Sprite;
 use crate::registry::ResolvedSprite;
+use crate::structured::render_structured;
 use crate::tokenizer;
 use image::{Rgba, RgbaImage};
 use std::collections::HashMap;
@@ -77,6 +78,11 @@ pub fn render_sprite(
     sprite: &Sprite,
     palette: &HashMap<String, String>,
 ) -> (RgbaImage, Vec<Warning>) {
+    // Check if this is a structured sprite (has regions)
+    if let Some(regions) = &sprite.regions {
+        return render_structured(&sprite.name, sprite.size, regions, palette);
+    }
+
     let mut warnings = Vec::new();
 
     // Parse all grid rows into tokens
@@ -224,6 +230,11 @@ pub fn render_sprite(
 /// let (image, warnings) = render_resolved(&resolved);
 /// ```
 pub fn render_resolved(resolved: &ResolvedSprite) -> (RgbaImage, Vec<Warning>) {
+    // Check if this is a structured sprite (has regions)
+    if let Some(regions) = &resolved.regions {
+        return render_structured(&resolved.name, resolved.size, regions, &resolved.palette);
+    }
+
     let mut warnings = Vec::new();
 
     // Parse all grid rows into tokens
@@ -962,6 +973,7 @@ mod tests {
             ]),
             warnings: vec![],
             nine_slice: None,
+            regions: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -990,6 +1002,7 @@ mod tests {
             palette: HashMap::from([("{x}".to_string(), "#FF0000".to_string())]),
             warnings: vec![],
             nine_slice: None,
+            regions: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -1014,6 +1027,7 @@ mod tests {
             ]),
             warnings: vec![],
             nine_slice: None,
+            regions: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -1037,6 +1051,7 @@ mod tests {
             palette: HashMap::new(),
             warnings: vec![],
             nine_slice: None,
+            regions: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);
@@ -1063,6 +1078,7 @@ mod tests {
             ]),
             warnings: vec![],
             nine_slice: None,
+            regions: None,
         };
 
         let (image, warnings) = render_resolved(&resolved);

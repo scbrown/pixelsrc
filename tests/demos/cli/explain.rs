@@ -21,6 +21,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
         transform: None,
         metadata: None,
         nine_slice: None,
+        regions: None,
     }
 }
 

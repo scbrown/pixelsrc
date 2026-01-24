@@ -71,6 +71,7 @@ pub mod renderer;
 pub mod scaffold;
 pub mod shapes;
 pub mod spritesheet;
+pub mod structured;
 pub mod suggest;
 pub mod templates;
 pub mod terminal;
@@ -107,6 +108,7 @@ pub use registry::{
 
 // Rendering
 pub use renderer::{render_resolved, render_sprite};
+pub use structured::render_structured;
 
 // Tokenizer
 pub use tokenizer::tokenize;
