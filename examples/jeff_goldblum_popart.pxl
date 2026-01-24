@@ -1,5 +1,5 @@
 // jeff_goldblum_popart.pxl - Pop art style portrait
-// 64x64 high-detail with bold color blocking
+// 64x64 high-detail with 3/4 angle perspective
 
 {
   type: "palette",
@@ -9,23 +9,22 @@
 
     // Structure
     outline: "#1a1a1a",
-    "outline-soft": "#2d2d2d",
 
-    // Hair - multicolor streaks
+    // Hair - multicolor streaks (dramatic sweep to right)
     "hair-base": "#1a1a2e",
     "hair-blue": "#4a90d9",
     "hair-purple": "#7b4397",
     "hair-pink": "#d94e8f",
     "hair-teal": "#2dd4bf",
 
-    // Face - pop art color blocks
+    // Face - pop art color blocks (3/4 view)
     "face-orange": "#e87b35",
     "face-yellow": "#f5c842",
     "face-teal": "#35a8a0",
     "face-pink": "#e05580",
     "face-peach": "#f0b090",
 
-    // Shadows and highlights
+    // Shadows (more prominent on far side)
     "shadow-deep": "#1a3040",
     "shadow-mid": "#2d4a5a",
     "highlight": "#fff5e0",
@@ -44,11 +43,11 @@
     lip: "#c04060",
     "lip-dark": "#8a3040",
 
-    // Shirt - colorful
+    // Shirt
     "shirt-teal": "#20a0a0",
     "shirt-orange": "#e08040",
     "shirt-pink": "#d060a0",
-    "shirt-yellow": "#e0c040",
+    "shirt-green": "#40a060",
   },
 
   roles: {
@@ -60,7 +59,6 @@
     pupil: "anchor",
     frame: "anchor",
     "shadow-deep": "shadow",
-    "shadow-mid": "shadow",
     highlight: "highlight",
   },
 }
@@ -72,277 +70,276 @@
   palette: "goldblum-pop",
 
   regions: {
-    // ====== LAYER 0: HAIR BASE ======
+    // ====== HAIR - Dramatic sweep to the right (viewer's left) ======
+    // 3/4 view means hair is asymmetric, sweeping up and to one side
+
     "hair-base": {
       union: [
-        { rect: [12, 0, 40, 8] },
-        { rect: [8, 8, 48, 8] },
-        { rect: [4, 16, 56, 8] },
+        // Main mass - swept right, taller on right side
+        { rect: [8, 4, 24, 6] },
+        { rect: [4, 10, 32, 6] },
+        { rect: [2, 16, 34, 6] },
+        // Dramatic upward sweep on right
+        { rect: [28, 0, 16, 10] },
+        { rect: [36, 2, 14, 8] },
+        { rect: [44, 4, 10, 8] },
+        { rect: [50, 6, 8, 6] },
+        // Left side (further from viewer) - shorter
+        { rect: [2, 22, 8, 4] },
       ],
       z: 0,
     },
 
-    // Hair color streaks
     "hair-blue": {
       union: [
-        { rect: [16, 2, 8, 6] },
-        { rect: [12, 8, 6, 8] },
-        { rect: [8, 16, 8, 6] },
-        { rect: [40, 4, 6, 6] },
-        { rect: [48, 10, 6, 8] },
+        { rect: [32, 2, 10, 6] },
+        { rect: [44, 4, 8, 6] },
+        { rect: [8, 12, 8, 6] },
+        { rect: [52, 8, 6, 4] },
       ],
       z: 1,
     },
 
     "hair-purple": {
       union: [
-        { rect: [26, 0, 10, 8] },
-        { rect: [22, 8, 8, 6] },
-        { rect: [36, 12, 8, 6] },
-        { rect: [18, 16, 6, 6] },
+        { rect: [18, 6, 10, 6] },
+        { rect: [38, 6, 8, 6] },
+        { rect: [4, 16, 8, 6] },
+        { rect: [28, 10, 8, 6] },
       ],
       z: 1,
     },
 
     "hair-pink": {
       union: [
-        { rect: [38, 2, 8, 6] },
-        { rect: [32, 8, 6, 8] },
-        { rect: [44, 16, 8, 6] },
-        { rect: [26, 14, 6, 6] },
+        { rect: [10, 8, 8, 6] },
+        { rect: [46, 6, 6, 6] },
+        { rect: [20, 14, 8, 6] },
+        { rect: [36, 12, 6, 4] },
       ],
       z: 1,
     },
 
     "hair-teal": {
       union: [
-        { rect: [48, 6, 6, 6] },
-        { rect: [6, 12, 6, 8] },
-        { rect: [54, 14, 4, 6] },
+        { rect: [30, 4, 6, 4] },
+        { rect: [50, 8, 6, 4] },
+        { rect: [14, 16, 6, 4] },
       ],
       z: 1,
     },
 
-    // ====== LAYER 1: FACE BASE ======
-    // Pop art style - geometric color blocks
+    // ====== FACE - 3/4 angle (turned toward viewer's right) ======
+    // Left side of face (far side) is narrower, right side (near) is wider
 
-    // Main face shape
-    "face-orange": {
-      union: [
-        // Right side of face (viewer's left)
-        { rect: [14, 20, 18, 28] },
-        { rect: [12, 24, 2, 20] },
-      ],
-      z: 10,
-    },
-
+    // Far side - teal, narrower (viewer's left of face)
     "face-teal": {
       union: [
-        // Left side of face (viewer's right)
-        { rect: [32, 20, 18, 28] },
-        { rect: [50, 24, 2, 20] },
+        { rect: [6, 22, 14, 26] },
+        { rect: [4, 26, 4, 18] },
       ],
       z: 10,
     },
 
+    // Near side - orange, wider (viewer's right of face)
+    "face-orange": {
+      union: [
+        { rect: [20, 22, 22, 26] },
+        { rect: [40, 26, 6, 18] },
+        { rect: [44, 30, 4, 10] },
+      ],
+      z: 10,
+    },
+
+    // Forehead and chin highlights
     "face-yellow": {
       union: [
-        // Forehead highlight
-        { rect: [20, 20, 24, 6] },
-        // Chin
-        { rect: [22, 48, 20, 4] },
+        { rect: [12, 22, 26, 6] },
+        { rect: [16, 48, 18, 4] },
       ],
       z: 11,
     },
 
+    // Cheek accent - more visible on near side
     "face-pink": {
       union: [
-        // Cheek accents
-        { rect: [14, 34, 6, 8] },
-        { rect: [44, 34, 6, 8] },
+        { rect: [36, 36, 8, 8] },
+        { rect: [8, 38, 4, 4] },
       ],
       z: 12,
     },
 
+    // Nose and center face - offset to show angle
     "face-peach": {
       union: [
-        // Nose area
-        { rect: [28, 30, 8, 14] },
-        // Under eyes
-        { rect: [18, 32, 8, 4] },
-        { rect: [38, 32, 8, 4] },
+        { rect: [22, 32, 12, 14] },
+        { rect: [18, 34, 6, 8] },
       ],
       z: 13,
     },
 
-    // ====== LAYER 2: SHADOWS ======
+    // ====== SHADOWS - heavier on far side ======
     "shadow-deep": {
       union: [
+        // Far side shadow (left/teal side gets more shadow)
+        { rect: [2, 24, 4, 20] },
+        { rect: [4, 44, 6, 6] },
         // Under hair
-        { rect: [10, 20, 4, 6] },
-        { rect: [50, 20, 4, 6] },
-        // Neck shadows
-        { rect: [18, 52, 4, 6] },
-        { rect: [42, 52, 4, 6] },
-        // Temple shadows
-        { rect: [8, 26, 4, 12] },
-        { rect: [52, 26, 4, 12] },
+        { rect: [6, 20, 10, 4] },
+        // Neck shadow
+        { rect: [10, 52, 8, 4] },
+        { rect: [36, 52, 6, 4] },
       ],
       z: 14,
     },
 
     "shadow-mid": {
       union: [
-        // Cheekbone shadows
-        { rect: [12, 38, 4, 8] },
-        { rect: [48, 38, 4, 8] },
-        // Jaw line
-        { rect: [16, 46, 6, 4] },
-        { rect: [42, 46, 6, 4] },
+        // Cheekbone on far side
+        { rect: [6, 36, 4, 8] },
+        // Jaw
+        { rect: [8, 46, 8, 4] },
         // Under nose
-        { rect: [28, 44, 8, 2] },
+        { rect: [24, 44, 8, 2] },
+        // Temple
+        { rect: [42, 28, 4, 8] },
       ],
       z: 15,
     },
 
     highlight: {
       union: [
-        // Forehead shine
-        { rect: [26, 22, 12, 2] },
-        // Nose highlight
-        { rect: [30, 32, 4, 8] },
-        // Cheek highlights
-        { rect: [20, 36, 4, 2] },
-        { rect: [40, 36, 4, 2] },
+        // Forehead shine - offset for angle
+        { rect: [24, 24, 10, 2] },
+        // Nose bridge highlight
+        { rect: [26, 34, 4, 8] },
+        // Cheek highlight on near side
+        { rect: [34, 38, 4, 2] },
       ],
       z: 16,
     },
 
-    // ====== LAYER 3: EYEBROWS ======
+    // ====== EYEBROWS - asymmetric for angle ======
     outline: {
       union: [
-        // Left brow
-        { rect: [16, 26, 10, 2] },
-        // Right brow
-        { rect: [38, 26, 10, 2] },
+        // Far brow (left) - shorter, angled
+        { rect: [10, 28, 8, 2] },
+        // Near brow (right) - fuller
+        { rect: [26, 28, 12, 2] },
       ],
       z: 20,
     },
 
-    // ====== LAYER 4: EYES ======
+    // ====== EYES - 3/4 view (near eye larger) ======
     "eye-white": {
       union: [
-        { rect: [18, 30, 8, 4] },
-        { rect: [38, 30, 8, 4] },
+        // Far eye - smaller, more angled
+        { rect: [10, 32, 6, 3] },
+        // Near eye - larger, rounder
+        { rect: [28, 32, 10, 4] },
       ],
       z: 30,
     },
 
     iris: {
       union: [
-        { rect: [20, 30, 4, 4] },
-        { rect: [40, 30, 4, 4] },
+        // Far iris - looking toward viewer
+        { rect: [12, 32, 3, 3] },
+        // Near iris
+        { rect: [32, 32, 4, 4] },
       ],
       z: 31,
     },
 
     pupil: {
       union: [
-        { rect: [21, 31, 2, 2] },
-        { rect: [41, 31, 2, 2] },
+        { rect: [13, 33, 1, 1] },
+        { rect: [33, 33, 2, 2] },
       ],
       z: 32,
     },
 
-    // ====== LAYER 5: GLASSES ======
+    // ====== GLASSES - perspective adjusted ======
     lens: {
       union: [
-        { rect: [15, 28, 12, 8] },
-        { rect: [37, 28, 12, 8] },
+        // Far lens - narrower due to angle
+        { rect: [8, 30, 10, 7] },
+        // Near lens - wider
+        { rect: [26, 30, 14, 8] },
       ],
       z: 40,
     },
 
     "lens-reflect": {
       union: [
-        { rect: [16, 29, 3, 2] },
-        { rect: [38, 29, 3, 2] },
+        { rect: [9, 31, 2, 2] },
+        { rect: [28, 31, 3, 2] },
       ],
       z: 41,
     },
 
     frame: {
       union: [
-        // Left frame
-        { stroke: [15, 28, 12, 8] },
-        // Right frame
-        { stroke: [37, 28, 12, 8] },
-        // Bridge
-        { rect: [27, 31, 10, 2] },
-        // Left temple
-        { line: [[15, 31], [8, 28]] },
-        // Right temple
-        { line: [[49, 31], [56, 28]] },
-        // Frame thickness
-        { rect: [15, 28, 12, 1] },
-        { rect: [15, 35, 12, 1] },
-        { rect: [37, 28, 12, 1] },
-        { rect: [37, 35, 12, 1] },
+        // Far frame
+        { stroke: [8, 30, 10, 7] },
+        // Near frame
+        { stroke: [26, 30, 14, 8] },
+        // Bridge - angled
+        { line: [[18, 33], [26, 33]] },
+        // Far temple
+        { line: [[8, 33], [4, 30]] },
+        // Near temple
+        { line: [[40, 33], [48, 30]] },
       ],
       z: 42,
     },
 
-    // ====== LAYER 6: NOSE ======
-    "outline-soft": {
+    // ====== NOSE - offset for 3/4 view ======
+    "lip-dark": {
       union: [
-        // Nose bridge
-        { rect: [31, 34, 2, 8] },
-        // Nose tip outline
-        { rect: [28, 42, 8, 1] },
-        // Nostrils hint
-        { rect: [28, 43, 2, 1] },
-        { rect: [34, 43, 2, 1] },
+        // Nose bridge - angled
+        { rect: [24, 36, 3, 8] },
+        // Nose tip
+        { rect: [22, 44, 6, 2] },
+        // Nostril hint on near side
+        { rect: [26, 45, 2, 1] },
       ],
       z: 45,
     },
 
-    // ====== LAYER 7: MOUTH ======
+    // ====== MOUTH - slight angle ======
     lip: {
-      rect: [26, 46, 12, 3],
+      union: [
+        { rect: [18, 46, 14, 3] },
+      ],
       z: 50,
     },
 
-    "lip-dark": {
-      rect: [27, 47, 10, 1],
-      z: 51,
-    },
-
-    // ====== LAYER 8: SHIRT ======
+    // ====== SHIRT - colorful, angled neckline ======
     "shirt-teal": {
-      union: [
-        { rect: [8, 56, 20, 8] },
-        { rect: [24, 58, 8, 6] },
-      ],
+      rect: [2, 56, 24, 8],
       z: 60,
     },
 
     "shirt-orange": {
-      rect: [36, 56, 20, 8],
+      rect: [26, 56, 22, 8],
       z: 60,
     },
 
     "shirt-pink": {
       union: [
-        { rect: [28, 54, 8, 4] },
-        { line: [[24, 56], [32, 62]] },
-        { line: [[40, 56], [32, 62]] },
+        // V-neck - asymmetric
+        { line: [[18, 54], [24, 62]] },
+        { line: [[32, 54], [24, 62]] },
+        { rect: [22, 56, 6, 4] },
       ],
       z: 61,
     },
 
-    "shirt-yellow": {
+    "shirt-green": {
       union: [
-        { rect: [30, 58, 4, 6] },
+        { rect: [10, 58, 6, 4] },
+        { rect: [36, 58, 6, 4] },
       ],
       z: 62,
     },
