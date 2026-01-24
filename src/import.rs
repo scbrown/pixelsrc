@@ -4,10 +4,52 @@
 //! - Read PNG images and extract unique colors
 //! - Quantize colors using median cut algorithm if too many colors
 //! - Generate Pixelsrc JSONL output with palette and sprite definitions
+//! - Detect shapes, symmetry, roles, and relationships when analysis is enabled
 
 use image::{GenericImageView, Rgba};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+
+use crate::analyze::{
+    detect_symmetry, infer_relationships_batch, infer_roles_batch, RegionData,
+    RelationshipInference, RoleInference, RoleInferenceContext, Symmetric,
+};
+use crate::models::{RelationshipType, Role};
+
+/// Options for PNG import.
+#[derive(Debug, Clone, Default)]
+pub struct ImportOptions {
+    /// Enable role/relationship inference
+    pub analyze: bool,
+    /// Confidence threshold for inferences (0.0-1.0)
+    pub confidence_threshold: f64,
+    /// Generate token naming hints
+    pub hints: bool,
+}
+
+/// A naming hint for a token based on detected features.
+#[derive(Debug, Clone)]
+pub struct NamingHint {
+    /// The current token name
+    pub token: String,
+    /// Suggested name based on detected features
+    pub suggested_name: String,
+    /// Reason for the suggestion
+    pub reason: String,
+}
+
+/// Analysis results from import.
+#[derive(Debug, Clone, Default)]
+pub struct ImportAnalysis {
+    /// Inferred roles for tokens (token -> role)
+    pub roles: HashMap<String, Role>,
+    /// Inferred relationships between tokens
+    pub relationships: Vec<(String, RelationshipType, String)>,
+    /// Detected symmetry
+    pub symmetry: Option<Symmetric>,
+    /// Token naming hints
+    pub naming_hints: Vec<NamingHint>,
+}
 
 /// Result of importing a PNG image.
 #[derive(Debug, Clone)]
@@ -20,12 +62,16 @@ pub struct ImportResult {
     pub height: u32,
     /// Color palette mapping tokens to hex colors.
     pub palette: HashMap<String, String>,
-    /// Grid rows with token sequences.
+    /// Grid rows with token sequences (legacy format).
     pub grid: Vec<String>,
+    /// Region definitions for each token (v2 format).
+    pub regions: HashMap<String, Vec<[u32; 2]>>,
+    /// Analysis results (if analysis was enabled).
+    pub analysis: Option<ImportAnalysis>,
 }
 
 impl ImportResult {
-    /// Serialize to JSONL format (palette line + sprite line).
+    /// Serialize to legacy JSONL format (palette line + sprite line with grid).
     pub fn to_jsonl(&self) -> String {
         let palette_json = serde_json::json!({
             "type": "palette",
@@ -42,6 +88,83 @@ impl ImportResult {
         });
 
         format!("{}\n{}", palette_json, sprite_json)
+    }
+
+    /// Serialize to structured JSONL format (v2 with regions, roles, relationships).
+    pub fn to_structured_jsonl(&self) -> String {
+        let mut palette_obj = serde_json::json!({
+            "type": "palette",
+            "name": format!("{}_palette", self.name),
+            "colors": self.palette
+        });
+
+        // Add roles if analysis was performed
+        if let Some(ref analysis) = self.analysis {
+            if !analysis.roles.is_empty() {
+                let roles: HashMap<String, String> = analysis
+                    .roles
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.to_string()))
+                    .collect();
+                palette_obj["roles"] = serde_json::json!(roles);
+            }
+
+            // Add relationships
+            if !analysis.relationships.is_empty() {
+                let relationships: HashMap<String, serde_json::Value> = analysis
+                    .relationships
+                    .iter()
+                    .map(|(source, rel_type, target)| {
+                        let rel_str = match rel_type {
+                            RelationshipType::DerivesFrom => "derives-from",
+                            RelationshipType::ContainedWithin => "contained-within",
+                            RelationshipType::AdjacentTo => "adjacent-to",
+                            RelationshipType::PairedWith => "paired-with",
+                        };
+                        (
+                            source.clone(),
+                            serde_json::json!({
+                                "type": rel_str,
+                                "target": target
+                            }),
+                        )
+                    })
+                    .collect();
+                palette_obj["relationships"] = serde_json::json!(relationships);
+            }
+        }
+
+        // Build regions object
+        let regions: HashMap<String, serde_json::Value> = self
+            .regions
+            .iter()
+            .map(|(token, points)| {
+                (token.clone(), serde_json::json!({ "points": points }))
+            })
+            .collect();
+
+        let mut sprite_obj = serde_json::json!({
+            "type": "sprite",
+            "name": self.name,
+            "size": [self.width, self.height],
+            "palette": format!("{}_palette", self.name),
+            "regions": regions
+        });
+
+        // Add symmetry if detected
+        if let Some(ref analysis) = self.analysis {
+            if let Some(ref symmetry) = analysis.symmetry {
+                let sym_str = match symmetry {
+                    Symmetric::X => "x",
+                    Symmetric::Y => "y",
+                    Symmetric::Both => "both",
+                };
+                // Note: symmetry could be added as metadata or hint
+                sprite_obj["_symmetry"] = serde_json::json!(sym_str);
+            }
+        }
+
+        format!("{}\n{}", palette_obj, sprite_obj)
     }
 }
 
@@ -255,11 +378,22 @@ fn find_closest_color(color: Color, palette: &[Color]) -> usize {
         .unwrap_or(0)
 }
 
-/// Import a PNG file and convert it to Pixelsrc format.
+/// Import a PNG file and convert it to Pixelsrc format (legacy, no analysis).
 pub fn import_png<P: AsRef<Path>>(
     path: P,
     name: &str,
     max_colors: usize,
+) -> Result<ImportResult, String> {
+    let options = ImportOptions::default();
+    import_png_with_options(path, name, max_colors, &options)
+}
+
+/// Import a PNG file with analysis options.
+pub fn import_png_with_options<P: AsRef<Path>>(
+    path: P,
+    name: &str,
+    max_colors: usize,
+    options: &ImportOptions,
 ) -> Result<ImportResult, String> {
     let img = image::open(path.as_ref()).map_err(|e| format!("Failed to open image: {}", e))?;
 
@@ -291,6 +425,7 @@ pub fn import_png<P: AsRef<Path>>(
 
     let mut palette: HashMap<String, String> = HashMap::new();
     let mut idx_to_token: HashMap<usize, String> = HashMap::new();
+    let mut idx_to_color: HashMap<usize, Color> = HashMap::new();
 
     let mut color_num = 1;
     for (idx, color) in palette_colors.iter().enumerate() {
@@ -303,10 +438,14 @@ pub fn import_png<P: AsRef<Path>>(
         };
         palette.insert(token.clone(), color.to_hex());
         idx_to_token.insert(idx, token);
+        idx_to_color.insert(idx, *color);
     }
 
-    // Build grid
+    // Build grid and regions simultaneously
     let mut grid: Vec<String> = Vec::with_capacity(height as usize);
+    let mut regions: HashMap<String, Vec<[u32; 2]>> = HashMap::new();
+    let mut token_pixels: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+
     for y in 0..height {
         let mut row = String::new();
         for x in 0..width {
@@ -315,11 +454,167 @@ pub fn import_png<P: AsRef<Path>>(
             let palette_idx = color_to_palette_idx[&color];
             let token = &idx_to_token[&palette_idx];
             row.push_str(token);
+
+            // Add to regions
+            regions.entry(token.clone()).or_default().push([x, y]);
+            token_pixels
+                .entry(token.clone())
+                .or_default()
+                .insert((x as i32, y as i32));
         }
         grid.push(row);
     }
 
-    Ok(ImportResult { name: name.to_string(), width, height, palette, grid })
+    // Perform analysis if requested
+    let analysis = if options.analyze {
+        Some(perform_analysis(
+            width,
+            height,
+            &token_pixels,
+            &idx_to_token,
+            &idx_to_color,
+            options,
+        ))
+    } else {
+        None
+    };
+
+    Ok(ImportResult {
+        name: name.to_string(),
+        width,
+        height,
+        palette,
+        grid,
+        regions,
+        analysis,
+    })
+}
+
+/// Perform analysis on imported regions.
+fn perform_analysis(
+    width: u32,
+    height: u32,
+    token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+    idx_to_token: &HashMap<usize, String>,
+    idx_to_color: &HashMap<usize, Color>,
+    options: &ImportOptions,
+) -> ImportAnalysis {
+    let mut analysis = ImportAnalysis::default();
+
+    // Build token to color mapping
+    let token_to_color: HashMap<String, [u8; 4]> = idx_to_token
+        .iter()
+        .filter_map(|(idx, token)| {
+            idx_to_color.get(idx).map(|c| (token.clone(), [c.r, c.g, c.b, c.a]))
+        })
+        .collect();
+
+    // Detect symmetry using raw pixel data
+    // For symmetry detection, we need the raw pixel bytes
+    // We'll create a simplified version based on the grid
+    let bpp = 4;
+    let mut pixel_data = vec![0u8; (width * height * bpp as u32) as usize];
+    for (token, pixels) in token_pixels {
+        if let Some(color) = token_to_color.get(token) {
+            for &(x, y) in pixels {
+                let idx = ((y as u32 * width + x as u32) * bpp as u32) as usize;
+                if idx + 3 < pixel_data.len() {
+                    pixel_data[idx] = color[0];
+                    pixel_data[idx + 1] = color[1];
+                    pixel_data[idx + 2] = color[2];
+                    pixel_data[idx + 3] = color[3];
+                }
+            }
+        }
+    }
+
+    // Detect symmetry
+    analysis.symmetry = detect_symmetry(&pixel_data, width as usize, height as usize);
+
+    // Prepare data for role inference
+    let ctx = RoleInferenceContext::new(width, height);
+    let role_input: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = token_pixels
+        .iter()
+        .map(|(token, pixels)| {
+            let color = token_to_color.get(token).copied();
+            (token.clone(), (pixels.clone(), color))
+        })
+        .collect();
+
+    // Infer roles
+    let (role_inferences, _warnings) = infer_roles_batch(&role_input, &ctx);
+    for (token, inference) in role_inferences {
+        if inference.confidence >= options.confidence_threshold {
+            analysis.roles.insert(token, inference.role);
+        }
+    }
+
+    // Prepare data for relationship inference
+    let region_data: Vec<RegionData> = token_pixels
+        .iter()
+        .map(|(token, pixels)| {
+            let color = token_to_color.get(token).copied().unwrap_or([0, 0, 0, 255]);
+            RegionData { name: token.clone(), pixels: pixels.clone(), color }
+        })
+        .collect();
+
+    // Infer relationships
+    let rel_inferences = infer_relationships_batch(&region_data, width);
+    for rel in rel_inferences {
+        if rel.confidence >= options.confidence_threshold {
+            analysis.relationships.push((rel.source, rel.relationship_type, rel.target));
+        }
+    }
+
+    // Generate naming hints if requested
+    if options.hints {
+        analysis.naming_hints = generate_naming_hints(&analysis.roles, token_pixels);
+    }
+
+    analysis
+}
+
+/// Generate token naming suggestions based on detected features.
+fn generate_naming_hints(
+    roles: &HashMap<String, Role>,
+    token_pixels: &HashMap<String, HashSet<(i32, i32)>>,
+) -> Vec<NamingHint> {
+    let mut hints = Vec::new();
+
+    for (token, role) in roles {
+        // Skip transparent token
+        if token == "{_}" {
+            continue;
+        }
+
+        let suggested = match role {
+            Role::Boundary => format!("{{outline}}"),
+            Role::Anchor => {
+                // Small features might be eyes, buttons, etc.
+                let size = token_pixels.get(token).map(|p| p.len()).unwrap_or(0);
+                if size == 1 {
+                    "{dot}".to_string()
+                } else if size <= 4 {
+                    "{eye}".to_string()
+                } else {
+                    "{marker}".to_string()
+                }
+            }
+            Role::Fill => "{fill}".to_string(),
+            Role::Shadow => "{shadow}".to_string(),
+            Role::Highlight => "{highlight}".to_string(),
+        };
+
+        if token != &suggested {
+            hints.push(NamingHint {
+                token: token.clone(),
+                suggested_name: suggested,
+                reason: format!("Detected as {} role", role),
+            });
+        }
+    }
+
+    hints
 }
 
 #[cfg(test)]
@@ -396,12 +691,18 @@ mod tests {
         palette.insert("{_}".to_string(), "#00000000".to_string());
         palette.insert("{c1}".to_string(), "#FF0000".to_string());
 
+        let mut regions = HashMap::new();
+        regions.insert("{c1}".to_string(), vec![[0, 0], [1, 1]]);
+        regions.insert("{_}".to_string(), vec![[1, 0], [0, 1]]);
+
         let result = ImportResult {
             name: "test_sprite".to_string(),
             width: 2,
             height: 2,
             palette,
             grid: vec!["{c1}{_}".to_string(), "{_}{c1}".to_string()],
+            regions,
+            analysis: None,
         };
 
         let jsonl = result.to_jsonl();

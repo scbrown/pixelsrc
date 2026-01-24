@@ -161,6 +161,18 @@ pub enum Commands {
         /// Name for the generated sprite (default: derived from filename)
         #[arg(short, long)]
         name: Option<String>,
+
+        /// Enable role/relationship inference analysis
+        #[arg(long)]
+        analyze: bool,
+
+        /// Confidence threshold for inferences (0.0-1.0, default: 0.7)
+        #[arg(long, default_value = "0.7")]
+        confidence: f64,
+
+        /// Show token naming suggestions based on detected features
+        #[arg(long)]
+        hints: bool,
     },
 
     /// Show GenAI prompt templates for sprite generation
@@ -603,8 +615,8 @@ pub fn run() -> ExitCode {
             power_of_two,
             nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name } => {
-            run_import(&input, output.as_deref(), max_colors, name.as_deref())
+        Commands::Import { input, output, max_colors, name, analyze, confidence, hints } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints)
         }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
@@ -2176,10 +2188,19 @@ fn run_import(
     output: Option<&std::path::Path>,
     max_colors: usize,
     sprite_name: Option<&str>,
+    analyze: bool,
+    confidence: f64,
+    hints: bool,
 ) -> ExitCode {
     // Validate max_colors
     if !(2..=256).contains(&max_colors) {
         eprintln!("Error: --max-colors must be between 2 and 256");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Validate confidence threshold
+    if !(0.0..=1.0).contains(&confidence) {
+        eprintln!("Error: --confidence must be between 0.0 and 1.0");
         return ExitCode::from(EXIT_INVALID_ARGS);
     }
 
@@ -2188,8 +2209,14 @@ fn run_import(
         .map(String::from)
         .unwrap_or_else(|| input.file_stem().unwrap_or_default().to_string_lossy().to_string());
 
-    // Import the PNG
-    let result = match import_png(input, &name, max_colors) {
+    // Import the PNG with analysis options
+    let options = crate::import::ImportOptions {
+        analyze,
+        confidence_threshold: confidence,
+        hints,
+    };
+
+    let result = match crate::import::import_png_with_options(input, &name, max_colors, &options) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -2200,16 +2227,24 @@ fn run_import(
     // Generate output path
     let output_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
         let stem = input.file_stem().unwrap_or_default().to_string_lossy();
-        input.parent().unwrap_or(std::path::Path::new(".")).join(format!("{}.jsonl", stem))
+        // Use .pxl extension if analysis is enabled, otherwise .jsonl
+        let ext = if analyze { "pxl" } else { "jsonl" };
+        input.parent().unwrap_or(std::path::Path::new(".")).join(format!("{}.{}", stem, ext))
     });
 
-    // Write JSONL output
-    let jsonl = result.to_jsonl();
-    if let Err(e) = std::fs::write(&output_path, jsonl) {
+    // Write output (JSONL for legacy, structured for analysis)
+    let output_content = if analyze {
+        result.to_structured_jsonl()
+    } else {
+        result.to_jsonl()
+    };
+
+    if let Err(e) = std::fs::write(&output_path, &output_content) {
         eprintln!("Error: Failed to write '{}': {}", output_path.display(), e);
         return ExitCode::from(EXIT_ERROR);
     }
 
+    // Print summary
     println!(
         "Imported: {} ({}x{}, {} colors)",
         output_path.display(),
@@ -2217,6 +2252,34 @@ fn run_import(
         result.height,
         result.palette.len()
     );
+
+    // Print analysis results if enabled
+    if analyze {
+        if let Some(ref analysis) = result.analysis {
+            if !analysis.roles.is_empty() {
+                println!("  Roles inferred: {}", analysis.roles.len());
+            }
+            if !analysis.relationships.is_empty() {
+                println!("  Relationships: {}", analysis.relationships.len());
+            }
+            if let Some(ref symmetry) = analysis.symmetry {
+                println!("  Symmetry: {:?}", symmetry);
+            }
+        }
+    }
+
+    // Print hints if requested
+    if hints {
+        if let Some(ref analysis) = result.analysis {
+            if !analysis.naming_hints.is_empty() {
+                println!("  Token naming hints:");
+                for hint in &analysis.naming_hints {
+                    println!("    {}: {}", hint.token, hint.suggested_name);
+                }
+            }
+        }
+    }
+
     ExitCode::from(EXIT_SUCCESS)
 }
 
