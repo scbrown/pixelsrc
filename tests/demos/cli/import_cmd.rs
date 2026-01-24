@@ -281,6 +281,7 @@ fn test_import_grid_tokens() {
 /// @title Import Round-Trip Validation
 /// @description Imported JSONL can be parsed and rendered back.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_import_roundtrip() {
     use crate::demos::assert_validates;
 

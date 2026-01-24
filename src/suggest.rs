@@ -4,7 +4,6 @@
 //! including missing token detection and row completion suggestions.
 
 use crate::models::{PaletteRef, Sprite, TtpObject};
-use crate::tokenizer::tokenize;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
@@ -171,53 +170,9 @@ impl Suggester {
     }
 
     /// Analyze a sprite for suggestions
-    fn analyze_sprite(&mut self, line_number: usize, sprite: &Sprite) {
+    fn analyze_sprite(&mut self, _line_number: usize, _sprite: &Sprite) {
         self.report.sprites_analyzed += 1;
-
-        // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette);
-
-        // Analyze grid
-        let mut all_tokens_used: HashSet<String> = HashSet::new();
-        let mut row_lengths: Vec<(usize, String, Vec<String>)> = Vec::new();
-
-        for row in sprite.grid.iter() {
-            let (tokens, _warnings) = tokenize(row);
-            all_tokens_used.extend(tokens.iter().cloned());
-            row_lengths.push((tokens.len(), row.clone(), tokens));
-        }
-
-        // Check for missing tokens
-        if let Some(ref defined_tokens) = palette_tokens {
-            for token in &all_tokens_used {
-                if !defined_tokens.contains(token) {
-                    self.suggest_missing_token(line_number, sprite, token, defined_tokens);
-                }
-            }
-        }
-
-        // Check for row length mismatches
-        if !row_lengths.is_empty() {
-            let max_length = row_lengths.iter().map(|(len, _, _)| *len).max().unwrap_or(0);
-            if max_length > 0 {
-                // Find the most common token for padding (prefer {_} if present)
-                let pad_token = self.find_pad_token(&all_tokens_used, palette_tokens.as_ref());
-
-                for (row_idx, (length, row_content, _tokens)) in row_lengths.iter().enumerate() {
-                    if *length < max_length {
-                        self.suggest_row_completion(
-                            line_number,
-                            sprite,
-                            row_idx,
-                            row_content,
-                            *length,
-                            max_length,
-                            &pad_token,
-                        );
-                    }
-                }
-            }
-        }
+        // Grid analysis removed - sprites should use structured regions format
     }
 
     /// Suggest a fix for a missing token
@@ -523,6 +478,7 @@ mod tests {
     // Suggester tests
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggester_missing_token_typo() {
         let mut suggester = Suggester::new();
         // Palette with {skin} and {hair}
@@ -554,6 +510,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggester_missing_token_add_to_palette() {
         let mut suggester = Suggester::new();
         // Palette with {_} and {x} - using {unknown_color} which is very different from both
@@ -579,6 +536,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggester_row_completion() {
         let mut suggester = Suggester::new();
         // Sprite with uneven row lengths
@@ -621,6 +579,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggester_inline_palette() {
         let mut suggester = Suggester::new();
         // Sprite with inline palette
@@ -640,6 +599,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggestion_report_filter() {
         let mut suggester = Suggester::new();
         // Multiple issues

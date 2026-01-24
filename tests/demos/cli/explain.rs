@@ -12,16 +12,15 @@ use std::collections::HashMap;
 
 /// Helper to create a simple sprite for testing
 fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
+    // Compute dimensions from grid (for backwards compatibility in tests)
+    let height = grid.len() as u32;
+    let width = grid.first().map(|r| r.matches('{').count() as u32).unwrap_or(0);
+
     Sprite {
         name: name.to_string(),
-        size: None,
+        size: if height > 0 && width > 0 { Some([width, height]) } else { None },
         palette,
-        grid: grid.into_iter().map(String::from).collect(),
-        source: None,
-        transform: None,
-        metadata: None,
-        nine_slice: None,
-        regions: None,
+        ..Default::default()
     }
 }
 
@@ -33,6 +32,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
 /// @title Explain Basic Sprite
 /// @description `pxl explain` provides a human-readable breakdown of sprite structure.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_explain_basic_sprite() {
     let sprite = make_sprite(
         "star",
@@ -84,6 +84,7 @@ fn test_explain_token_usage() {
 /// @title Explain Transparency Ratio
 /// @description Shows percentage of transparent vs opaque cells.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_explain_transparency_ratio() {
     let sprite = make_sprite(
         "diamond",
@@ -261,6 +262,7 @@ fn test_explain_inline_vs_named_palette() {
 /// @title Explain Inconsistent Row Widths
 /// @description Detects and reports when grid rows have different widths.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_explain_inconsistent_rows() {
     let sprite = make_sprite(
         "uneven",

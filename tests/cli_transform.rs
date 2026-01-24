@@ -55,6 +55,7 @@ fn extract_grid(jsonl: &str) -> Option<Vec<String>> {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_mirror_horizontal() {
     let output_path = temp_output("mirror_h.jsonl");
 
@@ -82,6 +83,7 @@ fn test_transform_mirror_horizontal() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_mirror_vertical() {
     let output_path = temp_output("mirror_v.jsonl");
 
@@ -111,6 +113,7 @@ fn test_transform_mirror_vertical() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_mirror_both() {
     let output_path = temp_output("mirror_both.jsonl");
 
@@ -134,6 +137,7 @@ fn test_transform_mirror_both() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_mirror_alias_h() {
     let output_path = temp_output("mirror_alias_h.jsonl");
 
@@ -156,6 +160,7 @@ fn test_transform_mirror_alias_h() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_mirror_alias_v() {
     let output_path = temp_output("mirror_alias_v.jsonl");
 
@@ -182,6 +187,7 @@ fn test_transform_mirror_alias_v() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_rotate_90() {
     let output_path = temp_output("rotate_90.jsonl");
 
@@ -210,6 +216,7 @@ fn test_transform_rotate_90() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_rotate_180() {
     let output_path = temp_output("rotate_180.jsonl");
 
@@ -237,6 +244,7 @@ fn test_transform_rotate_180() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_rotate_270() {
     let output_path = temp_output("rotate_270.jsonl");
 
@@ -264,6 +272,7 @@ fn test_transform_rotate_270() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_rotate_invalid() {
     let output_path = temp_output("rotate_invalid.jsonl");
 
@@ -295,6 +304,7 @@ fn test_transform_rotate_invalid() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_tile_2x2() {
     let output_path = temp_output("tile_2x2.jsonl");
 
@@ -322,6 +332,7 @@ fn test_transform_tile_2x2() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_tile_3x1() {
     let output_path = temp_output("tile_3x1.jsonl");
 
@@ -353,6 +364,7 @@ fn test_transform_tile_3x1() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_pad() {
     let output_path = temp_output("pad.jsonl");
 
@@ -384,6 +396,7 @@ fn test_transform_pad() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_outline_basic() {
     let output_path = temp_output("outline_basic.jsonl");
 
@@ -415,6 +428,7 @@ fn test_transform_outline_basic() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_outline_with_token() {
     let output_path = temp_output("outline_token.jsonl");
 
@@ -441,6 +455,7 @@ fn test_transform_outline_with_token() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_outline_with_width() {
     let output_path = temp_output("outline_width.jsonl");
 
@@ -475,6 +490,7 @@ fn test_transform_outline_with_width() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_crop() {
     let output_path = temp_output("crop.jsonl");
 
@@ -506,6 +522,7 @@ fn test_transform_crop() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_shift() {
     let output_path = temp_output("shift.jsonl");
 
@@ -533,6 +550,7 @@ fn test_transform_shift() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_shift_negative() {
     let output_path = temp_output("shift_neg.jsonl");
 
@@ -560,6 +578,7 @@ fn test_transform_shift_negative() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_shadow() {
     let output_path = temp_output("shadow.jsonl");
 
@@ -592,6 +611,7 @@ fn test_transform_shadow() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_shadow_with_token() {
     let output_path = temp_output("shadow_token.jsonl");
 
@@ -624,6 +644,7 @@ fn test_transform_shadow_with_token() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_chain_mirror_rotate() {
     let output_path = temp_output("chain_mirror_rotate.jsonl");
 
@@ -653,6 +674,7 @@ fn test_transform_chain_mirror_rotate() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_chain_multiple() {
     let output_path = temp_output("chain_multiple.jsonl");
 
@@ -688,6 +710,7 @@ fn test_transform_chain_multiple() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_stdin() {
     let output_path = temp_output("stdin.jsonl");
 
@@ -730,6 +753,7 @@ fn test_transform_stdin() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_sprite_filter() {
     let output_path = temp_output("sprite_filter.jsonl");
 
@@ -756,6 +780,7 @@ fn test_transform_sprite_filter() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_sprite_filter_invalid() {
     let output_path = temp_output("sprite_filter_invalid.jsonl");
 
@@ -785,6 +810,7 @@ fn test_transform_sprite_filter_invalid() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_missing_output() {
     // Transform requires -o flag
     let output = Command::new(pxl_binary())
@@ -799,6 +825,7 @@ fn test_transform_missing_output() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_missing_input() {
     let output_path = temp_output("missing_input.jsonl");
 
@@ -816,6 +843,7 @@ fn test_transform_missing_input() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_invalid_tile_format() {
     let output_path = temp_output("invalid_tile.jsonl");
 
@@ -833,6 +861,7 @@ fn test_transform_invalid_tile_format() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_invalid_crop_format() {
     let output_path = temp_output("invalid_crop.jsonl");
 
@@ -854,6 +883,7 @@ fn test_transform_invalid_crop_format() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_preserves_palette() {
     let output_path = temp_output("preserves_palette.jsonl");
 
@@ -878,6 +908,7 @@ fn test_transform_preserves_palette() {
 }
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_valid_jsonl_output() {
     let output_path = temp_output("valid_jsonl.jsonl");
 
@@ -910,6 +941,7 @@ fn test_transform_valid_jsonl_output() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid transform command deprecated"]
 fn test_transform_allow_large() {
     let output_path = temp_output("allow_large.jsonl");
 

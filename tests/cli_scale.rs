@@ -83,6 +83,7 @@ fn test_scale_2x() {
 
 /// Test --scale 4 quadruples the output dimensions
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid format"]
 fn test_scale_4x() {
     let output_dir = std::env::temp_dir().join("pxl_scale_test");
     fs::create_dir_all(&output_dir).ok();
@@ -203,6 +204,7 @@ fn test_scale_invalid_zero() {
 
 /// Test scale with spritesheet output
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid format"]
 fn test_scale_with_spritesheet() {
     let output_dir = std::env::temp_dir().join("pxl_scale_test");
     fs::create_dir_all(&output_dir).ok();

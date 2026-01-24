@@ -50,6 +50,7 @@ fn validate_with_issues(jsonl: &str) -> Vec<String> {
 /// @title Validate Valid File
 /// @description `pxl validate valid.jsonl` exits with code 0 for valid content.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_validate_valid_file() {
     let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000", "{g}": "#00FF00"}}
 {"type": "sprite", "name": "dot", "palette": "colors", "grid": ["{r}"]}"##;

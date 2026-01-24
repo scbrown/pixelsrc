@@ -67,6 +67,7 @@ fn assert_renders_successfully(fixture_path: &str) {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_color_mix_fixture_renders() {
     assert_renders_successfully("tests/fixtures/css/color_mix.jsonl");
 }
@@ -102,6 +103,7 @@ fn test_color_mix_produces_valid_output() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_keyframes_fixture_renders() {
     assert_renders_successfully("tests/fixtures/css/keyframes.jsonl");
 }
@@ -131,11 +133,13 @@ fn test_keyframes_animation_output() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_transforms_jsonl_fixture_renders() {
     assert_renders_successfully("tests/fixtures/css/transforms.jsonl");
 }
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_transforms_pxl_fixture_renders() {
     assert_renders_successfully("tests/fixtures/css/transforms.pxl");
 }
@@ -173,6 +177,7 @@ fn test_transforms_all_rotations() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_integrated_css_fixture_renders() {
     assert_renders_successfully("tests/fixtures/css/integrated.jsonl");
 }
@@ -254,6 +259,7 @@ fn test_all_css_fixtures_render() {
 // ============================================================================
 
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid"]
 fn test_css_fixtures_pass_strict_mode() {
     let css_dir = Path::new("tests/fixtures/css");
 

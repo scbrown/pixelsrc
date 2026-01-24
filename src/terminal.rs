@@ -4,7 +4,6 @@
 //! true-color backgrounds in terminal emulators that support 24-bit color.
 
 use crate::color::parse_color;
-use crate::tokenizer::tokenize;
 use image::Rgba;
 use std::collections::HashMap;
 
@@ -72,82 +71,13 @@ pub fn color_to_ansi_bg(rgba: Rgba<u8>) -> String {
 /// // legend shows the color mapping
 /// ```
 pub fn render_ansi_grid(
-    grid: &[String],
-    palette: &HashMap<String, String>,
-    aliases: &HashMap<char, String>,
+    _grid: &[String],
+    _palette: &HashMap<String, String>,
+    _aliases: &HashMap<char, String>,
 ) -> (String, String) {
-    let mut output = String::new();
-    let mut legend_entries: Vec<(char, String, String)> = Vec::new();
-    let mut seen_tokens: HashMap<String, char> = HashMap::new();
-
-    // Build reverse alias map: token_name -> alias_char
-    let reverse_aliases: HashMap<String, char> =
-        aliases.iter().map(|(c, name)| (name.clone(), *c)).collect();
-
-    // Track which tokens we've seen for the legend
-    let mut next_auto_alias = 'a';
-
-    for row in grid {
-        let (tokens, _warnings) = tokenize(row);
-
-        for token in &tokens {
-            // Determine the display character for this token
-            let display_char = if let Some(&c) = reverse_aliases.get(token) {
-                c
-            } else if let Some(&c) = seen_tokens.get(token) {
-                c
-            } else {
-                // Auto-assign an alias based on token name or next available letter
-                let c = if token == "{_}" {
-                    '_'
-                } else if token.len() == 3 {
-                    // Single char token like {a} -> 'a'
-                    token.chars().nth(1).unwrap_or(next_auto_alias)
-                } else {
-                    // Multi-char token, use next auto alias
-                    let c = next_auto_alias;
-                    if next_auto_alias < 'z' {
-                        next_auto_alias = (next_auto_alias as u8 + 1) as char;
-                    }
-                    c
-                };
-                seen_tokens.insert(token.clone(), c);
-
-                // Add to legend if we haven't seen this token
-                let hex_color = palette.get(token).cloned().unwrap_or_else(|| "???".to_string());
-                let name = token.trim_matches(|c| c == '{' || c == '}').to_string();
-                legend_entries.push((c, name, hex_color));
-
-                c
-            };
-
-            // Get the color for this token
-            let hex_color = palette.get(token).cloned().unwrap_or_else(|| "#808080".to_string());
-            let rgba = parse_color(&hex_color).unwrap_or(Rgba([128, 128, 128, 255]));
-            let ansi_bg = color_to_ansi_bg(rgba);
-
-            // Render as 3-char cell: " X " with background color
-            output.push_str(&ansi_bg);
-            output.push(' ');
-            output.push(display_char);
-            output.push(' ');
-            output.push_str(ANSI_RESET);
-        }
-        output.push('\n');
-    }
-
-    // Build legend
-    let mut legend = String::from("\nLegend:\n");
-    // Sort by alias char for consistent output
-    legend_entries.sort_by_key(|(c, _, _)| *c);
-    // Deduplicate (keep first occurrence)
-    let mut seen_chars: std::collections::HashSet<char> = std::collections::HashSet::new();
-    for (c, name, hex) in legend_entries {
-        if seen_chars.insert(c) {
-            legend.push_str(&format!("  {} = {:16} ({})\n", c, name, hex));
-        }
-    }
-
+    // Grid format is no longer supported - use structured regions format instead
+    let output = String::from("[Grid format deprecated - use structured regions]\n");
+    let legend = String::from("\nLegend: N/A (grid format deprecated)\n");
     (output, legend)
 }
 
@@ -175,85 +105,9 @@ pub fn render_ansi_grid(
 /// //  0 │ a  b  c
 /// //  1 │ d  e  f
 /// ```
-pub fn render_coordinate_grid(grid: &[String], full_names: bool) -> String {
-    if grid.is_empty() {
-        return String::new();
-    }
-
-    // Parse all rows to get tokens
-    let parsed_rows: Vec<Vec<String>> = grid
-        .iter()
-        .map(|row| {
-            let (tokens, _) = tokenize(row);
-            tokens
-        })
-        .collect();
-
-    // Find the maximum number of columns
-    let max_cols = parsed_rows.iter().map(|row| row.len()).max().unwrap_or(0);
-    if max_cols == 0 {
-        return String::new();
-    }
-
-    // Determine cell width based on mode
-    let cell_width = if full_names {
-        // Find the longest token name
-        parsed_rows.iter().flat_map(|row| row.iter()).map(|token| token.len()).max().unwrap_or(3)
-    } else {
-        2 // Single char + space
-    };
-
-    let mut output = String::new();
-
-    // Calculate row number width (how many digits in max row number)
-    let row_num_width = (grid.len().saturating_sub(1)).to_string().len().max(2);
-
-    // Column header line
-    output.push_str(&" ".repeat(row_num_width + 1)); // Space for row numbers + border
-    for col in 0..max_cols {
-        if full_names {
-            output.push_str(&format!("{:>width$} ", col, width = cell_width));
-        } else {
-            output.push_str(&format!("{:>2} ", col));
-        }
-    }
-    output.push('\n');
-
-    // Border line
-    output.push_str(&" ".repeat(row_num_width));
-    output.push_str(" \u{250C}"); // ┌
-    let border_width = if full_names { max_cols * (cell_width + 1) } else { max_cols * 3 };
-    output.push_str(&"\u{2500}".repeat(border_width)); // ─
-    output.push('\n');
-
-    // Data rows
-    for (row_idx, tokens) in parsed_rows.iter().enumerate() {
-        // Row number
-        output.push_str(&format!("{:>width$} \u{2502}", row_idx, width = row_num_width)); // │
-
-        for token in tokens {
-            let display = if full_names {
-                token.clone()
-            } else {
-                // Abbreviate: use first char of token name (without braces)
-                let name = token.trim_matches(|c| c == '{' || c == '}');
-                if name == "_" {
-                    "_".to_string()
-                } else {
-                    name.chars().next().unwrap_or('?').to_string()
-                }
-            };
-
-            if full_names {
-                output.push_str(&format!(" {:>width$}", display, width = cell_width));
-            } else {
-                output.push_str(&format!(" {:>2}", display));
-            }
-        }
-        output.push('\n');
-    }
-
-    output
+pub fn render_coordinate_grid(_grid: &[String], _full_names: bool) -> String {
+    // Grid format is no longer supported - use structured regions format instead
+    String::from("[Grid format deprecated - use structured regions]\n")
 }
 
 /// Render an RGBA image to ANSI terminal output.
@@ -358,89 +212,6 @@ mod tests {
         // Non-zero alpha should use the RGB values
         let semi_transparent = color_to_ansi_bg(Rgba([255, 0, 0, 128]));
         assert_eq!(semi_transparent, "\x1b[48;2;255;0;0m");
-    }
-
-    #[test]
-    fn test_render_ansi_grid_simple() {
-        let grid = vec!["{a}{b}".to_string(), "{b}{a}".to_string()];
-        let palette = HashMap::from([
-            ("{a}".to_string(), "#FF0000".to_string()),
-            ("{b}".to_string(), "#00FF00".to_string()),
-        ]);
-        let aliases = HashMap::new();
-
-        let (colored, legend) = render_ansi_grid(&grid, &palette, &aliases);
-
-        // Should contain ANSI escape sequences
-        assert!(colored.contains("\x1b[48;2;"));
-        assert!(colored.contains(ANSI_RESET));
-
-        // Legend should contain our tokens
-        assert!(legend.contains("Legend:"));
-        assert!(legend.contains("#FF0000") || legend.contains("#00FF00"));
-    }
-
-    #[test]
-    fn test_render_ansi_grid_with_transparent() {
-        let grid = vec!["{_}{a}".to_string()];
-        let palette = HashMap::from([
-            ("{_}".to_string(), "#00000000".to_string()),
-            ("{a}".to_string(), "#FF0000".to_string()),
-        ]);
-        let aliases = HashMap::new();
-
-        let (colored, _) = render_ansi_grid(&grid, &palette, &aliases);
-
-        // Should use 256-color gray for transparent
-        assert!(colored.contains("\x1b[48;5;236m"));
-    }
-
-    #[test]
-    fn test_render_coordinate_grid_simple() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-
-        let output = render_coordinate_grid(&grid, false);
-
-        // Should have column headers
-        assert!(output.contains(" 0"));
-        assert!(output.contains(" 1"));
-        assert!(output.contains(" 2"));
-
-        // Should have row numbers
-        assert!(output.contains("0 \u{2502}")); // 0 │
-        assert!(output.contains("1 \u{2502}")); // 1 │
-
-        // Should have token abbreviations
-        assert!(output.contains(" a"));
-        assert!(output.contains(" b"));
-    }
-
-    #[test]
-    fn test_render_coordinate_grid_full_names() {
-        let grid = vec!["{skin}{hair}".to_string()];
-
-        let output = render_coordinate_grid(&grid, true);
-
-        // Should have full token names
-        assert!(output.contains("{skin}"));
-        assert!(output.contains("{hair}"));
-    }
-
-    #[test]
-    fn test_render_coordinate_grid_empty() {
-        let grid: Vec<String> = vec![];
-        let output = render_coordinate_grid(&grid, false);
-        assert!(output.is_empty());
-    }
-
-    #[test]
-    fn test_render_coordinate_grid_underscore() {
-        let grid = vec!["{_}{a}{_}".to_string()];
-
-        let output = render_coordinate_grid(&grid, false);
-
-        // Underscore should be preserved
-        assert!(output.contains(" _"));
     }
 
     #[test]

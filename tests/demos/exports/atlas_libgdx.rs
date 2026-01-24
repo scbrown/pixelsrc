@@ -27,8 +27,8 @@ fn build_atlas_metadata(jsonl: &str) -> AtlasMetadata {
     for obj in parse_result.objects {
         match obj {
             TtpObject::Sprite(s) => {
-                let w = s.grid[0].len() as u32;
-                let h = s.grid.len() as u32;
+                let w = s.size.map(|[w, _]| w).unwrap_or(0);
+                let h = s.size.map(|[_, h]| h).unwrap_or(0);
                 let origin = s.metadata.as_ref().and_then(|m| m.origin);
 
                 frames.insert(

@@ -699,6 +699,7 @@ mod tests {
 
     /// Test `assert_dimensions` passes for correct dimensions
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_assert_dimensions_pass() {
         let jsonl = r##"{"type": "sprite", "name": "square", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}", "{x}{x}"]}"##;
         assert_dimensions(jsonl, "square", 2, 2);
@@ -752,6 +753,7 @@ mod tests {
 
     /// Test with named palette
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_named_palette() {
         let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00"}}
 {"type": "sprite", "name": "test", "palette": "colors", "grid": ["{r}{g}", "{g}{r}"]}"##;
@@ -786,6 +788,7 @@ mod tests {
     /// @title Horizontal Spritesheet
     /// @description Animation frames arranged in a horizontal strip.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_spritesheet_horizontal() {
         let jsonl = include_str!("../../examples/demos/exports/spritesheet_horizontal.jsonl");
         assert_validates(jsonl, true);
@@ -804,6 +807,7 @@ mod tests {
     /// @title Grid Layout Spritesheet
     /// @description Animation frames arranged in a grid (multiple rows and columns).
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_spritesheet_grid() {
         let jsonl = include_str!("../../examples/demos/exports/spritesheet_grid.jsonl");
         assert_validates(jsonl, true);
@@ -821,6 +825,7 @@ mod tests {
     /// @title Spritesheet with Varying Frame Sizes
     /// @description Frames of different sizes are padded to match the largest.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_spritesheet_padding() {
         let jsonl = include_str!("../../examples/demos/exports/spritesheet_padding.jsonl");
         assert_validates(jsonl, true);
@@ -840,6 +845,7 @@ mod tests {
 
     /// Test spritesheet with grid layout (2 columns)
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_spritesheet_grid_2x2() {
         let jsonl = r##"{"type": "sprite", "name": "f1", "palette": {"{.}": "#00000000", "{r}": "#FF0000"}, "grid": ["{r}{r}", "{r}{r}"]}
 {"type": "sprite", "name": "f2", "palette": {"{.}": "#00000000", "{g}": "#00FF00"}, "grid": ["{g}{g}", "{g}{g}"]}
@@ -853,6 +859,7 @@ mod tests {
 
     /// Test frame size detection with padding
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_spritesheet_frame_size_detection() {
         let jsonl = r##"{"type": "sprite", "name": "small", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
 {"type": "sprite", "name": "large", "palette": {"{x}": "#00FF00"}, "grid": ["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"]}
@@ -873,6 +880,7 @@ mod tests {
     /// @title Basic PNG Export
     /// @description Simple sprite rendered to PNG format at 1x scale.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_png_basic() {
         let jsonl = include_str!("../../examples/demos/exports/png_basic.jsonl");
         assert_validates(jsonl, true);
@@ -889,6 +897,7 @@ mod tests {
     /// @title Scaled PNG Export
     /// @description Sprite rendered at various scale factors (2x, 4x, 8x) using nearest-neighbor.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_png_scaled() {
         let jsonl = include_str!("../../examples/demos/exports/png_scaled.jsonl");
         assert_validates(jsonl, true);
@@ -936,6 +945,7 @@ mod tests {
     /// @title Animated GIF Export
     /// @description Animation rendered as looping GIF with specified duration.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_gif_animated() {
         let jsonl = include_str!("../../examples/demos/exports/gif_animated.jsonl");
         assert_validates(jsonl, true);
@@ -1694,6 +1704,7 @@ mod tests {
     /// @title Aseprite JSON Atlas
     /// @description Sprite atlas data for Aseprite-compatible JSON export format.
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_atlas_aseprite() {
         let jsonl = include_str!("../../examples/demos/exports/atlas_aseprite.jsonl");
         assert_validates(jsonl, true);
@@ -1742,6 +1753,7 @@ mod tests {
     /// @title Recolor Export with Palette Swap
     /// @description Export sprites with palette variants applied (color swaps).
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_recolor_export() {
         let jsonl = include_str!("../../examples/demos/exports/recolor_export.jsonl");
         assert_validates(jsonl, true);

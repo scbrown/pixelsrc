@@ -4,7 +4,6 @@
 
 use crate::color::parse_color;
 use crate::motion::{ease, parse_timing_function, Interpolation, StepPosition};
-use crate::tokenizer::tokenize;
 use crate::transforms::{explain_transform, parse_transform_str, Transform};
 use crate::validate::{Severity, ValidationIssue, Validator};
 use crate::variables::VariableRegistry;
@@ -127,117 +126,10 @@ impl PixelsrcLanguageServer {
     /// Parse grid context from a JSON line at a specific character position
     ///
     /// Returns GridInfo if the cursor is positioned within a grid token.
-    fn parse_grid_context(line: &str, char_pos: u32) -> Option<GridInfo> {
-        // Parse the JSON line
-        let obj: Value = serde_json::from_str(line).ok()?;
-        let obj = obj.as_object()?;
-
-        // Must be a sprite type
-        let obj_type = obj.get("type")?.as_str()?;
-        if obj_type != "sprite" {
-            return None;
-        }
-
-        let sprite_name = obj.get("name")?.as_str()?.to_string();
-
-        // Get the grid array
-        let grid = obj.get("grid")?.as_array()?;
-        if grid.is_empty() {
-            return None;
-        }
-
-        // Get expected width from size field or first row
-        let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
-            size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
-        } else {
-            // Use first row width as expected
-            let first_row = grid.first()?.as_str()?;
-            let (tokens, _) = tokenize(first_row);
-            tokens.len()
-        };
-
-        // Find the "grid" key position in the raw JSON
-        // We need to locate where the grid array starts in the line
-        let grid_key_pos = line.find("\"grid\"")?;
-
-        // Find the opening bracket of the grid array
-        let after_key = &line[grid_key_pos..];
-        let bracket_offset = after_key.find('[')?;
-        let grid_array_start = grid_key_pos + bracket_offset;
-
-        // If cursor is before the grid array, no hover
-        if (char_pos as usize) <= grid_array_start {
-            return None;
-        }
-
-        // Now we need to find which row string contains the cursor
-        // Walk through the grid array portion of the line
-        let grid_portion = &line[grid_array_start..];
-        let char_in_grid = (char_pos as usize) - grid_array_start;
-
-        // Parse through the grid array manually to find string positions
-        let mut pos = 0;
-        let chars: Vec<char> = grid_portion.chars().collect();
-
-        for (row_idx, grid_row) in grid.iter().enumerate() {
-            let row_str = grid_row.as_str()?;
-
-            // Find the opening quote for this row string
-            while pos < chars.len() && chars[pos] != '"' {
-                pos += 1;
-            }
-            if pos >= chars.len() {
-                return None;
-            }
-
-            let string_start = pos + 1; // Position after opening quote
-
-            // Find the closing quote
-            pos += 1; // Move past opening quote
-            while pos < chars.len() && chars[pos] != '"' {
-                // Handle escaped quotes
-                if chars[pos] == '\\' && pos + 1 < chars.len() {
-                    pos += 2;
-                    continue;
-                }
-                pos += 1;
-            }
-
-            let string_end = pos; // Position of closing quote
-
-            // Check if cursor is within this string
-            if char_in_grid >= string_start && char_in_grid < string_end {
-                // Cursor is in this row string
-                let char_in_string = char_in_grid - string_start;
-
-                // Tokenize the row and find which token the cursor is in
-                let (tokens, _) = tokenize(row_str);
-                let row_width = tokens.len();
-
-                // Track position within the string to map to token index
-                let mut string_pos = 0;
-                for (token_idx, token) in tokens.iter().enumerate() {
-                    let token_start = string_pos;
-                    let token_end = string_pos + token.len();
-
-                    if char_in_string >= token_start && char_in_string < token_end {
-                        return Some(GridInfo {
-                            x: token_idx,
-                            y: row_idx,
-                            token: token.clone(),
-                            row_width,
-                            expected_width,
-                            sprite_name,
-                        });
-                    }
-
-                    string_pos = token_end;
-                }
-            }
-
-            pos += 1; // Move past closing quote
-        }
-
+    /// Note: Grid format is deprecated - this always returns None now.
+    #[allow(unused_variables)]
+    fn parse_grid_context(_line: &str, _char_pos: u32) -> Option<GridInfo> {
+        // Grid format is deprecated - use structured regions format
         None
     }
 
@@ -1510,6 +1402,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_parse_grid_context_first_row_first_token() {
         let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
         // Find position of first {a} - after the opening quote of the first grid row
@@ -1527,6 +1420,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_parse_grid_context_second_token() {
         let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
         // Position within {b}
@@ -1541,6 +1435,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_parse_grid_context_second_row() {
         let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{a}", "{b}{b}"]}"#;
         // Find position within second row
@@ -1555,6 +1450,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_parse_grid_context_with_size() {
         let line = r#"{"type": "sprite", "name": "sized", "size": [4, 2], "grid": ["{a}{a}"]}"#;
         let grid_start = line.find("[\"").unwrap() + 2;

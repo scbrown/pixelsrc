@@ -116,29 +116,15 @@ fn format_sprite(sprite: &Sprite) -> String {
         }
     }
 
-    // Grid - visual formatting with one row per line
-    s.push_str(r#", "grid": ["#);
+    // Grid format is deprecated - output empty grid for compatibility
+    s.push_str(r#", "grid": []"#);
 
-    if sprite.grid.is_empty() {
-        s.push(']');
-    } else if sprite.grid.len() == 1 {
-        // Single row - keep on same line
-        s.push('"');
-        s.push_str(&escape_json_string(&sprite.grid[0]));
-        s.push_str("\"]");
-    } else {
-        // Multiple rows - one per line for visual alignment
-        s.push('\n');
-        for (i, row) in sprite.grid.iter().enumerate() {
-            s.push_str("  \"");
-            s.push_str(&escape_json_string(row));
-            s.push('"');
-            if i < sprite.grid.len() - 1 {
-                s.push(',');
-            }
-            s.push('\n');
+    // Regions (if present)
+    if let Some(regions) = &sprite.regions {
+        s.push_str(r#", "regions": "#);
+        if let Ok(json) = serde_json::to_string(regions) {
+            s.push_str(&json);
         }
-        s.push(']');
     }
 
     s.push('}');
@@ -450,37 +436,35 @@ mod tests {
     }
 
     #[test]
-    fn test_format_sprite_visual_grid() {
+    fn test_format_sprite_with_size() {
         let sprite = Sprite {
             name: "test".to_string(),
             size: Some([4, 2]),
             palette: PaletteRef::Named("colors".to_string()),
-            grid: vec!["{_}{a}{a}{_}".to_string(), "{a}{a}{a}{a}".to_string()],
             metadata: None,
             ..Default::default()
         };
         let formatted = format_sprite(&sprite);
-        // Should have grid rows on separate lines
-        assert!(formatted.contains('\n'));
+        // Should include basic sprite fields
         assert!(formatted.contains(r#""type": "sprite""#));
-        assert!(formatted.contains(r#"  "{_}{a}{a}{_}""#));
-        assert!(formatted.contains(r#"  "{a}{a}{a}{a}""#));
+        assert!(formatted.contains(r#""name": "test""#));
+        assert!(formatted.contains(r#""size": [4, 2]"#));
+        // Grid format is deprecated, outputs empty array
+        assert!(formatted.contains(r#""grid": []"#));
     }
 
     #[test]
-    fn test_format_sprite_single_row() {
+    fn test_format_sprite_no_size() {
         let sprite = Sprite {
             name: "dot".to_string(),
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
-            grid: vec!["{x}".to_string()],
             metadata: None,
             ..Default::default()
         };
         let formatted = format_sprite(&sprite);
-        // Single row should stay on one line
-        assert!(!formatted.contains('\n'));
-        assert!(formatted.contains(r#""grid": ["{x}"]"#));
+        // Grid format is deprecated, outputs empty array
+        assert!(formatted.contains(r#""grid": []"#));
     }
 
     #[test]

@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use crate::color::parse_color;
 use crate::models::{Animation, Composition, PaletteRef, Particle, Sprite, TtpObject, Variant};
 use crate::palettes;
-use crate::tokenizer::tokenize;
 
 /// Token usage statistics within a sprite
 #[derive(Debug, Clone)]
@@ -157,70 +156,14 @@ pub enum Explanation {
 /// Analyze a sprite and produce an explanation
 pub fn explain_sprite(
     sprite: &Sprite,
-    palette_colors: Option<&HashMap<String, String>>,
+    _palette_colors: Option<&HashMap<String, String>>,
 ) -> SpriteExplanation {
-    let mut token_counts: HashMap<String, usize> = HashMap::new();
-    let mut total_cells = 0;
-    let mut first_row_width: Option<usize> = None;
-    let mut consistent_rows = true;
-    let mut issues = Vec::new();
-
-    // Analyze each row
-    for (row_idx, row) in sprite.grid.iter().enumerate() {
-        let (tokens, warnings) = tokenize(row);
-        let row_width = tokens.len();
-
-        // Check row consistency
-        match first_row_width {
-            None => first_row_width = Some(row_width),
-            Some(expected) if row_width != expected => {
-                consistent_rows = false;
-                issues.push(format!(
-                    "Row {} has {} tokens (expected {})",
-                    row_idx + 1,
-                    row_width,
-                    expected
-                ));
-            }
-            _ => {}
-        }
-
-        // Count tokens
-        for token in tokens {
-            *token_counts.entry(token).or_insert(0) += 1;
-            total_cells += 1;
-        }
-
-        // Collect tokenization warnings
-        for warning in warnings {
-            issues.push(warning.message);
-        }
-    }
-
-    let width = first_row_width.unwrap_or(0);
-    let height = sprite.grid.len();
-
-    // Calculate transparency
-    let transparent_count = token_counts.get("{_}").copied().unwrap_or(0);
-    let transparency_ratio =
-        if total_cells > 0 { (transparent_count as f64 / total_cells as f64) * 100.0 } else { 0.0 };
-
-    // Build token usage list
-    let mut tokens: Vec<TokenUsage> = token_counts
-        .iter()
-        .map(|(token, &count)| {
-            let percentage =
-                if total_cells > 0 { (count as f64 / total_cells as f64) * 100.0 } else { 0.0 };
-
-            let color = palette_colors.and_then(|c| c.get(token).cloned());
-            let color_name = color.as_ref().and_then(|c| describe_color(c));
-
-            TokenUsage { token: token.clone(), count, percentage, color, color_name }
-        })
-        .collect();
-
-    // Sort by frequency (descending)
-    tokens.sort_by(|a, b| b.count.cmp(&a.count));
+    // Use size field or default values
+    let (width, height) = if let Some([w, h]) = sprite.size {
+        (w as usize, h as usize)
+    } else {
+        (0, 0)
+    };
 
     // Determine palette reference
     let palette_ref = match &sprite.palette {
@@ -232,13 +175,17 @@ pub fn explain_sprite(
         name: sprite.name.clone(),
         width,
         height,
-        total_cells,
+        total_cells: 0,
         palette_ref,
-        tokens,
-        transparent_count,
-        transparency_ratio,
-        consistent_rows,
-        issues,
+        tokens: Vec::new(),
+        transparent_count: 0,
+        transparency_ratio: 0.0,
+        consistent_rows: true,
+        issues: if sprite.regions.is_none() {
+            vec!["Sprite has no regions defined - use structured regions format".to_string()]
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -665,6 +612,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_explain_sprite_basic() {
         let sprite = Sprite {
             name: "test".to_string(),
@@ -673,7 +621,6 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{_}{x}".to_string(), "{x}{_}".to_string()],
             metadata: None,
             ..Default::default()
         };
@@ -696,20 +643,21 @@ mod tests {
     }
 
     #[test]
-    fn test_explain_sprite_inconsistent_rows() {
+    fn test_explain_sprite_no_size() {
+        // With grid format deprecated, sprites without explicit size
+        // will have width/height of 0
         let sprite = Sprite {
             name: "uneven".to_string(),
             size: None,
             palette: PaletteRef::Named("test".to_string()),
-            grid: vec!["{a}{b}{c}".to_string(), "{a}{b}".to_string()],
             metadata: None,
             ..Default::default()
         };
 
         let exp = explain_sprite(&sprite, None);
 
-        assert!(!exp.consistent_rows);
-        assert!(!exp.issues.is_empty());
+        assert_eq!(exp.width, 0);
+        assert_eq!(exp.height, 0);
     }
 
     #[test]

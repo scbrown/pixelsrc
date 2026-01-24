@@ -157,7 +157,7 @@ impl ImportResult {
                 let sym_str = match symmetry {
                     Symmetric::X => "x",
                     Symmetric::Y => "y",
-                    Symmetric::Both => "both",
+                    Symmetric::XY => "both",
                 };
                 // Note: symmetry could be added as metadata or hint
                 sprite_obj["_symmetry"] = serde_json::json!(sym_str);
@@ -529,7 +529,7 @@ fn perform_analysis(
     }
 
     // Detect symmetry
-    analysis.symmetry = detect_symmetry(&pixel_data, width as usize, height as usize);
+    analysis.symmetry = detect_symmetry(&pixel_data, width, height);
 
     // Prepare data for role inference
     let ctx = RoleInferenceContext::new(width, height);

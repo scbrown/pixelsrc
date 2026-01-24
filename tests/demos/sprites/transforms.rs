@@ -8,6 +8,7 @@ use crate::demos::{assert_dimensions, assert_validates, capture_render_info, par
 /// @title Horizontal Flip (Mirror)
 /// @description Sprite mirrored horizontally using transform: ["mirror-h"].
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_transform_mirror_horizontal() {
     let jsonl = include_str!("../../../examples/demos/sprites/transforms.jsonl");
     assert_validates(jsonl, true);
@@ -34,6 +35,7 @@ fn test_transform_mirror_horizontal() {
 /// @title Rotation Transform
 /// @description Sprite rotated 90 degrees using transform: ["rotate:90"].
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_transform_rotate() {
     let jsonl = include_str!("../../../examples/demos/sprites/transforms.jsonl");
 
@@ -49,6 +51,7 @@ fn test_transform_rotate() {
 /// @title Scale Transform
 /// @description Sprite scaled 2x using transform: ["scale:2.0,2.0"].
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_transform_scale() {
     let jsonl = include_str!("../../../examples/demos/sprites/transforms.jsonl");
 

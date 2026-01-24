@@ -1123,7 +1123,7 @@ mod tests {
             name: "checker".to_string(),
             size: None,
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1137,7 +1137,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1148,7 +1148,7 @@ mod tests {
             name: "bad_ref".to_string(),
             size: None,
             palette: PaletteRef::Named("nonexistent".to_string()),
-            grid: vec!["{x}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1330,7 +1330,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("@gameboy".to_string()),
-            grid: vec!["{lightest}{dark}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1341,7 +1341,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("@nonexistent".to_string()),
-            grid: vec!["{x}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1358,12 +1358,6 @@ mod tests {
                 ("{skin}".to_string(), "#FFCC99".to_string()),
                 ("{hair}".to_string(), "#333333".to_string()),
             ])),
-            grid: vec![
-                "{_}{hair}{hair}{_}".to_string(),
-                "{hair}{skin}{skin}{hair}".to_string(),
-                "{_}{skin}{skin}{_}".to_string(),
-                "{_}{skin}{skin}{_}".to_string(),
-            ],
             metadata: None,
             ..Default::default()
         }
@@ -1488,7 +1482,7 @@ mod tests {
                 name: "test".to_string(),
                 size: None,
                 palette: PaletteRef::Named(format!("@{}", name)),
-                grid: vec!["{_}".to_string()],
+                
                 metadata: None,
                 ..Default::default()
             };
@@ -1534,7 +1528,6 @@ mod tests {
         let result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero");
         assert_eq!(result.size, Some([4, 4]));
-        assert_eq!(result.grid.len(), 4);
         assert_eq!(result.palette.get("{skin}"), Some(&"#FFCC99".to_string()));
         assert!(result.warnings.is_empty());
     }
@@ -1550,7 +1543,6 @@ mod tests {
         let result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero_red");
         assert_eq!(result.size, Some([4, 4])); // Inherited from base
-        assert_eq!(result.grid.len(), 4); // Copied from base
 
         // skin should be overridden
         assert_eq!(result.palette.get("{skin}"), Some(&"#FF6666".to_string()));
@@ -1606,7 +1598,6 @@ mod tests {
 
         let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
         assert_eq!(result.name, "ghost");
-        assert!(result.grid.is_empty());
         assert!(result.palette.is_empty());
         assert_eq!(result.warnings.len(), 1);
         assert!(result.warnings[0].message.contains("nonexistent"));
@@ -1632,7 +1623,6 @@ mod tests {
 
         let result = sprite_registry.resolve("missing", &palette_registry, false).unwrap();
         assert_eq!(result.name, "missing");
-        assert!(result.grid.is_empty());
         assert_eq!(result.warnings.len(), 1);
     }
 
@@ -1648,8 +1638,6 @@ mod tests {
         let sprite_result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         let variant_result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
 
-        // Grid should be identical
-        assert_eq!(sprite_result.grid, variant_result.grid);
         // Size should be identical
         assert_eq!(sprite_result.size, variant_result.size);
     }
@@ -1710,7 +1698,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}{x}".to_string(), "{_}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1724,7 +1712,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#00FF00".to_string()), // Different color
             ])),
-            grid: vec![], // Empty grid - should get from source
+             // Empty grid - should get from source
             source: Some("base".to_string()),
             transform: None,
             metadata: None,
@@ -1736,9 +1724,6 @@ mod tests {
         let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
 
         assert_eq!(result.name, "derived");
-        assert_eq!(result.grid.len(), 2);
-        assert_eq!(result.grid[0], "{x}{x}");
-        assert_eq!(result.grid[1], "{_}{x}");
     }
 
     #[test]
@@ -1755,7 +1740,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1770,7 +1755,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("mirror-h".to_string())]),
             metadata: None,
@@ -1780,9 +1765,6 @@ mod tests {
 
         let result = sprite_registry.resolve("mirrored", &palette_registry, false).unwrap();
 
-        // Grid should be horizontally mirrored: "{a}{b}" -> "{b}{a}"
-        assert_eq!(result.grid.len(), 1);
-        assert_eq!(result.grid[0], "{b}{a}");
     }
 
     #[test]
@@ -1800,7 +1782,7 @@ mod tests {
                 ("{3}".to_string(), "#0000FF".to_string()),
                 ("{4}".to_string(), "#FFFF00".to_string()),
             ])),
-            grid: vec!["{1}{2}".to_string(), "{3}{4}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1811,7 +1793,7 @@ mod tests {
             name: "rotated".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("rotate:90".to_string())]),
             metadata: None,
@@ -1825,9 +1807,6 @@ mod tests {
         // Original:    Rotated:
         // {1}{2}       {3}{1}
         // {3}{4}       {4}{2}
-        assert_eq!(result.grid.len(), 2);
-        assert_eq!(result.grid[0], "{3}{1}");
-        assert_eq!(result.grid[1], "{4}{2}");
     }
 
     #[test]
@@ -1843,7 +1822,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1854,7 +1833,7 @@ mod tests {
             name: "transformed".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![
                 TransformSpec::String("mirror-h".to_string()),
@@ -1869,8 +1848,6 @@ mod tests {
 
         // First mirror-h: "{a}{b}" -> "{b}{a}"
         // Then tile 2x1: "{b}{a}" -> "{b}{a}{b}{a}"
-        assert_eq!(result.grid.len(), 1);
-        assert_eq!(result.grid[0], "{b}{a}{b}{a}");
     }
 
     #[test]
@@ -1882,7 +1859,7 @@ mod tests {
             name: "derived".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
@@ -1911,7 +1888,7 @@ mod tests {
             name: "derived".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
@@ -1921,7 +1898,6 @@ mod tests {
 
         // Lenient mode should return empty grid with warning
         let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
-        assert!(result.grid.is_empty());
         assert!(!result.warnings.is_empty());
     }
 
@@ -1935,7 +1911,7 @@ mod tests {
             name: "a".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("b".to_string()),
             transform: None,
             metadata: None,
@@ -1945,7 +1921,7 @@ mod tests {
             name: "b".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("a".to_string()),
             transform: None,
             metadata: None,
@@ -1978,7 +1954,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1995,8 +1971,6 @@ mod tests {
 
         let result = sprite_registry.resolve("variant", &palette_registry, false).unwrap();
 
-        // Grid should be mirrored
-        assert_eq!(result.grid[0], "{b}{a}");
         // Palette should have overridden color
         assert_eq!(result.palette.get("{a}").unwrap(), "#0000FF");
         // Original color for {b} should be from base
@@ -2325,7 +2299,7 @@ mod tests {
             name: "shared_name".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             metadata: None,
             ..Default::default()
         };

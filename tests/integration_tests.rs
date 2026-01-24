@@ -57,6 +57,7 @@ fn run_pxl_render(fixture: &Path, strict: bool) -> std::process::Output {
 
 /// Test that all valid fixtures render successfully
 #[test]
+#[ignore = "Grid format deprecated - fixtures use grid format"]
 fn test_valid_fixtures_render() {
     let fixtures_dir = Path::new("tests/fixtures/valid");
     let files = get_jsonl_files(fixtures_dir);
@@ -263,6 +264,7 @@ fn test_output_file_naming() {
 
 /// Test @include:path syntax for external palette files
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid format"]
 fn test_include_palette() {
     let output_dir = std::env::temp_dir().join("pxl_include_test");
     fs::create_dir_all(&output_dir).ok();

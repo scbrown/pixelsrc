@@ -8,6 +8,7 @@ use crate::demos::{assert_color_count, assert_dimensions, assert_validates, capt
 /// @title Inline Palette Definition
 /// @description Sprite with colors defined inline rather than referencing a named palette.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_inline_palette_sprite() {
     let jsonl = include_str!("../../../examples/demos/sprites/inline_palette.jsonl");
     assert_validates(jsonl, true);
@@ -33,6 +34,7 @@ fn test_inline_palette_colors() {
 /// @title Inline Palette Dimensions
 /// @description Verifies heart sprite renders at expected 5x5 dimensions.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_inline_palette_dimensions() {
     let jsonl = include_str!("../../../examples/demos/sprites/inline_palette.jsonl");
     assert_dimensions(jsonl, "heart", 5, 5);

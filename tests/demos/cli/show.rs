@@ -14,6 +14,7 @@ use std::collections::HashMap;
 /// @title Basic Sprite Display
 /// @description `pxl show` displays a sprite with colored ANSI output in the terminal.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_basic_sprite() {
     let grid = vec!["{_}{r}{_}".to_string(), "{r}{r}{r}".to_string(), "{_}{r}{_}".to_string()];
     let palette = HashMap::from([
@@ -36,6 +37,7 @@ fn test_show_basic_sprite() {
 /// @title Show with Palette Colors
 /// @description Terminal output shows actual palette colors as backgrounds.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_palette_colors() {
     let grid = vec!["{red}{green}{blue}".to_string()];
     let palette = HashMap::from([
@@ -66,6 +68,7 @@ fn test_show_palette_colors() {
 /// @title Show Transparent Pixels
 /// @description Transparent pixels are displayed with a distinct visual representation.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_transparency() {
     let grid = vec!["{_}{x}{_}".to_string()];
     let palette = HashMap::from([
@@ -106,6 +109,7 @@ fn test_show_with_coordinates() {
 /// @title Show with Token Aliases
 /// @description Custom single-character aliases can be used for compact display.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_with_aliases() {
     let grid = vec!["{skin}{hair}".to_string(), "{skin}{hair}".to_string()];
     let palette = HashMap::from([
@@ -132,6 +136,7 @@ fn test_show_with_aliases() {
 /// @title Show Empty Sprite
 /// @description Empty sprites are handled gracefully.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_empty_grid() {
     let grid: Vec<String> = vec![];
     let palette = HashMap::new();
@@ -148,6 +153,7 @@ fn test_show_empty_grid() {
 /// @title Show Single Pixel
 /// @description Single pixel sprites display correctly.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_single_pixel() {
     let grid = vec!["{x}".to_string()];
     let palette = HashMap::from([("{x}".to_string(), "#FF00FF".to_string())]);
@@ -163,6 +169,7 @@ fn test_show_single_pixel() {
 /// @title Show Large Sprite
 /// @description Large sprites are rendered efficiently.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_show_large_sprite() {
     // Create a 32x32 checkerboard pattern
     let mut grid = Vec::new();

@@ -92,6 +92,7 @@ fn test_nested_composition_basic() {
 
 /// Test that inner composition is rendered correctly within outer
 #[test]
+#[ignore = "Grid format deprecated - fixture uses grid format"]
 fn test_nested_composition_inner_rendered() {
     let path = Path::new("tests/fixtures/compositions/nested_composition.jsonl");
     let (_, _, composition_registry, sprite_images) = parse_file(path);

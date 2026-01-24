@@ -15,7 +15,6 @@ use pixelsrc::models::{PaletteRef, Sprite};
 use pixelsrc::parser::{parse_line, parse_stream};
 use pixelsrc::registry::ResolvedSprite;
 use pixelsrc::renderer::{render_resolved, render_sprite};
-use pixelsrc::tokenizer::tokenize;
 use std::collections::HashMap;
 use std::io::Cursor;
 
@@ -131,33 +130,6 @@ fn make_sprite_inputs(count: usize, size: u32) -> Vec<SpriteInput> {
             boxes: None,
         })
         .collect()
-}
-
-// =============================================================================
-// Tokenizer Benchmarks
-// =============================================================================
-
-fn bench_tokenizer(c: &mut Criterion) {
-    let mut group = c.benchmark_group("tokenizer");
-
-    // Benchmark different row lengths
-    for size in [8, 16, 32, 64, 128].iter() {
-        let row = make_grid_row(*size);
-        group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(BenchmarkId::new("tokenize", size), &row, |b, row| {
-            b.iter(|| tokenize(black_box(row)))
-        });
-    }
-
-    // Benchmark with longer token names
-    let long_tokens: String = (0..32).map(|i| format!("{{token_name_{:04}}}", i)).collect();
-    group.bench_function("tokenize_long_names", |b| b.iter(|| tokenize(black_box(&long_tokens))));
-
-    // Benchmark worst case: many warnings (characters outside tokens)
-    let noisy_row = "x{a}y{b}z{c}w{d}v{e}u{f}t{g}s{h}r{i}q{j}";
-    group.bench_function("tokenize_with_warnings", |b| b.iter(|| tokenize(black_box(noisy_row))));
-
-    group.finish();
 }
 
 // =============================================================================
@@ -385,6 +357,6 @@ fn bench_atlas(c: &mut Criterion) {
 // Criterion Configuration
 // =============================================================================
 
-criterion_group!(benches, bench_tokenizer, bench_parser, bench_color, bench_renderer, bench_atlas);
+criterion_group!(benches, bench_parser, bench_color, bench_renderer, bench_atlas);
 
 criterion_main!(benches);

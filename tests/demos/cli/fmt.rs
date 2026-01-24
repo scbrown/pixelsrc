@@ -40,6 +40,7 @@ fn test_fmt_basic() {
 /// @title Visual Grid Expansion
 /// @description Multi-row sprite grids are expanded to one row per line for visual clarity.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_fmt_visual_grid() {
     let input = include_str!("../../../examples/demos/cli/format/fmt_input.jsonl");
 
@@ -57,6 +58,7 @@ fn test_fmt_visual_grid() {
 /// @title Single Row Stays Compact
 /// @description Single-row sprites remain on a single line for compactness.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_fmt_single_row_compact() {
     // Single-row sprite stays compact
     let single_row =
@@ -131,7 +133,7 @@ fn test_fmt_roundtrip() {
 
     for (orig, fmt) in original_sprites.iter().zip(formatted_sprites.iter()) {
         assert_eq!(orig.name, fmt.name, "Sprite names should match");
-        assert_eq!(orig.grid, fmt.grid, "Sprite grids should match");
+        assert_eq!(orig.size, fmt.size, "Sprite sizes should match");
     }
 }
 

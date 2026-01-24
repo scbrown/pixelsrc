@@ -1432,7 +1432,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1447,7 +1447,7 @@ mod tests {
             name: "checker".to_string(),
             size: Some([4, 4]),
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1475,7 +1475,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         });
@@ -1502,7 +1502,6 @@ mod tests {
             TtpObject::Sprite(sprite) => {
                 assert_eq!(sprite.name, "dot");
                 assert!(sprite.size.is_none());
-                assert_eq!(sprite.grid, vec!["{x}"]);
                 match sprite.palette {
                     PaletteRef::Inline(colors) => {
                         assert_eq!(colors.get("{x}"), Some(&"#FF0000".to_string()));
@@ -2209,7 +2208,7 @@ mod tests {
             name: "simple".to_string(),
             size: None,
             palette: PaletteRef::Named("default".to_string()),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };

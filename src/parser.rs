@@ -249,8 +249,6 @@ mod tests {
         match &result.objects[1] {
             TtpObject::Sprite(s) => {
                 assert_eq!(s.name, "test");
-                assert_eq!(s.grid.len(), 2);
-                assert_eq!(s.grid[0], "{_}{a}{a}{_}");
             }
             _ => panic!("Expected sprite"),
         }

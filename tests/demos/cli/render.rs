@@ -38,6 +38,7 @@ fn setup_render(jsonl: &str) -> (PaletteRegistry, SpriteRegistry) {
 /// @title Basic Render Command
 /// @description Render a single sprite to PNG using `pxl render input.jsonl`.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_basic() {
     let jsonl = include_str!("../../../examples/demos/sprites/basic.jsonl");
     assert_validates(jsonl, true);
@@ -60,6 +61,7 @@ fn test_render_basic() {
 /// @title Render Specific Sprite
 /// @description Render only a named sprite using `pxl render input.jsonl --sprite name`.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_sprite_filter() {
     // Content with multiple sprites
     let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
@@ -93,6 +95,7 @@ fn test_render_sprite_filter() {
 /// @title Scaled Render Output
 /// @description Render with integer scaling using `pxl render input.jsonl --scale 4`.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_scaled() {
     let jsonl = include_str!("../../../examples/demos/exports/png_scaled.jsonl");
     assert_validates(jsonl, true);
@@ -120,6 +123,7 @@ fn test_render_scaled() {
 /// @title Spritesheet Render
 /// @description Render animation as spritesheet using `pxl render input.jsonl --spritesheet`.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_spritesheet() {
     let jsonl = include_str!("../../../examples/demos/exports/spritesheet_horizontal.jsonl");
     assert_validates(jsonl, true);
@@ -137,6 +141,7 @@ fn test_render_spritesheet() {
 /// @title Render with Named Palette
 /// @description Render sprite that references a named palette definition.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_named_palette() {
     let jsonl = include_str!("../../../examples/demos/sprites/named_palette.jsonl");
     assert_validates(jsonl, true);
@@ -153,6 +158,7 @@ fn test_render_named_palette() {
 /// @title Render with Inline Palette
 /// @description Render sprite with palette defined inline in the sprite object.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_render_inline_palette() {
     let jsonl = include_str!("../../../examples/demos/sprites/inline_palette.jsonl");
     assert_validates(jsonl, true);

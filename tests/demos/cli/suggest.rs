@@ -62,6 +62,7 @@ fn test_format_suggestions() {
 /// @title Detect Missing Tokens
 /// @description Finds tokens used in grids that are not defined in palettes.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_missing_token() {
     let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{a}": "#FF0000"}}
 {"type": "sprite", "name": "test", "palette": "colors", "grid": ["{a}{b}"]}"##;
@@ -89,6 +90,7 @@ fn test_suggest_missing_token() {
 /// @title Missing Token Fix Suggestion
 /// @description Suggests adding the missing token to the palette with a color.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_missing_token_fix() {
     // Use a token that is very different from {x} to trigger AddToPalette instead of ReplaceToken
     let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}{unknown_color}"]}"##;
@@ -124,6 +126,7 @@ fn test_suggest_missing_token_fix() {
 /// @title Suggest Row Completion
 /// @description Detects rows that are shorter than others and suggests padding.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_row_completion() {
     let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{_}": "#0000", "{x}": "#FF0000"}, "grid": ["{x}{x}{x}", "{x}{x}", "{x}{x}{x}"]}"##;
 
@@ -144,6 +147,7 @@ fn test_suggest_row_completion() {
 /// @title Row Completion Fix
 /// @description Suggests extending short rows with appropriate padding token.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_row_completion_fix() {
     let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{_}": "#0000", "{x}": "#FF0000"}, "grid": ["{x}{x}{x}{x}", "{x}{x}"]}"##;
 
@@ -178,6 +182,7 @@ fn test_suggest_row_completion_fix() {
 /// @title Suggestion Report Counts
 /// @description Report tracks number of suggestions by type.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_report_counts() {
     let jsonl = r##"{"type": "sprite", "name": "test1", "palette": {"{x}": "#FF0000"}, "grid": ["{x}{y}"]}
 {"type": "sprite", "name": "test2", "palette": {"{a}": "#00FF00"}, "grid": ["{a}{a}{a}", "{a}"]}"##;
@@ -241,6 +246,7 @@ fn test_suggest_no_suggestions_valid_file() {
 /// @title Suggestions Across Multiple Sprites
 /// @description Analyzes all sprites in a file and tracks which sprite each suggestion relates to.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_suggest_multiple_sprites() {
     let jsonl = r##"{"type": "sprite", "name": "sprite_a", "palette": {"{x}": "#FF0000"}, "grid": ["{x}{y}"]}
 {"type": "sprite", "name": "sprite_b", "palette": {"{a}": "#00FF00"}, "grid": ["{a}{b}"]}"##;

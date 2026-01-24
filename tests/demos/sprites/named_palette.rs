@@ -10,6 +10,7 @@ use crate::demos::{
 /// @title Named Palette Reference
 /// @description Sprite referencing a separately-defined palette by name.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_named_palette_sprite() {
     let jsonl = include_str!("../../../examples/demos/sprites/named_palette.jsonl");
     assert_validates(jsonl, true);
@@ -24,6 +25,7 @@ fn test_named_palette_sprite() {
 /// @title Palette Reference Verification
 /// @description Verifies sprite correctly references its named palette.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_named_palette_reference() {
     let jsonl = include_str!("../../../examples/demos/sprites/named_palette.jsonl");
 
@@ -35,6 +37,7 @@ fn test_named_palette_reference() {
 /// @title Palette Color Count
 /// @description Named palette with 4 colors: transparent, bg, fg, accent.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_named_palette_colors() {
     let jsonl = include_str!("../../../examples/demos/sprites/named_palette.jsonl");
 

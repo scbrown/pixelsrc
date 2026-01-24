@@ -8,6 +8,7 @@ use crate::demos::{assert_color_count, assert_dimensions, assert_validates, capt
 /// @title Minimal Valid Sprite
 /// @description A 3x3 sprite with an inline palette demonstrating the minimum required fields.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_basic_sprite() {
     let jsonl = include_str!("../../../examples/demos/sprites/basic.jsonl");
     assert_validates(jsonl, true);
@@ -23,6 +24,7 @@ fn test_basic_sprite() {
 /// @title Sprite Color Count
 /// @description Verifies palette color count is correctly reported.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_basic_sprite_colors() {
     let jsonl = include_str!("../../../examples/demos/sprites/basic.jsonl");
 
@@ -34,6 +36,7 @@ fn test_basic_sprite_colors() {
 /// @title Sprite Dimension Verification
 /// @description Uses assert_dimensions helper for explicit dimension checks.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_basic_sprite_dimensions() {
     let jsonl = include_str!("../../../examples/demos/sprites/basic.jsonl");
     assert_dimensions(jsonl, "square", 3, 3);

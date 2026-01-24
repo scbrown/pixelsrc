@@ -7,7 +7,6 @@
 
 use crate::models::{PaletteRef, Sprite, TtpObject};
 use crate::parser::parse_stream;
-use crate::tokenizer::tokenize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
@@ -153,30 +152,8 @@ pub fn diff_sprites(
         token_a.cmp(token_b)
     });
 
-    // Compare grids
-    let max_rows = a.grid.len().max(b.grid.len());
-    for row_idx in 0..max_rows {
-        let row_a = a.grid.get(row_idx);
-        let row_b = b.grid.get(row_idx);
-
-        match (row_a, row_b) {
-            (Some(ra), Some(rb)) => {
-                if ra != rb {
-                    let description = describe_row_change(row_idx, ra, rb);
-                    grid_changes.push(GridChange { row: row_idx, description });
-                }
-            }
-            (Some(_), None) => {
-                grid_changes
-                    .push(GridChange { row: row_idx, description: "Row removed".to_string() });
-            }
-            (None, Some(_)) => {
-                grid_changes
-                    .push(GridChange { row: row_idx, description: "Row added".to_string() });
-            }
-            (None, None) => {}
-        }
-    }
+    // Grid comparison is no longer available (grid format deprecated)
+    // grid_changes will always be empty
 
     // Generate summary
     let summary = generate_summary(&dimension_change, &palette_changes, &grid_changes);
@@ -184,63 +161,23 @@ pub fn diff_sprites(
     SpriteDiff { dimension_change, palette_changes, grid_changes, summary }
 }
 
-/// Get sprite dimensions, computing from grid if not specified
+/// Get sprite dimensions from size field
 fn get_sprite_dimensions(sprite: &Sprite) -> (u32, u32) {
     if let Some([w, h]) = sprite.size {
         return (w, h);
     }
 
-    // Compute from grid
-    let height = sprite.grid.len() as u32;
-    let width = sprite
-        .grid
-        .first()
-        .map(|row| {
-            let (tokens, _) = tokenize(row);
-            tokens.len() as u32
-        })
-        .unwrap_or(0);
-
-    (width, height)
+    // Grid format deprecated - cannot infer dimensions without size field
+    (0, 0)
 }
 
 /// Describe the change between two rows
 fn describe_row_change(_row_idx: usize, old: &str, new: &str) -> String {
-    let (tokens_old, _) = tokenize(old);
-    let (tokens_new, _) = tokenize(new);
-
-    // Find what tokens were added/removed/changed
-    let set_old: HashSet<_> = tokens_old.iter().collect();
-    let set_new: HashSet<_> = tokens_new.iter().collect();
-
-    let added: Vec<_> = set_new.difference(&set_old).collect();
-    let removed: Vec<_> = set_old.difference(&set_new).collect();
-
-    if tokens_old.len() != tokens_new.len() {
-        return format!("Token count changed: {} → {}", tokens_old.len(), tokens_new.len());
-    }
-
-    if !added.is_empty() && !removed.is_empty() {
-        let added_str: Vec<_> = added.iter().map(|t| t.as_str()).collect();
-        let removed_str: Vec<_> = removed.iter().map(|t| t.as_str()).collect();
-        return format!("Tokens changed: -{} +{}", removed_str.join(", "), added_str.join(", "));
-    }
-
-    // Count position differences
-    let mut diff_positions = Vec::new();
-    for (pos, (t_old, t_new)) in tokens_old.iter().zip(tokens_new.iter()).enumerate() {
-        if t_old != t_new {
-            diff_positions.push(pos);
-        }
-    }
-
-    if diff_positions.len() <= 3 {
-        format!(
-            "Tokens changed at position(s): {}",
-            diff_positions.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ")
-        )
+    // Grid tokenization removed - just compare strings
+    if old == new {
+        "No change".to_string()
     } else {
-        format!("{} tokens changed", diff_positions.len())
+        "Row content changed".to_string()
     }
 }
 
@@ -442,11 +379,14 @@ mod tests {
     use super::*;
 
     fn make_sprite(name: &str, palette: HashMap<String, String>, grid: Vec<&str>) -> Sprite {
+        // Compute dimensions from grid (for backwards compatibility in tests)
+        let height = grid.len() as u32;
+        let width = grid.first().map(|r| r.matches('{').count() as u32).unwrap_or(0);
+
         Sprite {
             name: name.to_string(),
-            size: None,
+            size: if height > 0 && width > 0 { Some([width, height]) } else { None },
             palette: PaletteRef::Inline(palette),
-            grid: grid.into_iter().map(String::from).collect(),
             metadata: None,
             ..Default::default()
         }
@@ -548,7 +488,6 @@ mod tests {
             name: "test".to_string(),
             size: Some([8, 8]),
             palette: PaletteRef::Inline(palette.clone()),
-            grid: vec!["{a}".to_string(); 8],
             metadata: None,
             ..Default::default()
         };
@@ -556,7 +495,6 @@ mod tests {
             name: "test".to_string(),
             size: Some([16, 16]),
             palette: PaletteRef::Inline(palette.clone()),
-            grid: vec!["{a}".to_string(); 16],
             metadata: None,
             ..Default::default()
         };
@@ -570,6 +508,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_grid_change() {
         let palette = HashMap::from([
             ("{_}".to_string(), "#00000000".to_string()),
@@ -593,7 +532,6 @@ mod tests {
             name: "test".to_string(),
             size: Some([16, 8]),
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
             metadata: None,
             ..Default::default()
         };
@@ -601,19 +539,15 @@ mod tests {
     }
 
     #[test]
-    fn test_get_sprite_dimensions_from_grid() {
+    fn test_get_sprite_dimensions_no_size() {
+        // With grid format deprecated, sprites without size return (0, 0)
         let sprite = Sprite {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![
-                "{a}{b}{c}{d}".to_string(),
-                "{a}{b}{c}{d}".to_string(),
-                "{a}{b}{c}{d}".to_string(),
-            ],
             metadata: None,
             ..Default::default()
         };
-        assert_eq!(get_sprite_dimensions(&sprite), (4, 3));
+        assert_eq!(get_sprite_dimensions(&sprite), (0, 0));
     }
 }

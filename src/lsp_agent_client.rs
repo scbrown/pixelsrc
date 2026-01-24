@@ -39,7 +39,6 @@
 
 use crate::color::parse_color;
 use crate::motion::{parse_timing_function, Interpolation, StepPosition};
-use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
 use crate::variables::VariableRegistry;
 use serde::{Deserialize, Serialize};
@@ -747,98 +746,10 @@ impl LspAgentClient {
     }
 
     /// Parse grid context from a JSON line at a specific character position
-    fn parse_grid_context(line: &str, char_pos: u32) -> Option<GridPosition> {
-        let obj: Value = serde_json::from_str(line).ok()?;
-        let obj = obj.as_object()?;
-
-        if obj.get("type")?.as_str()? != "sprite" {
-            return None;
-        }
-
-        let sprite_name = obj.get("name")?.as_str()?.to_string();
-        let grid = obj.get("grid")?.as_array()?;
-
-        if grid.is_empty() {
-            return None;
-        }
-
-        // Get expected width from size field or first row
-        let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
-            size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
-        } else {
-            let first_row = grid.first()?.as_str()?;
-            let (tokens, _) = tokenize(first_row);
-            tokens.len()
-        };
-
-        // Find the "grid" key position
-        let grid_key_pos = line.find("\"grid\"")?;
-        let after_key = &line[grid_key_pos..];
-        let bracket_offset = after_key.find('[')?;
-        let grid_array_start = grid_key_pos + bracket_offset;
-
-        if (char_pos as usize) <= grid_array_start {
-            return None;
-        }
-
-        let grid_portion = &line[grid_array_start..];
-        let char_in_grid = (char_pos as usize) - grid_array_start;
-
-        let mut pos = 0;
-        let chars: Vec<char> = grid_portion.chars().collect();
-
-        for (row_idx, grid_row) in grid.iter().enumerate() {
-            let row_str = grid_row.as_str()?;
-
-            while pos < chars.len() && chars[pos] != '"' {
-                pos += 1;
-            }
-            if pos >= chars.len() {
-                return None;
-            }
-
-            let string_start = pos + 1;
-
-            pos += 1;
-            while pos < chars.len() && chars[pos] != '"' {
-                if chars[pos] == '\\' && pos + 1 < chars.len() {
-                    pos += 2;
-                    continue;
-                }
-                pos += 1;
-            }
-
-            let string_end = pos;
-
-            if char_in_grid >= string_start && char_in_grid < string_end {
-                let char_in_string = char_in_grid - string_start;
-                let (tokens, _) = tokenize(row_str);
-                let row_width = tokens.len();
-
-                let mut string_pos = 0;
-                for (token_idx, token) in tokens.iter().enumerate() {
-                    let token_start = string_pos;
-                    let token_end = string_pos + token.len();
-
-                    if char_in_string >= token_start && char_in_string < token_end {
-                        return Some(GridPosition {
-                            x: token_idx,
-                            y: row_idx,
-                            token: token.clone(),
-                            row_width,
-                            expected_width,
-                            sprite_name,
-                            aligned: row_width == expected_width,
-                        });
-                    }
-
-                    string_pos = token_end;
-                }
-            }
-
-            pos += 1;
-        }
-
+    /// Note: Grid format is deprecated - this always returns None now.
+    #[allow(unused_variables)]
+    fn parse_grid_context(_line: &str, _char_pos: u32) -> Option<GridPosition> {
+        // Grid format is deprecated - use structured regions format
         None
     }
 }
@@ -904,6 +815,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_verify_undefined_token() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}
@@ -945,6 +857,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_get_grid_position() {
         let client = LspAgentClient::new();
         let content = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
@@ -986,6 +899,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_multiline_verification() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "p1", "colors": {"{a}": "#FF0000"}}
@@ -1000,6 +914,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Grid format deprecated"]
     fn test_suggestion_in_diagnostic() {
         let client = LspAgentClient::new();
         // Typo: {skni} instead of {skin}

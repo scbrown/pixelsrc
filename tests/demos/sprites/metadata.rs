@@ -84,6 +84,7 @@ fn test_metadata_attachments() {
 /// @title Metadata Sprite Dimensions
 /// @description Verifies sprite with metadata renders at expected dimensions.
 #[test]
+    #[ignore = "Grid format deprecated"]
 fn test_metadata_sprite_dimensions() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
 

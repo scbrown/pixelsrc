@@ -34,7 +34,6 @@
 //! let (image, warnings) = render_resolved(&resolved);
 //! ```
 
-pub mod alias;
 pub mod analyze;
 pub mod animation;
 pub mod atlas;
@@ -75,7 +74,6 @@ pub mod structured;
 pub mod suggest;
 pub mod templates;
 pub mod terminal;
-pub mod tokenizer;
 pub mod transforms;
 pub mod validate;
 pub mod variables;
@@ -110,5 +108,3 @@ pub use registry::{
 pub use renderer::{render_resolved, render_sprite};
 pub use structured::render_structured;
 
-// Tokenizer
-pub use tokenizer::tokenize;
