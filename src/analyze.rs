@@ -1038,23 +1038,19 @@ pub fn detect_line(pixels: &HashSet<(i32, i32)>) -> Option<ShapeDetection<Vec<[i
                 if confidence > best_match.map(|(_, _, c)| c).unwrap_or(0.0) {
                     best_match = Some((p0, p1, confidence));
                 }
+            }
+        }
+    }
 
-/// use pixelsrc::analyze::{detect_symmetry, Symmetric};
-///
-/// // A 2x2 symmetric pattern (all same color)
-/// let pixels: Vec<u8> = vec![
-///     255, 0, 0, 255,  255, 0, 0, 255,  // row 0
-///     255, 0, 0, 255,  255, 0, 0, 255,  // row 1
-/// ];
-/// assert_eq!(detect_symmetry(&pixels, 2, 2), Some(Symmetric::XY));
-///
-/// // Not symmetric
-/// let asymmetric: Vec<u8> = vec![
-///     255, 0, 0, 255,  0, 255, 0, 255,  // row 0
-///     0, 0, 255, 255,  255, 255, 0, 255,  // row 1
-/// ];
-/// assert_eq!(detect_symmetry(&asymmetric, 2, 2), None);
-/// ```
+    best_match.and_then(|(p0, p1, confidence)| {
+        if confidence >= 0.95 {
+            Some(ShapeDetection::new(vec![[p0.0, p0.1], [p1.0, p1.1]], confidence))
+        } else {
+            None
+        }
+    })
+}
+
 pub fn detect_symmetry(pixels: &[u8], width: u32, height: u32) -> Option<Symmetric> {
     let width = width as usize;
     let height = height as usize;
@@ -1961,6 +1957,7 @@ mod tests {
         let pixels: HashSet<(i32, i32)> = HashSet::new();
         let vertices = extract_polygon_vertices(&pixels);
         assert!(vertices.is_empty());
+    }
 
     // Symmetry detection tests (24.13)
     // ========================================================================
