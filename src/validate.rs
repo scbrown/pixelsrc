@@ -4,7 +4,7 @@
 //! common mistakes like undefined tokens, row mismatches, and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{PaletteRef, Particle, TtpObject};
+use crate::models::{PaletteRef, Particle, RegionDef, Relationship, RelationshipType, TtpObject};
 use crate::tokenizer::tokenize;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -51,6 +51,16 @@ pub enum IssueType {
     EmptyGrid,
     /// Multiple objects with the same name
     DuplicateName,
+    /// Region 'within' constraint references non-existent token
+    InvalidWithinReference,
+    /// Region 'adjacent-to' constraint references non-existent token
+    InvalidAdjacentReference,
+    /// Relationship references a non-existent token
+    InvalidRelationshipReference,
+    /// Circular relationship detected (e.g., A within B, B within A)
+    CircularRelationship,
+    /// Constraint validation is uncertain (e.g., overlapping regions)
+    UncertainConstraint,
 }
 
 impl std::fmt::Display for IssueType {
@@ -66,6 +76,11 @@ impl std::fmt::Display for IssueType {
             IssueType::SizeMismatch => write!(f, "size_mismatch"),
             IssueType::EmptyGrid => write!(f, "empty_grid"),
             IssueType::DuplicateName => write!(f, "duplicate_name"),
+            IssueType::InvalidWithinReference => write!(f, "invalid_within_ref"),
+            IssueType::InvalidAdjacentReference => write!(f, "invalid_adjacent_ref"),
+            IssueType::InvalidRelationshipReference => write!(f, "invalid_relationship_ref"),
+            IssueType::CircularRelationship => write!(f, "circular_relationship"),
+            IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
         }
     }
 }
@@ -258,7 +273,7 @@ impl Validator {
         // Validate based on object type
         match ttp_obj {
             TtpObject::Palette(palette) => {
-                self.validate_palette(line_number, &palette.name, &palette.colors);
+                self.validate_palette_full(line_number, &palette);
             }
             TtpObject::Sprite(sprite) => {
                 self.validate_sprite(line_number, &sprite);
@@ -310,6 +325,22 @@ impl Validator {
         }
     }
 
+    /// Validate a full palette definition including relationships
+    fn validate_palette_full(&mut self, line_number: usize, palette: &crate::models::Palette) {
+        // First validate colors using the basic method
+        self.validate_palette(line_number, &palette.name, &palette.colors);
+
+        // Then validate relationships if present
+        if let Some(ref relationships) = palette.relationships {
+            self.validate_relationships(
+                line_number,
+                &palette.name,
+                relationships,
+                &palette.colors,
+            );
+        }
+    }
+
     /// Validate a palette definition
     fn validate_palette(
         &mut self,
@@ -351,6 +382,399 @@ impl Validator {
         self.palettes.insert(name.to_string(), defined_tokens);
     }
 
+    /// Validate palette relationships
+    fn validate_relationships(
+        &mut self,
+        line_number: usize,
+        palette_name: &str,
+        relationships: &HashMap<String, Relationship>,
+        colors: &HashMap<String, String>,
+    ) {
+        // Build a graph for circular dependency detection
+        let mut dependency_graph: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (source_token, relationship) in relationships {
+            // Check that source token exists in colors
+            if !colors.contains_key(source_token) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipReference,
+                        format!(
+                            "Relationship source token \"{}\" not defined in palette colors",
+                            source_token
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Check that target token exists in colors
+            if !colors.contains_key(&relationship.target) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipReference,
+                        format!(
+                            "Relationship target token \"{}\" not defined in palette colors",
+                            relationship.target
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Add to dependency graph for circular detection
+            // Only certain relationship types create dependencies
+            match relationship.relationship_type {
+                RelationshipType::DerivesFrom | RelationshipType::ContainedWithin => {
+                    dependency_graph
+                        .entry(source_token.clone())
+                        .or_default()
+                        .push(relationship.target.clone());
+                }
+                _ => {}
+            }
+        }
+
+        // Detect circular relationships
+        self.detect_circular_relationships(line_number, palette_name, &dependency_graph);
+    }
+
+    /// Detect circular relationships using DFS
+    fn detect_circular_relationships(
+        &mut self,
+        line_number: usize,
+        palette_name: &str,
+        graph: &HashMap<String, Vec<String>>,
+    ) {
+        let mut visited = HashSet::new();
+        let mut rec_stack = HashSet::new();
+        let mut path = Vec::new();
+
+        for node in graph.keys() {
+            if !visited.contains(node) {
+                if let Some(cycle) =
+                    Self::dfs_find_cycle(node, graph, &mut visited, &mut rec_stack, &mut path)
+                {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::CircularRelationship,
+                            format!("Circular relationship detected: {}", cycle.join(" -> ")),
+                        )
+                        .with_context(format!("palette \"{}\"", palette_name)),
+                    );
+                }
+            }
+        }
+    }
+
+    /// DFS helper to find cycles in the dependency graph
+    fn dfs_find_cycle(
+        node: &str,
+        graph: &HashMap<String, Vec<String>>,
+        visited: &mut HashSet<String>,
+        rec_stack: &mut HashSet<String>,
+        path: &mut Vec<String>,
+    ) -> Option<Vec<String>> {
+        visited.insert(node.to_string());
+        rec_stack.insert(node.to_string());
+        path.push(node.to_string());
+
+        if let Some(neighbors) = graph.get(node) {
+            for neighbor in neighbors {
+                if !visited.contains(neighbor) {
+                    if let Some(cycle) =
+                        Self::dfs_find_cycle(neighbor, graph, visited, rec_stack, path)
+                    {
+                        return Some(cycle);
+                    }
+                } else if rec_stack.contains(neighbor) {
+                    // Found a cycle - build the cycle path
+                    let start_idx = path.iter().position(|n| n == neighbor).unwrap_or(0);
+                    let mut cycle: Vec<String> = path[start_idx..].to_vec();
+                    cycle.push(neighbor.clone());
+                    return Some(cycle);
+                }
+            }
+        }
+
+        path.pop();
+        rec_stack.remove(node);
+        None
+    }
+
+    /// Validate structured regions in a sprite
+    fn validate_regions(
+        &mut self,
+        line_number: usize,
+        sprite_name: &str,
+        regions: &HashMap<String, RegionDef>,
+        palette_tokens: &Option<HashSet<String>>,
+    ) {
+        // Collect all region token names for cross-referencing
+        let region_tokens: HashSet<String> = regions.keys().cloned().collect();
+
+        // Build a dependency graph for circular detection
+        let mut dependency_graph: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (token_name, region_def) in regions {
+            // Check that the token exists in palette (if we have palette info)
+            if let Some(ref tokens) = palette_tokens {
+                if !tokens.contains(token_name) {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::UndefinedToken,
+                            format!("Region token \"{}\" not defined in palette", token_name),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite_name)),
+                    );
+                }
+            }
+
+            // Validate 'within' constraint
+            if let Some(ref within_ref) = region_def.within {
+                if !region_tokens.contains(within_ref) {
+                    // Check if it's in the palette tokens instead
+                    let in_palette = palette_tokens
+                        .as_ref()
+                        .is_some_and(|t| t.contains(within_ref));
+                    if !in_palette {
+                        self.issues.push(
+                            ValidationIssue::error(
+                                line_number,
+                                IssueType::InvalidWithinReference,
+                                format!(
+                                    "Region \"{}\" has 'within' constraint referencing unknown token \"{}\"",
+                                    token_name, within_ref
+                                ),
+                            )
+                            .with_context(format!("sprite \"{}\"", sprite_name)),
+                        );
+                    }
+                }
+
+                // Add to dependency graph for circular detection
+                dependency_graph
+                    .entry(token_name.clone())
+                    .or_default()
+                    .push(within_ref.clone());
+
+                // Warn about uncertain validation when regions might overlap
+                if region_tokens.contains(within_ref) {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::UncertainConstraint,
+                            format!(
+                                "Region \"{}\" 'within' constraint for \"{}\" - containment check requires rendered pixels",
+                                token_name, within_ref
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite_name)),
+                    );
+                }
+            }
+
+            // Validate 'adjacent-to' constraint
+            if let Some(ref adjacent_ref) = region_def.adjacent_to {
+                if !region_tokens.contains(adjacent_ref) {
+                    // Check if it's in the palette tokens instead
+                    let in_palette = palette_tokens
+                        .as_ref()
+                        .is_some_and(|t| t.contains(adjacent_ref));
+                    if !in_palette {
+                        self.issues.push(
+                            ValidationIssue::error(
+                                line_number,
+                                IssueType::InvalidAdjacentReference,
+                                format!(
+                                    "Region \"{}\" has 'adjacent-to' constraint referencing unknown token \"{}\"",
+                                    token_name, adjacent_ref
+                                ),
+                            )
+                            .with_context(format!("sprite \"{}\"", sprite_name)),
+                        );
+                    }
+                }
+
+                // Warn about uncertain validation
+                if region_tokens.contains(adjacent_ref) {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::UncertainConstraint,
+                            format!(
+                                "Region \"{}\" 'adjacent-to' constraint for \"{}\" - adjacency check requires rendered pixels",
+                                token_name, adjacent_ref
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite_name)),
+                    );
+                }
+            }
+
+            // Recursively validate nested regions (union, subtract, intersect, base)
+            self.validate_nested_regions(
+                line_number,
+                sprite_name,
+                token_name,
+                region_def,
+                &region_tokens,
+                palette_tokens,
+                &mut dependency_graph,
+            );
+        }
+
+        // Detect circular dependencies in regions
+        self.detect_circular_relationships(line_number, sprite_name, &dependency_graph);
+    }
+
+    /// Validate nested region definitions (compound operations)
+    #[allow(clippy::too_many_arguments)]
+    fn validate_nested_regions(
+        &mut self,
+        line_number: usize,
+        sprite_name: &str,
+        parent_token: &str,
+        region_def: &RegionDef,
+        region_tokens: &HashSet<String>,
+        palette_tokens: &Option<HashSet<String>>,
+        dependency_graph: &mut HashMap<String, Vec<String>>,
+    ) {
+        // Validate union regions
+        if let Some(ref union_regions) = region_def.union {
+            for nested in union_regions {
+                self.validate_region_constraints(
+                    line_number,
+                    sprite_name,
+                    parent_token,
+                    nested,
+                    region_tokens,
+                    palette_tokens,
+                    dependency_graph,
+                );
+            }
+        }
+
+        // Validate base region
+        if let Some(ref base) = region_def.base {
+            self.validate_region_constraints(
+                line_number,
+                sprite_name,
+                parent_token,
+                base,
+                region_tokens,
+                palette_tokens,
+                dependency_graph,
+            );
+        }
+
+        // Validate subtract regions
+        if let Some(ref subtract_regions) = region_def.subtract {
+            for nested in subtract_regions {
+                self.validate_region_constraints(
+                    line_number,
+                    sprite_name,
+                    parent_token,
+                    nested,
+                    region_tokens,
+                    palette_tokens,
+                    dependency_graph,
+                );
+            }
+        }
+
+        // Validate intersect regions
+        if let Some(ref intersect_regions) = region_def.intersect {
+            for nested in intersect_regions {
+                self.validate_region_constraints(
+                    line_number,
+                    sprite_name,
+                    parent_token,
+                    nested,
+                    region_tokens,
+                    palette_tokens,
+                    dependency_graph,
+                );
+            }
+        }
+    }
+
+    /// Validate constraints in a single region definition
+    #[allow(clippy::too_many_arguments)]
+    fn validate_region_constraints(
+        &mut self,
+        line_number: usize,
+        sprite_name: &str,
+        parent_token: &str,
+        region_def: &RegionDef,
+        region_tokens: &HashSet<String>,
+        palette_tokens: &Option<HashSet<String>>,
+        dependency_graph: &mut HashMap<String, Vec<String>>,
+    ) {
+        // Validate 'within' constraint
+        if let Some(ref within_ref) = region_def.within {
+            if !region_tokens.contains(within_ref) {
+                let in_palette = palette_tokens
+                    .as_ref()
+                    .is_some_and(|t| t.contains(within_ref));
+                if !in_palette {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::InvalidWithinReference,
+                            format!(
+                                "Nested region in \"{}\" has 'within' constraint referencing unknown token \"{}\"",
+                                parent_token, within_ref
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite_name)),
+                    );
+                }
+            }
+            dependency_graph
+                .entry(parent_token.to_string())
+                .or_default()
+                .push(within_ref.clone());
+        }
+
+        // Validate 'adjacent-to' constraint
+        if let Some(ref adjacent_ref) = region_def.adjacent_to {
+            if !region_tokens.contains(adjacent_ref) {
+                let in_palette = palette_tokens
+                    .as_ref()
+                    .is_some_and(|t| t.contains(adjacent_ref));
+                if !in_palette {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::InvalidAdjacentReference,
+                            format!(
+                                "Nested region in \"{}\" has 'adjacent-to' constraint referencing unknown token \"{}\"",
+                                parent_token, adjacent_ref
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite_name)),
+                    );
+                }
+            }
+        }
+
+        // Recursively validate nested regions
+        self.validate_nested_regions(
+            line_number,
+            sprite_name,
+            parent_token,
+            region_def,
+            region_tokens,
+            palette_tokens,
+            dependency_graph,
+        );
+    }
+
     /// Validate a sprite definition
     fn validate_sprite(&mut self, line_number: usize, sprite: &crate::models::Sprite) {
         let name = &sprite.name;
@@ -367,7 +791,16 @@ impl Validator {
             );
         }
 
-        // Check for empty grid
+        // Get palette tokens early - needed for both grid and regions validation
+        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
+
+        // If sprite has regions, validate them instead of grid
+        if let Some(ref regions) = sprite.regions {
+            self.validate_regions(line_number, name, regions, &palette_tokens);
+            return;
+        }
+
+        // Check for empty grid (only if no regions)
         if sprite.grid.is_empty() {
             self.issues.push(
                 ValidationIssue::warning(
@@ -379,9 +812,6 @@ impl Validator {
             );
             return;
         }
-
-        // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
 
         // Validate grid rows
         let mut first_row_count: Option<usize> = None;
@@ -1158,5 +1588,252 @@ mod tests {
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");
+    }
+
+    // ========================================================================
+    // Constraint Validation Tests (TTP-oghw)
+    // ========================================================================
+
+    #[test]
+    fn test_validate_relationship_valid() {
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let relationship_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipReference)
+            .collect();
+        assert!(
+            relationship_errors.is_empty(),
+            "Should not have relationship errors for valid references"
+        );
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_source() {
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00"}, "relationships": {"{missing}": {"type": "derives-from", "target": "{a}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let relationship_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipReference)
+            .collect();
+        assert_eq!(
+            relationship_errors.len(),
+            1,
+            "Should have 1 error for missing source token"
+        );
+        assert!(relationship_errors[0].message.contains("missing"));
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_target() {
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00"}, "relationships": {"{a}": {"type": "derives-from", "target": "{nonexistent}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let relationship_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipReference)
+            .collect();
+        assert_eq!(
+            relationship_errors.len(),
+            1,
+            "Should have 1 error for missing target token"
+        );
+        assert!(relationship_errors[0].message.contains("nonexistent"));
+    }
+
+    #[test]
+    fn test_validate_circular_relationship() {
+        // A derives from B, B derives from A = circular
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "derives-from", "target": "{a}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let circular_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularRelationship)
+            .collect();
+        assert!(
+            !circular_errors.is_empty(),
+            "Should detect circular relationship"
+        );
+    }
+
+    #[test]
+    fn test_validate_circular_relationship_chain() {
+        // A -> B -> C -> A = circular chain
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0", "{c}": "#00F"}, "relationships": {"{a}": {"type": "contained-within", "target": "{b}"}, "{b}": {"type": "contained-within", "target": "{c}"}, "{c}": {"type": "contained-within", "target": "{a}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let circular_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularRelationship)
+            .collect();
+        assert!(
+            !circular_errors.is_empty(),
+            "Should detect circular relationship chain"
+        );
+    }
+
+    #[test]
+    fn test_validate_no_circular_for_paired_with() {
+        // paired-with doesn't create dependency chains
+        let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0"}, "relationships": {"{a}": {"type": "paired-with", "target": "{b}"}, "{b}": {"type": "paired-with", "target": "{a}"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, content);
+        let issues = validator.issues();
+
+        let circular_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularRelationship)
+            .collect();
+        assert!(
+            circular_errors.is_empty(),
+            "paired-with should not cause circular dependency errors"
+        );
+    }
+
+    #[test]
+    fn test_validate_region_within_valid() {
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{o}": "#000", "{f}": "#F00"}}"##;
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"o": {"rect": [0, 0, 8, 8]}, "f": {"rect": [2, 2, 4, 4], "within": "o"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let within_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidWithinReference)
+            .collect();
+        assert!(
+            within_errors.is_empty(),
+            "Should not have errors for valid within reference"
+        );
+    }
+
+    #[test]
+    fn test_validate_region_within_invalid_reference() {
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{o}": "#000", "{f}": "#F00"}}"##;
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"f": {"rect": [2, 2, 4, 4], "within": "nonexistent"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let within_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidWithinReference)
+            .collect();
+        assert_eq!(
+            within_errors.len(),
+            1,
+            "Should have error for invalid within reference"
+        );
+        assert!(within_errors[0].message.contains("nonexistent"));
+    }
+
+    #[test]
+    fn test_validate_region_adjacent_invalid_reference() {
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00"}}"##;
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4], "adjacent-to": "missing"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let adjacent_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidAdjacentReference)
+            .collect();
+        assert_eq!(
+            adjacent_errors.len(),
+            1,
+            "Should have error for invalid adjacent-to reference"
+        );
+    }
+
+    #[test]
+    fn test_validate_region_circular_within() {
+        // A within B, B within A = circular
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0"}}"##;
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4], "within": "b"}, "b": {"rect": [0, 0, 8, 8], "within": "a"}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let circular_errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularRelationship)
+            .collect();
+        assert!(
+            !circular_errors.is_empty(),
+            "Should detect circular within dependency"
+        );
+    }
+
+    #[test]
+    fn test_validate_region_uncertain_constraint() {
+        // When both regions exist, we can't verify containment without rendering
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00", "{b}": "#0F0"}}"##;
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"a": {"rect": [2, 2, 4, 4], "within": "b"}, "b": {"rect": [0, 0, 8, 8]}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let uncertain_warnings: Vec<_> = issues
+            .iter()
+            .filter(|i| i.issue_type == IssueType::UncertainConstraint)
+            .collect();
+        assert!(
+            !uncertain_warnings.is_empty(),
+            "Should warn about uncertain constraint validation"
+        );
+    }
+
+    #[test]
+    fn test_validate_region_token_not_in_palette() {
+        let palette = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#F00"}}"##;
+        // Region "b" is not in palette colors
+        let sprite = r##"{"type": "sprite", "name": "s", "size": [8, 8], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4]}, "b": {"rect": [4, 4, 4, 4]}}}"##;
+
+        let mut validator = Validator::new();
+        validator.validate_line(1, palette);
+        validator.validate_line(2, sprite);
+        let issues = validator.issues();
+
+        let undefined_warnings: Vec<_> = issues
+            .iter()
+            .filter(|i| {
+                i.issue_type == IssueType::UndefinedToken && i.message.contains("\"b\"")
+            })
+            .collect();
+        assert!(
+            !undefined_warnings.is_empty(),
+            "Should warn about region token not in palette"
+        );
     }
 }

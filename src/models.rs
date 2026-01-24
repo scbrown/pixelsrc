@@ -265,6 +265,30 @@ impl ColorRamp {
     }
 }
 
+/// Relationship type between tokens.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum RelationshipType {
+    /// Token color is derived from another token
+    DerivesFrom,
+    /// Token region is contained within another token's region
+    ContainedWithin,
+    /// Token region is adjacent to another token's region
+    AdjacentTo,
+    /// Token is visually paired with another token
+    PairedWith,
+}
+
+/// A semantic relationship between tokens.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Relationship {
+    /// The type of relationship
+    #[serde(rename = "type")]
+    pub relationship_type: RelationshipType,
+    /// The target token this relationship references
+    pub target: String,
+}
+
 /// A named palette defining color tokens.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
@@ -275,6 +299,9 @@ pub struct Palette {
     /// Color ramps for automatic generation of shadow/highlight variants
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub ramps: Option<HashMap<String, ColorRamp>>,
+    /// Semantic relationships between tokens
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub relationships: Option<HashMap<String, Relationship>>,
 }
 
 /// Reference to a palette - either a named reference or inline definition.
@@ -339,7 +366,7 @@ pub struct Sprite {
     /// The grid data (mutually exclusive with `source` and `regions`)
     #[serde(default)]
     pub grid: Vec<String>,
-    /// Reference to another sprite by name (mutually exclusive with `grid`)
+    /// Reference to another sprite by name (mutually exclusive with `grid` and `regions`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
     /// Structured regions for v2 format (mutually exclusive with `grid`)
