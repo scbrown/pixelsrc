@@ -40,6 +40,9 @@ pub struct ImportOptions {
     pub hints: bool,
     /// Extract structured regions (polygons, rects) instead of raw points
     pub extract_shapes: bool,
+    /// Export only half the sprite data when symmetry is detected.
+    /// The symmetry flag will indicate how to mirror the data during rendering.
+    pub half_sprite: bool,
 }
 
 /// A naming hint for a token based on detected features.
@@ -69,6 +72,105 @@ pub struct ImportAnalysis {
     pub z_order: HashMap<String, i32>,
 }
 
+/// Filter points to only include the primary half based on symmetry.
+///
+/// For X symmetry (left-right mirror), keeps only the left half.
+/// For Y symmetry (top-bottom mirror), keeps only the top half.
+/// For XY symmetry, keeps only the top-left quarter.
+///
+/// Returns the filtered points.
+fn filter_points_for_half_sprite(
+    points: &[[u32; 2]],
+    symmetry: Symmetric,
+    width: u32,
+    height: u32,
+) -> Vec<[u32; 2]> {
+    let half_width = (width + 1) / 2; // Include center column for odd widths
+    let half_height = (height + 1) / 2; // Include center row for odd heights
+
+    points.iter()
+        .filter(|p| {
+            let in_left_half = p[0] < half_width;
+            let in_top_half = p[1] < half_height;
+
+            match symmetry {
+                Symmetric::X => in_left_half,
+                Symmetric::Y => in_top_half,
+                Symmetric::XY => in_left_half && in_top_half,
+            }
+        })
+        .copied()
+        .collect()
+}
+
+/// Filter a structured region to only include the primary half.
+fn filter_structured_region_for_half_sprite(
+    region: &StructuredRegion,
+    symmetry: Symmetric,
+    width: u32,
+    height: u32,
+) -> StructuredRegion {
+    let half_width = (width + 1) / 2;
+    let half_height = (height + 1) / 2;
+
+    match region {
+        StructuredRegion::Rect([x, y, w, h]) => {
+            // Compute intersection with the primary half
+            let (new_x, new_y, new_w, new_h) = match symmetry {
+                Symmetric::X => {
+                    let end_x = (x + w).min(half_width);
+                    if *x >= half_width || end_x <= *x {
+                        return StructuredRegion::Points(vec![]);
+                    }
+                    (*x, *y, end_x - x, *h)
+                }
+                Symmetric::Y => {
+                    let end_y = (y + h).min(half_height);
+                    if *y >= half_height || end_y <= *y {
+                        return StructuredRegion::Points(vec![]);
+                    }
+                    (*x, *y, *w, end_y - y)
+                }
+                Symmetric::XY => {
+                    let end_x = (x + w).min(half_width);
+                    let end_y = (y + h).min(half_height);
+                    if *x >= half_width || *y >= half_height || end_x <= *x || end_y <= *y {
+                        return StructuredRegion::Points(vec![]);
+                    }
+                    (*x, *y, end_x - x, end_y - y)
+                }
+            };
+            StructuredRegion::Rect([new_x, new_y, new_w, new_h])
+        }
+        StructuredRegion::Polygon(vertices) => {
+            // For polygons, we clip to the half region
+            // This is complex, so we fall back to filtering the rasterized points
+            let rasterized = rasterize_polygon(vertices);
+            let points: Vec<[u32; 2]> = rasterized.into_iter()
+                .map(|(x, y)| [x, y])
+                .collect();
+            let filtered = filter_points_for_half_sprite(&points, symmetry, width, height);
+            StructuredRegion::Points(filtered)
+        }
+        StructuredRegion::Union(regions) => {
+            let filtered: Vec<StructuredRegion> = regions.iter()
+                .map(|r| filter_structured_region_for_half_sprite(r, symmetry, width, height))
+                .filter(|r| !matches!(r, StructuredRegion::Points(p) if p.is_empty()))
+                .collect();
+            if filtered.is_empty() {
+                StructuredRegion::Points(vec![])
+            } else if filtered.len() == 1 {
+                filtered.into_iter().next().unwrap()
+            } else {
+                StructuredRegion::Union(filtered)
+            }
+        }
+        StructuredRegion::Points(points) => {
+            StructuredRegion::Points(filter_points_for_half_sprite(points, symmetry, width, height))
+        }
+    }
+}
+
 /// Result of importing a PNG image.
 #[derive(Debug, Clone)]
 pub struct ImportResult {
@@ -88,6 +190,8 @@ pub struct ImportResult {
     pub structured_regions: Option<HashMap<String, StructuredRegion>>,
     /// Analysis results (if analysis was enabled).
     pub analysis: Option<ImportAnalysis>,
+    /// Whether half-sprite export is enabled.
+    pub half_sprite: bool,
 }
 
 impl ImportResult {
@@ -111,6 +215,10 @@ impl ImportResult {
     }
 
     /// Serialize to structured JSONL format (v2 with regions, roles, relationships).
+    ///
+    /// If `half_sprite` is true and symmetry is detected, only the primary half
+    /// of the sprite data is exported, with a `symmetry` field indicating how
+    /// to mirror the data during rendering.
     pub fn to_structured_jsonl(&self) -> String {
         let mut palette_obj = serde_json::json!({
             "type": "palette",
@@ -154,13 +262,33 @@ impl ImportResult {
             }
         }
 
+        // Determine if we should apply half-sprite filtering
+        let apply_half_sprite = self.half_sprite
+            && self.analysis.as_ref().map(|a| a.symmetry.is_some()).unwrap_or(false);
+        let symmetry = self.analysis.as_ref().and_then(|a| a.symmetry);
+
         // Build regions object - use structured regions if available, adding z-order if present
         let z_order = self.analysis.as_ref().map(|a| &a.z_order);
         let regions: HashMap<String, serde_json::Value> = if let Some(ref structured) = self.structured_regions {
             structured
                 .iter()
-                .map(|(token, region)| {
-                    let mut region_json = region.to_json();
+                .filter_map(|(token, region)| {
+                    // Apply half-sprite filtering if enabled
+                    let filtered_region = if apply_half_sprite {
+                        let sym = symmetry.unwrap();
+                        let filtered = filter_structured_region_for_half_sprite(
+                            region, sym, self.width, self.height
+                        );
+                        // Skip empty regions
+                        if matches!(&filtered, StructuredRegion::Points(p) if p.is_empty()) {
+                            return None;
+                        }
+                        filtered
+                    } else {
+                        region.clone()
+                    };
+
+                    let mut region_json = filtered_region.to_json();
                     // Add z-order if available
                     if let Some(z_map) = z_order {
                         if let Some(&z) = z_map.get(token) {
@@ -169,14 +297,27 @@ impl ImportResult {
                             }
                         }
                     }
-                    (token.clone(), region_json)
+                    Some((token.clone(), region_json))
                 })
                 .collect()
         } else {
             self.regions
                 .iter()
-                .map(|(token, points)| {
-                    let mut region_json = serde_json::json!({ "points": points });
+                .filter_map(|(token, points)| {
+                    // Apply half-sprite filtering if enabled
+                    let filtered_points = if apply_half_sprite {
+                        let sym = symmetry.unwrap();
+                        let pts = filter_points_for_half_sprite(points, sym, self.width, self.height);
+                        // Skip empty regions
+                        if pts.is_empty() {
+                            return None;
+                        }
+                        pts
+                    } else {
+                        points.clone()
+                    };
+
+                    let mut region_json = serde_json::json!({ "points": filtered_points });
                     // Add z-order if available
                     if let Some(z_map) = z_order {
                         if let Some(&z) = z_map.get(token) {
@@ -185,29 +326,50 @@ impl ImportResult {
                             }
                         }
                     }
-                    (token.clone(), region_json)
+                    Some((token.clone(), region_json))
                 })
                 .collect()
+        };
+
+        // Compute effective size for half-sprite export
+        let (export_width, export_height) = if apply_half_sprite {
+            let sym = symmetry.unwrap();
+            let half_w = (self.width + 1) / 2;
+            let half_h = (self.height + 1) / 2;
+            match sym {
+                Symmetric::X => (half_w, self.height),
+                Symmetric::Y => (self.width, half_h),
+                Symmetric::XY => (half_w, half_h),
+            }
+        } else {
+            (self.width, self.height)
         };
 
         let mut sprite_obj = serde_json::json!({
             "type": "sprite",
             "name": self.name,
-            "size": [self.width, self.height],
+            "size": [export_width, export_height],
             "palette": format!("{}_palette", self.name),
             "regions": regions
         });
 
-        // Add symmetry if detected
+        // Add symmetry metadata
         if let Some(ref analysis) = self.analysis {
-            if let Some(ref symmetry) = analysis.symmetry {
-                let sym_str = match symmetry {
+            if let Some(ref sym) = analysis.symmetry {
+                let sym_str = match sym {
                     Symmetric::X => "x",
                     Symmetric::Y => "y",
                     Symmetric::XY => "both",
                 };
-                // Note: symmetry could be added as metadata or hint
-                sprite_obj["_symmetry"] = serde_json::json!(sym_str);
+
+                if apply_half_sprite {
+                    // For half-sprite export, add required symmetry field for reconstruction
+                    sprite_obj["symmetry"] = serde_json::json!(sym_str);
+                    sprite_obj["full_size"] = serde_json::json!([self.width, self.height]);
+                } else {
+                    // Just add as hint (underscore prefix indicates metadata)
+                    sprite_obj["_symmetry"] = serde_json::json!(sym_str);
+                }
             }
         }
 
@@ -1116,6 +1278,7 @@ pub fn import_png_with_options<P: AsRef<Path>>(
         regions,
         structured_regions,
         analysis,
+        half_sprite: options.half_sprite,
     })
 }
 
@@ -1679,6 +1842,7 @@ mod tests {
             regions,
             structured_regions: None,
             analysis: None,
+            half_sprite: false,
         };
 
         let jsonl = result.to_jsonl();
@@ -1835,6 +1999,7 @@ mod tests {
             regions,
             structured_regions: None,
             analysis: Some(analysis),
+            half_sprite: false,
         };
 
         let jsonl = result.to_structured_jsonl();
@@ -2003,5 +2168,266 @@ mod tests {
         );
         assert_eq!(name, Some("{gleam}".to_string()));
         assert!(reason.contains("reflection"));
+    }
+
+    // ========================================================================
+    // Half-Sprite Export Tests (TTP-trwxq.5)
+    // ========================================================================
+
+    #[test]
+    fn test_filter_points_for_half_sprite_x() {
+        // X symmetry: keep left half only
+        // 4x2 sprite, left half is columns 0,1 (half_width = 2)
+        let points = vec![[0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [2, 1], [3, 1]];
+        let filtered = filter_points_for_half_sprite(&points, Symmetric::X, 4, 2);
+
+        assert_eq!(filtered.len(), 4);
+        assert!(filtered.contains(&[0, 0]));
+        assert!(filtered.contains(&[1, 0]));
+        assert!(filtered.contains(&[0, 1]));
+        assert!(filtered.contains(&[1, 1]));
+        // Right half should be excluded
+        assert!(!filtered.contains(&[2, 0]));
+        assert!(!filtered.contains(&[3, 0]));
+    }
+
+    #[test]
+    fn test_filter_points_for_half_sprite_y() {
+        // Y symmetry: keep top half only
+        // 2x4 sprite, top half is rows 0,1 (half_height = 2)
+        let points = vec![[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3]];
+        let filtered = filter_points_for_half_sprite(&points, Symmetric::Y, 2, 4);
+
+        assert_eq!(filtered.len(), 4);
+        assert!(filtered.contains(&[0, 0]));
+        assert!(filtered.contains(&[1, 0]));
+        assert!(filtered.contains(&[0, 1]));
+        assert!(filtered.contains(&[1, 1]));
+        // Bottom half should be excluded
+        assert!(!filtered.contains(&[0, 2]));
+        assert!(!filtered.contains(&[1, 3]));
+    }
+
+    #[test]
+    fn test_filter_points_for_half_sprite_xy() {
+        // XY symmetry: keep top-left quarter only
+        // 4x4 sprite, quarter is columns 0,1 and rows 0,1
+        let mut points = Vec::new();
+        for x in 0..4 {
+            for y in 0..4 {
+                points.push([x, y]);
+            }
+        }
+        let filtered = filter_points_for_half_sprite(&points, Symmetric::XY, 4, 4);
+
+        assert_eq!(filtered.len(), 4);
+        assert!(filtered.contains(&[0, 0]));
+        assert!(filtered.contains(&[1, 0]));
+        assert!(filtered.contains(&[0, 1]));
+        assert!(filtered.contains(&[1, 1]));
+    }
+
+    #[test]
+    fn test_filter_points_for_half_sprite_odd_width() {
+        // Odd width: include center column for X symmetry
+        // 5x2 sprite, left half includes columns 0,1,2 (center)
+        let points = vec![[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]];
+        let filtered = filter_points_for_half_sprite(&points, Symmetric::X, 5, 2);
+
+        assert_eq!(filtered.len(), 3); // Columns 0,1,2
+        assert!(filtered.contains(&[0, 0]));
+        assert!(filtered.contains(&[1, 0]));
+        assert!(filtered.contains(&[2, 0])); // Center column included
+        assert!(!filtered.contains(&[3, 0]));
+        assert!(!filtered.contains(&[4, 0]));
+    }
+
+    #[test]
+    fn test_filter_structured_region_rect_x() {
+        // A 4x2 rect spanning full width, X symmetry should clip to left half
+        let region = StructuredRegion::Rect([0, 0, 4, 2]);
+        let filtered = filter_structured_region_for_half_sprite(&region, Symmetric::X, 4, 2);
+
+        match filtered {
+            StructuredRegion::Rect([x, y, w, h]) => {
+                assert_eq!(x, 0);
+                assert_eq!(y, 0);
+                assert_eq!(w, 2); // Half of 4
+                assert_eq!(h, 2); // Full height
+            }
+            _ => panic!("Expected Rect"),
+        }
+    }
+
+    #[test]
+    fn test_filter_structured_region_rect_y() {
+        // A 2x4 rect spanning full height, Y symmetry should clip to top half
+        let region = StructuredRegion::Rect([0, 0, 2, 4]);
+        let filtered = filter_structured_region_for_half_sprite(&region, Symmetric::Y, 2, 4);
+
+        match filtered {
+            StructuredRegion::Rect([x, y, w, h]) => {
+                assert_eq!(x, 0);
+                assert_eq!(y, 0);
+                assert_eq!(w, 2); // Full width
+                assert_eq!(h, 2); // Half of 4
+            }
+            _ => panic!("Expected Rect"),
+        }
+    }
+
+    #[test]
+    fn test_filter_structured_region_rect_xy() {
+        // A 4x4 rect, XY symmetry should clip to quarter
+        let region = StructuredRegion::Rect([0, 0, 4, 4]);
+        let filtered = filter_structured_region_for_half_sprite(&region, Symmetric::XY, 4, 4);
+
+        match filtered {
+            StructuredRegion::Rect([x, y, w, h]) => {
+                assert_eq!(x, 0);
+                assert_eq!(y, 0);
+                assert_eq!(w, 2);
+                assert_eq!(h, 2);
+            }
+            _ => panic!("Expected Rect"),
+        }
+    }
+
+    #[test]
+    fn test_filter_structured_region_rect_outside() {
+        // A rect fully in the right half should become empty
+        let region = StructuredRegion::Rect([3, 0, 1, 2]);
+        let filtered = filter_structured_region_for_half_sprite(&region, Symmetric::X, 4, 2);
+
+        match filtered {
+            StructuredRegion::Points(pts) => assert!(pts.is_empty()),
+            _ => panic!("Expected empty Points"),
+        }
+    }
+
+    #[test]
+    fn test_half_sprite_export_jsonl() {
+        // Create an X-symmetric sprite with half_sprite enabled
+        let mut palette = HashMap::new();
+        palette.insert("{a}".to_string(), "#FF0000".to_string());
+
+        // Full points: [[0,0], [1,0], [2,0], [3,0]]
+        // With X symmetry and half_sprite, only [[0,0], [1,0]] should be exported
+        let mut regions = HashMap::new();
+        regions.insert("{a}".to_string(), vec![[0, 0], [1, 0], [2, 0], [3, 0]]);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: Some(Symmetric::X),
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+        };
+
+        let result = ImportResult {
+            name: "half_test".to_string(),
+            width: 4,
+            height: 1,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: true,
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        // Should have symmetry field (not _symmetry)
+        assert!(jsonl.contains("\"symmetry\":\"x\"") || jsonl.contains("\"symmetry\": \"x\""));
+        // Should have full_size
+        assert!(jsonl.contains("\"full_size\":[4,1]") || jsonl.contains("\"full_size\": [4, 1]"));
+        // Size should be half width
+        assert!(jsonl.contains("\"size\":[2,1]") || jsonl.contains("\"size\": [2, 1]"));
+        // Points should only include left half
+        assert!(jsonl.contains("[0,0]") || jsonl.contains("[0, 0]"));
+        assert!(jsonl.contains("[1,0]") || jsonl.contains("[1, 0]"));
+        // Right half points should NOT be in output
+        assert!(!jsonl.contains("[3,0]") && !jsonl.contains("[3, 0]"));
+    }
+
+    #[test]
+    fn test_half_sprite_disabled_preserves_full_data() {
+        // When half_sprite is false, all data should be preserved
+        let mut palette = HashMap::new();
+        palette.insert("{a}".to_string(), "#FF0000".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{a}".to_string(), vec![[0, 0], [1, 0], [2, 0], [3, 0]]);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: Some(Symmetric::X),
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+        };
+
+        let result = ImportResult {
+            name: "full_test".to_string(),
+            width: 4,
+            height: 1,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: false,
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        // Should have _symmetry (hint) not symmetry (required)
+        assert!(jsonl.contains("\"_symmetry\":\"x\"") || jsonl.contains("\"_symmetry\": \"x\""));
+        // Should NOT have full_size (since we're exporting full data)
+        assert!(!jsonl.contains("full_size"));
+        // Size should be full size
+        assert!(jsonl.contains("\"size\":[4,1]") || jsonl.contains("\"size\": [4, 1]"));
+        // All points should be present
+        assert!(jsonl.contains("[0,0]") || jsonl.contains("[0, 0]"));
+        assert!(jsonl.contains("[3,0]") || jsonl.contains("[3, 0]"));
+    }
+
+    #[test]
+    fn test_half_sprite_no_symmetry_no_effect() {
+        // When no symmetry detected, half_sprite option has no effect
+        let mut palette = HashMap::new();
+        palette.insert("{a}".to_string(), "#FF0000".to_string());
+
+        let mut regions = HashMap::new();
+        regions.insert("{a}".to_string(), vec![[0, 0], [1, 0], [2, 0], [3, 0]]);
+
+        let analysis = ImportAnalysis {
+            roles: HashMap::new(),
+            relationships: vec![],
+            symmetry: None, // No symmetry detected
+            naming_hints: vec![],
+            z_order: HashMap::new(),
+        };
+
+        let result = ImportResult {
+            name: "nosym_test".to_string(),
+            width: 4,
+            height: 1,
+            palette,
+            grid: vec![],
+            regions,
+            structured_regions: None,
+            analysis: Some(analysis),
+            half_sprite: true, // Even with this true, no filtering happens
+        };
+
+        let jsonl = result.to_structured_jsonl();
+
+        // Should NOT have symmetry or full_size
+        assert!(!jsonl.contains("symmetry"));
+        assert!(!jsonl.contains("full_size"));
+        // All points should be present
+        assert!(jsonl.contains("[3,0]") || jsonl.contains("[3, 0]"));
     }
 }
