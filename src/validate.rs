@@ -301,6 +301,9 @@ impl Validator {
             TtpObject::Transform(transform) => {
                 self.validate_transform(line_number, &transform);
             }
+            TtpObject::StateRules(state_rules) => {
+                self.validate_state_rules(line_number, &state_rules);
+            }
         }
     }
 
@@ -330,6 +333,37 @@ impl Validator {
                     .with_context(format!("transform \"{}\"", transform.name)),
                 );
             }
+        }
+    }
+
+    /// Validate a state rules definition
+    fn validate_state_rules(
+        &mut self,
+        line_number: usize,
+        state_rules: &crate::state::StateRules,
+    ) {
+        // Check for duplicate name - state rules share namespace with other named objects
+        if !self.sprite_names.insert(state_rules.name.clone()) {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::DuplicateName,
+                    format!("Duplicate state-rules name \"{}\"", state_rules.name),
+                )
+                .with_context(format!("state-rules \"{}\"", state_rules.name)),
+            );
+        }
+
+        // Warn if no rules defined
+        if state_rules.rules.is_empty() {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::EmptyGrid,
+                    "State rules has no rules defined".to_string(),
+                )
+                .with_context(format!("state-rules \"{}\"", state_rules.name)),
+            );
         }
     }
 

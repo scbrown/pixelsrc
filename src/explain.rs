@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use crate::color::parse_color;
 use crate::models::{Animation, Composition, PaletteRef, Particle, Sprite, TtpObject, Variant};
+use crate::state::StateRules;
 use crate::palettes;
 
 /// Token usage statistics within a sprite
@@ -141,6 +142,17 @@ pub struct TransformExplanation {
     pub transform_type: String,
 }
 
+/// Explanation for state rules definitions
+#[derive(Debug)]
+pub struct StateRulesExplanation {
+    /// Name of the state rules definition
+    pub name: String,
+    /// Number of rules defined
+    pub rule_count: usize,
+    /// Summary of rule selectors
+    pub selectors: Vec<String>,
+}
+
 /// Unified explanation for any pixelsrc object
 #[derive(Debug)]
 pub enum Explanation {
@@ -151,6 +163,7 @@ pub enum Explanation {
     Composition(CompositionExplanation),
     Variant(VariantExplanation),
     Particle(ParticleExplanation),
+    StateRules(StateRulesExplanation),
 }
 
 /// Analyze a sprite and produce an explanation
@@ -282,6 +295,15 @@ pub fn explain_transform(transform: &crate::models::TransformDef) -> TransformEx
     }
 }
 
+/// Explain state rules
+pub fn explain_state_rules(state_rules: &StateRules) -> StateRulesExplanation {
+    StateRulesExplanation {
+        name: state_rules.name.clone(),
+        rule_count: state_rules.rules.len(),
+        selectors: state_rules.rules.iter().map(|r| r.selector.clone()).collect(),
+    }
+}
+
 /// Explain any TtpObject
 pub fn explain_object(
     obj: &TtpObject,
@@ -297,6 +319,9 @@ pub fn explain_object(
         TtpObject::Variant(variant) => Explanation::Variant(explain_variant(variant)),
         TtpObject::Particle(particle) => Explanation::Particle(explain_particle(particle)),
         TtpObject::Transform(transform) => Explanation::Transform(explain_transform(transform)),
+        TtpObject::StateRules(state_rules) => {
+            Explanation::StateRules(explain_state_rules(state_rules))
+        }
     }
 }
 
@@ -538,7 +563,21 @@ pub fn format_explanation(exp: &Explanation) -> String {
         Explanation::Variant(v) => format_variant_explanation(v),
         Explanation::Particle(p) => format_particle_explanation(p),
         Explanation::Transform(t) => format_transform_explanation(t),
+        Explanation::StateRules(sr) => format_state_rules_explanation(sr),
     }
+}
+
+/// Format a state rules explanation as human-readable text
+fn format_state_rules_explanation(sr: &StateRulesExplanation) -> String {
+    let mut lines = vec![format!("State Rules: {}", sr.name)];
+    lines.push(format!("  Rules: {}", sr.rule_count));
+    if !sr.selectors.is_empty() {
+        lines.push("  Selectors:".to_string());
+        for selector in &sr.selectors {
+            lines.push(format!("    - {}", selector));
+        }
+    }
+    lines.join("\n")
 }
 
 /// Format a transform explanation as human-readable text

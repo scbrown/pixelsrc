@@ -2948,6 +2948,12 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     "frame_count": t.frame_count,
                     "transform_type": t.transform_type,
                 }),
+                Explanation::StateRules(sr) => serde_json::json!({
+                    "type": "state-rules",
+                    "name": sr.name,
+                    "rule_count": sr.rule_count,
+                    "selectors": sr.selectors,
+                }),
             })
             .collect();
 

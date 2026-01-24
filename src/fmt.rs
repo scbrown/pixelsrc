@@ -60,6 +60,7 @@ fn format_object(obj: &TtpObject) -> String {
         TtpObject::Variant(v) => format_variant(v),
         TtpObject::Particle(p) => format_particle(p),
         TtpObject::Transform(t) => format_transform(t),
+        TtpObject::StateRules(sr) => format_state_rules(sr),
     }
 }
 
@@ -391,6 +392,17 @@ fn format_transform(transform: &crate::models::TransformDef) -> String {
     serde_json::to_string(transform).unwrap_or_else(|_| {
         // Fallback to basic format
         format!(r#"{{"type": "transform", "name": "{}"}}"#, escape_json_string(&transform.name))
+    })
+}
+
+fn format_state_rules(state_rules: &crate::state::StateRules) -> String {
+    // Use serde_json for simplicity since StateRules has nested structures
+    serde_json::to_string(state_rules).unwrap_or_else(|_| {
+        // Fallback to basic format
+        format!(
+            r#"{{"type": "state-rules", "name": "{}"}}"#,
+            escape_json_string(&state_rules.name)
+        )
     })
 }
 
