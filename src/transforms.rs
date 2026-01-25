@@ -1937,6 +1937,170 @@ fn parse_css_skew(args: &str) -> Result<(f64, Option<f64>), CssTransformError> {
 // Animation Transform Application Functions
 // ============================================================================
 
+// ============================================================================
+// Image Transform Application
+// ============================================================================
+
+/// Apply a single transform to an image.
+///
+/// Handles geometric and spatial transforms that operate on pixel data:
+/// - MirrorH, MirrorV, Rotate
+/// - Scale, SkewX, SkewY
+/// - Tile, Pad, Crop, Shift
+///
+/// Animation transforms (Pingpong, Reverse, etc.) should use `apply_animation_transform` instead.
+///
+/// # Arguments
+/// * `image` - The image to transform
+/// * `transform` - The transform operation to apply
+/// * `palette` - Optional palette for color-based transforms (outline, shadow, etc.)
+///
+/// # Returns
+/// The transformed image, or an error if the transform cannot be applied
+pub fn apply_image_transform(
+    image: &RgbaImage,
+    transform: &Transform,
+    _palette: Option<&std::collections::HashMap<String, String>>,
+) -> Result<RgbaImage, TransformError> {
+    match transform {
+        Transform::MirrorH => {
+            Ok(image::imageops::flip_horizontal(image))
+        }
+        Transform::MirrorV => {
+            Ok(image::imageops::flip_vertical(image))
+        }
+        Transform::Rotate { degrees } => {
+            match degrees {
+                90 => Ok(image::imageops::rotate90(image)),
+                180 => Ok(image::imageops::rotate180(image)),
+                270 => Ok(image::imageops::rotate270(image)),
+                _ => Err(TransformError::InvalidParameter {
+                    op: "rotate".to_string(),
+                    message: format!("invalid rotation: {}° (must be 90, 180, or 270)", degrees),
+                }),
+            }
+        }
+        Transform::Scale { x, y } => {
+            Ok(scale_image(image, *x, *y))
+        }
+        Transform::SkewX { degrees } => {
+            Ok(crate::output::skew_x(image, *degrees))
+        }
+        Transform::SkewY { degrees } => {
+            Ok(crate::output::skew_y(image, *degrees))
+        }
+        Transform::Tile { w, h } => {
+            let (img_w, img_h) = image.dimensions();
+            let new_w = img_w * w;
+            let new_h = img_h * h;
+            let mut result = RgbaImage::new(new_w, new_h);
+            for ty in 0..*h {
+                for tx in 0..*w {
+                    for y in 0..img_h {
+                        for x in 0..img_w {
+                            let pixel = *image.get_pixel(x, y);
+                            result.put_pixel(tx * img_w + x, ty * img_h + y, pixel);
+                        }
+                    }
+                }
+            }
+            Ok(result)
+        }
+        Transform::Pad { size } => {
+            let (w, h) = image.dimensions();
+            let new_w = w + size * 2;
+            let new_h = h + size * 2;
+            let mut result = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+            for y in 0..h {
+                for x in 0..w {
+                    let pixel = *image.get_pixel(x, y);
+                    result.put_pixel(x + size, y + size, pixel);
+                }
+            }
+            Ok(result)
+        }
+        Transform::Crop { x, y, w, h } => {
+            let (img_w, img_h) = image.dimensions();
+            // Clamp crop region to image bounds
+            let end_x = (*x + *w).min(img_w);
+            let end_y = (*y + *h).min(img_h);
+            let crop_w = end_x.saturating_sub(*x);
+            let crop_h = end_y.saturating_sub(*y);
+            if crop_w == 0 || crop_h == 0 {
+                return Ok(RgbaImage::new(1, 1));
+            }
+            let mut result = RgbaImage::new(crop_w, crop_h);
+            for dy in 0..crop_h {
+                for dx in 0..crop_w {
+                    let pixel = *image.get_pixel(*x + dx, *y + dy);
+                    result.put_pixel(dx, dy, pixel);
+                }
+            }
+            Ok(result)
+        }
+        Transform::Shift { x: dx, y: dy } => {
+            let (w, h) = image.dimensions();
+            let mut result = RgbaImage::from_pixel(w, h, image::Rgba([0, 0, 0, 0]));
+            for y in 0..h {
+                for x in 0..w {
+                    let new_x = x as i32 + dx;
+                    let new_y = y as i32 + dy;
+                    if new_x >= 0 && new_x < w as i32 && new_y >= 0 && new_y < h as i32 {
+                        let pixel = *image.get_pixel(x, y);
+                        result.put_pixel(new_x as u32, new_y as u32, pixel);
+                    }
+                }
+            }
+            Ok(result)
+        }
+        // Animation transforms should use apply_animation_transform
+        Transform::Pingpong { .. }
+        | Transform::Reverse
+        | Transform::FrameOffset { .. }
+        | Transform::Hold { .. } => {
+            Err(TransformError::InvalidParameter {
+                op: "image_transform".to_string(),
+                message: "animation transforms cannot be applied to images".to_string(),
+            })
+        }
+        // Color-based transforms are not yet implemented for images
+        Transform::Outline { .. }
+        | Transform::Shadow { .. }
+        | Transform::SelOut { .. }
+        | Transform::Dither { .. }
+        | Transform::DitherGradient { .. }
+        | Transform::Subpixel { .. } => {
+            Err(TransformError::InvalidParameter {
+                op: "image_transform".to_string(),
+                message: "color-based transforms require palette context".to_string(),
+            })
+        }
+    }
+}
+
+/// Apply a sequence of transforms to an image.
+///
+/// Transforms are applied in order from left to right.
+///
+/// # Arguments
+/// * `image` - The image to transform
+/// * `transforms` - The sequence of transforms to apply
+/// * `palette` - Optional palette for color-based transforms
+///
+/// # Returns
+/// The transformed image, or an error if any transform cannot be applied
+pub fn apply_image_transforms(
+    image: &RgbaImage,
+    transforms: &[Transform],
+    palette: Option<&std::collections::HashMap<String, String>>,
+) -> Result<RgbaImage, TransformError> {
+    let mut result = image.clone();
+    for transform in transforms {
+        result = apply_image_transform(&result, transform, palette)?;
+    }
+    Ok(result)
+}
+
 /// Apply pingpong transform: duplicate frames in reverse order for forward-backward play.
 ///
 /// Given frames [A, B, C], produces:

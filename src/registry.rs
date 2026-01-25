@@ -619,8 +619,8 @@ impl SpriteRegistry {
         // Mark as visited
         visited.push(sprite.name.clone());
 
-        // Resolve source sprite's regions if this sprite references another
-        let base_regions = if let Some(source_name) = &sprite.source {
+        // Resolve source sprite's regions and size if this sprite references another
+        let (base_regions, base_size) = if let Some(source_name) = &sprite.source {
             match self.sprites.get(source_name) {
                 Some(source_sprite) => {
                     let source_resolved = self.resolve_sprite_internal(
@@ -630,7 +630,7 @@ impl SpriteRegistry {
                         visited,
                     )?;
                     warnings.extend(source_resolved.warnings);
-                    source_resolved.regions
+                    (source_resolved.regions, source_resolved.size)
                 }
                 None => {
                     if strict {
@@ -640,12 +640,12 @@ impl SpriteRegistry {
                         });
                     } else {
                         warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
-                        None
+                        (None, None)
                     }
                 }
             }
         } else {
-            sprite.regions.clone()
+            (sprite.regions.clone(), None)
         };
 
         // Resolve the sprite's palette
@@ -669,7 +669,8 @@ impl SpriteRegistry {
 
         Ok(ResolvedSprite {
             name: sprite.name.clone(),
-            size: sprite.size,
+            // Use sprite's explicit size, or fall back to source sprite's size
+            size: sprite.size.or(base_size),
             palette,
             warnings,
             nine_slice: sprite.nine_slice.clone(),
@@ -1849,6 +1850,59 @@ mod tests {
 
         // First mirror-h: "{a}{b}" -> "{b}{a}"
         // Then tile 2x1: "{b}{a}" -> "{b}{a}{b}{a}"
+    }
+
+    /// Test that derived sprites with source + transform properly inherit regions and size
+    /// from the source sprite. This tests the fix for TTP-c948t where transforms on
+    /// regions-based source sprites produced 0x0 output.
+    #[test]
+    fn test_resolve_derived_sprite_inherits_source_regions_and_size() {
+        let palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
+
+        // Register a regions-based source sprite with explicit size
+        let base = Sprite {
+            name: "base".to_string(),
+            size: Some([4, 4]),
+            palette: PaletteRef::Inline(HashMap::from([
+                ("bg".to_string(), "#FF0000".to_string()),
+            ])),
+            regions: Some(HashMap::from([
+                ("bg".to_string(), crate::models::RegionDef {
+                    rect: Some([0, 0, 4, 4]),
+                    ..Default::default()
+                }),
+            ])),
+            metadata: None,
+            ..Default::default()
+        };
+        sprite_registry.register_sprite(base);
+
+        // Register a derived sprite with source + transform (no explicit regions or size)
+        let derived = Sprite {
+            name: "derived".to_string(),
+            size: None,
+            palette: PaletteRef::Inline(HashMap::from([
+                ("bg".to_string(), "#FF0000".to_string()),
+            ])),
+            source: Some("base".to_string()),
+            transform: Some(vec![TransformSpec::String("skew-x:26.57".to_string())]),
+            regions: None, // No explicit regions - should inherit from source
+            metadata: None,
+            ..Default::default()
+        };
+        sprite_registry.register_sprite(derived);
+
+        // Resolve the derived sprite
+        let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
+
+        // Verify the derived sprite inherited size from source
+        assert_eq!(result.size, Some([4, 4]), "Derived sprite should inherit size from source");
+
+        // Verify the derived sprite inherited regions from source
+        assert!(result.regions.is_some(), "Derived sprite should inherit regions from source");
+        let regions = result.regions.as_ref().unwrap();
+        assert!(regions.contains_key("bg"), "Regions should contain 'bg' from source");
     }
 
     #[test]

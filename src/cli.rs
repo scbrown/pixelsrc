@@ -1227,7 +1227,7 @@ fn run_render(
                     }
                 }
             } else {
-                // Normal path: sprite_registry handles both transforms and palette
+                // Normal path: sprite_registry handles source resolution and palette
                 let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
                     Ok(r) => {
                         for warning in &r.warnings {
@@ -1248,18 +1248,86 @@ fn run_render(
                 resolved.palette
             };
 
-            // Create resolved sprite for rendering
-            let render_sprite_data = crate::registry::ResolvedSprite {
-                name: sprite.name.clone(),
-                size: sprite.size,
-                palette: final_palette,
-                warnings: vec![],
-                nine_slice: sprite.nine_slice.clone(),
-                regions: sprite.regions.clone(),
+            // Get regions from resolved source if sprite has a source reference
+            // This is critical for derived sprites that reference a regions-based source
+            let resolved_regions = if sprite.source.is_some() {
+                // Need to re-resolve to get the regions (palette was already extracted above)
+                match sprite_registry.resolve(&sprite.name, &registry, false) {
+                    Ok(r) => r.regions,
+                    Err(_) => sprite.regions.clone(),
+                }
+            } else {
+                sprite.regions.clone()
             };
 
-            // Render the resolved sprite (transforms already applied)
+            // Create resolved sprite for rendering with correct regions
+            let render_sprite_data = crate::registry::ResolvedSprite {
+                name: sprite.name.clone(),
+                size: sprite.size.or_else(|| {
+                    // For derived sprites, get size from resolved source
+                    if sprite.source.is_some() {
+                        sprite_registry.resolve(&sprite.name, &registry, false).ok().and_then(|r| r.size)
+                    } else {
+                        None
+                    }
+                }),
+                palette: final_palette.clone(),
+                warnings: vec![],
+                nine_slice: sprite.nine_slice.clone(),
+                regions: resolved_regions,
+            };
+
+            // Render the resolved sprite
             let (mut image, render_warnings) = render_resolved(&render_sprite_data);
+
+            // Apply transforms from sprite.transform if present
+            if let Some(ref transform_specs) = sprite.transform {
+                use crate::transforms::{apply_image_transform, parse_transform_str};
+                use crate::models::TransformSpec;
+
+                for spec in transform_specs {
+                    let transform_result = match spec {
+                        TransformSpec::String(s) => parse_transform_str(s),
+                        TransformSpec::Object { op, params } => {
+                            // Convert object to JSON and parse
+                            let mut obj = serde_json::Map::new();
+                            obj.insert("op".to_string(), serde_json::Value::String(op.clone()));
+                            for (k, v) in params {
+                                obj.insert(k.clone(), v.clone());
+                            }
+                            crate::transforms::parse_transform_value(&serde_json::Value::Object(obj))
+                        }
+                    };
+
+                    match transform_result {
+                        Ok(transform) => {
+                            // Skip animation transforms (they don't apply to images)
+                            if crate::transforms::is_animation_transform(&transform) {
+                                continue;
+                            }
+                            match apply_image_transform(&image, &transform, Some(&final_palette)) {
+                                Ok(transformed) => image = transformed,
+                                Err(e) => {
+                                    let msg = format!("sprite '{}': transform error: {}", sprite.name, e);
+                                    if strict {
+                                        eprintln!("Error: {}", msg);
+                                        return ExitCode::from(EXIT_ERROR);
+                                    }
+                                    all_warnings.push(msg);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            let msg = format!("sprite '{}': invalid transform: {}", sprite.name, e);
+                            if strict {
+                                eprintln!("Error: {}", msg);
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                            all_warnings.push(msg);
+                        }
+                    }
+                }
+            }
 
             // Apply nine-slice rendering if requested
             if let Some((target_w, target_h)) = nine_slice_size {
