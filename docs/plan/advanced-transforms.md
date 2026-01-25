@@ -34,13 +34,13 @@ title: Advanced Transforms & Animation Features
 | **Secondary motion** | animation.md, `attachments` | Hair, capes, tails |
 | **Hit/hurt boxes** | animation.md, `frame_metadata` | Per-frame collision regions |
 | **Sub-pixel animation** | Transform::Subpixel | Color blending for < 1px motion |
+| **Color ramps** | palette.rs, color.rs, registry.rs | Auto-generate hue-shifted shadow/highlight (TTP-57ti) |
+| **Nine-slice** | sprite.rs, renderer.rs | Scalable UI sprites with `--nine-slice WxH` (TTP-fzq9) |
 
 ### Remaining Work
 
 | Feature | Priority | Implementation | Notes |
 |---------|----------|----------------|-------|
-| **Color ramps** | ★★★ High | Palette attribute | Auto-generate shadow/highlight colors with hue shift |
-| **Nine-slice** | ★★☆ Medium | Sprite attribute | Scalable UI elements |
 | **Blend modes** | ★★☆ Medium | Composition layer | multiply, screen, overlay, add |
 | **Onion skinning** | ★★☆ Medium | CLI flag | Preview prev/next frames |
 | **Particle systems** | ★☆☆ Lower | New type | Sparks, dust, effects |
@@ -55,95 +55,48 @@ title: Advanced Transforms & Animation Features
 
 ---
 
+## Transform Architecture
+
+Pixelsrc has multiple levels at which transforms can operate:
+
+### Current Transform Levels
+
+| Level | When Applied | Operates On | Location |
+|-------|--------------|-------------|----------|
+| **Post-render** | After regions → pixels | `RgbaImage` | `src/transforms/apply.rs` |
+| **Animation-time** | During keyframe interpolation | Rendered frames | `src/transforms/css.rs` |
+
+**Post-render transforms** (op-style): mirror, rotate, scale, dither, sel-out, outline, shadow.
+These operate on the rendered pixel buffer.
+
+**Animation-time transforms** (CSS-style): translate, rotate, scale, flip, skew.
+These are specified in keyframes and interpolated during animation.
+
+### Future: Semantic/Pre-render Transforms
+
+A third level could operate on the **structured region definitions** before rendering:
+
+| Level | When Applied | Operates On | Benefits |
+|-------|--------------|-------------|----------|
+| **Pre-render / Semantic** | Before regions → pixels | Region definitions | Pixel-perfect results |
+
+**Example: Semantic Rotation**
+
+Instead of rotating pixels (which can blur), transform the region coordinates:
+- Input: `{"rect": [2, 4, 8, 6]}` rotated 90°
+- Output: `{"rect": [4, 2, 6, 8]}` (coordinates transformed)
+- Rendering produces pixel-perfect output from the transformed regions
+
+This would enable:
+- Pixel-perfect geometric transforms (no interpolation artifacts)
+- Transforms that understand sprite structure (e.g., rotate "head" region independently)
+- Region-aware operations impossible at the pixel level
+
+**Not yet implemented.** Would require new transform system operating on the AST/model level.
+
+---
+
 ## Remaining Features
-
-### Color Ramps
-
-**Priority:** ★★★ High
-**Persona:** Pixel Artist, Motion Designer
-
-Auto-generate palette colors along a ramp with hue shifting. Shadows aren't just darker - they shift toward cool/warm tones.
-
-**Implementation:** Palette attribute `ramps`
-
-```json
-{
-  "type": "palette",
-  "name": "skin",
-  "ramps": {
-    "skin": {
-      "base": "#E8B89D",
-      "steps": 5,
-      "shadow_shift": {"lightness": -15, "hue": 10, "saturation": 5},
-      "highlight_shift": {"lightness": 12, "hue": -5, "saturation": -10}
-    }
-  }
-}
-```
-
-**Generated tokens:**
-- `{skin_2}` (darkest shadow)
-- `{skin_1}` (shadow)
-- `{skin}` (base)
-- `{skin+1}` (highlight)
-- `{skin+2}` (brightest highlight)
-
-**Simpler syntax:**
-```json
-{
-  "ramps": {
-    "skin": {"base": "#E8B89D", "steps": 3}
-  }
-}
-```
-Uses sensible defaults for shift values.
-
----
-
-### Nine-Slice
-
-**Priority:** ★★☆ Medium
-**Persona:** Game Developer
-
-Scalable sprites where corners stay fixed and edges/center stretch. Essential for UI buttons, panels, dialog boxes.
-
-**Implementation:** Sprite attribute `nine_slice`
-
-```json
-{
-  "type": "sprite",
-  "name": "button",
-  "size": [24, 16],
-  "palette": "ui",
-  "nine_slice": {
-    "left": 4,
-    "right": 4,
-    "top": 4,
-    "bottom": 4
-  },
-  "regions": {
-    "corner": {"rect": [0, 0, 4, 4]},
-    "edge_h": {"rect": [4, 0, 16, 4]},
-    "center": {"rect": [4, 4, 16, 8]}
-  }
-}
-```
-
-**CLI usage:**
-```bash
-pxl render button.pxl --nine-slice 64x32 -o button_wide.png
-```
-
-**In compositions:**
-```json
-{
-  "layers": [
-    {"sprite": "button", "position": [0, 0], "nine_slice_size": [100, 40]}
-  ]
-}
-```
-
----
 
 ### Blend Modes
 
@@ -247,97 +200,47 @@ Define particle emitters for effects like sparks, dust, rain.
                      PHASE 19 REMAINING WORK
 ═══════════════════════════════════════════════════════════════════
 
-WAVE 1 (High Priority)
+WAVE 1 (Medium Priority - Parallel)
 ┌─────────────────────────────────────────────────────────────────┐
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                        ATF-R1                           │    │
-│  │                     Color Ramps                         │    │
-│  │                  (Palette attribute)                    │    │
-│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐       │
+│  │        ATF-R1           │  │        ATF-R2           │       │
+│  │     Blend Modes         │  │    Onion Skinning       │       │
+│  │    (Composition)        │  │       (CLI)             │       │
+│  └─────────────────────────┘  └─────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
             │
             ▼
-WAVE 2 (Medium Priority - Parallel)
-┌─────────────────────────────────────────────────────────────────┐
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐        │
-│  │    ATF-R2     │  │    ATF-R3     │  │    ATF-R4     │        │
-│  │  Nine-Slice   │  │  Blend Modes  │  │    Onion      │        │
-│  │   (Sprite)    │  │ (Composition) │  │   Skinning    │        │
-│  └───────────────┘  └───────────────┘  └───────────────┘        │
-└─────────────────────────────────────────────────────────────────┘
-            │
-            ▼
-WAVE 3 (Lower Priority)
+WAVE 2 (Lower Priority)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                        ATF-R5                           │    │
+│  │                        ATF-R3                           │    │
 │  │                   Particle Systems                      │    │
 │  │                    (New type)                           │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
             │
             ▼
-WAVE 4 (Testing & Docs)
+WAVE 3 (Testing & Docs)
 ┌─────────────────────────────────────────────────────────────────┐
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                        ATF-R6                           │    │
+│  │                        ATF-R4                           │    │
 │  │              Test Suite & Documentation                 │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 
 ═══════════════════════════════════════════════════════════════════
 
-SUMMARY: 6 tasks remaining (down from 17 in original plan)
+COMPLETED: Color Ramps (TTP-57ti), Nine-Slice (TTP-fzq9)
+SUMMARY: 4 tasks remaining (down from 17 in original plan)
 ```
 
 ---
 
 ## Tasks
 
-### Task ATF-R1: Color Ramps
+### Task ATF-R1: Blend Modes
 
-**Wave:** 1 (High Priority)
-
-Implement automatic color ramp generation with hue-shifted shadows/highlights.
-
-**Deliverables:**
-- Add `ramps` attribute to Palette in `src/models.rs`
-- Implement HSL shifting algorithm
-- Generate tokens: `{name_2}`, `{name_1}`, `{name}`, `{name+1}`, `{name+2}`
-- Support configurable shift values
-- Sensible defaults for common pixel art use cases
-
-**Verification:**
-```bash
-pxl render examples/color_ramps.pxl -o output.png
-cargo test color_ramps
-```
-
----
-
-### Task ATF-R2: Nine-Slice
-
-**Wave:** 2 (Parallel with ATF-R3, ATF-R4)
-
-Implement scalable sprite slicing for UI elements.
-
-**Deliverables:**
-- Add `nine_slice` attribute to Sprite in `src/models.rs`
-- Implement nine-slice rendering algorithm
-- Support `--nine-slice WxH` CLI option
-- Support `nine_slice_size` in composition layers
-
-**Verification:**
-```bash
-pxl render button.pxl --nine-slice 64x32 -o button_wide.png
-cargo test nine_slice
-```
-
----
-
-### Task ATF-R3: Blend Modes
-
-**Wave:** 2 (Parallel with ATF-R2, ATF-R4)
+**Wave:** 1 (Parallel with ATF-R2)
 
 Implement layer blending for compositions.
 
@@ -354,9 +257,9 @@ cargo test blend_modes
 
 ---
 
-### Task ATF-R4: Onion Skinning
+### Task ATF-R2: Onion Skinning
 
-**Wave:** 2 (Parallel with ATF-R2, ATF-R3)
+**Wave:** 1 (Parallel with ATF-R1)
 
 Implement animation preview with frame ghosts.
 
@@ -373,9 +276,9 @@ pxl show walk_cycle.pxl --onion 2
 
 ---
 
-### Task ATF-R5: Particle Systems
+### Task ATF-R3: Particle Systems
 
-**Wave:** 3 (Lower Priority)
+**Wave:** 2 (Lower Priority)
 
 Implement particle emitters for effects.
 
@@ -393,14 +296,14 @@ cargo test particle
 
 ---
 
-### Task ATF-R6: Test Suite & Documentation
+### Task ATF-R4: Test Suite & Documentation
 
-**Wave:** 4 (Final)
+**Wave:** 3 (Final)
 
-Comprehensive tests and documentation for all remaining Phase 19 features.
+Comprehensive tests and documentation for remaining Phase 19 features.
 
 **Deliverables:**
-- Unit tests for color ramps, nine-slice, blend modes, particles
+- Unit tests for blend modes, onion skinning, particles
 - Integration tests for CLI commands
 - Update MDbook documentation
 - Update `pxl prime` output
@@ -415,8 +318,8 @@ mdbook build docs/book
 
 ## Success Criteria
 
-1. Color ramps generate correct hue-shifted palettes
-2. Nine-slice scales UI elements correctly
+1. ~~Color ramps generate correct hue-shifted palettes~~ ✓ Complete (TTP-57ti)
+2. ~~Nine-slice scales UI elements correctly~~ ✓ Complete (TTP-fzq9)
 3. Blend modes produce expected visual results
 4. Onion skinning shows frame ghosts in terminal
 5. Particle systems render to GIF
@@ -432,4 +335,4 @@ The original Phase 19 plan (17 tasks) was written before:
 - The format moved from grids to structured regions
 - The build system was completed
 
-This revision (6 tasks) reflects current reality: most "advanced" features are already in place. What remains are genuinely new capabilities not yet implemented.
+This revision (4 tasks remaining) reflects current reality: most "advanced" features are already in place, including Color Ramps and Nine-Slice which were completed by polecats (TTP-57ti, TTP-fzq9). What remains are genuinely new capabilities not yet implemented.
