@@ -1,0 +1,34 @@
+// Simple test: verify basic region types render correctly
+{
+  "type": "sprite",
+  "name": "test-shapes",
+  "size": [64, 32],
+  "palette": {
+    "_": "#00000000",
+    "red": "#ff4444",
+    "green": "#44ff44",
+    "blue": "#4444ff",
+    "yellow": "#ffff44",
+    "purple": "#ff44ff",
+    "cyan": "#44ffff"
+  },
+  "regions": {
+    // Test 1: Simple ellipse (should be round)
+    "red": { "ellipse": [10, 16, 8, 8] },
+
+    // Test 2: Simple rectangle
+    "green": { "rect": [22, 8, 12, 16] },
+
+    // Test 3: Triangle polygon
+    "blue": { "polygon": [[44, 24], [52, 8], [60, 24]] },
+
+    // Test 4: Points (should be individual pixels)
+    "yellow": { "points": [[4, 4], [8, 4], [12, 4], [4, 8], [8, 8], [12, 8]] },
+
+    // Test 5: Complex polygon (diamond)
+    "purple": { "polygon": [[52, 4], [60, 10], [52, 16], [44, 10]] },
+
+    // Test 6: Overlapping shapes - cyan on top of red
+    "cyan": { "ellipse": [14, 16, 4, 4] }
+  }
+}

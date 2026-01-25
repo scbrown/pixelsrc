@@ -1,34 +1,120 @@
-// Vault Dweller - SIMPLE AND CLEAR
-// Start with absolute basics that READ as a person
+// Vault Dweller - Organic curves via multi-point polygons
+// Key insight: use many points to approximate curves, not straight trapezoids
 {
   "type": "sprite",
   "name": "vault-dweller",
-  "size": [16, 24],
+  "size": [32, 48],
   "palette": {
     "_": "#00000000",
-    "hair": "#3a2818",
-    "skin": "#dca878",
-    "suit": "#2860a0",
-    "suit_lt": "#3878b8",
-    "suit_dk": "#184068",
-    "feet": "#282828"
+    // Skin - 5 value gradient
+    "face": "#d8b088",
+    "face_lit": "#f0d0a8",
+    "face_hi": "#ffe8c8",
+    "face_shd": "#b08860",
+    "face_dk": "#906840",
+    // Hair
+    "hair": "#483020",
+    "hair_lit": "#5a4030",
+    "hair_shd": "#302018",
+    // Eyes
+    "eye_w": "#e0d8d0",
+    "eye": "#181818",
+    // Suit - 5 value gradient
+    "body": "#3070a8",
+    "body_lit": "#4888c0",
+    "body_hi": "#60a0d8",
+    "body_shd": "#205080",
+    "body_dk": "#183860",
+    // Separate leg colors
+    "leg_l": "#3070a8",
+    "leg_l_shd": "#205080",
+    "leg_r": "#3070a8",
+    "leg_r_lit": "#4888c0",
+    // Belt
+    "belt": "#d0a040",
+    "belt_lit": "#e8c060",
+    // Boots
+    "boot_l": "#403830",
+    "boot_l_shd": "#302820",
+    "boot_r": "#403830",
+    "boot_r_lit": "#504840"
   },
   "regions": {
-    // HEAD - simple round shape
-    "hair": { "rect": [5, 0, 6, 3] },
-    "skin": { "rect": [5, 3, 6, 5] },
+    // === HEAD - ellipse base with curved shading ===
+    "face": { "ellipse": [16, 10, 7, 8] },
 
-    // BODY - simple rectangle with shading
-    "suit": { "rect": [4, 8, 8, 10] },
-    "suit_lt": { "rect": [9, 9, 2, 8] },
-    "suit_dk": { "rect": [5, 9, 2, 8] },
+    // Lit side - curved polygon following face contour
+    "face_lit": { "polygon": [
+      [17, 3], [20, 4], [22, 6], [23, 9], [23, 12], [22, 15], [20, 16], [17, 14], [17, 8]
+    ]},
+    // Highlight - smaller curved area
+    "face_hi": { "polygon": [
+      [19, 5], [21, 6], [22, 9], [21, 11], [19, 10]
+    ]},
+    // Shadow side - curved polygon
+    "face_shd": { "polygon": [
+      [15, 3], [12, 4], [10, 6], [9, 9], [9, 12], [10, 15], [12, 16], [15, 14], [15, 8]
+    ]},
+    // Deep shadow
+    "face_dk": { "polygon": [
+      [11, 7], [9, 9], [9, 12], [11, 13], [12, 10]
+    ]},
 
-    // LEGS - two columns
-    "suit": { "rect": [4, 18, 3, 4] },
-    "suit": { "rect": [9, 18, 3, 4] },
+    // Hair - overlaps top of face
+    "hair": { "ellipse": [16, 4, 7, 4] },
+    "hair_lit": { "polygon": [[18, 1], [21, 2], [22, 4], [20, 6], [17, 5]] },
+    "hair_shd": { "polygon": [[14, 1], [11, 2], [10, 4], [12, 6], [15, 5]] },
 
-    // FEET
-    "feet": { "rect": [4, 22, 3, 2] },
-    "feet": { "rect": [9, 22, 3, 2] }
+    // Eyes
+    "eye_w": { "points": [[12, 10], [13, 10], [19, 10], [20, 10]] },
+    "eye": { "points": [[13, 10], [19, 10]] },
+
+    // === TORSO - curved contour, not trapezoid ===
+    // Base body shape with organic edges
+    "body": { "polygon": [
+      [10, 18], [22, 18],  // shoulders
+      [23, 20], [23, 24], [22, 28], [21, 32],  // right side curves in
+      [11, 32], [10, 28], [9, 24], [9, 20]     // left side curves in
+    ]},
+    // Lit side follows body curve
+    "body_lit": { "polygon": [
+      [18, 18], [22, 18], [23, 20], [23, 24], [22, 28], [21, 32], [18, 32], [18, 24]
+    ]},
+    "body_hi": { "polygon": [
+      [20, 19], [22, 19], [23, 22], [22, 26], [20, 26]
+    ]},
+    // Shadow side
+    "body_shd": { "polygon": [
+      [10, 18], [14, 18], [14, 32], [11, 32], [10, 28], [9, 24], [9, 20]
+    ]},
+    "body_dk": { "polygon": [
+      [9, 21], [11, 21], [11, 28], [10, 28], [9, 25]
+    ]},
+
+    // Belt
+    "belt": { "polygon": [[10, 26], [22, 26], [22, 28], [10, 28]] },
+    "belt_lit": { "polygon": [[18, 26], [22, 26], [22, 28], [18, 28]] },
+
+    // === LEGS with gap and curve ===
+    "leg_l": { "polygon": [
+      [11, 32], [15, 32], [15, 34], [14, 38], [14, 42], [10, 42], [10, 38], [11, 34]
+    ]},
+    "leg_l_shd": { "polygon": [
+      [11, 32], [12, 32], [11, 38], [10, 42], [10, 38], [11, 34]
+    ]},
+
+    "leg_r": { "polygon": [
+      [17, 32], [21, 32], [21, 34], [22, 38], [22, 42], [18, 42], [18, 38], [17, 34]
+    ]},
+    "leg_r_lit": { "polygon": [
+      [20, 32], [21, 32], [21, 34], [22, 38], [22, 42], [21, 42], [21, 38], [20, 34]
+    ]},
+
+    // === BOOTS ===
+    "boot_l": { "polygon": [[9, 42], [15, 42], [15, 47], [9, 47]] },
+    "boot_l_shd": { "polygon": [[9, 42], [11, 42], [11, 47], [9, 47]] },
+
+    "boot_r": { "polygon": [[17, 42], [23, 42], [23, 47], [17, 47]] },
+    "boot_r_lit": { "polygon": [[21, 42], [23, 42], [23, 47], [21, 47]] }
   }
 }

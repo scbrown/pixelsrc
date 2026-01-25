@@ -1,0 +1,117 @@
+// Vault Dweller - Speaking frame (mouth open)
+// Same as base sprite but with mouth_inner showing
+{
+  "type": "sprite",
+  "name": "vault-dweller-speaking",
+  "size": [64, 96],
+  "palette": {
+    "_": "#00000000",
+    // Skin
+    "skin": "#d8b088",
+    "skin_hi": "#f0d0a8",
+    "skin_shd": "#b08860",
+    // Hair
+    "hair": "#483020",
+    "hair_hi": "#5a4030",
+    // Eyes
+    "eye_l_w": "#f0f0f0",
+    "eye_l_iris": "#4a7090",
+    "eye_l_pupil": "#101010",
+    "eye_r_w": "#f0f0f0",
+    "eye_r_iris": "#4a7090",
+    "eye_r_pupil": "#101010",
+    // Eyebrows
+    "brow_l": "#3a2818",
+    "brow_r": "#3a2818",
+    // Nose
+    "nose": "#c0a078",
+    // Mouth - OPEN for speaking
+    "mouth_top": "#a07058",
+    "mouth_bot": "#8a5a48",
+    "mouth_inner": "#401818",
+    "teeth": "#f0f0e8",
+    // Suit
+    "suit": "#3070a8",
+    "suit_hi": "#4888c0",
+    "suit_shd": "#205080",
+    // Legs
+    "leg_l": "#3070a8",
+    "leg_l_shd": "#205080",
+    "leg_r": "#3070a8",
+    "leg_r_hi": "#4888c0",
+    // Belt
+    "belt": "#d0a040",
+    "belt_hi": "#e8c060",
+    "buckle": "#c0c0c0",
+    // Boots
+    "boot_l": "#403830",
+    "boot_l_shd": "#302820",
+    "boot_r": "#403830",
+    "boot_r_hi": "#504840"
+  },
+  "regions": {
+    // === HEAD ===
+    "skin": { "ellipse": [32, 18, 14, 16] },
+    "skin_hi": { "polygon": [[38, 10], [44, 14], [44, 22], [40, 24], [36, 18]] },
+    "skin_shd": { "polygon": [[20, 14], [24, 12], [26, 20], [24, 26], [20, 22]] },
+
+    // Hair
+    "hair": { "ellipse": [32, 6, 14, 8] },
+    "hair_hi": { "polygon": [[36, 2], [42, 4], [44, 8], [38, 10], [34, 6]] },
+
+    // Eyes
+    "eye_l_w": { "ellipse": [25, 18, 5, 3] },
+    "eye_l_iris": { "ellipse": [26, 18, 3, 3] },
+    "eye_l_pupil": { "ellipse": [26, 18, 1, 2] },
+    "eye_r_w": { "ellipse": [39, 18, 5, 3] },
+    "eye_r_iris": { "ellipse": [38, 18, 3, 3] },
+    "eye_r_pupil": { "ellipse": [38, 18, 1, 2] },
+
+    // Eyebrows
+    "brow_l": { "polygon": [[20, 14], [30, 13], [30, 15], [20, 16]] },
+    "brow_r": { "polygon": [[34, 13], [44, 14], [44, 16], [34, 15]] },
+
+    // Nose
+    "nose": { "polygon": [[30, 22], [34, 22], [33, 26], [31, 26]] },
+
+    // === MOUTH - OPEN ===
+    // Dark mouth interior first
+    "mouth_inner": { "ellipse": [32, 30, 5, 4] },
+    // Teeth showing at top of mouth opening
+    "teeth": { "polygon": [[28, 28], [36, 28], [36, 30], [28, 30]] },
+    // Top lip (raised)
+    "mouth_top": { "polygon": [[26, 26], [38, 26], [37, 28], [27, 28]] },
+    // Bottom lip (lowered)
+    "mouth_bot": { "polygon": [[27, 32], [37, 32], [36, 34], [28, 34]] },
+
+    // === TORSO ===
+    "suit": { "polygon": [
+      [18, 36], [46, 36],
+      [48, 40], [48, 56], [46, 62], [44, 64],
+      [20, 64], [18, 62], [16, 56], [16, 40]
+    ]},
+    "suit_hi": { "polygon": [
+      [38, 38], [46, 38], [48, 44], [48, 54], [44, 60], [38, 60], [38, 48]
+    ]},
+    "suit_shd": { "polygon": [
+      [16, 40], [22, 40], [22, 60], [18, 62], [16, 56]
+    ]},
+
+    // Belt
+    "belt": { "polygon": [[18, 52], [46, 52], [46, 56], [18, 56]] },
+    "belt_hi": { "polygon": [[36, 52], [46, 52], [46, 56], [36, 56]] },
+    "buckle": { "rect": [29, 52, 6, 4] },
+
+    // === LEGS ===
+    "leg_l": { "polygon": [[20, 64], [30, 64], [28, 84], [18, 84]] },
+    "leg_l_shd": { "polygon": [[20, 64], [24, 64], [22, 84], [18, 84]] },
+    "leg_r": { "polygon": [[34, 64], [44, 64], [46, 84], [36, 84]] },
+    "leg_r_hi": { "polygon": [[40, 64], [44, 64], [46, 84], [42, 84]] },
+
+    // === BOOTS ===
+    "boot_l": { "polygon": [[16, 84], [30, 84], [30, 94], [16, 94]] },
+    "boot_l_shd": { "polygon": [[16, 84], [22, 84], [22, 94], [16, 94]] },
+    "boot_r": { "polygon": [[34, 84], [48, 84], [48, 94], [34, 94]] },
+    "boot_r_hi": { "polygon": [[42, 84], [48, 84], [48, 94], [42, 94]] }
+  }
+}
