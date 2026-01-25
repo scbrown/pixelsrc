@@ -10,15 +10,37 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```json
-{"type": "sprite", "name": "heart", "palette": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}, "grid": [
-  "{_}{r}{r}{_}{r}{r}{_}",
-  "{r}{p}{r}{r}{p}{r}{r}",
-  "{r}{r}{r}{r}{r}{r}{r}",
-  "{_}{r}{r}{r}{r}{r}{_}",
-  "{_}{_}{r}{r}{r}{_}{_}",
-  "{_}{_}{_}{r}{_}{_}{_}"
-]}
+```json5
+{
+  type: "palette",
+  name: "heart",
+  colors: {
+    _: "transparent",
+    r: "#FF0000",
+    p: "#FF6B6B",
+  },
+}
+
+{
+  type: "sprite",
+  name: "heart",
+  size: [7, 6],
+  palette: "heart",
+  regions: {
+    r: {
+      union: [
+        { rect: [1, 0, 2, 1] },     // Left lobe top
+        { rect: [4, 0, 2, 1] },     // Right lobe top
+        { rect: [0, 1, 7, 2] },     // Wide middle
+        { rect: [1, 3, 5, 1] },     // Narrowing
+        { rect: [2, 4, 3, 1] },     // Near tip
+        { rect: [3, 5, 1, 1] },     // Tip
+      ],
+      z: 0,
+    },
+    p: { points: [[1, 1], [4, 1]], z: 1 },
+  },
+}
 ```
 
 ## Collectible: Animated Coin
@@ -29,54 +51,112 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```json
-{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{g}": "#FFD700", "{y}": "#FFEC8B", "{o}": "#B8860B", "{d}": "#8B6914"}}
+```json5
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    g: "#FFD700",
+    y: "#FFEC8B",
+    o: "#B8860B",
+    d: "#8B6914",
+  },
+}
 
-{"type": "sprite", "name": "coin_1", "palette": "coin", "grid": [
-  "{_}{_}{g}{g}{g}{g}{_}{_}",
-  "{_}{g}{y}{y}{y}{y}{g}{_}",
-  "{g}{y}{y}{g}{g}{y}{y}{g}",
-  "{g}{y}{g}{y}{y}{g}{y}{g}",
-  "{g}{y}{g}{y}{y}{g}{y}{g}",
-  "{g}{y}{y}{g}{g}{y}{y}{g}",
-  "{_}{g}{o}{o}{o}{o}{g}{_}",
-  "{_}{_}{d}{d}{d}{d}{_}{_}"
-]}
+// Frame 1: Full face
+{
+  type: "sprite",
+  name: "coin_1",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    g: {
+      union: [
+        { rect: [2, 0, 4, 1] },
+        { rect: [1, 1, 6, 1] },
+        { rect: [0, 2, 8, 4] },
+        { rect: [1, 6, 6, 1] },
+      ],
+      z: 0,
+    },
+    y: {
+      union: [
+        { rect: [2, 1, 4, 1] },
+        { rect: [1, 2, 2, 4] },
+      ],
+      z: 1,
+    },
+    o: { rect: [2, 6, 4, 1], z: 1 },
+    d: { rect: [2, 7, 4, 1], z: 2 },
+  },
+}
 
-{"type": "sprite", "name": "coin_2", "palette": "coin", "grid": [
-  "{_}{_}{_}{g}{g}{_}{_}{_}",
-  "{_}{_}{g}{y}{y}{g}{_}{_}",
-  "{_}{g}{y}{y}{y}{y}{g}{_}",
-  "{_}{g}{y}{g}{g}{y}{g}{_}",
-  "{_}{g}{y}{g}{g}{y}{g}{_}",
-  "{_}{g}{y}{y}{y}{y}{g}{_}",
-  "{_}{_}{g}{o}{o}{g}{_}{_}",
-  "{_}{_}{_}{d}{d}{_}{_}{_}"
-]}
+// Frame 2: Slight rotation
+{
+  type: "sprite",
+  name: "coin_2",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    g: {
+      union: [
+        { rect: [3, 0, 2, 1] },
+        { rect: [2, 1, 4, 1] },
+        { rect: [1, 2, 6, 4] },
+        { rect: [2, 6, 4, 1] },
+      ],
+      z: 0,
+    },
+    y: { rect: [2, 2, 2, 4], z: 1 },
+    o: { rect: [3, 6, 2, 1], z: 1 },
+    d: { rect: [3, 7, 2, 1], z: 2 },
+  },
+}
 
-{"type": "sprite", "name": "coin_3", "palette": "coin", "grid": [
-  "{_}{_}{_}{g}{g}{_}{_}{_}",
-  "{_}{_}{_}{y}{y}{_}{_}{_}",
-  "{_}{_}{g}{y}{y}{g}{_}{_}",
-  "{_}{_}{g}{g}{g}{g}{_}{_}",
-  "{_}{_}{g}{g}{g}{g}{_}{_}",
-  "{_}{_}{g}{y}{y}{g}{_}{_}",
-  "{_}{_}{_}{o}{o}{_}{_}{_}",
-  "{_}{_}{_}{d}{d}{_}{_}{_}"
-]}
+// Frame 3: Edge on
+{
+  type: "sprite",
+  name: "coin_3",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    g: { rect: [3, 0, 2, 6], z: 0 },
+    y: { rect: [3, 2, 1, 3], z: 1 },
+    o: { rect: [3, 6, 2, 1], z: 1 },
+    d: { rect: [3, 7, 2, 1], z: 2 },
+  },
+}
 
-{"type": "sprite", "name": "coin_4", "palette": "coin", "grid": [
-  "{_}{_}{_}{g}{g}{_}{_}{_}",
-  "{_}{_}{g}{y}{y}{g}{_}{_}",
-  "{_}{g}{y}{y}{y}{y}{g}{_}",
-  "{_}{g}{y}{g}{g}{y}{g}{_}",
-  "{_}{g}{y}{g}{g}{y}{g}{_}",
-  "{_}{g}{y}{y}{y}{y}{g}{_}",
-  "{_}{_}{g}{o}{o}{g}{_}{_}",
-  "{_}{_}{_}{d}{d}{_}{_}{_}"
-]}
+// Frame 4: Returning
+{
+  type: "sprite",
+  name: "coin_4",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    g: {
+      union: [
+        { rect: [3, 0, 2, 1] },
+        { rect: [2, 1, 4, 1] },
+        { rect: [1, 2, 6, 4] },
+        { rect: [2, 6, 4, 1] },
+      ],
+      z: 0,
+    },
+    y: { rect: [4, 2, 2, 4], z: 1 },
+    o: { rect: [3, 6, 2, 1], z: 1 },
+    d: { rect: [3, 7, 2, 1], z: 2 },
+  },
+}
 
-{"type": "animation", "name": "coin_spin", "frames": ["coin_1", "coin_2", "coin_3", "coin_4"], "duration": 150, "loop": true}
+{
+  type: "animation",
+  name: "coin_spin",
+  frames: ["coin_1", "coin_2", "coin_3", "coin_4"],
+  duration: 150,
+  loop: true,
+}
 ```
 
 ## Character: Hero Sprite
@@ -87,27 +167,62 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```json
-{"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", "{skin}": "#FFCC99", "{hair}": "#8B4513", "{eye}": "#000000", "{shirt}": "#4169E1", "{pants}": "#1E3A5F", "{shoes}": "#000000", "{outline}": "#2C1810"}}
+```json5
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#2C1810",
+    skin: "#FFCC99",
+    hair: "#8B4513",
+    eye: "#000000",
+    shirt: "#4169E1",
+    pants: "#1E3A5F",
+    shoes: "#000000",
+  },
+}
 
-{"type": "sprite", "name": "hero_idle", "palette": "hero", "grid": [
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{outline}{outline}{outline}{outline}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{hair}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{hair}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{eye}{skin}{skin}{eye}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{outline}{skin}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{skin}{outline}{_}{_}{_}",
-  "{_}{_}{_}{outline}{skin}{outline}{shirt}{shirt}{shirt}{shirt}{outline}{skin}{outline}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{shirt}{shirt}{shirt}{shirt}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{pants}{pants}{pants}{pants}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{pants}{_}{_}{pants}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{shoes}{shoes}{_}{_}{shoes}{shoes}{_}{_}{_}{_}{_}"
-]}
+{
+  type: "sprite",
+  name: "hero_idle",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    // Outline drawn first (lowest z)
+    outline: {
+      union: [
+        { stroke: [5, 1, 6, 10] },   // Head/body outline
+        { stroke: [6, 11, 4, 4] },   // Legs outline
+      ],
+      z: 0,
+    },
+    // Hair
+    hair: { rect: [6, 2, 4, 3], z: 1 },
+    // Face
+    skin: {
+      union: [
+        { rect: [6, 5, 4, 3] },      // Face
+        { points: [[4, 10], [11, 10]] }, // Hands
+      ],
+      z: 1,
+    },
+    // Eyes
+    eye: { points: [[7, 6], [9, 6]], z: 2 },
+    // Shirt
+    shirt: { rect: [5, 9, 6, 3], z: 1 },
+    // Pants
+    pants: { rect: [6, 12, 4, 2], z: 1 },
+    // Shoes
+    shoes: {
+      union: [
+        { rect: [5, 14, 2, 2] },
+        { rect: [9, 14, 2, 2] },
+      ],
+      z: 1,
+    },
+  },
+}
 ```
 
 ## Weapon: Sword
@@ -118,54 +233,90 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```json
-{"type": "sprite", "name": "sword", "palette": {"{_}": "#00000000", "{blade}": "#C0C0C0", "{edge}": "#E8E8E8", "{guard}": "#FFD700", "{handle}": "#8B4513", "{pommel}": "#DAA520"}, "grid": [
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{edge}{blade}{blade}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{guard}{guard}{blade}{blade}{guard}{guard}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{handle}{handle}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{handle}{handle}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{handle}{handle}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{handle}{handle}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{pommel}{pommel}{_}{_}{_}{_}{_}{_}{_}{_}{_}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "sword",
+  size: [16, 16],
+  palette: {
+    _: "transparent",
+    blade: "#C0C0C0",
+    edge: "#E8E8E8",
+    guard: "#FFD700",
+    handle: "#8B4513",
+    pommel: "#DAA520",
+  },
+  regions: {
+    // Blade body (diagonal via line)
+    blade: {
+      union: [
+        { line: [[14, 0], [5, 9]] },
+        { line: [[13, 1], [6, 8]] },
+      ],
+      z: 0,
+    },
+    // Blade edge highlight
+    edge: { line: [[14, 1], [6, 9]], z: 1 },
+    // Crossguard
+    guard: { rect: [3, 10, 6, 1], z: 2 },
+    // Handle
+    handle: { rect: [5, 11, 2, 4], z: 0 },
+    // Pommel
+    pommel: { rect: [5, 15, 2, 1], z: 1 },
+  },
+}
 ```
 
-## Tile: Seamless Grass
+## Tile: Grass with Variation
 
 **Prompt:**
 
-> Create a 16x16 seamless grass tile for a top-down RPG with varied green shades
+> Create a 16x16 grass tile for a top-down RPG with varied green shades
 
 **Output:**
 
-```json
-{"type": "sprite", "name": "grass", "palette": {"{g1}": "#228B22", "{g2}": "#32CD32", "{g3}": "#3CB371", "{d}": "#1E5F1E"}, "grid": [
-  "{g1}{g2}{g1}{g1}{g3}{g1}{g2}{g1}{g1}{g1}{g2}{g3}{g1}{g1}{g2}{g1}",
-  "{g1}{g1}{g3}{g1}{g1}{g2}{g1}{g1}{g3}{g1}{g1}{g1}{g2}{g1}{g1}{g3}",
-  "{g2}{g1}{g1}{g2}{g1}{g1}{g1}{g3}{g1}{g2}{g1}{g1}{g1}{g3}{g1}{g1}",
-  "{g1}{g1}{g1}{g1}{g3}{g1}{g2}{g1}{g1}{g1}{g1}{g2}{g1}{g1}{g1}{g2}",
-  "{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g1}{d}{g1}{g3}{g1}{g1}{g1}{g2}{g1}",
-  "{g1}{g1}{g2}{g1}{g2}{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g1}{g1}",
-  "{g3}{g1}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g2}{g1}{g1}{g1}{g3}{g1}{g1}",
-  "{g1}{g1}{g1}{g3}{g1}{g2}{g1}{g1}{g1}{g1}{g1}{g3}{g1}{g1}{g2}{g1}",
-  "{g1}{g2}{g1}{g1}{g1}{g1}{g1}{g3}{g1}{g1}{g2}{g1}{g1}{g1}{g1}{g1}",
-  "{g1}{g1}{g1}{g2}{g1}{g1}{g2}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g3}{g1}",
-  "{g1}{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g3}{g1}{g1}{g1}{g1}{g2}",
-  "{g2}{g1}{g1}{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g2}{g1}{g1}",
-  "{g1}{g1}{g2}{g1}{g1}{g2}{g1}{g3}{g1}{g2}{g1}{g1}{g1}{g1}{g1}{g1}",
-  "{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g3}{g1}{g2}{g1}",
-  "{g1}{g1}{g1}{g2}{g1}{g3}{g1}{g2}{g1}{g3}{g1}{g1}{g1}{g1}{g1}{g3}",
-  "{g2}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g1}{g2}{g1}{g2}{g1}{g1}{g1}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "grass",
+  size: [16, 16],
+  palette: {
+    g1: "#228B22",
+    g2: "#32CD32",
+    g3: "#3CB371",
+    d: "#1E5F1E",
+  },
+  regions: {
+    // Base grass (fills entire tile)
+    g1: { rect: [0, 0, 16, 16], z: 0 },
+    // Light grass highlights scattered
+    g2: {
+      points: [
+        [1, 0], [6, 1], [11, 0], [14, 2],
+        [2, 4], [8, 3], [13, 5], [0, 7],
+        [5, 8], [10, 7], [15, 9], [3, 11],
+        [7, 12], [12, 10], [1, 14], [9, 15],
+      ],
+      z: 1,
+    },
+    // Medium grass accents
+    g3: {
+      points: [
+        [4, 0], [9, 2], [2, 5], [14, 4],
+        [0, 9], [6, 10], [11, 8], [3, 13],
+        [8, 14], [13, 12], [5, 15], [15, 15],
+      ],
+      z: 1,
+    },
+    // Dark grass shadows
+    d: {
+      points: [
+        [8, 4], [2, 8], [12, 6], [6, 13],
+      ],
+      z: 1,
+    },
+  },
+}
 ```
 
 ## Scene: Tiled Composition
@@ -176,11 +327,77 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```jsonl
-{"type":"palette","name":"nature","colors":{"{sky}":"#87CEEB","{cloud}":"#FFFFFF","{grass}":"#228B22","{grass_dark}":"#1E5F1E"}}
-{"type":"sprite","name":"sky_tile","size":[8,8],"palette":"nature","grid":["{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{cloud}{cloud}{sky}{sky}{sky}{sky}","{sky}{cloud}{cloud}{cloud}{cloud}{sky}{sky}{sky}","{sky}{sky}{cloud}{cloud}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}","{sky}{sky}{sky}{sky}{sky}{sky}{sky}{sky}"]}
-{"type":"sprite","name":"grass_tile","size":[8,8],"palette":"nature","grid":["{grass}{grass_dark}{grass}{grass}{grass}{grass_dark}{grass}{grass}","{grass}{grass}{grass}{grass_dark}{grass}{grass}{grass}{grass_dark}","{grass_dark}{grass}{grass}{grass}{grass}{grass}{grass}{grass}","{grass}{grass}{grass}{grass}{grass_dark}{grass}{grass}{grass}","{grass}{grass_dark}{grass}{grass}{grass}{grass}{grass_dark}{grass}","{grass}{grass}{grass}{grass}{grass}{grass}{grass}{grass}","{grass}{grass}{grass}{grass_dark}{grass}{grass_dark}{grass}{grass}","{grass_dark}{grass}{grass}{grass}{grass}{grass}{grass}{grass_dark}"]}
-{"type":"composition","name":"landscape","size":[32,32],"cell_size":[8,8],"sprites":{"S":"sky_tile","G":"grass_tile"},"layers":[{"map":["SSSS","SSSS","GGGG","GGGG"]}]}
+```json5
+{
+  type: "palette",
+  name: "nature",
+  colors: {
+    sky: "#87CEEB",
+    cloud: "#FFFFFF",
+    grass: "#228B22",
+    grass_dark: "#1E5F1E",
+  },
+}
+
+{
+  type: "sprite",
+  name: "sky_tile",
+  size: [8, 8],
+  palette: "nature",
+  regions: {
+    sky: { rect: [0, 0, 8, 8], z: 0 },
+    cloud: {
+      union: [
+        { rect: [2, 1, 2, 1] },
+        { rect: [1, 2, 4, 2] },
+      ],
+      z: 1,
+    },
+  },
+}
+
+{
+  type: "sprite",
+  name: "grass_tile",
+  size: [8, 8],
+  palette: "nature",
+  regions: {
+    grass: { rect: [0, 0, 8, 8], z: 0 },
+    grass_dark: {
+      points: [
+        [1, 0], [5, 1], [0, 2], [3, 3],
+        [6, 4], [1, 5], [4, 6], [7, 7],
+      ],
+      z: 1,
+    },
+  },
+}
+
+{
+  type: "composition",
+  name: "landscape",
+  size: [32, 32],
+  layers: [
+    // Top rows: sky
+    { sprite: "sky_tile", x: 0, y: 0 },
+    { sprite: "sky_tile", x: 8, y: 0 },
+    { sprite: "sky_tile", x: 16, y: 0 },
+    { sprite: "sky_tile", x: 24, y: 0 },
+    { sprite: "sky_tile", x: 0, y: 8 },
+    { sprite: "sky_tile", x: 8, y: 8 },
+    { sprite: "sky_tile", x: 16, y: 8 },
+    { sprite: "sky_tile", x: 24, y: 8 },
+    // Bottom rows: grass
+    { sprite: "grass_tile", x: 0, y: 16 },
+    { sprite: "grass_tile", x: 8, y: 16 },
+    { sprite: "grass_tile", x: 16, y: 16 },
+    { sprite: "grass_tile", x: 24, y: 16 },
+    { sprite: "grass_tile", x: 0, y: 24 },
+    { sprite: "grass_tile", x: 8, y: 24 },
+    { sprite: "grass_tile", x: 16, y: 24 },
+    { sprite: "grass_tile", x: 24, y: 24 },
+  ],
+}
 ```
 
 ## Variant: Color Swap
@@ -191,9 +408,40 @@ Example prompts and their expected outputs for generating pixel art with AI.
 
 **Output:**
 
-```jsonl
-{"type":"sprite","name":"hero","palette":{"{_}":"#00000000","{skin}":"#FFCC99","{hair}":"#8B4513","{shirt}":"#4169E1"},"grid":["{_}{hair}{hair}{_}","{hair}{skin}{skin}{hair}","{_}{skin}{skin}{_}","{shirt}{shirt}{shirt}{shirt}","{shirt}{_}{_}{shirt}"]}
-{"type":"variant","name":"enemy","base":"hero","palette":{"{hair}":"#FF0000","{shirt}":"#8B0000"}}
+```json5
+{
+  type: "sprite",
+  name: "hero",
+  size: [8, 8],
+  palette: {
+    _: "transparent",
+    skin: "#FFCC99",
+    hair: "#8B4513",
+    shirt: "#4169E1",
+  },
+  regions: {
+    hair: { rect: [2, 0, 4, 2], z: 0 },
+    skin: { rect: [2, 2, 4, 2], z: 0 },
+    shirt: {
+      union: [
+        { rect: [1, 4, 6, 3] },
+        { rect: [0, 4, 1, 2] },   // Left arm
+        { rect: [7, 4, 1, 2] },   // Right arm
+      ],
+      z: 0,
+    },
+  },
+}
+
+{
+  type: "variant",
+  name: "enemy",
+  base: "hero",
+  palette: {
+    hair: "#FF0000",
+    shirt: "#8B0000",
+  },
+}
 ```
 
 ## Tips for Writing Prompts
@@ -201,9 +449,9 @@ Example prompts and their expected outputs for generating pixel art with AI.
 1. **Be specific about size**: "16x16", "32x32", "8x8"
 2. **Name colors explicitly**: "silver blade", "golden hilt", "brown handle"
 3. **Reference real games**: "like Zelda items", "SNES-era style"
-4. **Request semantic tokens**: "use descriptive token names like {skin} and {hair}"
+4. **Request semantic tokens**: "use descriptive token names like skin and hair"
 5. **Ask for palettes separately**: "first create a palette, then the sprite"
-6. **Request multi-line format**: "output grids with one row per line"
+6. **Request structured regions**: "use rect, circle, and points shapes"
 
 ## Formatting Output
 

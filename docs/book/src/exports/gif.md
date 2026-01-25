@@ -12,19 +12,50 @@ pxl render sprite.pxl --gif
 
 This requires an `animation` object in your input file:
 
-```json
-{"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3"], "duration": 100}
+```json5
+{
+  type: "animation",
+  name: "walk",
+  frames: ["walk_1", "walk_2", "walk_3"],
+  duration: 100,
+}
 ```
 
 ## Animation Definition
 
 Animations reference sprite names in sequence:
 
-```json
-{"type": "sprite", "name": "walk_1", "palette": "hero", "grid": ["..."]}
-{"type": "sprite", "name": "walk_2", "palette": "hero", "grid": ["..."]}
-{"type": "sprite", "name": "walk_3", "palette": "hero", "grid": ["..."]}
-{"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3"], "duration": 100}
+```json5
+{
+  type: "sprite",
+  name: "walk_1",
+  size: [8, 12],
+  palette: "hero",
+  regions: {
+    body: { rect: [2, 4, 4, 8], z: 0 },
+    leg_left: { rect: [2, 10, 2, 2], z: 1 },
+    leg_right: { rect: [4, 10, 2, 2], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "walk_2",
+  size: [8, 12],
+  palette: "hero",
+  regions: {
+    body: { rect: [2, 4, 4, 8], z: 0 },
+    leg_left: { rect: [1, 10, 2, 2], z: 1 },
+    leg_right: { rect: [5, 10, 2, 2], z: 1 },
+  },
+}
+
+{
+  type: "animation",
+  name: "walk",
+  frames: ["walk_1", "walk_2"],
+  duration: 100,
+}
 ```
 
 ### Animation Options
@@ -79,14 +110,26 @@ Minimum duration is 10ms (1 centisecond). Shorter values are clamped.
 
 Create animated effects without multiple frames using palette cycling:
 
-```json
-{"type": "sprite", "name": "water", "palette": "ocean", "grid": [
-  "{w1}{w2}{w3}",
-  "{w2}{w3}{w1}",
-  "{w3}{w1}{w2}"
-]}
-{"type": "animation", "name": "shimmer", "frames": ["water"], "duration": 150,
- "palette_cycle": [{"tokens": ["{w1}", "{w2}", "{w3}"]}]}
+```json5
+{
+  type: "sprite",
+  name: "water",
+  size: [6, 3],
+  palette: "ocean",
+  regions: {
+    w1: { points: [[0, 0], [3, 1], [0, 2]], z: 0 },
+    w2: { points: [[1, 0], [4, 1], [1, 2]], z: 0 },
+    w3: { points: [[2, 0], [5, 1], [2, 2]], z: 0 },
+  },
+}
+
+{
+  type: "animation",
+  name: "shimmer",
+  frames: ["water"],
+  duration: 150,
+  palette_cycle: [{ tokens: ["w1", "w2", "w3"] }],
+}
 ```
 
 Palette cycling rotates colors through the specified tokens, creating animated effects like:
@@ -98,8 +141,13 @@ Palette cycling rotates colors through the specified tokens, creating animated e
 
 Control whether animations loop:
 
-```json
-{"type": "animation", "name": "death", "frames": ["die_1", "die_2", "die_3"], "loop": false}
+```json5
+{
+  type: "animation",
+  name: "death",
+  frames: ["die_1", "die_2", "die_3"],
+  loop: false,
+}
 ```
 
 - `"loop": true` (default): Animation repeats infinitely
@@ -109,57 +157,133 @@ Control whether animations loop:
 
 ### Basic Walk Cycle
 
-<!-- DEMOS exports/gif#basic -->
 **Animated GIF Export**
 
 Export a simple animation as an animated GIF.
 
-<div class="demo-source">
+```json5
+{
+  type: "palette",
+  name: "blink",
+  colors: {
+    _: "transparent",
+    w: "#FFFFFF",
+    b: "#000000",
+  },
+}
 
-```jsonl
-{"type": "palette", "name": "blink", "colors": {"{_}": "#00000000", "{w}": "#ffffff", "{b}": "#000000"}}
-{"type": "sprite", "name": "eye_open", "palette": "blink", "grid": ["{_}{w}{w}{_}", "{w}{b}{b}{w}", "{_}{w}{w}{_}"]}
-{"type": "sprite", "name": "eye_closed", "palette": "blink", "grid": ["{_}{_}{_}{_}", "{w}{w}{w}{w}", "{_}{_}{_}{_}"]}
-{"type": "animation", "name": "blink", "frames": ["eye_open", "eye_open", "eye_open", "eye_closed"], "duration": 200}
+{
+  type: "sprite",
+  name: "eye_open",
+  size: [4, 3],
+  palette: "blink",
+  regions: {
+    w: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { rect: [0, 1, 4, 1] },
+        { rect: [1, 2, 2, 1] },
+      ],
+      z: 0,
+    },
+    b: { rect: [1, 1, 2, 1], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "eye_closed",
+  size: [4, 3],
+  palette: "blink",
+  regions: {
+    w: { rect: [0, 1, 4, 1], z: 0 },
+  },
+}
+
+{
+  type: "animation",
+  name: "blink",
+  frames: ["eye_open", "eye_open", "eye_open", "eye_closed"],
+  duration: 200,
+}
 ```
-
-</div>
-
-<div class="demo-container" data-demo="basic">
-</div>
 
 ```bash
 pxl render blink.pxl --gif -o blink.gif
 ```
-<!-- /DEMOS -->
 
 ### High-Res Social Media Preview
 
-<!-- DEMOS exports/gif#scaled -->
 **Scaled GIF Export**
 
 Scale up animations for better visibility in previews.
 
-<div class="demo-source">
+```json5
+{
+  type: "palette",
+  name: "spinner",
+  colors: {
+    _: "transparent",
+    a: "#FF6B6B",
+    b: "#4ECDC4",
+  },
+}
 
-```jsonl
-{"type": "palette", "name": "spinner", "colors": {"{_}": "#00000000", "{a}": "#ff6b6b", "{b}": "#4ecdc4"}}
-{"type": "sprite", "name": "spin_1", "palette": "spinner", "grid": ["{a}{_}", "{_}{b}"]}
-{"type": "sprite", "name": "spin_2", "palette": "spinner", "grid": ["{_}{a}", "{b}{_}"]}
-{"type": "sprite", "name": "spin_3", "palette": "spinner", "grid": ["{b}{_}", "{_}{a}"]}
-{"type": "sprite", "name": "spin_4", "palette": "spinner", "grid": ["{_}{b}", "{a}{_}"]}
-{"type": "animation", "name": "spin", "frames": ["spin_1", "spin_2", "spin_3", "spin_4"], "duration": 100}
+{
+  type: "sprite",
+  name: "spin_1",
+  size: [2, 2],
+  palette: "spinner",
+  regions: {
+    a: { points: [[0, 0]], z: 0 },
+    b: { points: [[1, 1]], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "spin_2",
+  size: [2, 2],
+  palette: "spinner",
+  regions: {
+    a: { points: [[1, 0]], z: 0 },
+    b: { points: [[0, 1]], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "spin_3",
+  size: [2, 2],
+  palette: "spinner",
+  regions: {
+    b: { points: [[0, 0]], z: 0 },
+    a: { points: [[1, 1]], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "spin_4",
+  size: [2, 2],
+  palette: "spinner",
+  regions: {
+    b: { points: [[1, 0]], z: 0 },
+    a: { points: [[0, 1]], z: 0 },
+  },
+}
+
+{
+  type: "animation",
+  name: "spin",
+  frames: ["spin_1", "spin_2", "spin_3", "spin_4"],
+  duration: 100,
+}
 ```
-
-</div>
-
-<div class="demo-container" data-demo="scaled">
-</div>
 
 ```bash
 pxl render spinner.pxl --gif --scale 4 -o spinner_4x.gif
 ```
-<!-- /DEMOS -->
 
 ### Batch Animation Export
 
