@@ -10,7 +10,6 @@ mod import;
 mod info;
 mod render;
 mod show;
-mod transform;
 mod validate;
 
 use clap::{Parser, Subcommand};
@@ -427,71 +426,6 @@ pub enum Commands {
         preset: String,
     },
 
-    /// Transform sprites (mirror, rotate, tile, etc.)
-    ///
-    /// Applies transforms to sprite grids and outputs new source files.
-    /// Transforms are applied in the order specified.
-    Transform {
-        /// Input file containing sprite definitions
-        input: PathBuf,
-
-        /// Mirror axis (horizontal, vertical, both)
-        #[arg(long)]
-        mirror: Option<String>,
-
-        /// Rotate degrees (90, 180, 270)
-        #[arg(long)]
-        rotate: Option<u16>,
-
-        /// Tile pattern (e.g., "2x2", "3x1")
-        #[arg(long)]
-        tile: Option<String>,
-
-        /// Padding pixels
-        #[arg(long)]
-        pad: Option<u32>,
-
-        /// Add outline (optionally specify token, e.g., "{border}" or "#000")
-        #[arg(long)]
-        outline: Option<Option<String>>,
-
-        /// Outline width (default: 1)
-        #[arg(long, default_value = "1")]
-        outline_width: u32,
-
-        /// Crop region (X,Y,W,H)
-        #[arg(long)]
-        crop: Option<String>,
-
-        /// Shift pixels (X,Y) - circular shift with wrap around
-        #[arg(long)]
-        shift: Option<String>,
-
-        /// Shadow offset (X,Y) - add drop shadow
-        #[arg(long)]
-        shadow: Option<String>,
-
-        /// Shadow token (default: {shadow})
-        #[arg(long)]
-        shadow_token: Option<String>,
-
-        /// Target sprite name (if file contains multiple)
-        #[arg(long)]
-        sprite: Option<String>,
-
-        /// Output file (required)
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Read from stdin
-        #[arg(long)]
-        stdin: bool,
-
-        /// Allow large output (disable expansion warnings)
-        #[arg(long)]
-        allow_large: bool,
-    },
-
     /// Start the Language Server Protocol server (for editor integration)
     #[cfg(feature = "lsp")]
     #[command(hide = true)]
@@ -612,39 +546,6 @@ pub fn run() -> ExitCode {
         Commands::Init { path, name, preset } => {
             build::run_init(path.as_deref(), name.as_deref(), &preset)
         }
-        Commands::Transform {
-            input,
-            mirror,
-            rotate,
-            tile,
-            pad,
-            outline,
-            outline_width,
-            crop,
-            shift,
-            shadow,
-            shadow_token,
-            sprite,
-            output,
-            stdin,
-            allow_large,
-        } => transform::run_transform(
-            &input,
-            mirror.as_deref(),
-            rotate,
-            tile.as_deref(),
-            pad,
-            outline,
-            outline_width,
-            crop.as_deref(),
-            shift.as_deref(),
-            shadow.as_deref(),
-            shadow_token.as_deref(),
-            sprite.as_deref(),
-            &output,
-            stdin,
-            allow_large,
-        ),
         #[cfg(feature = "lsp")]
         Commands::Lsp => agent::run_lsp(),
         Commands::Agent { action } => agent::run_agent(action),
