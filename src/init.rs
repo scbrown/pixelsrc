@@ -159,17 +159,12 @@ Thumbs.db
 
 /// Generate main palette file content.
 fn generate_main_palette() -> String {
-    r##"{"type": "palette", "name": "main", "colors": {"{_}": "#00000000", "{black}": "#000000", "{white}": "#FFFFFF", "{primary}": "#4A90D9", "{secondary}": "#D94A4A"}}"##.to_string()
+    r##"{"type": "palette", "name": "main", "colors": {"_": "#00000000", "black": "#000000", "white": "#FFFFFF", "primary": "#4A90D9", "secondary": "#D94A4A"}}"##.to_string()
 }
 
 /// Generate example sprite file content.
 fn generate_example_sprite() -> String {
-    r#"{"type": "sprite", "name": "example", "palette": "main", "grid": [
-  "{_}{primary}{primary}{_}",
-  "{primary}{white}{white}{primary}",
-  "{primary}{white}{white}{primary}",
-  "{_}{primary}{primary}{_}"
-]}"#
+    r#"{"type": "sprite", "name": "example", "size": [4, 4], "palette": "main", "regions": {"primary": {"points": [[1, 0], [2, 0], [0, 1], [3, 1], [0, 2], [3, 2], [1, 3], [2, 3]], "z": 0}, "white": {"rect": [1, 1, 2, 2], "z": 1}}}"#
     .to_string()
 }
 
@@ -242,32 +237,18 @@ unused_palettes = "warn"
 
 /// Generate alternate palette file content.
 fn generate_alt_palette() -> String {
-    r##"{"type": "palette", "name": "alt", "colors": {"{_}": "#00000000", "{black}": "#1a1a2e", "{white}": "#eaeaea", "{primary}": "#e94560", "{secondary}": "#533483"}}"##.to_string()
+    r##"{"type": "palette", "name": "alt", "colors": {"_": "#00000000", "black": "#1a1a2e", "white": "#eaeaea", "primary": "#e94560", "secondary": "#533483"}}"##.to_string()
 }
 
 /// Generate character sprite file content.
 fn generate_character_sprite() -> String {
-    r#"{"type": "sprite", "name": "character", "palette": "main", "grid": [
-  "{_}{_}{primary}{primary}{_}{_}",
-  "{_}{primary}{white}{white}{primary}{_}",
-  "{primary}{white}{black}{black}{white}{primary}",
-  "{primary}{white}{white}{white}{white}{primary}",
-  "{_}{primary}{secondary}{secondary}{primary}{_}",
-  "{_}{_}{primary}{primary}{_}{_}"
-]}"#
+    r#"{"type": "sprite", "name": "character", "size": [6, 6], "palette": "main", "regions": {"primary": {"points": [[2, 0], [3, 0], [1, 1], [4, 1], [0, 2], [5, 2], [0, 3], [5, 3], [1, 4], [4, 4], [2, 5], [3, 5]], "z": 0}, "white": {"points": [[2, 1], [3, 1], [1, 2], [4, 2], [1, 3], [2, 3], [3, 3], [4, 3]], "z": 1}, "black": {"points": [[2, 2], [3, 2]], "z": 2}, "secondary": {"points": [[2, 4], [3, 4]], "z": 1}}}"#
     .to_string()
 }
 
 /// Generate variant example file content.
 fn generate_variant_example() -> String {
-    r#"{"type": "sprite", "name": "character_alt", "palette": "alt", "grid": [
-  "{_}{_}{primary}{primary}{_}{_}",
-  "{_}{primary}{white}{white}{primary}{_}",
-  "{primary}{white}{black}{black}{white}{primary}",
-  "{primary}{white}{white}{white}{white}{primary}",
-  "{_}{primary}{secondary}{secondary}{primary}{_}",
-  "{_}{_}{primary}{primary}{_}{_}"
-]}"#
+    r#"{"type": "sprite", "name": "character_alt", "size": [6, 6], "palette": "alt", "regions": {"primary": {"points": [[2, 0], [3, 0], [1, 1], [4, 1], [0, 2], [5, 2], [0, 3], [5, 3], [1, 4], [4, 4], [2, 5], [3, 5]], "z": 0}, "white": {"points": [[2, 1], [3, 1], [1, 2], [4, 2], [1, 3], [2, 3], [3, 3], [4, 3]], "z": 1}, "black": {"points": [[2, 2], [3, 2]], "z": 2}, "secondary": {"points": [[2, 4], [3, 4]], "z": 1}}}"#
     .to_string()
 }
 
@@ -342,11 +323,11 @@ clear_screen = true
 
 /// Generate animation frame sprites.
 fn generate_animation_frames() -> String {
-    r##"{"type": "palette", "name": "walk", "colors": {"{_}": "#00000000", "{b}": "#2d2d2d", "{s}": "#4a90d9", "{h}": "#ffcc00"}}
-{"type": "sprite", "name": "walk_1", "palette": "walk", "grid": ["{_}{h}{h}{_}", "{_}{s}{s}{_}", "{b}{s}{s}{b}", "{_}{b}{b}{_}"]}
-{"type": "sprite", "name": "walk_2", "palette": "walk", "grid": ["{_}{h}{h}{_}", "{_}{s}{s}{_}", "{_}{s}{s}{_}", "{b}{_}{_}{b}"]}
-{"type": "sprite", "name": "walk_3", "palette": "walk", "grid": ["{_}{h}{h}{_}", "{_}{s}{s}{_}", "{b}{s}{s}{b}", "{_}{b}{b}{_}"]}
-{"type": "sprite", "name": "walk_4", "palette": "walk", "grid": ["{_}{h}{h}{_}", "{_}{s}{s}{_}", "{_}{s}{s}{_}", "{b}{_}{_}{b}"]}"##
+    r##"{"type": "palette", "name": "walk", "colors": {"_": "#00000000", "b": "#2d2d2d", "s": "#4a90d9", "h": "#ffcc00"}}
+{"type": "sprite", "name": "walk_1", "size": [4, 4], "palette": "walk", "regions": {"h": {"points": [[1, 0], [2, 0]], "z": 0}, "s": {"rect": [1, 1, 2, 2], "z": 0}, "b": {"points": [[0, 2], [3, 2], [1, 3], [2, 3]], "z": 0}}}
+{"type": "sprite", "name": "walk_2", "size": [4, 4], "palette": "walk", "regions": {"h": {"points": [[1, 0], [2, 0]], "z": 0}, "s": {"rect": [1, 1, 2, 2], "z": 0}, "b": {"points": [[0, 3], [3, 3]], "z": 0}}}
+{"type": "sprite", "name": "walk_3", "size": [4, 4], "palette": "walk", "regions": {"h": {"points": [[1, 0], [2, 0]], "z": 0}, "s": {"rect": [1, 1, 2, 2], "z": 0}, "b": {"points": [[0, 2], [3, 2], [1, 3], [2, 3]], "z": 0}}}
+{"type": "sprite", "name": "walk_4", "size": [4, 4], "palette": "walk", "regions": {"h": {"points": [[1, 0], [2, 0]], "z": 0}, "s": {"rect": [1, 1, 2, 2], "z": 0}, "b": {"points": [[0, 3], [3, 3]], "z": 0}}}"##
         .to_string()
 }
 
@@ -464,30 +445,20 @@ clear_screen = true
 
 /// Generate UI palette file content.
 fn generate_ui_palette() -> String {
-    r##"{"type": "palette", "name": "ui", "colors": {"{_}": "#00000000", "{bg}": "#1a1a2e", "{border}": "#4a4a6a", "{text}": "#ffffff", "{accent}": "#e94560"}}"##.to_string()
+    r##"{"type": "palette", "name": "ui", "colors": {"_": "#00000000", "bg": "#1a1a2e", "border": "#4a4a6a", "text": "#ffffff", "accent": "#e94560"}}"##.to_string()
 }
 
 /// Generate player sprites.
 fn generate_player_sprites() -> String {
-    r#"{"type": "sprite", "name": "player_idle_1", "palette": "main", "grid": [
-  "{_}{primary}{primary}{_}",
-  "{primary}{white}{white}{primary}",
-  "{_}{primary}{primary}{_}",
-  "{_}{black}{black}{_}"
-]}
-{"type": "sprite", "name": "player_idle_2", "palette": "main", "grid": [
-  "{_}{primary}{primary}{_}",
-  "{primary}{white}{white}{primary}",
-  "{_}{primary}{primary}{_}",
-  "{black}{_}{_}{black}"
-]}"#
+    r#"{"type": "sprite", "name": "player_idle_1", "size": [4, 4], "palette": "main", "regions": {"primary": {"points": [[1, 0], [2, 0], [0, 1], [3, 1], [1, 2], [2, 2]], "z": 0}, "white": {"points": [[1, 1], [2, 1]], "z": 1}, "black": {"points": [[1, 3], [2, 3]], "z": 0}}}
+{"type": "sprite", "name": "player_idle_2", "size": [4, 4], "palette": "main", "regions": {"primary": {"points": [[1, 0], [2, 0], [0, 1], [3, 1], [1, 2], [2, 2]], "z": 0}, "white": {"points": [[1, 1], [2, 1]], "z": 1}, "black": {"points": [[0, 3], [3, 3]], "z": 0}}}"#
     .to_string()
 }
 
 /// Generate item sprites.
 fn generate_item_sprites() -> String {
-    r##"{"type": "palette", "name": "items", "colors": {"{_}": "#00000000", "{gold}": "#FFD700", "{shine}": "#FFFFE0"}}
-{"type": "sprite", "name": "coin", "palette": "items", "grid": ["{_}{gold}{gold}{_}", "{gold}{shine}{gold}{gold}", "{gold}{gold}{shine}{gold}", "{_}{gold}{gold}{_}"]}"##
+    r##"{"type": "palette", "name": "items", "colors": {"_": "#00000000", "gold": "#FFD700", "shine": "#FFFFE0"}}
+{"type": "sprite", "name": "coin", "size": [4, 4], "palette": "items", "regions": {"gold": {"points": [[1, 0], [2, 0], [0, 1], [2, 1], [3, 1], [0, 2], [1, 2], [3, 2], [1, 3], [2, 3]], "z": 0}, "shine": {"points": [[1, 1], [2, 2]], "z": 1}}}"##
         .to_string()
 }
 
@@ -500,20 +471,8 @@ fn generate_player_animation() -> String {
 
 /// Generate UI elements.
 fn generate_ui_elements() -> String {
-    r#"{"type": "sprite", "name": "button_normal", "palette": "ui", "grid": [
-  "{border}{border}{border}{border}{border}{border}",
-  "{border}{bg}{bg}{bg}{bg}{border}",
-  "{border}{bg}{text}{text}{bg}{border}",
-  "{border}{bg}{bg}{bg}{bg}{border}",
-  "{border}{border}{border}{border}{border}{border}"
-]}
-{"type": "sprite", "name": "button_hover", "palette": "ui", "grid": [
-  "{accent}{accent}{accent}{accent}{accent}{accent}",
-  "{accent}{bg}{bg}{bg}{bg}{accent}",
-  "{accent}{bg}{text}{text}{bg}{accent}",
-  "{accent}{bg}{bg}{bg}{bg}{accent}",
-  "{accent}{accent}{accent}{accent}{accent}{accent}"
-]}"#
+    r#"{"type": "sprite", "name": "button_normal", "size": [6, 5], "palette": "ui", "regions": {"border": {"union": [{"rect": [0, 0, 6, 1]}, {"rect": [0, 4, 6, 1]}, {"points": [[0, 1], [5, 1], [0, 2], [5, 2], [0, 3], [5, 3]]}], "z": 0}, "bg": {"rect": [1, 1, 4, 3], "z": 1}, "text": {"points": [[2, 2], [3, 2]], "z": 2}}}
+{"type": "sprite", "name": "button_hover", "size": [6, 5], "palette": "ui", "regions": {"accent": {"union": [{"rect": [0, 0, 6, 1]}, {"rect": [0, 4, 6, 1]}, {"points": [[0, 1], [5, 1], [0, 2], [5, 2], [0, 3], [5, 3]]}], "z": 0}, "bg": {"rect": [1, 1, 4, 3], "z": 1}, "text": {"points": [[2, 2], [3, 2]], "z": 2}}}"#
     .to_string()
 }
 
