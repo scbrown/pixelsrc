@@ -1,4 +1,0 @@
-{"type": "palette", "name": "var_resolution", "colors": {"--primary": "#FF6B6B", "--secondary": "#4ECDC4", "--accent": "#FFE66D", ".": "#00000000", "{main}": "var(--primary)", "{alt}": "var(--secondary)", "{highlight}": "var(--accent)"}}
-{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "grid": ["{main}{main}{alt}", "{main}{highlight}{alt}", "{alt}{alt}{alt}"]}
-{"type": "palette", "name": "hsl_var_resolution", "colors": {"--hue": "240", "--sat": "100%", "--light": "50%", "{blue_hsl}": "hsl(var(--hue), var(--sat), var(--light))"}}
-{"type": "palette", "name": "rgb_var_resolution", "colors": {"--r": "255", "--g": "128", "--b": "0", "{orange_rgb}": "rgb(var(--r), var(--g), var(--b))"}}

@@ -1,3 +1,0 @@
-{"type": "palette", "name": "demo", "colors": {".": "#00000000", "{bg}": "#1a1a2e", "{dot}": "#ff6b6b"}}
-{"type": "sprite", "name": "dot", "palette": "demo", "grid": [". {dot} .", "{dot} {dot} {dot}", ". {dot} ."]}
-{"type": "animation", "name": "fade_in", "keyframes": {"from": {"sprite": "dot", "opacity": 0.0}, "to": {"sprite": "dot", "opacity": 1.0}}, "duration": "1s", "timing_function": "ease"}

@@ -1,6 +1,0 @@
-{"type": "palette", "name": "game", "colors": {"{_}": "#00000000", "{b}": "#2c3e50", "{s}": "#e74c3c", "{h}": "#f1c40f"}}
-{"type": "sprite", "name": "player_idle", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_1", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{b}{_}{_}{b}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "player_walk_2", "palette": "game", "grid": ["{_}{b}{b}{_}", "{b}{s}{s}{b}", "{b}{b}{b}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 3]}}
-{"type": "sprite", "name": "coin", "palette": "game", "grid": ["{_}{h}{h}{_}", "{h}{h}{h}{h}", "{h}{h}{h}{h}", "{_}{h}{h}{_}"]}
-{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": 200}

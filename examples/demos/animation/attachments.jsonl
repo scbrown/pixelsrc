@@ -1,6 +1,0 @@
-{"type": "sprite", "name": "body1", "size": [3, 3], "palette": {".": "#00000000", "b": "#4444FF"}, "grid": [".b.", "bbb", ".b."]}
-{"type": "sprite", "name": "body2", "size": [3, 3], "palette": {".": "#00000000", "b": "#4444FF"}, "grid": [".b.", "bb.", ".b."]}
-{"type": "sprite", "name": "tail_seg1", "size": [2, 2], "palette": {".": "#00000000", "t": "#FF8800"}, "grid": ["t.", ".t"], "metadata": {"attach_in": [0, 0], "attach_out": [1, 1]}}
-{"type": "sprite", "name": "tail_seg2", "size": [2, 2], "palette": {".": "#00000000", "t": "#FF6600"}, "grid": [".t", "t."], "metadata": {"attach_in": [0, 0], "attach_out": [1, 1]}}
-{"type": "sprite", "name": "tail_seg3", "size": [1, 1], "palette": {"t": "#FF4400"}, "grid": ["t"], "metadata": {"attach_in": [0, 0]}}
-{"type": "animation", "name": "walk_with_tail", "frames": ["body1", "body2"], "attachments": [{"name": "tail", "anchor": [1, 2], "chain": ["tail_seg1", "tail_seg2", "tail_seg3"], "delay": 2, "follow": "position", "damping": 0.7, "stiffness": 0.4, "z_index": -1}]}

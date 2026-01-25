@@ -1,2 +1,0 @@
-{"type": "palette", "name": "robot", "colors": {"{transparent}": "#00000000", "{metal_light}": "#CCCCCC", "{metal_dark}": "#666666", "{eye_glow}": "#00FF00", "{antenna}": "#FF0000"}}
-{"type": "sprite", "name": "robot_head", "palette": "robot", "grid": ["{transparent}{antenna}{transparent}", "{metal_light}{metal_light}{metal_light}", "{metal_dark}{eye_glow}{metal_dark}", "{metal_light}{metal_light}{metal_light}"]}

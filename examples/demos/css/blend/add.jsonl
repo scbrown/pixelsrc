@@ -1,3 +1,0 @@
-{"type": "sprite", "name": "rgb_base", "palette": {"{r}": "#AA0000", "{g}": "#00AA00", "{b}": "#0000AA"}, "grid": ["{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}", "{g}{g}{g}{g}{g}{g}", "{g}{g}{g}{g}{g}{g}", "{b}{b}{b}{b}{b}{b}", "{b}{b}{b}{b}{b}{b}"]}
-{"type": "sprite", "name": "additive_light", "palette": {"{.}": "#00000000", "{w}": "#555555"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_add_demo", "size": [6, 6], "sprites": {"R": "rgb_base", "A": "additive_light"}, "layers": [{"map": ["R"]}, {"map": ["A"], "blend": "add"}]}

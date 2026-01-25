@@ -1,3 +1,0 @@
-{"type": "sprite", "name": "dark_base", "palette": {"{k}": "#000000", "{d}": "#333333"}, "grid": ["{k}{k}{k}{k}{k}{k}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}", "{k}{d}{d}{d}{d}{d}"]}
-{"type": "sprite", "name": "bright_overlay", "palette": {"{.}": "#00000000", "{r}": "#FF4444", "{g}": "#44FF44", "{b}": "#4444FF"}, "grid": ["{r}{r}{r}{r}{r}{.}", "{r}{r}{r}{r}{r}{.}", "{g}{g}{g}{g}{g}{.}", "{g}{g}{g}{g}{g}{.}", "{b}{b}{b}{b}{b}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_screen_demo", "size": [6, 6], "sprites": {"D": "dark_base", "B": "bright_overlay"}, "layers": [{"map": ["D"]}, {"map": ["B"], "blend": "screen"}]}

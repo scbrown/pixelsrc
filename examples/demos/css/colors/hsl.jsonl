@@ -1,7 +1,0 @@
-{"type": "palette", "name": "hsl_basic", "colors": {"{red}": "hsl(0, 100%, 50%)", "{green}": "hsl(120, 100%, 50%)", "{blue}": "hsl(240, 100%, 50%)", "{_}": "hsla(0, 0%, 0%, 0)"}}
-{"type": "sprite", "name": "hsl_demo", "palette": "hsl_basic", "grid": ["{red}{green}{blue}"]}
-{"type": "palette", "name": "hsl_saturation", "colors": {"{vivid}": "hsl(0, 100%, 50%)", "{muted}": "hsl(0, 50%, 50%)", "{gray}": "hsl(0, 0%, 50%)"}}
-{"type": "sprite", "name": "saturation_demo", "palette": "hsl_saturation", "grid": ["{vivid}{muted}{gray}"]}
-{"type": "palette", "name": "hsl_lightness", "colors": {"{light}": "hsl(0, 100%, 75%)", "{medium}": "hsl(0, 100%, 50%)", "{dark}": "hsl(0, 100%, 25%)"}}
-{"type": "sprite", "name": "lightness_demo", "palette": "hsl_lightness", "grid": ["{light}{medium}{dark}"]}
-{"type": "palette", "name": "hsla_alpha", "colors": {"{solid}": "hsla(0, 100%, 50%, 1)", "{half}": "hsla(0, 100%, 50%, 0.5)", "{quarter}": "hsla(0, 100%, 50%, 0.25)"}}

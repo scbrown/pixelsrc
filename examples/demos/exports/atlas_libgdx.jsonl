@@ -1,6 +1,0 @@
-{"type": "palette", "name": "rpg", "colors": {"{_}": "#00000000", "{b}": "#5D4E37", "{m}": "#8B4513", "{s}": "#C0C0C0", "{g}": "#FFD700"}}
-{"type": "sprite", "name": "sword", "palette": "rpg", "grid": ["{_}{_}{s}{_}", "{_}{s}{s}{_}", "{b}{s}{_}{_}", "{m}{_}{_}{_}"], "metadata": {"origin": [0, 3]}}
-{"type": "sprite", "name": "shield", "palette": "rpg", "grid": ["{b}{b}{b}{b}", "{b}{g}{g}{b}", "{b}{g}{g}{b}", "{_}{b}{b}{_}"], "metadata": {"origin": [2, 2]}}
-{"type": "sprite", "name": "potion_1", "palette": "rpg", "grid": ["{_}{s}{s}{_}", "{_}{b}{b}{_}", "{g}{g}{g}{g}", "{_}{g}{g}{_}"]}
-{"type": "sprite", "name": "potion_2", "palette": "rpg", "grid": ["{_}{s}{s}{_}", "{_}{b}{b}{_}", "{g}{_}{_}{g}", "{_}{g}{g}{_}"]}
-{"type": "animation", "name": "potion_shimmer", "frames": ["potion_1", "potion_2"], "duration": 300}

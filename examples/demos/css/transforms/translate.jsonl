@@ -1,6 +1,0 @@
-{"type": "palette", "name": "arrows", "colors": {".": "#00000000", "{a}": "#4CAF50", "{b}": "#2196F3"}}
-{"type": "sprite", "name": "arrow_right", "palette": "arrows", "grid": [". . {a} .", ". . {a} {a}", "{a} {a} {a} {a}", ". . {a} {a}", ". . {a} ."]}
-{"type": "sprite", "name": "arrow_base", "palette": "arrows", "grid": [". {b} .", "{b} {b} {b}", ". {b} ."]}
-{"type": "animation", "name": "slide_right", "keyframes": {"0%": {"sprite": "arrow_right", "transform": "translate(0, 0)"}, "100%": {"sprite": "arrow_right", "transform": "translate(8px, 0)"}}, "duration": "500ms", "timing_function": "ease-out"}
-{"type": "animation", "name": "slide_down", "keyframes": {"0%": {"sprite": "arrow_base", "transform": "translateY(0)"}, "100%": {"sprite": "arrow_base", "transform": "translateY(4px)"}}, "duration": "400ms", "timing_function": "ease-in-out"}
-{"type": "animation", "name": "slide_diagonal", "keyframes": {"0%": {"sprite": "arrow_base", "transform": "translate(0, 0)"}, "50%": {"sprite": "arrow_base", "transform": "translate(4px, 4px)"}, "100%": {"sprite": "arrow_base", "transform": "translate(0, 0)"}}, "duration": "800ms", "timing_function": "ease-in-out"}

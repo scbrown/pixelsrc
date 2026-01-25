@@ -1,3 +1,0 @@
-{"type": "sprite", "name": "light_colors", "palette": {"{y}": "#FFFF00", "{c}": "#00FFFF", "{m}": "#FF00FF"}, "grid": ["{y}{y}{y}{y}{y}{y}", "{y}{y}{y}{y}{y}{y}", "{c}{c}{c}{c}{c}{c}", "{c}{c}{c}{c}{c}{c}", "{m}{m}{m}{m}{m}{m}", "{m}{m}{m}{m}{m}{m}"]}
-{"type": "sprite", "name": "medium_gray", "palette": {"{.}": "#00000000", "{g}": "#808080"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{g}{g}{g}{g}{.}", "{.}{g}{g}{g}{g}{.}", "{.}{g}{g}{g}{g}{.}", "{.}{g}{g}{g}{g}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_darken_demo", "size": [6, 6], "sprites": {"L": "light_colors", "G": "medium_gray"}, "layers": [{"map": ["L"]}, {"map": ["G"], "blend": "darken"}]}

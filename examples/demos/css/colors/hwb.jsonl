@@ -1,6 +1,0 @@
-{"type": "palette", "name": "hwb_basic", "colors": {"{red}": "hwb(0 0% 0%)", "{green}": "hwb(120 0% 0%)", "{blue}": "hwb(240 0% 0%)", "{_}": "hwb(0 0% 0% / 0)"}}
-{"type": "sprite", "name": "hwb_demo", "palette": "hwb_basic", "grid": ["{red}{green}{blue}"]}
-{"type": "palette", "name": "hwb_whiteness", "colors": {"{pure}": "hwb(0 0% 0%)", "{tinted}": "hwb(0 25% 0%)", "{pastel}": "hwb(0 50% 0%)"}}
-{"type": "sprite", "name": "hwb_whiteness_demo", "palette": "hwb_whiteness", "grid": ["{pure}{tinted}{pastel}"]}
-{"type": "palette", "name": "hwb_blackness", "colors": {"{bright}": "hwb(0 0% 0%)", "{shaded}": "hwb(0 0% 25%)", "{dark}": "hwb(0 0% 50%)"}}
-{"type": "sprite", "name": "hwb_blackness_demo", "palette": "hwb_blackness", "grid": ["{bright}{shaded}{dark}"]}

@@ -1,5 +1,0 @@
-# Demo: Basic pxl.toml Configuration
-# Minimal valid project configuration with required fields only.
-
-[project]
-name = "basic-demo"

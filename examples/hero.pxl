@@ -1,64 +1,164 @@
-{"type": "palette", "name": "hero", "colors": {
-  "--skin-tone": "#FFCC99",
-  "--hair-color": "#8B4513",
-  "--shirt-color": "#4169E1",
-  "--pants-color": "#1E3A5F",
-  "--outline-color": "#2C1810",
-  "{_}": "transparent",
-  "{skin}": "var(--skin-tone)",
-  "{skin_shadow}": "color-mix(in oklch, var(--skin-tone) 70%, black)",
-  "{hair}": "var(--hair-color)",
-  "{hair_highlight}": "color-mix(in oklch, var(--hair-color) 70%, white)",
-  "{eye}": "#000000",
-  "{shirt}": "var(--shirt-color)",
-  "{shirt_highlight}": "color-mix(in oklch, var(--shirt-color) 70%, white)",
-  "{shirt_shadow}": "color-mix(in oklch, var(--shirt-color) 70%, black)",
-  "{pants}": "var(--pants-color)",
-  "{pants_shadow}": "color-mix(in oklch, var(--pants-color) 70%, black)",
-  "{shoes}": "#000000",
-  "{outline}": "var(--outline-color)"
-}}
-{"type": "sprite", "name": "hero_idle", "size": [16, 16], "palette": "hero", "grid": [
-  "{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{outline}{outline}{outline}{outline}{_}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{hair_highlight}{hair}{hair}{hair}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{hair_highlight}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{hair}{hair}{hair}{hair}{hair}{hair}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{eye}{skin}{skin}{eye}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{skin}{skin}{skin_shadow}{skin_shadow}{skin}{skin}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{skin}{skin}{skin}{skin}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{outline}{shirt_highlight}{shirt}{shirt}{shirt}{shirt}{shirt}{outline}{_}{_}{_}{_}",
-  "{_}{_}{_}{outline}{skin}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{skin}{outline}{_}{_}{_}",
-  "{_}{_}{_}{outline}{skin_shadow}{outline}{shirt}{shirt}{shirt}{shirt}{outline}{skin_shadow}{outline}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{shirt_shadow}{shirt}{shirt}{shirt_shadow}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{pants}{pants}{pants}{pants}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{outline}{pants_shadow}{_}{_}{pants_shadow}{outline}{_}{_}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{shoes}{shoes}{_}{_}{shoes}{shoes}{_}{_}{_}{_}{_}"
-]}
-{"type": "animation", "name": "hero_breathe", "keyframes": {
-  "0%": {"sprite": "hero_idle", "transform": "translate(0, 0)"},
-  "50%": {"sprite": "hero_idle", "transform": "translate(0, -1)"},
-  "100%": {"sprite": "hero_idle", "transform": "translate(0, 0)"}
-}, "duration": "2s", "timing_function": "ease-in-out", "loop": true}
-{"type": "palette", "name": "hero_alt", "colors": {
-  "--skin-tone": "#8D5524",
-  "--hair-color": "#2C1810",
-  "--shirt-color": "#DC143C",
-  "--pants-color": "#2F4F4F",
-  "--outline-color": "#1a0f0a",
-  "{_}": "transparent",
-  "{skin}": "var(--skin-tone)",
-  "{skin_shadow}": "color-mix(in oklch, var(--skin-tone) 70%, black)",
-  "{hair}": "var(--hair-color)",
-  "{hair_highlight}": "color-mix(in oklch, var(--hair-color) 70%, white)",
-  "{eye}": "#000000",
-  "{shirt}": "var(--shirt-color)",
-  "{shirt_highlight}": "color-mix(in oklch, var(--shirt-color) 70%, white)",
-  "{shirt_shadow}": "color-mix(in oklch, var(--shirt-color) 70%, black)",
-  "{pants}": "var(--pants-color)",
-  "{pants_shadow}": "color-mix(in oklch, var(--pants-color) 70%, black)",
-  "{shoes}": "#1a1a1a",
-  "{outline}": "var(--outline-color)"
-}}
-{"type": "variant", "name": "hero_alt", "base": "hero_idle", "palette": "hero_alt"}
+// hero.pxl - A simple hero character with breathing animation
+// Demonstrates structured regions with semantic roles and variants
+
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    skin: "#FFCC99",
+    skin_shadow: "#D4A574",
+    hair: "#8B4513",
+    hair_hi: "#A0522D",
+    eye: "#000000",
+    shirt: "#4169E1",
+    shirt_hi: "#6495ED",
+    shirt_sh: "#2F4F8F",
+    pants: "#1E3A5F",
+    pants_sh: "#152B47",
+    shoes: "#000000",
+    outline: "#2C1810",
+  },
+  roles: {
+    skin: "fill",
+    skin_shadow: "shadow",
+    hair: "fill",
+    hair_hi: "highlight",
+    shirt: "fill",
+    shirt_hi: "highlight",
+    shirt_sh: "shadow",
+    pants: "fill",
+    pants_sh: "shadow",
+    outline: "boundary",
+  },
+}
+
+{
+  type: "sprite",
+  name: "hero_idle",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    // Hair (top of head)
+    hair: {
+      union: [
+        { rect: [6, 2, 4, 1] },      // Top row
+        { rect: [5, 3, 6, 2] },      // Main hair mass
+      ],
+      z: 0,
+    },
+    hair_hi: {
+      points: [[6, 2], [5, 3]],
+      z: 1,
+    },
+
+    // Face/skin
+    skin: {
+      rect: [5, 5, 6, 4],            // Face area
+      z: 2,
+    },
+    skin_shadow: {
+      points: [[7, 7], [8, 7]],      // Under nose shadow
+      z: 3,
+    },
+    eye: {
+      points: [[6, 6], [9, 6]],      // Eyes
+      z: 4,
+    },
+
+    // Shirt (torso)
+    shirt: {
+      union: [
+        { rect: [5, 9, 6, 3] },      // Main torso
+        { rect: [4, 10, 1, 2] },     // Left arm
+        { rect: [11, 10, 1, 2] },    // Right arm
+      ],
+      z: 5,
+    },
+    shirt_hi: {
+      points: [[5, 9]],              // Highlight
+      z: 6,
+    },
+    shirt_sh: {
+      points: [[6, 12], [9, 12]],    // Bottom shadow
+      z: 6,
+    },
+
+    // Hands
+    skin: {
+      points: [[4, 10], [11, 10]],   // Hands (reusing skin)
+      z: 7,
+    },
+
+    // Pants
+    pants: {
+      rect: [5, 13, 6, 2],
+      z: 8,
+    },
+    pants_sh: {
+      points: [[6, 14], [9, 14]],
+      z: 9,
+    },
+
+    // Shoes
+    shoes: {
+      union: [
+        { rect: [5, 15, 2, 1] },
+        { rect: [9, 15, 2, 1] },
+      ],
+      z: 10,
+    },
+
+    // Outline (drawn last)
+    outline: {
+      union: [
+        // Head outline
+        { stroke: [5, 1, 6, 8] },
+        // Body outline
+        { stroke: [4, 9, 8, 7] },
+      ],
+      z: 20,
+    },
+  },
+}
+
+{
+  type: "animation",
+  name: "hero_breathe",
+  keyframes: {
+    "0%": { sprite: "hero_idle", transform: "translate(0, 0)" },
+    "50%": { sprite: "hero_idle", transform: "translate(0, -1)" },
+    "100%": { sprite: "hero_idle", transform: "translate(0, 0)" },
+  },
+  duration: "2s",
+  timing_function: "ease-in-out",
+  loop: true,
+}
+
+// Alternative color palette for the hero
+{
+  type: "palette",
+  name: "hero_alt",
+  colors: {
+    _: "transparent",
+    skin: "#8D5524",
+    skin_shadow: "#6B3D1A",
+    hair: "#2C1810",
+    hair_hi: "#4A2C20",
+    eye: "#000000",
+    shirt: "#DC143C",
+    shirt_hi: "#FF4040",
+    shirt_sh: "#A0102E",
+    pants: "#2F4F4F",
+    pants_sh: "#1F3535",
+    shoes: "#1a1a1a",
+    outline: "#1a0f0a",
+  },
+}
+
+{
+  type: "variant",
+  name: "hero_alt",
+  base: "hero_idle",
+  palette: "hero_alt",
+}

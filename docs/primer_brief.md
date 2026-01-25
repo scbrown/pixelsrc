@@ -1,75 +1,129 @@
 # Pixelsrc Quick Reference
 
-Text-based JSONL format for pixel art. Generate text, render to PNG with `pxl render`.
+Text-based format for pixel art. Define sprites with structured regions, render to PNG with `pxl render`.
 
 ## Object Types
 
-**Palette** - Define colors (with CSS variables):
-```json
-{"type": "palette", "name": "x", "colors": {"--main": "#FFCC99", "{_}": "transparent", "{skin}": "var(--main)", "{shadow}": "color-mix(in oklch, var(--main) 70%, black)"}}
+**Palette** - Define colors:
+```json5
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    gold: "#FFD700",
+    shine: "#FFE766",
+    shadow: "#B8960B",
+  },
+}
 ```
 
-**Sprite** - Pixel grid:
-```json
-{"type": "sprite", "name": "x", "palette": "x", "grid": ["{_}{skin}{skin}{_}", "..."]}
+**Sprite** - Structured regions:
+```json5
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    gold: { rect: [1, 1, 6, 6], z: 0 },
+    shine: { points: [[2, 1], [1, 2]], z: 1 },
+    shadow: { points: [[5, 5], [6, 4]], z: 1 },
+  },
+}
 ```
 
-**Sprite Transforms** - Derive sprites:
-```json
-{"type": "sprite", "name": "x_left", "source": "x", "transform": ["mirror-h"]}
-{"type": "sprite", "name": "x_rot", "source": "x", "transform": ["rotate:90"]}
-{"type": "sprite", "name": "x_out", "source": "x", "transform": [{"op": "sel-out"}]}
+**Animation** - CSS Keyframes:
+```json5
+{
+  type: "animation",
+  name: "bounce",
+  keyframes: {
+    "0%": { sprite: "coin" },
+    "50%": { sprite: "coin", transform: "translate(0, -4)" },
+  },
+  duration: "400ms",
+  loop: true,
+}
 ```
-Operations: `mirror-h`, `mirror-v`, `rotate:90/180/270`, `scale:x,y`, `sel-out`, `dither`, `shadow`
 
-**Animation** - CSS Keyframes or frame sequence:
-```json
-{"type": "animation", "name": "x", "keyframes": {"0%": {"sprite": "s"}, "50%": {"sprite": "s", "transform": "scale(1.2)"}}, "duration": "1s"}
-{"type": "animation", "name": "y", "frames": ["sprite1", "sprite2"], "duration": 100}
+## Shape Primitives
+
+- `rect: [x, y, w, h]` - Filled rectangle
+- `stroke: [x, y, w, h]` - Rectangle outline (1px)
+- `points: [[x, y], ...]` - Individual pixels
+- `line: [[x1, y1], [x2, y2], ...]` - Connected line
+- `ellipse: [cx, cy, rx, ry]` - Filled ellipse
+- `circle: [cx, cy, r]` - Filled circle
+- `polygon: [[x, y], ...]` - Filled polygon
+
+## Compound Shapes
+
+```json5
+regions: {
+  body: {
+    union: [
+      { rect: [2, 0, 4, 1] },
+      { rect: [1, 1, 6, 3] },
+    ],
+    z: 0,
+  },
+}
 ```
 
-## Token Syntax
+Operations: `union`, `subtract`, `intersect`
 
-- Tokens: `{name}` - multi-character, semantic
-- Transparent: `{_}` mapped to `#00000000`
-- Grid row: `"{a}{a}{b}{b}"` = 4 pixels
+## Example (8x8 coin)
 
-## Example (8x8 coin with CSS)
+```json5
+// coin.pxl
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    gold: "#FFD700",
+    shine: "#FFE766",
+    shadow: "#B8960B",
+  },
+}
 
-```jsonl
-{"type": "palette", "name": "coin", "colors": {"--gold": "#FFD700", "{_}": "transparent", "{gold}": "var(--gold)", "{shine}": "color-mix(in oklch, var(--gold) 60%, white)", "{shadow}": "color-mix(in oklch, var(--gold) 70%, black)"}}
-{"type": "sprite", "name": "coin", "size": [8, 8], "palette": "coin", "grid": ["{_}{_}{gold}{gold}{gold}{gold}{_}{_}", "{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}", "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}", "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}", "{gold}{gold}{gold}{gold}{gold}{gold}{shadow}{gold}", "{gold}{gold}{gold}{gold}{gold}{shadow}{shadow}{gold}", "{_}{gold}{gold}{gold}{gold}{gold}{gold}{_}", "{_}{_}{shadow}{shadow}{shadow}{shadow}{_}{_}"]}
-{"type": "animation", "name": "coin_bounce", "keyframes": {"0%": {"sprite": "coin"}, "50%": {"sprite": "coin", "transform": "translate(0, -4)"}}, "duration": "400ms", "timing_function": "ease-out", "loop": true}
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    gold: {
+      union: [
+        { rect: [2, 0, 4, 1] },
+        { rect: [1, 1, 6, 6] },
+        { rect: [2, 7, 4, 1] },
+      ],
+      z: 0,
+    },
+    shine: { points: [[2, 1], [3, 1], [1, 2], [1, 3]], z: 1 },
+    shadow: { points: [[6, 4], [6, 5], [5, 5]], z: 1 },
+  },
+}
 ```
 
 ## Rules
 
 1. **Palette before sprite** - Define colors first
-2. **Semantic tokens** - `{skin}`, `{hair}`, not `{a}`, `{b}`
-3. **Consistent rows** - All rows same token count
-4. **Small sprites** - 8x8, 16x16, 32x32 typical
-5. **Use `{_}` for transparency**
-6. **Use CSS variables** - `--name` for bases, `var(--name)` for tokens
-7. **Use color-mix()** - `color-mix(in oklch, color 70%, black)` for shadows
-
-## Common Errors
-
-- **Row mismatch**: All rows need same token count
-- **Undefined token**: Every `{token}` must be in palette
-- **Invalid color**: Use `#RGB`, `#RRGGBB`, `#RRGGBBAA`, or CSS names
-- **Forward reference**: Palette must come before sprite
+2. **Semantic tokens** - `skin`, `hair`, not `a`, `b`
+3. **Use `_` for transparency**
+4. **Z-order matters** - Higher z draws on top
+5. **Shapes, not pixels** - Use rect, ellipse, polygon when possible
 
 ## Commands
 
 ```bash
-pxl render file.jsonl             # Render to PNG
-pxl render file.jsonl --scale 4    # 4x upscale
-pxl render file.jsonl --gif        # Animated GIF
-pxl validate file.jsonl            # Check for errors
-pxl suggest file.jsonl             # Suggest fixes
-pxl show file.jsonl --sprite x     # Terminal display
-pxl explain file.jsonl --sprite x  # Explain structure
-pxl diff a.jsonl b.jsonl           # Compare sprites
-pxl import image.png -o out.jsonl  # Import PNG
-pxl fmt file.jsonl                 # Format file
+pxl render file.pxl             # Render to PNG
+pxl render file.pxl --scale 4   # 4x upscale
+pxl render file.pxl --gif       # Animated GIF
+pxl validate file.pxl           # Check for errors
+pxl show file.pxl --sprite x    # Terminal display
+pxl import image.png -o out.pxl # Import PNG
+pxl fmt file.pxl                # Format file
 ```

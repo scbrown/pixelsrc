@@ -1,3 +1,0 @@
-{"type": "sprite", "name": "solid_colors", "palette": {"{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}, "grid": ["{r}{r}{r}{r}{r}{r}", "{r}{r}{r}{r}{r}{r}", "{g}{g}{g}{g}{g}{g}", "{g}{g}{g}{g}{g}{g}", "{b}{b}{b}{b}{b}{b}", "{b}{b}{b}{b}{b}{b}"]}
-{"type": "sprite", "name": "white_patch", "palette": {"{.}": "#00000000", "{w}": "#FFFFFF"}, "grid": ["{.}{.}{.}{.}{.}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{w}{w}{w}{w}{.}", "{.}{.}{.}{.}{.}{.}"]}
-{"type": "composition", "name": "blend_difference_demo", "size": [6, 6], "sprites": {"C": "solid_colors", "W": "white_patch"}, "layers": [{"map": ["C"]}, {"map": ["W"], "blend": "difference"}]}

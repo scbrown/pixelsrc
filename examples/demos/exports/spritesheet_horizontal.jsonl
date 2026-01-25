@@ -1,5 +1,0 @@
-{"type": "sprite", "name": "walk1", "size": [8, 8], "palette": {".": "#00000000", "x": "#4A90D9", "o": "#2D5A87"}, "grid": ["...xx...", "..xxxx..", "..xxxx..", "...xx...", "...xx...", "..x..x..", ".x....x.", "x......x"]}
-{"type": "sprite", "name": "walk2", "size": [8, 8], "palette": {".": "#00000000", "x": "#4A90D9", "o": "#2D5A87"}, "grid": ["...xx...", "..xxxx..", "..xxxx..", "...xx...", "...xx...", "..xxxx..", "..x..x..", "..x..x.."]}
-{"type": "sprite", "name": "walk3", "size": [8, 8], "palette": {".": "#00000000", "x": "#4A90D9", "o": "#2D5A87"}, "grid": ["...xx...", "..xxxx..", "..xxxx..", "...xx...", "...xx...", "..xxxx..", ".x....x.", "x......x"]}
-{"type": "sprite", "name": "walk4", "size": [8, 8], "palette": {".": "#00000000", "x": "#4A90D9", "o": "#2D5A87"}, "grid": ["...xx...", "..xxxx..", "..xxxx..", "...xx...", "...xx...", "..x..x..", "..x..x..", "..x..x.."]}
-{"type": "animation", "name": "walk_cycle", "fps": 8, "frames": ["walk1", "walk2", "walk3", "walk4"]}
