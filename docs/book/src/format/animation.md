@@ -151,7 +151,7 @@ The frame array format provides a simple list of sprite names. Use this for stra
 
 ## Frame References
 
-Frames reference sprites by name. The sprites must be defined earlier in the file:
+Frames reference **sprites or compositions** by name. They must be defined earlier in the file:
 
 ```json
 {"type": "palette", "name": "hero", "colors": {...}}
@@ -159,6 +159,36 @@ Frames reference sprites by name. The sprites must be defined earlier in the fil
 {"type": "sprite", "name": "idle_2", "palette": "hero", "grid": [...]}
 {"type": "animation", "name": "idle", "frames": ["idle_1", "idle_2"], "duration": 500}
 ```
+
+### Compositions as Frames
+
+Animations can reference compositions, enabling layered character animation. This is useful when you want to animate individual body parts (arm, eyes, mouth) while keeping the base body static:
+
+```json
+// Layer sprites
+{"type": "sprite", "name": "body", ...}
+{"type": "sprite", "name": "arm_down", ...}
+{"type": "sprite", "name": "arm_wave1", ...}
+{"type": "sprite", "name": "arm_wave2", ...}
+
+// Compositions combining body + arm positions
+{"type": "composition", "name": "char_pose1", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_down"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+{"type": "composition", "name": "char_pose2", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_wave1"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+{"type": "composition", "name": "char_pose3", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_wave2"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+// Animation using compositions as frames
+{"type": "animation", "name": "wave", "frames": ["char_pose1", "char_pose2", "char_pose3", "char_pose2"], "duration": 200}
+```
+
+This approach avoids duplicating the body sprite for each animation frame.
 
 ## Palette Cycling
 

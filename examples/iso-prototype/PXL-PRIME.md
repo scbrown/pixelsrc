@@ -349,6 +349,69 @@ This compact sprite demonstrates all key techniques: ellipse head, curved shadin
 
 ---
 
+## Layered Character Animation
+
+For animated characters (waving, blinking, speaking), use a **layered approach** with compositions as animation frames.
+
+### The Concept
+
+Instead of creating monolithic sprites for each animation frame (duplicating the body), create:
+
+1. **Layer sprites** - Body, arm positions, eye states, mouth shapes
+2. **Compositions** - Combine layers for each pose
+3. **Animation** - Reference compositions as frames
+
+### Example: Waving Character
+
+```json
+// Layer 1: Body (static base)
+{"type": "sprite", "name": "vd_body", "size": [32, 48], "palette": "vd", "regions": {
+  "skin": { "ellipse": [16, 9, 6, 7], "z": 10 },
+  "suit": { "polygon": [...], "z": 0 },
+  // ... rest of body without arm
+}}
+
+// Layer 2: Arm positions
+{"type": "sprite", "name": "vd_arm_down", "size": [32, 48], "palette": "vd", "regions": {
+  "arm": { "polygon": [[22, 20], [25, 20], [25, 30], [23, 30]], "z": 0 },
+  "hand": { "ellipse": [24, 31, 2, 2], "z": 2 }
+}}
+
+{"type": "sprite", "name": "vd_arm_wave1", "size": [32, 48], "palette": "vd", "regions": {
+  "arm": { "polygon": [[22, 18], [25, 16], [28, 14], [29, 16], [26, 18], [23, 20]], "z": 0 },
+  "hand": { "ellipse": [29, 13, 2, 2], "z": 2 }
+}}
+
+// Compositions combining body + arm
+{"type": "composition", "name": "vd_full_down", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "vd_body", "A": "vd_arm_down"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+{"type": "composition", "name": "vd_full_wave1", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "vd_body", "A": "vd_arm_wave1"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+// Animation using compositions as frames
+{"type": "animation", "name": "vd_wave", "frames": ["vd_full_down", "vd_full_wave1", "vd_full_wave2", "vd_full_wave1"], "duration": 200, "loop": true}
+```
+
+### Rendering
+
+```bash
+pxl render character.pxl --animation vd_wave --gif -o wave.gif --scale 4
+```
+
+### Why Layered Animation?
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Monolithic frames** | Simple | Duplicates body for every pose |
+| **Layered compositions** | Reusable parts, smaller files | More setup |
+
+For characters with multiple animations (walk, wave, blink, speak), the layered approach significantly reduces redundancy.
+
+---
+
 ## Sources
 
 Techniques synthesized from:
