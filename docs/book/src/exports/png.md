@@ -114,8 +114,8 @@ Render a simple sprite to PNG with transparency.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{y}": "#ffd700", "{o}": "#daa520"}}
-{"type": "sprite", "name": "coin", "palette": "coin", "grid": ["{_}{y}{y}{_}", "{y}{o}{o}{y}", "{y}{o}{o}{y}", "{_}{y}{y}{_}"]}
+{"type": "palette", "name": "coin", "colors": {"_": "#00000000", "y": "#ffd700", "o": "#daa520"}}
+{"type": "sprite", "name": "coin", "size": [4, 4], "palette": "coin", "regions": {"y": {"union": [{"rect": [1, 0, 2, 1]}, {"points": [[0, 1], [3, 1], [0, 2], [3, 2]]}, {"rect": [1, 3, 2, 1]}], "z": 0}, "o": {"rect": [1, 1, 2, 2], "z": 1}}}
 ```
 
 </div>
@@ -138,8 +138,8 @@ Scale output for high-resolution previews while preserving pixel art crispness.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "gem", "colors": {"{_}": "#00000000", "{b}": "#4169e1", "{l}": "#87ceeb", "{d}": "#191970"}}
-{"type": "sprite", "name": "gem", "palette": "gem", "grid": ["{_}{l}{l}{_}", "{b}{l}{l}{b}", "{b}{b}{b}{b}", "{_}{d}{d}{_}"]}
+{"type": "palette", "name": "gem", "colors": {"_": "#00000000", "b": "#4169e1", "l": "#87ceeb", "d": "#191970"}}
+{"type": "sprite", "name": "gem", "size": [4, 4], "palette": "gem", "regions": {"l": {"rect": [1, 0, 2, 2], "z": 0}, "b": {"union": [{"points": [[0, 1], [3, 1]]}, {"rect": [0, 2, 4, 1]}], "z": 0}, "d": {"rect": [1, 3, 2, 1], "z": 0}}}
 ```
 
 </div>

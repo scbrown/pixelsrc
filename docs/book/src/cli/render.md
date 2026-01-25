@@ -68,8 +68,8 @@ Render a simple sprite to PNG output.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "simple", "colors": {"{_}": "#00000000", "{b}": "#4a90d9", "{w}": "#ffffff"}}
-{"type": "sprite", "name": "icon", "palette": "simple", "grid": ["{_}{b}{_}", "{b}{w}{b}", "{_}{b}{_}"]}
+{"type": "palette", "name": "simple", "colors": {"_": "#00000000", "b": "#4a90d9", "w": "#ffffff"}}
+{"type": "sprite", "name": "icon", "size": [3, 3], "palette": "simple", "regions": {"b": {"union": [{"points": [[1, 0]]}, {"points": [[0, 1], [2, 1]]}, {"points": [[1, 2]]}], "z": 0}, "w": {"points": [[1, 1]], "z": 1}}}
 ```
 
 </div>
@@ -105,8 +105,8 @@ Render sprites at larger sizes with integer scaling.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "pixel", "colors": {"{_}": "#00000000", "{p}": "#e43b44", "{d}": "#a82b3a"}}
-{"type": "sprite", "name": "heart", "palette": "pixel", "grid": ["{_}{p}{_}{p}{_}", "{p}{d}{p}{d}{p}", "{p}{d}{d}{d}{p}", "{_}{p}{d}{p}{_}", "{_}{_}{p}{_}{_}"]}
+{"type": "palette", "name": "pixel", "colors": {"_": "#00000000", "p": "#e43b44", "d": "#a82b3a"}}
+{"type": "sprite", "name": "heart", "size": [5, 5], "palette": "pixel", "regions": {"p": {"union": [{"points": [[1, 0], [3, 0]]}, {"points": [[0, 1], [2, 1], [4, 1]]}, {"points": [[0, 2], [4, 2]]}, {"points": [[1, 3]]}, {"points": [[2, 4]]}], "z": 0}, "d": {"union": [{"points": [[1, 1], [3, 1]]}, {"rect": [1, 2, 3, 1]}, {"points": [[2, 3]]}], "z": 1}}}
 ```
 
 </div>

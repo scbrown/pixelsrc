@@ -28,8 +28,8 @@ The `validate` command checks Pixelsrc files for:
 - Syntax errors
 - Missing palette references
 - Invalid color values
-- Undefined tokens in grids
-- Row length mismatches
+- Undefined tokens in regions
+- Invalid shape coordinates
 - Other structural issues
 
 By default, the command distinguishes between errors (which cause a non-zero exit) and warnings (informational only). Use `--strict` to treat all issues as errors.
@@ -44,8 +44,8 @@ A properly structured file passes validation without errors.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "valid", "colors": {"{_}": "#00000000", "{x}": "#ff0000"}}
-{"type": "sprite", "name": "dot", "palette": "valid", "grid": ["{x}"]}
+{"type": "palette", "name": "valid", "colors": {"_": "#00000000", "x": "#ff0000"}}
+{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "valid", "regions": {"x": {"rect": [0, 0, 1, 1], "z": 0}}}
 ```
 
 </div>
@@ -67,7 +67,7 @@ Files with errors show detailed diagnostic messages.
 <div class="demo-source">
 
 ```jsonl
-{"type": "sprite", "name": "broken", "palette": "missing", "grid": ["{x}{y}{z}"]}
+{"type": "sprite", "name": "broken", "size": [3, 1], "palette": "missing", "regions": {"x": {"rect": [0, 0, 1, 1], "z": 0}, "y": {"rect": [1, 0, 1, 1], "z": 0}, "z": {"rect": [2, 0, 1, 1], "z": 0}}}
 ```
 
 </div>
@@ -78,7 +78,7 @@ Files with errors show detailed diagnostic messages.
 ```bash
 pxl validate broken.pxl
 # error: sprite 'broken' references undefined palette 'missing'
-# error: undefined tokens in grid: {x}, {y}, {z}
+# error: undefined tokens in regions: x, y, z
 ```
 <!-- /DEMOS -->
 
@@ -135,18 +135,18 @@ pxl sketch -n test < input.txt | pxl validate --stdin
 ### Undefined token
 
 ```
-Error: undefined token 'xyz' at row 3, column 2
+Error: undefined token 'xyz' in regions
 ```
 
-The grid references a token that isn't defined in the palette.
+The regions reference a token that isn't defined in the palette.
 
-### Row length mismatch
+### Invalid shape coordinates
 
 ```
-Error: row 3 has 5 columns, expected 8
+Error: rect extends beyond sprite bounds at [10, 0, 5, 5]
 ```
 
-All rows in a sprite grid should have the same width.
+Shape coordinates must fall within the sprite's defined size.
 
 ### Missing palette
 

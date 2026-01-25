@@ -44,8 +44,8 @@ Convert a PNG image to Pixelsrc format. The import command detects colors and cr
 pxl import hero.png -o hero.pxl
 
 # Output: hero.pxl contains:
-# {"type": "palette", "name": "hero", "colors": {"{_}": "#00000000", ...}}
-# {"type": "sprite", "name": "hero", "palette": "hero", "grid": [...]}
+# {"type": "palette", "name": "hero", "colors": {"_": "#00000000", ...}}
+# {"type": "sprite", "name": "hero", "size": [16, 16], "palette": "hero", "regions": {...}}
 ```
 
 </div>

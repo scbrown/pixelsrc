@@ -25,7 +25,7 @@ pxl fmt [OPTIONS] <FILES>...
 
 The `fmt` command standardizes the formatting of Pixelsrc files:
 - Consistent indentation
-- Aligned grid columns
+- Aligned region definitions
 - Normalized whitespace
 - Ordered object fields
 
@@ -42,10 +42,10 @@ The formatter standardizes spacing and alignment for consistent, readable files.
 
 ```jsonl
 # Before formatting (compact):
-{"type":"sprite","name":"icon","palette":{"x":"#ff0000"},"grid":["{x}{x}","{x}{x}"]}
+{"type":"sprite","name":"icon","size":[2,2],"palette":{"x":"#ff0000"},"regions":{"x":{"rect":[0,0,2,2],"z":0}}}
 
 # After pxl fmt:
-{"type": "sprite", "name": "icon", "palette": {"{x}": "#ff0000"}, "grid": ["{x}{x}", "{x}{x}"]}
+{"type": "sprite", "name": "icon", "size": [2, 2], "palette": {"x": "#ff0000"}, "regions": {"x": {"rect": [0, 0, 2, 2], "z": 0}}}
 ```
 
 </div>
@@ -116,16 +116,21 @@ pxl fmt --stdout sprite.pxl | diff sprite.pxl -
 
 The formatter applies these conventions:
 
-### Grid alignment
+### Region alignment
 
-Tokens in grids are space-separated and columns are aligned:
+Shape arrays and union blocks are consistently formatted:
 
-```
-grid:
-  r r r _ r r r
-  r R R R R R r
-  r R _ _ _ R r
-  r r r r r r r
+```json5
+regions: {
+  body: { rect: [0, 0, 8, 8], z: 0 },
+  detail: {
+    union: [
+      { rect: [1, 1, 2, 2] },
+      { rect: [5, 1, 2, 2] },
+    ],
+    z: 1,
+  },
+}
 ```
 
 ### Whitespace
