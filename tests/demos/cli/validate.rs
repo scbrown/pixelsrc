@@ -75,7 +75,7 @@ fn test_validate_missing_type() {
 }
 #[test]
 fn test_validate_missing_name() {
-    let jsonl = r##"{"type": "sprite", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    let jsonl = r##"{"type": "sprite", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let (errors, _) = validate_content(jsonl);
 
@@ -84,7 +84,7 @@ fn test_validate_missing_name() {
 #[test]
 fn test_validate_undefined_palette() {
     let jsonl =
-        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
+        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let (errors, _) = validate_content(jsonl);
 
@@ -110,7 +110,7 @@ fn test_validate_invalid_color() {
 #[test]
 fn test_validate_strict_mode() {
     // Content that might produce warnings but not errors
-    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"], "extra_field": true}"##;
+    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}, "extra_field": true}"##;
 
     let mut validator = Validator::new();
     for (line_idx, line) in jsonl.lines().enumerate() {
@@ -135,9 +135,9 @@ fn test_validate_strict_mode() {
 #[test]
 fn test_validate_line_numbers() {
     let jsonl = r##"{"type": "palette", "name": "ok", "colors": {"{x}": "#FF0000"}}
-{"type": "sprite", "name": "good", "palette": "ok", "grid": ["{x}"]}
+{"type": "sprite", "name": "good", "palette": "ok", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}
 {invalid json on line 3}
-{"type": "sprite", "name": "after", "palette": "ok", "grid": ["{x}"]}"##;
+{"type": "sprite", "name": "after", "palette": "ok", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let mut validator = Validator::new();
     for (line_idx, line) in jsonl.lines().enumerate() {
@@ -166,7 +166,7 @@ fn test_validate_multiple_errors() {
 #[test]
 fn test_validate_json_output() {
     let jsonl =
-        r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+        r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let mut validator = Validator::new();
     for (line_idx, line) in jsonl.lines().enumerate() {
@@ -212,9 +212,9 @@ fn test_validate_empty_file() {
 #[test]
 fn test_validate_whitespace_lines() {
     let jsonl = r##"
-{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
+{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}
 
-{"type": "sprite", "name": "test2", "palette": {"{x}": "#00FF00"}, "grid": ["{x}"]}
+{"type": "sprite", "name": "test2", "palette": {"{x}": "#00FF00"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}
 "##;
 
     let (errors, _) = validate_content(jsonl);
@@ -226,8 +226,8 @@ fn test_validate_comment_lines() {
     // Note: JSONL format does not officially support comments, but some parsers
     // allow lines starting with // as informal comments. The validator may or
     // may not accept them depending on strictness.
-    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
-{"type": "sprite", "name": "test2", "palette": {"{x}": "#00FF00"}, "grid": ["{x}"]}"##;
+    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}
+{"type": "sprite", "name": "test2", "palette": {"{x}": "#00FF00"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let (errors, _) = validate_content(jsonl);
 

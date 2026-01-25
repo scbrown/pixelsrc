@@ -75,7 +75,7 @@ fn test_suggest_filter_by_type() {
 #[test]
 fn test_suggest_no_suggestions_valid_file() {
     let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{x}": "#FF0000", "{y}": "#00FF00"}}
-{"type": "sprite", "name": "test", "palette": "colors", "grid": ["{x}{y}", "{y}{x}"]}"##;
+{"type": "sprite", "name": "test", "palette": "colors", "size": [2, 2], "regions": {"x": {"points": [[0,0],[1,1]]}, "y": {"points": [[1,0],[0,1]]}}}"##;
 
     let mut suggester = Suggester::new();
     suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
@@ -88,7 +88,7 @@ fn test_suggest_no_suggestions_valid_file() {
 #[test]
 fn test_suggest_line_numbers() {
     let jsonl = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}
-{"type": "sprite", "name": "test", "palette": "p", "grid": ["{x}{y}"]}"##;
+{"type": "sprite", "name": "test", "palette": "p", "size": [2, 1], "regions": {"x": {"points": [[0,0]]}, "y": {"points": [[1,0]]}}}"##;
 
     let mut suggester = Suggester::new();
     suggester.analyze_reader(Cursor::new(jsonl)).unwrap();

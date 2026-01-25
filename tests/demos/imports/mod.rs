@@ -227,8 +227,8 @@ fn test_transparency_handling() {
     // Verify the JSONL can be parsed back
     let sprite_json: serde_json::Value =
         serde_json::from_str(jsonl.lines().nth(1).unwrap()).expect("Should parse");
-    let grid = sprite_json["grid"].as_array().expect("Should have grid");
-    assert_eq!(grid.len(), 4, "Grid should have 4 rows");
+    let regions = sprite_json["regions"].as_object().expect("Should have regions");
+    assert!(!regions.is_empty(), "Regions should not be empty");
 }
 
 /// Test round-trip: import PNG → JSONL → verify structure
@@ -254,7 +254,7 @@ fn test_import_jsonl_structure() {
     assert_eq!(sprite["palette"], "roundtrip_palette");
     assert_eq!(sprite["size"][0], 4);
     assert_eq!(sprite["size"][1], 4);
-    assert!(sprite["grid"].is_array());
+    assert!(sprite["regions"].is_object());
 }
 
 /// Test import with color quantization (reducing many colors to few)
