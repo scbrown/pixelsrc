@@ -13,13 +13,29 @@ You bring sprites to life with **motion**. Walk cycles, attack animations, idle 
 
 An animation references a sequence of sprites:
 
-```json
-{"type": "sprite", "name": "coin_1", "palette": "coin", "grid": [...]}
-{"type": "sprite", "name": "coin_2", "palette": "coin", "grid": [...]}
-{"type": "sprite", "name": "coin_3", "palette": "coin", "grid": [...]}
-{"type": "sprite", "name": "coin_4", "palette": "coin", "grid": [...]}
+```json5
+{
+  type: "sprite",
+  name: "coin_1",
+  size: [6, 6],
+  palette: "coin",
+  regions: { body: { ellipse: [3, 3, 3, 3], z: 0 } },
+}
 
-{"type": "animation", "name": "coin_spin", "frames": ["coin_1", "coin_2", "coin_3", "coin_4"], "duration": 100}
+{
+  type: "sprite",
+  name: "coin_2",
+  size: [6, 6],
+  palette: "coin",
+  regions: { body: { ellipse: [3, 3, 2, 3], z: 0 } },
+}
+
+{
+  type: "animation",
+  name: "coin_spin",
+  frames: ["coin_1", "coin_2"],
+  duration: 100,
+}
 ```
 
 Key properties:
@@ -31,65 +47,103 @@ Key properties:
 
 A classic 4-frame coin rotation:
 
-```json
-{"type": "palette", "name": "coin", "colors": {
-  "{_}": "#00000000",
-  "{gold}": "#ffd700",
-  "{gold_light}": "#ffec8b",
-  "{gold_dark}": "#daa520",
-  "{shine}": "#ffffff"
-}}
-{"type": "sprite", "name": "coin_1", "palette": "coin", "grid": [
-  "{_}{gold}{gold}{gold}{gold}{_}",
-  "{gold}{gold_light}{gold}{gold}{gold}{gold}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{gold}",
-  "{gold}{gold}{gold}{gold}{gold_dark}{gold}",
-  "{_}{gold}{gold}{gold}{gold}{_}"
-]}
-{"type": "sprite", "name": "coin_2", "palette": "coin", "grid": [
-  "{_}{_}{gold}{gold}{_}{_}",
-  "{_}{gold}{gold_light}{gold}{gold}{_}",
-  "{_}{gold}{shine}{gold}{gold}{_}",
-  "{_}{gold}{gold}{gold}{gold}{_}",
-  "{_}{gold}{gold}{gold_dark}{gold}{_}",
-  "{_}{_}{gold}{gold}{_}{_}"
-]}
-{"type": "sprite", "name": "coin_3", "palette": "coin", "grid": [
-  "{_}{_}{gold}{_}{_}{_}",
-  "{_}{gold}{gold_light}{gold}{_}{_}",
-  "{_}{gold}{gold}{gold}{_}{_}",
-  "{_}{gold}{gold}{gold}{_}{_}",
-  "{_}{gold}{gold_dark}{gold}{_}{_}",
-  "{_}{_}{gold}{_}{_}{_}"
-]}
-{"type": "sprite", "name": "coin_4", "palette": "coin", "grid": [
-  "{_}{_}{gold}{gold}{_}{_}",
-  "{_}{gold}{gold}{gold_light}{gold}{_}",
-  "{_}{gold}{gold}{shine}{gold}{_}",
-  "{_}{gold}{gold}{gold}{gold}{_}",
-  "{_}{gold}{gold_dark}{gold}{gold}{_}",
-  "{_}{_}{gold}{gold}{_}{_}"
-]}
-{"type": "animation", "name": "coin_spin", "frames": ["coin_1", "coin_2", "coin_3", "coin_4"], "duration": 120, "loop": true}
+```json5
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    gold: "#FFD700",
+    gold_light: "#FFEC8B",
+    gold_dark: "#DAA520",
+    shine: "#FFFFFF",
+  },
+}
+
+// Frame 1: Full face
+{
+  type: "sprite",
+  name: "coin_1",
+  size: [6, 6],
+  palette: "coin",
+  regions: {
+    gold: {
+      union: [
+        { rect: [1, 0, 4, 1] },
+        { rect: [0, 1, 6, 4] },
+        { rect: [1, 5, 4, 1] },
+      ],
+      z: 0,
+    },
+    gold_light: { rect: [1, 1, 2, 1], z: 1 },
+    shine: { points: [[1, 2]], z: 2 },
+    gold_dark: { points: [[4, 4]], z: 1 },
+  },
+}
+
+// Frame 2: Turning
+{
+  type: "sprite",
+  name: "coin_2",
+  size: [6, 6],
+  palette: "coin",
+  regions: {
+    gold: {
+      union: [
+        { rect: [2, 0, 2, 1] },
+        { rect: [1, 1, 4, 4] },
+        { rect: [2, 5, 2, 1] },
+      ],
+      z: 0,
+    },
+    gold_light: { rect: [2, 1, 1, 1], z: 1 },
+    shine: { points: [[2, 2]], z: 2 },
+    gold_dark: { points: [[3, 4]], z: 1 },
+  },
+}
+
+// Frame 3: Edge view
+{
+  type: "sprite",
+  name: "coin_3",
+  size: [6, 6],
+  palette: "coin",
+  regions: {
+    gold: { rect: [2, 0, 2, 6], z: 0 },
+    gold_light: { points: [[2, 1]], z: 1 },
+    gold_dark: { points: [[3, 4]], z: 1 },
+  },
+}
+
+// Frame 4: Returning
+{
+  type: "sprite",
+  name: "coin_4",
+  size: [6, 6],
+  palette: "coin",
+  regions: {
+    gold: {
+      union: [
+        { rect: [2, 0, 2, 1] },
+        { rect: [1, 1, 4, 4] },
+        { rect: [2, 5, 2, 1] },
+      ],
+      z: 0,
+    },
+    gold_light: { rect: [3, 1, 1, 1], z: 1 },
+    shine: { points: [[3, 2]], z: 2 },
+    gold_dark: { points: [[2, 4]], z: 1 },
+  },
+}
+
+{
+  type: "animation",
+  name: "coin_spin",
+  frames: ["coin_1", "coin_2", "coin_3", "coin_4"],
+  duration: 120,
+  loop: true,
+}
 ```
-
-### Try It
-
-Preview each frame of the coin spin animation:
-
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="animator-demo">{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#ffd700", "{gold_light}": "#ffec8b", "{gold_dark}": "#daa520", "{shine}": "#ffffff"}}
-{"type": "sprite", "name": "coin_1", "palette": "coin", "grid": ["{_}{gold}{gold}{gold}{gold}{_}", "{gold}{gold_light}{gold}{gold}{gold}{gold}", "{gold}{shine}{gold}{gold}{gold}{gold}", "{gold}{gold}{gold}{gold}{gold}{gold}", "{gold}{gold}{gold}{gold}{gold_dark}{gold}", "{_}{gold}{gold}{gold}{gold}{_}"]}
-{"type": "sprite", "name": "coin_2", "palette": "coin", "grid": ["{_}{_}{gold}{gold}{_}{_}", "{_}{gold}{gold_light}{gold}{gold}{_}", "{_}{gold}{shine}{gold}{gold}{_}", "{_}{gold}{gold}{gold}{gold}{_}", "{_}{gold}{gold}{gold_dark}{gold}{_}", "{_}{_}{gold}{gold}{_}{_}"]}
-{"type": "sprite", "name": "coin_3", "palette": "coin", "grid": ["{_}{_}{gold}{_}{_}{_}", "{_}{gold}{gold_light}{gold}{_}{_}", "{_}{gold}{gold}{gold}{_}{_}", "{_}{gold}{gold}{gold}{_}{_}", "{_}{gold}{gold_dark}{gold}{_}{_}", "{_}{_}{gold}{_}{_}{_}"]}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_1'})">Frame 1</button>
-  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_2'})">Frame 2</button>
-  <button onclick="pixelsrcDemo.renderFromTextarea('animator-demo', 'animator-demo-preview', {spriteName: 'coin_3'})">Frame 3</button>
-  <div class="preview" id="animator-demo-preview"></div>
-</div>
-
-Try changing the shine color to `#FFC0CB` (pink) for a magical coin effect.
 
 ## Preview Animations
 
@@ -136,15 +190,20 @@ pxl render coin.pxl --name coin_spin -o coin.gif --scale 4
 
 Hold keyframes longer than in-between frames:
 
-```json
-{"type": "animation", "name": "attack", "frames": [
-  "attack_windup",
-  "attack_windup",
-  "attack_swing",
-  "attack_impact",
-  "attack_impact",
-  "attack_recover"
-], "duration": 80}
+```json5
+{
+  type: "animation",
+  name: "attack",
+  frames: [
+    "attack_windup",
+    "attack_windup",
+    "attack_swing",
+    "attack_impact",
+    "attack_impact",
+    "attack_recover",
+  ],
+  duration: 80,
+}
 ```
 
 By repeating `attack_windup` and `attack_impact`, you create anticipation and follow-through.
@@ -153,13 +212,37 @@ By repeating `attack_windup` and `attack_impact`, you create anticipation and fo
 
 A basic 4-frame walk:
 
-```json
-{"type": "sprite", "name": "walk_1", "palette": "character", "grid": [...]}
-{"type": "sprite", "name": "walk_2", "palette": "character", "grid": [...]}
-{"type": "sprite", "name": "walk_3", "palette": "character", "grid": [...]}
-{"type": "sprite", "name": "walk_4", "palette": "character", "grid": [...]}
+```json5
+{
+  type: "sprite",
+  name: "walk_1",
+  size: [8, 12],
+  palette: "character",
+  regions: {
+    body: { rect: [2, 0, 4, 8], z: 0 },
+    leg_l: { rect: [2, 8, 2, 4], z: 1 },
+    leg_r: { rect: [4, 8, 2, 4], z: 1 },
+  },
+}
 
-{"type": "animation", "name": "walk_right", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"], "duration": 100}
+{
+  type: "sprite",
+  name: "walk_2",
+  size: [8, 12],
+  palette: "character",
+  regions: {
+    body: { rect: [2, 0, 4, 8], z: 0 },
+    leg_l: { rect: [1, 8, 2, 4], z: 1 },
+    leg_r: { rect: [5, 8, 2, 4], z: 1 },
+  },
+}
+
+{
+  type: "animation",
+  name: "walk_right",
+  frames: ["walk_1", "walk_2", "walk_1", "walk_2"],
+  duration: 100,
+}
 ```
 
 For mirrored walk (walking left), you can use transforms in compositions or create separate sprites.
@@ -168,8 +251,14 @@ For mirrored walk (walking left), you can use transforms in compositions or crea
 
 For one-shot animations like death or victory:
 
-```json
-{"type": "animation", "name": "death", "frames": ["death_1", "death_2", "death_3", "death_final"], "duration": 120, "loop": false}
+```json5
+{
+  type: "animation",
+  name: "death",
+  frames: ["death_1", "death_2", "death_3", "death_final"],
+  duration: 120,
+  loop: false,
+}
 ```
 
 ## Organizing Animation Files
@@ -187,15 +276,15 @@ hero/
 
 The `hero_animations.pxl` file includes all sprites and defines animations:
 
-```json
-{"type": "include", "path": "hero_palette.pxl"}
-{"type": "include", "path": "hero_idle.pxl"}
-{"type": "include", "path": "hero_walk.pxl"}
-{"type": "include", "path": "hero_attack.pxl"}
+```json5
+{ type: "include", path: "hero_palette.pxl" }
+{ type: "include", path: "hero_idle.pxl" }
+{ type: "include", path: "hero_walk.pxl" }
+{ type: "include", path: "hero_attack.pxl" }
 
-{"type": "animation", "name": "hero_idle", "frames": ["idle_1", "idle_2"], "duration": 300}
-{"type": "animation", "name": "hero_walk", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"], "duration": 100}
-{"type": "animation", "name": "hero_attack", "frames": ["attack_1", "attack_2", "attack_3"], "duration": 80}
+{ type: "animation", name: "hero_idle", frames: ["idle_1", "idle_2"], duration: 300 }
+{ type: "animation", name: "hero_walk", frames: ["walk_1", "walk_2", "walk_3", "walk_4"], duration: 100 }
+{ type: "animation", name: "hero_attack", frames: ["attack_1", "attack_2", "attack_3"], duration: 80 }
 ```
 
 ## Next Steps
