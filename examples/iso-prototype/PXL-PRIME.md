@@ -178,6 +178,24 @@ At small scale, details become noise. 2-3 emphasized features max.
 ### ❌ Mismatched Names
 Region names must exactly match palette keys or you get "Unknown token" warnings.
 
+### ❌ Face Shading Outside Bounds
+Shading polygons that extend beyond the head ellipse create harsh rectangular edges. Keep shading within the organic shape:
+
+```json
+// BAD: Shading extends outside face
+"skin_lit": { "polygon": [[18, 4], [22, 6], [22, 14], [18, 14]] }  // Creates square edge
+
+// GOOD: Shading follows ellipse contour
+"skin_lit": { "polygon": [[17, 4], [20, 6], [21, 9], [20, 12], [17, 14]] }  // Curved
+```
+
+### ❌ Floating Head
+A gap between head and torso looks like the head is disconnected. Add a neck region:
+
+```json
+"neck": { "rect": [14, 15, 4, 3], "z": 5 }  // Bridges head (z: 10+) and torso (z: 0-2)
+```
+
 ### ❌ Missing Z-Order and Roles
 Without explicit `z` values or semantic `role` tags, regions render in undefined order. Important details (eyes, belt) get covered.
 
@@ -275,66 +293,56 @@ If details are invisible:
 
 ---
 
-## Complete Example: Vault Dweller (64x96)
+## Complete Example: Vault Dweller (32x48)
+
+This compact sprite demonstrates all key techniques: ellipse head, curved shading polygons, neck connection, 3-surface body shading, and proper z-ordering.
 
 ```json
 {
   "type": "sprite",
-  "name": "vault-dweller-large",
-  "size": [64, 96],
+  "name": "vault-dweller",
+  "size": [32, 48],
   "palette": {
     "_": "#00000000",
-    "skin": "#d8b088", "skin_hi": "#f0d0a8", "skin_shd": "#b08860",
-    "hair": "#483020", "hair_hi": "#5a4030",
-    "eye_l_w": "#f0f0f0", "eye_l_iris": "#4a7090", "eye_l_pupil": "#101010",
-    "eye_r_w": "#f0f0f0", "eye_r_iris": "#4a7090", "eye_r_pupil": "#101010",
-    "brow_l": "#3a2818", "brow_r": "#3a2818",
-    "nose": "#c0a078",
-    "mouth_top": "#a07058", "mouth_bot": "#8a5a48",
-    "suit": "#3070a8", "suit_hi": "#4888c0", "suit_shd": "#205080",
+    "skin": "#d8b088", "skin_lit": "#f0d0a8", "skin_shd": "#b08860", "neck": "#d8b088",
+    "hair": "#483020", "hair_lit": "#5a4030",
+    "eye_w": "#e8e8e0", "eye": "#181818",
+    "suit": "#3070a8", "suit_lit": "#4888c0", "suit_shd": "#205080",
     "leg_l": "#3070a8", "leg_l_shd": "#205080",
-    "leg_r": "#3070a8", "leg_r_hi": "#4888c0",
-    "belt": "#d0a040", "belt_hi": "#e8c060", "buckle": "#c0c0c0",
+    "leg_r": "#3070a8", "leg_r_lit": "#4888c0",
+    "belt": "#d0a040", "buckle": "#e8c060",
     "boot_l": "#403830", "boot_l_shd": "#302820",
-    "boot_r": "#403830", "boot_r_hi": "#504840"
+    "boot_r": "#403830", "boot_r_lit": "#504840"
   },
   "regions": {
-    // HEAD (z: 10-17)
-    "skin": { "ellipse": [32, 18, 14, 16], "z": 10 },
-    "skin_hi": { "polygon": [[38, 10], [44, 14], [44, 22], [40, 24], [36, 18]], "z": 11 },
-    "skin_shd": { "polygon": [[20, 14], [24, 12], [26, 20], [24, 26], [20, 22]], "z": 11 },
-    "hair": { "ellipse": [32, 6, 14, 8], "z": 12 },
-    "hair_hi": { "polygon": [[36, 2], [42, 4], [44, 8], [38, 10], [34, 6]], "z": 13 },
-    // EYES (z: 14-16, must layer correctly)
-    "eye_l_w": { "ellipse": [25, 18, 5, 3], "z": 14 },
-    "eye_l_iris": { "ellipse": [26, 18, 3, 3], "z": 15 },
-    "eye_l_pupil": { "ellipse": [26, 18, 1, 2], "z": 16 },
-    "eye_r_w": { "ellipse": [39, 18, 5, 3], "z": 14 },
-    "eye_r_iris": { "ellipse": [38, 18, 3, 3], "z": 15 },
-    "eye_r_pupil": { "ellipse": [38, 18, 1, 2], "z": 16 },
-    "brow_l": { "polygon": [[20, 14], [30, 13], [30, 15], [20, 16]], "z": 17 },
-    "brow_r": { "polygon": [[34, 13], [44, 14], [44, 16], [34, 15]], "z": 17 },
-    "nose": { "polygon": [[30, 22], [34, 22], [33, 26], [31, 26]], "z": 13 },
-    "mouth_top": { "polygon": [[27, 28], [37, 28], [36, 30], [28, 30]], "z": 13 },
-    "mouth_bot": { "polygon": [[28, 30], [36, 30], [35, 32], [29, 32]], "z": 13 },
-    // TORSO (z: 0-1)
-    "suit": { "polygon": [[18, 36], [46, 36], [48, 40], [48, 56], [46, 62], [44, 64], [20, 64], [18, 62], [16, 56], [16, 40]], "z": 0 },
-    "suit_hi": { "polygon": [[38, 38], [46, 38], [48, 44], [48, 54], [44, 60], [38, 60], [38, 48]], "z": 1 },
-    "suit_shd": { "polygon": [[16, 40], [22, 40], [22, 60], [18, 62], [16, 56]], "z": 1 },
-    // BELT (z: 5-7, on top of suit)
-    "belt": { "polygon": [[18, 52], [46, 52], [46, 56], [18, 56]], "z": 5 },
-    "belt_hi": { "polygon": [[36, 52], [46, 52], [46, 56], [36, 56]], "z": 6 },
-    "buckle": { "rect": [29, 52, 6, 4], "z": 7 },
-    // LEGS (z: 0-1)
-    "leg_l": { "polygon": [[20, 64], [30, 64], [28, 84], [18, 84]], "z": 0 },
-    "leg_l_shd": { "polygon": [[20, 64], [24, 64], [22, 84], [18, 84]], "z": 1 },
-    "leg_r": { "polygon": [[34, 64], [44, 64], [46, 84], [36, 84]], "z": 0 },
-    "leg_r_hi": { "polygon": [[40, 64], [44, 64], [46, 84], [42, 84]], "z": 1 },
+    // HEAD (z: 10-15)
+    "skin": { "ellipse": [16, 9, 6, 7], "z": 10 },
+    "skin_lit": { "polygon": [[17, 4], [20, 6], [21, 9], [20, 12], [17, 14]], "z": 11 },
+    "skin_shd": { "polygon": [[15, 4], [12, 6], [11, 9], [12, 12], [15, 14]], "z": 11 },
+    "hair": { "ellipse": [16, 4, 6, 3], "z": 12 },
+    "hair_lit": { "polygon": [[18, 2], [21, 3], [20, 6], [17, 5]], "z": 13 },
+    // Eyes: white surround + dark pupil
+    "eye_w": { "points": [[12, 9], [13, 9], [14, 9], [18, 9], [19, 9], [20, 9]], "z": 14 },
+    "eye": { "points": [[13, 9], [19, 9]], "z": 15 },
+    // NECK (z: 5) - connects head to body
+    "neck": { "rect": [14, 15, 4, 3], "z": 5 },
+    // TORSO (z: 0-2)
+    "suit": { "polygon": [[10, 18], [22, 18], [23, 20], [23, 30], [21, 32], [11, 32], [9, 30], [9, 20]], "z": 0 },
+    "suit_lit": { "polygon": [[19, 18], [22, 18], [23, 20], [23, 30], [21, 32], [19, 32]], "z": 1 },
+    "suit_shd": { "polygon": [[10, 18], [13, 18], [13, 32], [11, 32], [9, 30], [9, 20]], "z": 1 },
+    // Belt
+    "belt": { "rect": [10, 27, 12, 2], "z": 3 },
+    "buckle": { "rect": [14, 27, 4, 2], "z": 4 },
+    // LEGS (z: 0-1) - gap between them
+    "leg_l": { "polygon": [[11, 32], [15, 32], [14, 41], [10, 41]], "z": 0 },
+    "leg_l_shd": { "polygon": [[11, 32], [13, 32], [12, 41], [10, 41]], "z": 1 },
+    "leg_r": { "polygon": [[17, 32], [21, 32], [22, 41], [18, 41]], "z": 0 },
+    "leg_r_lit": { "polygon": [[19, 32], [21, 32], [22, 41], [20, 41]], "z": 1 },
     // BOOTS (z: 2-3)
-    "boot_l": { "polygon": [[16, 84], [30, 84], [30, 94], [16, 94]], "z": 2 },
-    "boot_l_shd": { "polygon": [[16, 84], [22, 84], [22, 94], [16, 94]], "z": 3 },
-    "boot_r": { "polygon": [[34, 84], [48, 84], [48, 94], [34, 94]], "z": 2 },
-    "boot_r_hi": { "polygon": [[42, 84], [48, 84], [48, 94], [42, 94]], "z": 3 }
+    "boot_l": { "rect": [9, 41, 6, 5], "z": 2 },
+    "boot_l_shd": { "rect": [9, 41, 2, 5], "z": 3 },
+    "boot_r": { "rect": [17, 41, 6, 5], "z": 2 },
+    "boot_r_lit": { "rect": [21, 41, 2, 5], "z": 3 }
   }
 }
 ```
