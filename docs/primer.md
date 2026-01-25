@@ -352,3 +352,44 @@ pxl import image.png --analyze -o output.pxl
 4. **Use symmetry** - `symmetric: "x"` for bilateral features
 5. **Layer shadows** - Define shadow regions with y-constraints
 6. **Test at 1x scale** - Ensure readability at native size
+
+## Artisan Workflow: Autonomous Art Iteration
+
+For autonomous art generation (without human feedback each step), use component-based iteration:
+
+### Phases
+
+1. **Foundation** - Define components, criteria, gather references, create v0
+2. **Component Iteration** - For each component (eyes, mouth, hair, etc.):
+   - Generate 2-3 variants with different approaches
+   - Evaluate against criteria (readability, clarity, style match)
+   - Promote highest scorer, log reasoning
+   - Repeat until criteria satisfied (max 5-10 rounds)
+3. **Integration** - Compose all components, evaluate as whole:
+   - If weak component identified → drill back to that component
+   - If composition issue → adjust layering/z-order
+   - Repeat until integration criteria satisfied
+4. **Submit** - Final render + evolution log + comparison sheet
+
+### Evaluation Criteria
+
+| Criterion | Test |
+|-----------|------|
+| Readability | Can you tell what it is at 1x? |
+| Shape clarity | Is silhouette clean when filled solid? |
+| Color coherence | All colors from defined palette? |
+| Technical quality | Clean lines? No orphan pixels? |
+| Style match | Does it match reference? |
+
+### Variant Strategies
+
+- **Contrast** - Vary light/dark ratio
+- **Proportion** - Vary size/shape ratios
+- **Detail level** - More vs. fewer details
+- **Color temperature** - Warmer vs. cooler
+- **Line weight** - Thicker vs. thinner outlines
+
+### Logging
+
+For each iteration, record: approach tried, scores, winner, reason, next focus.
+This prevents repeating failed approaches and provides context for review.

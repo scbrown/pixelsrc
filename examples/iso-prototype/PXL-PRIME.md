@@ -412,6 +412,142 @@ For characters with multiple animations (walk, wave, blink, speak), the layered 
 
 ---
 
+---
+
+## Artisan Workflow: Autonomous Iteration for Quality Art
+
+When creating pixel art autonomously (without human feedback at each step), use this component-based iteration pattern to systematically improve quality.
+
+### Philosophy
+
+Art iteration requires:
+1. **Component isolation** - work on one part at a time (eyes, mouth, hair, etc.)
+2. **Self-critique against criteria** - measurable evaluation, not just "looks better"
+3. **Variant generation** - try multiple approaches, pick the best
+4. **Integration testing** - components that work alone may clash together
+
+### Generic Artisan Molecule Structure
+
+```
+ARTISAN MOLECULE: [artwork-name]
+
+Phase 1: FOUNDATION
+├── Define components: [list parts to iterate]
+├── Define criteria per component (see Evaluation Criteria below)
+├── Gather references (existing examples, style targets)
+└── Create initial draft v0
+
+Phase 2: COMPONENT ITERATION (for each component)
+│
+│  For EACH component (sequentially):
+│  │
+│  │  Component Loop (max 5-10 rounds):
+│  │  ├── Generate 2-3 variants with different approaches
+│  │  ├── Render all variants
+│  │  ├── Evaluate against component criteria
+│  │  ├── Score each variant (1-5 per criterion)
+│  │  ├── Promote highest scorer as new baseline
+│  │  ├── Log: what changed, why it scored better
+│  │  └── Criteria satisfied? → next component : continue
+│  │
+│  └── Output: [component]_final.png + [component]_evolution.png
+
+Phase 3: INTEGRATION ITERATION
+│
+│  Integration Loop (max 5 rounds):
+│  ├── Compose all components
+│  ├── Evaluate against integration criteria
+│  │
+│  │  If weak component identified:
+│  │  └── DRILL DOWN → return to Phase 2 for that component
+│  │
+│  │  If composition issue (layering, z-order, color clash):
+│  │  └── Adjust composition parameters, re-render
+│  │
+│  └── Integration criteria satisfied? → Phase 4 : continue
+
+Phase 4: SUBMIT
+├── Final composed render
+├── All component evolution logs
+├── Integration evolution + drill-down log
+└── Comparison sheet (v0 → final side-by-side)
+```
+
+### Evaluation Criteria
+
+**Component-Level Criteria:**
+
+| Criterion | Question | How to Test |
+|-----------|----------|-------------|
+| Readability | Can you tell what it is at 1x? | Render at 1x, squint test |
+| Shape clarity | Is the silhouette clean? | Fill with solid color |
+| Color coherence | Does it use palette correctly? | Check for off-palette colors |
+| Technical quality | Clean lines? No orphan pixels? | Zoom to check pixel placement |
+| Style match | Does it match reference style? | Compare to reference images |
+
+**Integration-Level Criteria:**
+
+| Criterion | Question | How to Test |
+|-----------|----------|-------------|
+| Composition balance | Do components work together? | View full composition |
+| Z-order correct | Are layers in right order? | Check for occlusion issues |
+| Color harmony | Do component palettes mesh? | Grayscale conversion test |
+| Scale consistency | Are proportions consistent? | Overlay component bounding boxes |
+| Animation-ready | Will it animate smoothly? | Check for detail that won't read in motion |
+
+### Variant Generation Strategies
+
+When creating variants, try different approaches:
+
+| Strategy | Description | When to Use |
+|----------|-------------|-------------|
+| **Contrast** | Vary light/dark ratio | Readability issues |
+| **Proportion** | Vary size/shape ratios | Shape clarity issues |
+| **Detail level** | More vs. fewer details | Scale readability issues |
+| **Color temperature** | Warmer vs. cooler | Color harmony issues |
+| **Line weight** | Thicker vs. thinner outlines | Definition issues |
+
+### Example: Head Portrait Components
+
+```
+Components for a character head:
+├── base (face shape, skin)
+├── eyes (white, iris, pupil, highlights)
+├── mouth (lips, teeth if visible)
+├── brows (expression control)
+├── hair (style, highlights, shadows)
+├── ears (if visible)
+└── extras (glasses, scars, etc.)
+```
+
+### Self-Critique Prompts
+
+During evaluation, ask:
+- "At 1x zoom, can I tell what this is?"
+- "Does the expression read clearly?"
+- "Are there any pixels that seem out of place?"
+- "Does this match the style of the reference?"
+- "Would this animate well, or is there too much detail?"
+
+### Logging Iterations
+
+For each iteration, record:
+```
+Round N:
+- Approach tried: [what you changed]
+- Scores: readability=X, clarity=Y, ...
+- Winner: variant [A/B/C]
+- Reason: [why this scored highest]
+- Next iteration focus: [what to try next]
+```
+
+This log helps:
+1. Avoid repeating failed approaches
+2. Identify patterns in what works
+3. Provide human reviewer with context
+
+---
+
 ## Sources
 
 Techniques synthesized from:
