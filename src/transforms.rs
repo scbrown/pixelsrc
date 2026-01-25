@@ -328,6 +328,20 @@ pub enum Transform {
         y: f32,
     },
 
+    /// Skew along the X axis (horizontal shear)
+    /// Positive angles skew the top edge to the right
+    SkewX {
+        /// Skew angle in degrees
+        degrees: f32,
+    },
+
+    /// Skew along the Y axis (vertical shear)
+    /// Positive angles skew the left edge downward
+    SkewY {
+        /// Skew angle in degrees
+        degrees: f32,
+    },
+
     // Animation (only valid for Animation type)
     Pingpong {
         exclude_ends: bool,
@@ -460,6 +474,12 @@ pub fn explain_transform(transform: &Transform) -> String {
             } else {
                 format!("Scale width to {}%, height to {}%", x_pct, y_pct)
             }
+        }
+        Transform::SkewX { degrees } => {
+            format!("Skew horizontally by {}° (shear along X axis)", degrees)
+        }
+        Transform::SkewY { degrees } => {
+            format!("Skew vertically by {}° (shear along Y axis)", degrees)
         }
 
         // Animation
@@ -635,6 +655,24 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
             })?;
             let (x, y) = parse_scale_params(scale_params)?;
             Ok(Transform::Scale { x, y })
+        }
+        "skew-x" | "skewx" => {
+            // String syntax: "skew-x:ANGLE" e.g., "skew-x:20"
+            let angle_str = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "skew-x".to_string(),
+                param: "angle".to_string(),
+            })?;
+            let degrees = parse_angle(angle_str)?;
+            Ok(Transform::SkewX { degrees })
+        }
+        "skew-y" | "skewy" => {
+            // String syntax: "skew-y:ANGLE" e.g., "skew-y:20"
+            let angle_str = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "skew-y".to_string(),
+                param: "angle".to_string(),
+            })?;
+            let degrees = parse_angle(angle_str)?;
+            Ok(Transform::SkewY { degrees })
         }
 
         // Animation
@@ -815,6 +853,44 @@ fn parse_transform_object(
             }
 
             Ok(Transform::Scale { x, y })
+        }
+        "skew-x" | "skewx" => {
+            let degrees =
+                params.get("degrees").and_then(|v| v.as_f64()).map(|v| v as f32).ok_or_else(
+                    || TransformError::MissingParameter {
+                        op: "skew-x".to_string(),
+                        param: "degrees".to_string(),
+                    },
+                )?;
+
+            // Validate angle is within reasonable bounds
+            if degrees.abs() >= 89.0 {
+                return Err(TransformError::InvalidParameter {
+                    op: "skew-x".to_string(),
+                    message: "skew angle must be between -89 and 89 degrees".to_string(),
+                });
+            }
+
+            Ok(Transform::SkewX { degrees })
+        }
+        "skew-y" | "skewy" => {
+            let degrees =
+                params.get("degrees").and_then(|v| v.as_f64()).map(|v| v as f32).ok_or_else(
+                    || TransformError::MissingParameter {
+                        op: "skew-y".to_string(),
+                        param: "degrees".to_string(),
+                    },
+                )?;
+
+            // Validate angle is within reasonable bounds
+            if degrees.abs() >= 89.0 {
+                return Err(TransformError::InvalidParameter {
+                    op: "skew-y".to_string(),
+                    message: "skew angle must be between -89 and 89 degrees".to_string(),
+                });
+            }
+
+            Ok(Transform::SkewY { degrees })
         }
 
         // Animation
@@ -1093,6 +1169,37 @@ fn parse_scale_params(s: &str) -> Result<(f32, f32), TransformError> {
     Ok((x, y))
 }
 
+/// Parse an angle value from a string.
+///
+/// Accepts formats:
+/// - "20" - degrees without suffix
+/// - "20deg" - degrees with suffix
+/// - "20°" - degrees with degree symbol
+///
+/// Skew angles are limited to -89 to 89 degrees (tangent approaches infinity at 90°).
+fn parse_angle(s: &str) -> Result<f32, TransformError> {
+    // Remove common suffixes
+    let s = s.trim();
+    let s = s.strip_suffix("deg").unwrap_or(s);
+    let s = s.strip_suffix('°').unwrap_or(s);
+    let s = s.trim();
+
+    let degrees = s.parse::<f32>().map_err(|_| TransformError::InvalidParameter {
+        op: "skew".to_string(),
+        message: format!("cannot parse '{}' as angle", s),
+    })?;
+
+    // Validate angle is within reasonable bounds
+    if degrees.abs() >= 89.0 {
+        return Err(TransformError::InvalidParameter {
+            op: "skew".to_string(),
+            message: "skew angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    Ok(degrees)
+}
+
 fn parse_hold_params(s: &str) -> Result<(usize, usize), TransformError> {
     let parts: Vec<&str> = s.split(',').collect();
     if parts.len() != 2 {
@@ -1334,6 +1441,10 @@ pub struct CssTransform {
     pub rotate: Option<f64>,
     /// Scale factors (x, y)
     pub scale: Option<(f64, f64)>,
+    /// Skew along X axis in degrees
+    pub skew_x: Option<f64>,
+    /// Skew along Y axis in degrees
+    pub skew_y: Option<f64>,
     /// Flip horizontally
     pub flip_x: bool,
     /// Flip vertically
@@ -1399,6 +1510,13 @@ impl CssTransform {
             transforms.push(Transform::Scale { x: x as f32, y: y as f32 });
         }
 
+        if let Some(degrees) = self.skew_x {
+            transforms.push(Transform::SkewX { degrees: degrees as f32 });
+        }
+        if let Some(degrees) = self.skew_y {
+            transforms.push(Transform::SkewY { degrees: degrees as f32 });
+        }
+
         if self.flip_x {
             transforms.push(Transform::MirrorH);
         }
@@ -1414,6 +1532,8 @@ impl CssTransform {
         self.translate.is_none()
             && self.rotate.is_none()
             && self.scale.is_none()
+            && self.skew_x.is_none()
+            && self.skew_y.is_none()
             && !self.flip_x
             && !self.flip_y
     }
@@ -1426,6 +1546,8 @@ impl CssTransform {
 /// - `rotate(deg)` - Rotation in degrees (90, 180, or 270 for pixel art)
 /// - `scale(n)` or `scale(x, y)` - Uniform or non-uniform scaling
 /// - `flip(x)` or `flip(y)` - Horizontal or vertical flip
+/// - `skewX(deg)` or `skewY(deg)` - Horizontal or vertical skew
+/// - `skew(x, y)` - Combined skew (x required, y optional)
 ///
 /// # Arguments
 ///
@@ -1453,6 +1575,10 @@ impl CssTransform {
 /// let t = parse_css_transform("flip(x) flip(y)").unwrap();
 /// assert!(t.flip_x);
 /// assert!(t.flip_y);
+///
+/// // Skew transforms for isometric sprites
+/// let t = parse_css_transform("skewX(26.57deg)").unwrap();
+/// assert_eq!(t.skew_x, Some(26.57));
 /// ```
 pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError> {
     let mut result = CssTransform::new();
@@ -1545,6 +1671,22 @@ pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError>
                 }
                 if fy {
                     result.flip_y = true;
+                }
+            }
+            "skewx" | "skew-x" => {
+                let deg = parse_css_skew_angle(&args, "skewX")?;
+                result.skew_x = Some(deg);
+            }
+            "skewy" | "skew-y" => {
+                let deg = parse_css_skew_angle(&args, "skewY")?;
+                result.skew_y = Some(deg);
+            }
+            "skew" => {
+                // CSS skew(x) or skew(x, y)
+                let (skew_x, skew_y) = parse_css_skew(&args)?;
+                result.skew_x = Some(skew_x);
+                if let Some(y) = skew_y {
+                    result.skew_y = Some(y);
                 }
             }
             _ => {
@@ -1694,6 +1836,100 @@ fn parse_css_length(s: &str) -> Result<i32, std::num::ParseIntError> {
     // Remove 'px' suffix if present
     let num_str = if s.to_lowercase().ends_with("px") { &s[..s.len() - 2] } else { s };
     num_str.trim().parse::<i32>()
+}
+
+/// Parse a single skew angle from CSS skewX/skewY function argument
+fn parse_css_skew_angle(args: &str, func: &str) -> Result<f64, CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: func.to_string(),
+            param: "angle".to_string(),
+        });
+    }
+
+    // Parse angle - remove 'deg' suffix if present
+    let angle_str = if args.to_lowercase().ends_with("deg") {
+        &args[..args.len() - 3]
+    } else {
+        args
+    };
+
+    let degrees = angle_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+        func: func.to_string(),
+        message: format!("cannot parse '{}' as angle", args),
+    })?;
+
+    // Validate angle is within reasonable bounds (avoid approaching tan(90°))
+    if degrees.abs() >= 89.0 {
+        return Err(CssTransformError::InvalidParameter {
+            func: func.to_string(),
+            message: "skew angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    Ok(degrees)
+}
+
+/// Parse CSS skew(x) or skew(x, y) arguments
+fn parse_css_skew(args: &str) -> Result<(f64, Option<f64>), CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: "skew".to_string(),
+            param: "x angle".to_string(),
+        });
+    }
+
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    // Parse X angle
+    let x_str = if parts[0].to_lowercase().ends_with("deg") {
+        &parts[0][..parts[0].len() - 3]
+    } else {
+        parts[0]
+    };
+
+    let x = x_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+        func: "skew".to_string(),
+        message: format!("cannot parse '{}' as x angle", parts[0]),
+    })?;
+
+    if x.abs() >= 89.0 {
+        return Err(CssTransformError::InvalidParameter {
+            func: "skew".to_string(),
+            message: "skew x angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    // Parse optional Y angle
+    let y = if parts.len() > 1 {
+        let y_str = if parts[1].to_lowercase().ends_with("deg") {
+            &parts[1][..parts[1].len() - 3]
+        } else {
+            parts[1]
+        };
+
+        let y_val = y_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+            func: "skew".to_string(),
+            message: format!("cannot parse '{}' as y angle", parts[1]),
+        })?;
+
+        if y_val.abs() >= 89.0 {
+            return Err(CssTransformError::InvalidParameter {
+                func: "skew".to_string(),
+                message: "skew y angle must be between -89 and 89 degrees".to_string(),
+            });
+        }
+
+        Some(y_val)
+    } else {
+        None // CSS skew(x) defaults to y=0, but we use None to indicate only x was specified
+    };
+
+    Ok((x, y))
 }
 
 // ============================================================================
@@ -2512,6 +2748,43 @@ mod tests {
             parse_transform_str("shadow:2,2,{shadow}").unwrap(),
             Transform::Shadow { x: 2, y: 2, token: Some("{shadow}".to_string()) }
         );
+    }
+
+    #[test]
+    fn test_parse_skew_x() {
+        assert_eq!(
+            parse_transform_str("skew-x:20").unwrap(),
+            Transform::SkewX { degrees: 20.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skewx:45deg").unwrap(),
+            Transform::SkewX { degrees: 45.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skew-x:-30").unwrap(),
+            Transform::SkewX { degrees: -30.0 }
+        );
+    }
+
+    #[test]
+    fn test_parse_skew_y() {
+        assert_eq!(
+            parse_transform_str("skew-y:15").unwrap(),
+            Transform::SkewY { degrees: 15.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skewy:26.57°").unwrap(),
+            Transform::SkewY { degrees: 26.57 }
+        );
+    }
+
+    #[test]
+    fn test_parse_skew_invalid() {
+        // 89+ degrees should fail
+        assert!(parse_transform_str("skew-x:89").is_err());
+        assert!(parse_transform_str("skew-y:-90").is_err());
+        // Missing angle
+        assert!(parse_transform_str("skew-x").is_err());
     }
 
     #[test]
@@ -3368,6 +3641,47 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_css_skewx() {
+        let result = parse_css_transform("skewX(20deg)").unwrap();
+        assert_eq!(result.skew_x, Some(20.0));
+        assert_eq!(result.skew_y, None);
+    }
+
+    #[test]
+    fn test_parse_css_skewy() {
+        let result = parse_css_transform("skewY(15deg)").unwrap();
+        assert_eq!(result.skew_x, None);
+        assert_eq!(result.skew_y, Some(15.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_single() {
+        let result = parse_css_transform("skew(30)").unwrap();
+        assert_eq!(result.skew_x, Some(30.0));
+        assert_eq!(result.skew_y, None);
+    }
+
+    #[test]
+    fn test_parse_css_skew_both() {
+        let result = parse_css_transform("skew(20deg, 10deg)").unwrap();
+        assert_eq!(result.skew_x, Some(20.0));
+        assert_eq!(result.skew_y, Some(10.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_negative() {
+        let result = parse_css_transform("skewX(-25deg)").unwrap();
+        assert_eq!(result.skew_x, Some(-25.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_invalid_angle() {
+        // 90 degrees is invalid (tangent approaches infinity)
+        assert!(parse_css_transform("skewX(90deg)").is_err());
+        assert!(parse_css_transform("skewY(-89deg)").is_err());
+    }
+
+    #[test]
     fn test_parse_css_flip_x() {
         let result = parse_css_transform("flip(x)").unwrap();
         assert!(result.flip_x);
@@ -3765,6 +4079,18 @@ mod tests {
         assert_eq!(
             explain_transform(&Transform::Scale { x: 2.0, y: 0.5 }),
             "Scale width to 200%, height to 50%"
+        );
+    }
+
+    #[test]
+    fn test_explain_transform_skew() {
+        assert_eq!(
+            explain_transform(&Transform::SkewX { degrees: 20.0 }),
+            "Skew horizontally by 20° (shear along X axis)"
+        );
+        assert_eq!(
+            explain_transform(&Transform::SkewY { degrees: -15.0 }),
+            "Skew vertically by -15° (shear along Y axis)"
         );
     }
 
