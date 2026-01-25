@@ -353,43 +353,26 @@ pxl import image.png --analyze -o output.pxl
 5. **Layer shadows** - Define shadow regions with y-constraints
 6. **Test at 1x scale** - Ensure readability at native size
 
-## Artisan Workflow: Autonomous Art Iteration
+## Artisan Workflow
 
-For autonomous art generation (without human feedback each step), use component-based iteration:
+For autonomous art generation, use component-based iteration with quality gates.
 
-### Phases
+**Full documentation:** See `docs/artistic-workflow.md` for the complete artisan workflow including:
+- Component iteration pattern (Foundation → Component Loop → Integration → Submit)
+- Quality gates (silhouette, scale, palette, pixels, lighting)
+- Variant naming conventions
+- RPG character quality targets
+- Iteration logging format
 
-1. **Foundation** - Define components, criteria, gather references, create v0
-2. **Component Iteration** - For each component (eyes, mouth, hair, etc.):
-   - Generate 2-3 variants with different approaches
-   - Evaluate against criteria (readability, clarity, style match)
-   - Promote highest scorer, log reasoning
-   - Repeat until criteria satisfied (max 5-10 rounds)
-3. **Integration** - Compose all components, evaluate as whole:
-   - If weak component identified → drill back to that component
-   - If composition issue → adjust layering/z-order
-   - Repeat until integration criteria satisfied
-4. **Submit** - Final render + evolution log + comparison sheet
+### Quick Reference
 
-### Evaluation Criteria
+**Phases:** Foundation → Component Iteration (per part) → Integration → Submit
 
-| Criterion | Test |
-|-----------|------|
-| Readability | Can you tell what it is at 1x? |
-| Shape clarity | Is silhouette clean when filled solid? |
-| Color coherence | All colors from defined palette? |
-| Technical quality | Clean lines? No orphan pixels? |
-| Style match | Does it match reference? |
+**Quality Gates (pass/fail):**
+- Silhouette: Shape recognizable when filled solid
+- Scale: Readable at 1x zoom
+- Palette: 100% colors from defined palette
+- Pixels: No orphans, clean edges at 8x zoom
+- Lighting: Consistent top-right 45°
 
-### Variant Strategies
-
-- **Contrast** - Vary light/dark ratio
-- **Proportion** - Vary size/shape ratios
-- **Detail level** - More vs. fewer details
-- **Color temperature** - Warmer vs. cooler
-- **Line weight** - Thicker vs. thinner outlines
-
-### Logging
-
-For each iteration, record: approach tried, scores, winner, reason, next focus.
-This prevents repeating failed approaches and provides context for review.
+**Variant naming:** `[component]_v[iteration][variant]` (e.g., `eyes_v1a`, `eyes_v2b`)

@@ -224,6 +224,37 @@ If you're an AI agent working on Pixelsrc:
 
 The codebase is designed to be straightforward. Most tasks are isolated to single files.
 
+### Artistic Work: Artisan Workflow
+
+When creating or improving pixel art examples, use the **Artisan Workflow** documented in `docs/artistic-workflow.md`.
+
+**Key principles:**
+- Work on components in isolation (eyes, mouth, hair, etc.)
+- Generate 2-3 variants per iteration, evaluate against quality gates
+- Use consistent naming: `[component]_v[iteration][variant]` (e.g., `eyes_v1a`)
+- Log each iteration: approach tried, gate results, winner, reasoning
+
+**Quality Gates (binary pass/fail):**
+
+| Gate | Test |
+|------|------|
+| Silhouette | Fill with solid color - is shape recognizable? |
+| Scale | View at 1x - is it readable? |
+| Palette | `pxl validate` - any unknown token warnings? |
+| Pixels | View at 8x - any orphan pixels or jagged edges? |
+| Lighting | Is shading consistent with top-right 45° light? |
+
+**Bead structure for art tasks:**
+```
+artisan-[artwork] (epic)
+├── foundation (task)
+├── iterate-[component] (task) - one per component
+├── integrate (task)
+└── submit (task)
+```
+
+See `docs/artistic-workflow.md` for complete documentation including variant strategies, integration gates, and RPG character quality targets.
+
 ---
 
 ## Creating Releases
