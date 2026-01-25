@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_parse_line_sprite() {
-        let line = r#"{"type": "sprite", "name": "dot", "palette": "colors", "grid": ["{x}"]}"#;
+        let line = r#"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "colors", "regions": {"x": {"points": [[0, 0]], "z": 0}}}"#;
         let result = parse_line(line, 1).unwrap();
         match result {
             TtpObject::Sprite(s) => {
@@ -216,15 +216,15 @@ mod tests {
 
     #[test]
     fn test_parse_line_missing_type() {
-        let line = r#"{"name": "test", "grid": []}"#;
+        let line = r#"{"name": "test", "size": [1, 1], "regions": {}}"#;
         let result = parse_line(line, 1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_stream_simple() {
-        let input = r##"{"type": "palette", "name": "mono", "colors": {"{on}": "#FFFFFF"}}
-{"type": "sprite", "name": "dot", "palette": "mono", "grid": ["{on}"]}"##;
+        let input = r##"{"type": "palette", "name": "mono", "colors": {"on": "#FFFFFF"}}
+{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"on": {"points": [[0, 0]], "z": 0}}}"##;
         let result = parse_stream(Cursor::new(input));
         assert_eq!(result.objects.len(), 2);
         assert!(result.warnings.is_empty());
@@ -232,9 +232,9 @@ mod tests {
 
     #[test]
     fn test_parse_stream_skips_blank_lines() {
-        let input = r##"{"type": "palette", "name": "mono", "colors": {"{on}": "#FFFFFF"}}
+        let input = r##"{"type": "palette", "name": "mono", "colors": {"on": "#FFFFFF"}}
 
-{"type": "sprite", "name": "dot", "palette": "mono", "grid": ["{on}"]}
+{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"on": {"points": [[0, 0]], "z": 0}}}
 
 "##;
         let result = parse_stream(Cursor::new(input));
@@ -246,9 +246,9 @@ mod tests {
     fn test_parse_stream_collects_warnings() {
         // With streaming JSON parser, syntax errors stop parsing
         // (can't recover since we don't know where next object starts)
-        let input = r##"{"type": "palette", "name": "mono", "colors": {"{on}": "#FFFFFF"}}
+        let input = r##"{"type": "palette", "name": "mono", "colors": {"on": "#FFFFFF"}}
 {invalid json}
-{"type": "sprite", "name": "dot", "palette": "mono", "grid": ["{on}"]}"##;
+{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"on": {"points": [[0, 0]], "z": 0}}}"##;
         let result = parse_stream(Cursor::new(input));
         // First object parses successfully, then we hit the error
         assert_eq!(result.objects.len(), 1);
@@ -263,18 +263,18 @@ mod tests {
   "type": "palette",
   "name": "colors",
   "colors": {
-    "{_}": "#00000000",
-    "{a}": "#FF0000"
+    "_": "#00000000",
+    "a": "#FF0000"
   }
 }
 {
   "type": "sprite",
   "name": "test",
+  "size": [4, 2],
   "palette": "colors",
-  "grid": [
-    "{_}{a}{a}{_}",
-    "{a}{a}{a}{a}"
-  ]
+  "regions": {
+    "a": {"rect": [1, 0, 2, 2], "z": 0}
+  }
 }"##;
         let result = parse_stream(Cursor::new(input));
         assert_eq!(result.objects.len(), 2);
@@ -289,7 +289,7 @@ mod tests {
             _ => panic!("Expected palette"),
         }
 
-        // Verify second is sprite with multi-line grid
+        // Verify second is sprite with regions
         match &result.objects[1] {
             TtpObject::Sprite(s) => {
                 assert_eq!(s.name, "test");
@@ -301,14 +301,15 @@ mod tests {
     #[test]
     fn test_parse_stream_mixed_single_and_multiline() {
         // Mix of single-line and multi-line objects
-        let input = r##"{"type": "palette", "name": "p1", "colors": {"{x}": "#FF0000"}}
+        let input = r##"{"type": "palette", "name": "p1", "colors": {"x": "#FF0000"}}
 {
   "type": "sprite",
   "name": "s1",
+  "size": [1, 1],
   "palette": "p1",
-  "grid": ["{x}"]
+  "regions": {"x": {"points": [[0, 0]], "z": 0}}
 }
-{"type": "palette", "name": "p2", "colors": {"{y}": "#00FF00"}}"##;
+{"type": "palette", "name": "p2", "colors": {"y": "#00FF00"}}"##;
         let result = parse_stream(Cursor::new(input));
         assert_eq!(result.objects.len(), 3);
         assert!(result.warnings.is_empty());
