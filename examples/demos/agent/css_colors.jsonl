@@ -1,0 +1,2 @@
+{"type": "palette", "name": "css", "colors": {"--base": "#FF6347", "{skin}": "var(--base)", "{blend}": "color-mix(in srgb, #FF0000, #0000FF)"}}
+{"type": "sprite", "name": "test", "palette": "css", "size": [2, 1], "regions": {"skin": {"points": [[0,0]]}, "blend": {"points": [[1,0]]}}}

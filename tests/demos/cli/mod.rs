@@ -2,6 +2,8 @@
 //!
 //! Demonstrates the command-line interface functionality for Pixelsrc.
 
+pub mod agent;
+pub mod agent_verify;
 pub mod analyze;
 pub mod build_cmd;
 pub mod diff;
@@ -16,4 +18,5 @@ pub mod prompts;
 pub mod render;
 pub mod show;
 pub mod suggest;
+pub mod transform;
 pub mod validate;

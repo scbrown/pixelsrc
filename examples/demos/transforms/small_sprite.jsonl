@@ -1,0 +1,2 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{x}": "#FF0000", "{y}": "#00FF00"}}
+{"type": "sprite", "name": "test", "palette": "colors", "size": [3, 3], "regions": {"_": {"points": [[0,0],[2,0],[0,2],[2,2]]}, "x": {"points": [[1,0],[0,1],[1,1],[2,1]]}, "y": {"points": [[1,2]]}}}

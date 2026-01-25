@@ -1,0 +1,4 @@
+{"type": "palette", "name": "anim", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
+{"type": "animation", "name": "walk", "frames": [{"sprite": "frame1"}], "timing_function": "ease-in-out", "fps": 12}
+{"type": "animation", "name": "jump", "frames": [{"sprite": "frame1"}], "timing_function": "cubic-bezier(0.68, -0.55, 0.27, 1.55)", "fps": 8}
+{"type": "animation", "name": "step", "frames": [{"sprite": "frame1"}], "timing_function": "steps(4, end)", "fps": 6}
