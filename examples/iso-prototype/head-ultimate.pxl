@@ -1,0 +1,137 @@
+// Ultimate Head Template - Feature Showcase
+// Demonstrates ALL pixelsrc features
+
+// === PALETTE with roles and relationships ===
+{
+  "type": "palette",
+  "name": "head_pal",
+  "colors": {
+    "_": "transparent",
+
+    // CSS VARIABLES (customization points)
+    "--skin": "#d8b088",
+    "--hair": "#483020",
+    "--eyes": "#4a6080",
+    "--lip-tint": "#c06050",
+
+    // AUTO-DERIVED via color-mix
+    "skin_hi": "color-mix(in oklch, var(--skin) 50%, white)",
+    "skin_lit": "color-mix(in oklch, var(--skin) 75%, white)",
+    "skin": "var(--skin)",
+    "skin_shd": "color-mix(in oklch, var(--skin) 70%, black)",
+    "skin_dark": "color-mix(in oklch, var(--skin) 50%, black)",
+
+    "hair_hi": "color-mix(in oklch, var(--hair) 60%, white)",
+    "hair": "var(--hair)",
+    "hair_shd": "color-mix(in oklch, var(--hair) 50%, black)",
+
+    "eye_w": "#f0f0e8",
+    "eye_i": "var(--eyes)",
+    "eye_p": "#101010",
+    "eye_hi": "#ffffff",
+
+    "brow": "color-mix(in oklch, var(--hair) 80%, black)",
+    "nose": "color-mix(in oklch, var(--skin) 80%, black)",
+    "lip": "color-mix(in oklch, var(--skin) 80%, var(--lip-tint))",
+    "lip_shd": "color-mix(in oklch, var(--skin) 60%, var(--lip-tint))",
+
+    "outline": "color-mix(in oklch, var(--skin) 35%, black)",
+    "ear": "var(--skin)",
+    "ear_shd": "color-mix(in oklch, var(--skin) 65%, black)"
+  },
+
+  // SEMANTIC ROLES
+  "roles": {
+    "outline": "boundary",
+    "skin": "fill",
+    "skin_hi": "highlight",
+    "skin_lit": "highlight",
+    "skin_shd": "shadow",
+    "skin_dark": "shadow",
+    "eye_p": "anchor",
+    "eye_hi": "highlight",
+    "hair": "fill",
+    "lip": "anchor"
+  },
+
+  // RELATIONSHIPS
+  "relationships": {
+    "skin_hi": { "type": "derives-from", "target": "skin" },
+    "skin_lit": { "type": "derives-from", "target": "skin" },
+    "skin_shd": { "type": "derives-from", "target": "skin" },
+    "skin_dark": { "type": "derives-from", "target": "skin" },
+    "hair_hi": { "type": "derives-from", "target": "hair" },
+    "hair_shd": { "type": "derives-from", "target": "hair" },
+    "eye_i": { "type": "contained-within", "target": "eye_w" },
+    "eye_p": { "type": "contained-within", "target": "eye_i" }
+  }
+}
+
+// === SPRITE with all region features ===
+{
+  "type": "sprite",
+  "name": "head_ultimate",
+  "size": [24, 28],
+  "palette": "head_pal",
+  "regions": {
+    // OUTLINE - stroke with round corners
+    "outline": { "stroke": [3, 2, 18, 24], "round": 8, "z": -1 },
+
+    // BASE SKIN - fill inside outline
+    "skin": { "fill": "inside(outline)", "z": 0 },
+
+    // EAR (behind head) - ellipse + circle
+    "ear": { "ellipse": [3, 13, 2, 3], "z": -2 },
+    "ear_shd": { "circle": [3, 14, 1], "z": -1 },
+
+    // HAIR - polygon
+    "hair": {
+      "polygon": [[4, 10], [5, 5], [8, 2], [12, 1], [16, 2], [19, 5], [20, 10], [19, 7], [16, 4], [12, 3], [8, 4], [5, 7]],
+      "z": 10
+    },
+    "hair_hi": {
+      "polygon": [[13, 2], [16, 3], [18, 5], [17, 4], [14, 3]],
+      "z": 11
+    },
+    "hair_shd": {
+      "polygon": [[5, 9], [6, 6], [8, 4], [6, 5], [5, 7]],
+      "z": 11
+    },
+
+    // SKIN SHADING - points for precision
+    "skin_hi": { "points": [[16, 7], [17, 8], [17, 9], [16, 8]], "z": 3 },
+    "skin_lit": {
+      "points": [
+        [15, 6], [16, 6], [17, 7], [18, 8], [18, 9], [18, 10], [18, 11],
+        [17, 12], [17, 13], [16, 14], [16, 15], [15, 16], [15, 17],
+        [15, 7], [16, 9], [16, 10], [16, 11], [15, 12], [15, 13], [14, 14]
+      ],
+      "z": 2
+    },
+    "skin_shd": {
+      "points": [
+        [9, 6], [8, 7], [7, 8], [6, 9], [6, 10], [6, 11], [6, 12], [6, 13],
+        [7, 14], [7, 15], [8, 16], [9, 17], [10, 18],
+        [8, 9], [7, 10], [7, 11], [8, 12], [8, 13], [9, 14], [10, 15]
+      ],
+      "z": 2
+    },
+    "skin_dark": { "points": [[5, 10], [5, 11], [5, 12], [5, 13], [6, 14], [6, 15], [7, 16]], "z": 3 },
+
+    // EYES - symmetric! (auto-mirror)
+    "eye_w": { "ellipse": [15, 12, 2, 1], "symmetric": "x", "z": 5 },
+    "eye_i": { "circle": [15, 12, 1], "symmetric": "x", "z": 6 },
+    "eye_p": { "points": [[15, 12]], "symmetric": "x", "z": 7 },
+    "eye_hi": { "points": [[14, 11]], "symmetric": "x", "z": 8 },
+
+    // EYEBROWS - line + symmetric
+    "brow": { "line": [[14, 9], [17, 10]], "symmetric": "x", "z": 9 },
+
+    // NOSE - polygon
+    "nose": { "polygon": [[11, 13], [12, 12], [13, 13], [12, 16], [11, 15]], "z": 4 },
+
+    // MOUTH - rect + line
+    "lip": { "rect": [9, 19, 6, 2], "z": 4 },
+    "lip_shd": { "line": [[10, 21], [14, 21]], "z": 5 }
+  }
+}

@@ -1,0 +1,774 @@
+// ============================================================================
+// REFERENCE HEAD - Pixelsrc Complete Feature Showcase
+// ============================================================================
+// Demonstrates ALL pixelsrc features with MODULAR character parts.
+// Size: 32x40px
+//
+// ARCHITECTURE:
+// - Base head (skin, eyes, nose, mouth) - no hair
+// - Hair sprites (swappable styles)
+// - Hat sprites (work with hair peeking out)
+// - Eye state overlays (for blinking)
+// - Compositions combine parts
+//
+// FEATURES DEMONSTRATED:
+// - Palette: CSS variables, color-mix, roles, relationships
+// - Shapes: ellipse, circle, polygon, points, line, rect, path
+// - Modifiers: symmetric, z, jitter
+// - Transforms: mirror-h, rotate, skew-x
+// - Compositions: layering sprites
+// - Animations: frame sequences
+// ============================================================================
+
+// ============================================================================
+// PALETTES
+// ============================================================================
+
+// Main palette with CSS variables for easy recoloring
+{
+  "type": "palette",
+  "name": "head_pal",
+  "colors": {
+    "_": "transparent",
+
+    // ========================================
+    // FEATURE: CSS Custom Properties
+    // ========================================
+    // Change these to recolor everything
+    "--skin": "#d8b088",
+    "--hair": "#483020",
+    "--eyes": "#4080c0",
+    "--lip-tint": "#c06050",
+
+    // ========================================
+    // FEATURE: color-mix() auto-derived colors
+    // ========================================
+    // Skin ramp (5 levels)
+    "skin_hi": "color-mix(in oklch, var(--skin) 40%, white)",
+    "skin_lit": "color-mix(in oklch, var(--skin) 70%, white)",
+    "skin": "var(--skin)",
+    "skin_shd": "color-mix(in oklch, var(--skin) 70%, black)",
+    "skin_dark": "color-mix(in oklch, var(--skin) 45%, black)",
+
+    // Hair ramp
+    "hair_hi": "color-mix(in oklch, var(--hair) 50%, white)",
+    "hair": "var(--hair)",
+    "hair_shd": "color-mix(in oklch, var(--hair) 50%, black)",
+
+    // Eyes
+    "eye_w": "#f8f8f0",
+    "eye_i": "var(--eyes)",
+    "eye_p": "#101820",
+    "eye_hi": "#ffffff",
+
+    // Features
+    "brow": "color-mix(in oklch, var(--hair) 70%, black)",
+    "nose_shd": "color-mix(in oklch, var(--skin) 75%, black)",
+    "lip": "color-mix(in oklch, var(--skin) 70%, var(--lip-tint))",
+    "lip_hi": "color-mix(in oklch, var(--skin) 50%, var(--lip-tint) 30%)",
+    "lip_shd": "color-mix(in oklch, var(--skin) 50%, var(--lip-tint))",
+
+    // Ear
+    "ear": "color-mix(in oklch, var(--skin) 90%, black)",
+    "ear_shd": "color-mix(in oklch, var(--skin) 60%, black)",
+    "ear_hi": "color-mix(in oklch, var(--skin) 80%, white)",
+
+    // Extras
+    "freckle": "color-mix(in oklch, var(--skin) 55%, #804020)",
+    "neck": "color-mix(in oklch, var(--skin) 80%, black)",
+
+    // Hat colors
+    "hat": "#2a4a6a",
+    "hat_hi": "color-mix(in oklch, #2a4a6a 60%, white)",
+    "hat_shd": "color-mix(in oklch, #2a4a6a 50%, black)",
+    "hat_band": "#c0a060"
+  },
+
+  // ========================================
+  // FEATURE: Semantic Roles
+  // ========================================
+  "roles": {
+    "skin": "fill",
+    "skin_hi": "highlight",
+    "skin_shd": "shadow",
+    "hair": "fill",
+    "eye_p": "anchor",
+    "lip": "anchor",
+    "brow": "boundary"
+  },
+
+  // ========================================
+  // FEATURE: Color Relationships
+  // ========================================
+  "relationships": {
+    "skin_hi": { "type": "derives-from", "target": "skin" },
+    "skin_shd": { "type": "derives-from", "target": "skin" },
+    "hair_hi": { "type": "derives-from", "target": "hair" },
+    "hair_shd": { "type": "derives-from", "target": "hair" },
+    "eye_i": { "type": "contained-within", "target": "eye_w" },
+    "eye_p": { "type": "contained-within", "target": "eye_i" }
+  }
+}
+
+// Redhead variant
+{
+  "type": "palette",
+  "name": "head_pal_redhead",
+  "colors": {
+    "_": "transparent",
+    "--skin": "#f5deb3",
+    "--hair": "#8b2500",
+    "--eyes": "#228b22",
+    "--lip-tint": "#c08070",
+    "skin_hi": "color-mix(in oklch, var(--skin) 40%, white)",
+    "skin_lit": "color-mix(in oklch, var(--skin) 70%, white)",
+    "skin": "var(--skin)",
+    "skin_shd": "color-mix(in oklch, var(--skin) 70%, black)",
+    "skin_dark": "color-mix(in oklch, var(--skin) 45%, black)",
+    "hair_hi": "color-mix(in oklch, var(--hair) 50%, white)",
+    "hair": "var(--hair)",
+    "hair_shd": "color-mix(in oklch, var(--hair) 50%, black)",
+    "eye_w": "#f8f8f0",
+    "eye_i": "var(--eyes)",
+    "eye_p": "#101820",
+    "eye_hi": "#ffffff",
+    "brow": "color-mix(in oklch, var(--hair) 70%, black)",
+    "nose_shd": "color-mix(in oklch, var(--skin) 75%, black)",
+    "lip": "color-mix(in oklch, var(--skin) 70%, var(--lip-tint))",
+    "lip_hi": "color-mix(in oklch, var(--skin) 50%, var(--lip-tint) 30%)",
+    "lip_shd": "color-mix(in oklch, var(--skin) 50%, var(--lip-tint))",
+    "ear": "color-mix(in oklch, var(--skin) 90%, black)",
+    "ear_shd": "color-mix(in oklch, var(--skin) 60%, black)",
+    "ear_hi": "color-mix(in oklch, var(--skin) 80%, white)",
+    "freckle": "color-mix(in oklch, var(--skin) 55%, #804020)",
+    "neck": "color-mix(in oklch, var(--skin) 80%, black)",
+    "hat": "#2a4a6a",
+    "hat_hi": "color-mix(in oklch, #2a4a6a 60%, white)",
+    "hat_shd": "color-mix(in oklch, #2a4a6a 50%, black)",
+    "hat_band": "#c0a060"
+  }
+}
+
+// ============================================================================
+// BASE HEAD (no hair - hair added via composition)
+// ============================================================================
+{
+  "type": "sprite",
+  "name": "head_base",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // ========================================
+    // FEATURE: ellipse [cx, cy, rx, ry]
+    // ========================================
+    // Organic head shape
+
+    // Ear (behind head)
+    "ear": { "ellipse": [4, 18, 3, 5], "z": -5 },
+    "ear_shd": { "ellipse": [4, 20, 2, 3], "z": -4 },
+    "ear_hi": { "points": [[3, 16], [4, 15]], "z": -3 },
+
+    // Main head ellipse
+    "skin": { "ellipse": [16, 18, 12, 16], "z": 0 },
+
+    // ========================================
+    // FEATURE: polygon [[x,y], ...]
+    // ========================================
+    // Face shading follows ellipse contours
+
+    // Lit side (right)
+    "skin_lit": {
+      "polygon": [
+        [20, 5], [24, 8], [27, 14], [28, 20], [27, 28], [24, 33], [20, 36],
+        [20, 30], [22, 25], [23, 20], [23, 15], [22, 10], [20, 7]
+      ],
+      "z": 1
+    },
+
+    // Shadow side (left)
+    "skin_shd": {
+      "polygon": [
+        [12, 5], [8, 8], [5, 14], [4, 20], [5, 28], [8, 33], [12, 36],
+        [12, 30], [10, 25], [9, 20], [9, 15], [10, 10], [12, 7]
+      ],
+      "z": 1
+    },
+
+    // Cheekbone highlight
+    "skin_hi": {
+      "polygon": [[22, 18], [24, 20], [24, 23], [22, 24], [21, 22], [21, 19]],
+      "z": 2
+    },
+
+    // Deep shadow
+    "skin_dark": {
+      "polygon": [[6, 18], [8, 20], [8, 25], [6, 26], [5, 23], [5, 20]],
+      "z": 2
+    },
+
+    // ========================================
+    // FEATURE: symmetric "x" - auto-mirror
+    // ========================================
+    // Define right eye, left is auto-generated
+
+    "eye_w": { "ellipse": [21, 18, 4, 2], "symmetric": "x", "z": 5 },
+
+    // ========================================
+    // FEATURE: circle [cx, cy, r]
+    // ========================================
+    "eye_i": { "circle": [22, 18, 2], "symmetric": "x", "z": 6 },
+
+    // ========================================
+    // FEATURE: points [[x,y], ...]
+    // ========================================
+    "eye_p": { "points": [[22, 18], [23, 18]], "symmetric": "x", "z": 7 },
+    "eye_hi": { "points": [[20, 17]], "symmetric": "x", "z": 8 },
+
+    // ========================================
+    // FEATURE: line [[x1,y1], [x2,y2], ...]
+    // ========================================
+    "brow": { "line": [[18, 14], [25, 15]], "symmetric": "x", "z": 9 },
+
+    // ========================================
+    // FEATURE: path "M x y L x y ..."
+    // ========================================
+    // SVG-lite for complex shapes
+    "nose_shd": { "path": "M 15 20 L 16 24 L 15 27 L 14 26 L 14 24 L 15 20", "z": 3 },
+
+    // ========================================
+    // FEATURE: rect [x, y, w, h]
+    // ========================================
+    "lip": { "rect": [12, 30, 8, 3], "z": 4 },
+    "lip_hi": { "points": [[14, 30], [15, 30], [16, 30], [17, 30]], "z": 5 },
+    "lip_shd": { "line": [[13, 33], [19, 33]], "z": 5 },
+
+    // ========================================
+    // FEATURE: jitter { position: n }
+    // ========================================
+    // Randomized freckle positions
+    "freckle": {
+      "points": [
+        [18, 22], [20, 24], [22, 23], [19, 25],
+        [10, 22], [12, 24], [14, 23], [11, 25]
+      ],
+      "jitter": { "position": 1 },
+      "z": 3
+    },
+
+    // Neck
+    "neck": { "rect": [12, 36, 8, 4], "z": -1 }
+  }
+}
+
+// ============================================================================
+// HAIR STYLES (separate sprites for mixing)
+// ============================================================================
+
+// Style 1: Short messy
+{
+  "type": "sprite",
+  "name": "hair_short",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Main hair mass
+    "hair": {
+      "polygon": [
+        [6, 14], [8, 8], [12, 4], [16, 2], [20, 4], [24, 8], [26, 14],
+        [25, 10], [22, 6], [16, 4], [10, 6], [7, 10]
+      ],
+      "z": 10
+    },
+    // Highlight
+    "hair_hi": {
+      "points": [
+        [18, 3], [19, 3], [20, 4], [21, 5], [22, 6], [23, 7],
+        [19, 4], [20, 5], [21, 6]
+      ],
+      "z": 11
+    },
+    // Shadow
+    "hair_shd": {
+      "points": [[8, 9], [9, 8], [10, 7], [11, 6], [9, 10], [10, 9], [8, 11]],
+      "z": 11
+    },
+    // Sideburns (hair visible on sides)
+    "hair": {
+      "polygon": [[4, 12], [6, 10], [7, 14], [5, 16], [3, 15]],
+      "z": -2
+    }
+  }
+}
+
+// Style 2: Long flowing
+{
+  "type": "sprite",
+  "name": "hair_long",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Top of hair
+    "hair": {
+      "polygon": [
+        [4, 16], [6, 8], [10, 3], [16, 1], [22, 3], [26, 8], [28, 16],
+        [27, 12], [24, 6], [16, 3], [8, 6], [5, 12]
+      ],
+      "z": 10
+    },
+    // Flowing sides (goes below head)
+    "hair": {
+      "polygon": [[2, 14], [4, 10], [6, 16], [5, 28], [3, 32], [1, 28], [1, 20]],
+      "z": -2
+    },
+    "hair": {
+      "polygon": [[30, 14], [28, 10], [26, 16], [27, 28], [29, 32], [31, 28], [31, 20]],
+      "z": -2
+    },
+    // Highlights
+    "hair_hi": {
+      "points": [
+        [20, 2], [21, 3], [22, 4], [23, 5], [24, 6],
+        [28, 18], [28, 20], [28, 22]
+      ],
+      "z": 11
+    },
+    // Shadows
+    "hair_shd": {
+      "points": [[6, 10], [7, 8], [8, 6], [4, 20], [4, 24], [4, 28]],
+      "z": 11
+    },
+    // Bangs in front
+    "hair": {
+      "polygon": [[10, 10], [14, 8], [18, 8], [22, 10], [20, 12], [16, 11], [12, 12]],
+      "z": 12
+    }
+  }
+}
+
+// Style 3: Bald (just ear tops visible, maybe stubble)
+{
+  "type": "sprite",
+  "name": "hair_bald",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Just a slight shadow on top of head for dome shape
+    "skin_shd": {
+      "points": [[10, 4], [12, 3], [14, 2], [16, 2], [18, 2], [20, 3], [22, 4]],
+      "z": 1
+    },
+    // Highlight on dome
+    "skin_hi": {
+      "points": [[18, 3], [19, 4], [20, 5], [19, 5]],
+      "z": 2
+    }
+  }
+}
+
+// ============================================================================
+// HATS (layer on top of hair)
+// ============================================================================
+
+// Baseball cap
+{
+  "type": "sprite",
+  "name": "hat_cap",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cap dome
+    "hat": {
+      "polygon": [
+        [6, 12], [8, 6], [12, 3], [16, 2], [20, 3], [24, 6], [26, 12],
+        [25, 8], [20, 5], [16, 4], [12, 5], [7, 8]
+      ],
+      "z": 20
+    },
+    // Cap highlight
+    "hat_hi": {
+      "points": [[18, 3], [19, 4], [20, 5], [21, 6], [22, 7]],
+      "z": 21
+    },
+    // Cap shadow
+    "hat_shd": {
+      "points": [[8, 8], [9, 7], [10, 6], [8, 10], [7, 11]],
+      "z": 21
+    },
+    // Bill/brim (sticks out front)
+    "hat": {
+      "polygon": [[8, 12], [12, 10], [20, 10], [24, 12], [22, 14], [10, 14]],
+      "z": 22
+    },
+    // Bill shadow underneath
+    "hat_shd": {
+      "polygon": [[10, 14], [22, 14], [20, 16], [12, 16]],
+      "z": 19
+    }
+  }
+}
+
+// Fedora/cowboy style
+{
+  "type": "sprite",
+  "name": "hat_fedora",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Crown
+    "hat": {
+      "polygon": [
+        [8, 10], [10, 4], [14, 1], [18, 1], [22, 4], [24, 10],
+        [22, 6], [18, 4], [14, 4], [10, 6]
+      ],
+      "z": 20
+    },
+    // Crown dent
+    "hat_shd": {
+      "polygon": [[12, 4], [16, 2], [20, 4], [18, 5], [14, 5]],
+      "z": 21
+    },
+    // Crown highlight
+    "hat_hi": {
+      "points": [[20, 3], [21, 4], [22, 5], [22, 6]],
+      "z": 21
+    },
+    // Wide brim
+    "hat": {
+      "polygon": [[2, 12], [6, 10], [26, 10], [30, 12], [28, 14], [4, 14]],
+      "z": 22
+    },
+    // Brim shadow
+    "hat_shd": {
+      "polygon": [[4, 14], [28, 14], [26, 16], [6, 16]],
+      "z": 19
+    },
+    // Hat band
+    "hat_band": {
+      "rect": [8, 10, 16, 2],
+      "z": 23
+    }
+  }
+}
+
+// ============================================================================
+// EYE STATE OVERLAYS (for animation)
+// ============================================================================
+
+// Closed eyes - covers open eyes with skin
+{
+  "type": "sprite",
+  "name": "eyes_closed",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Skin covering eyes
+    "skin": { "ellipse": [21, 18, 5, 3], "symmetric": "x", "z": 15 },
+    "skin_lit": { "ellipse": [22, 17, 3, 2], "symmetric": "x", "z": 16 },
+    // Closed eye crease
+    "skin_shd": { "line": [[17, 18], [25, 18]], "symmetric": "x", "z": 20 },
+    // Eyelashes
+    "hair": { "points": [[18, 19], [20, 19], [22, 19], [24, 19]], "symmetric": "x", "z": 21 }
+  }
+}
+
+// Half-closed eyes
+{
+  "type": "sprite",
+  "name": "eyes_half",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Eyelid covering top
+    "skin": { "ellipse": [21, 17, 5, 2], "symmetric": "x", "z": 15 },
+    // Partial eye
+    "eye_w": { "ellipse": [21, 19, 3, 1], "symmetric": "x", "z": 16 },
+    "eye_i": { "points": [[21, 19], [22, 19]], "symmetric": "x", "z": 17 }
+  }
+}
+
+// ============================================================================
+// MOUTH STATE OVERLAYS (for talking animation)
+// ============================================================================
+
+// Mouth closed (neutral) - covers base mouth
+{
+  "type": "sprite",
+  "name": "mouth_closed",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Closed lips - thin line
+    "lip": { "rect": [12, 31, 8, 2], "z": 10 },
+    "lip_shd": { "line": [[13, 32], [19, 32]], "z": 11 }
+  }
+}
+
+// Mouth slightly open (talking A/E/I sounds)
+{
+  "type": "sprite",
+  "name": "mouth_small_open",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base mouth
+    "skin": { "rect": [11, 29, 10, 6], "z": 10 },
+    // Small oval opening
+    "lip": { "ellipse": [16, 32, 3, 2], "z": 11 },
+    // Dark inside
+    "skin_dark": { "ellipse": [16, 32, 2, 1], "z": 12 },
+    // Lip highlight on top
+    "lip_hi": { "line": [[14, 30], [18, 30]], "z": 13 }
+  }
+}
+
+// Mouth wide open (talking O sounds)
+{
+  "type": "sprite",
+  "name": "mouth_wide_open",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base mouth
+    "skin": { "rect": [10, 29, 12, 7], "z": 10 },
+    // Wide oval opening
+    "lip": { "ellipse": [16, 32, 4, 3], "z": 11 },
+    // Dark inside mouth
+    "skin_dark": { "ellipse": [16, 32, 3, 2], "z": 12 },
+    // Teeth hint
+    "eye_w": { "rect": [14, 30, 4, 1], "z": 13 },
+    // Lip highlight
+    "lip_hi": { "line": [[13, 29], [19, 29]], "z": 14 }
+  }
+}
+
+// Mouth smile
+{
+  "type": "sprite",
+  "name": "mouth_smile",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base mouth
+    "skin": { "rect": [10, 29, 12, 6], "z": 10 },
+    // Smile curve (using polygon)
+    "lip": { "polygon": [[11, 31], [16, 33], [21, 31], [19, 32], [16, 32], [13, 32]], "z": 11 },
+    // Lip shadow underneath
+    "lip_shd": { "line": [[13, 33], [19, 33]], "z": 12 }
+  }
+}
+
+// ============================================================================
+// COMPOSITIONS - Combine head + hair + hat
+// ============================================================================
+
+// Basic head with short hair
+{
+  "type": "composition",
+  "name": "head_short_hair",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Head with long hair
+{
+  "type": "composition",
+  "name": "head_long_hair",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_long" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Bald head
+{
+  "type": "composition",
+  "name": "head_bald",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_bald" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Head with cap (short hair peeking out)
+{
+  "type": "composition",
+  "name": "head_with_cap",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "C": "hat_cap" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["C"] }
+  ]
+}
+
+// Head with fedora (long hair peeking out)
+{
+  "type": "composition",
+  "name": "head_with_fedora",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_long", "F": "hat_fedora" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["F"] }
+  ]
+}
+
+// ============================================================================
+// ANIMATION FRAMES (compositions with eye states)
+// ============================================================================
+
+// Eyes open
+{
+  "type": "composition",
+  "name": "anim_open",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Eyes half closed
+{
+  "type": "composition",
+  "name": "anim_half",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "eyes_half" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
+// Eyes closed
+{
+  "type": "composition",
+  "name": "anim_closed",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "eyes_closed" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
+// ============================================================================
+// TALKING ANIMATION FRAMES
+// ============================================================================
+
+{
+  "type": "composition",
+  "name": "talk_closed",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "M": "mouth_closed" },
+  "layers": [{ "map": ["B"] }, { "map": ["H"] }, { "map": ["M"] }]
+}
+
+{
+  "type": "composition",
+  "name": "talk_small",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "M": "mouth_small_open" },
+  "layers": [{ "map": ["B"] }, { "map": ["H"] }, { "map": ["M"] }]
+}
+
+{
+  "type": "composition",
+  "name": "talk_wide",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "M": "mouth_wide_open" },
+  "layers": [{ "map": ["B"] }, { "map": ["H"] }, { "map": ["M"] }]
+}
+
+{
+  "type": "composition",
+  "name": "talk_smile",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "M": "mouth_smile" },
+  "layers": [{ "map": ["B"] }, { "map": ["H"] }, { "map": ["M"] }]
+}
+
+// ============================================================================
+// FEATURE: animation - Frame Sequences
+// ============================================================================
+{
+  "type": "animation",
+  "name": "head_blink",
+  "frames": [
+    "anim_open", "anim_open", "anim_open", "anim_open", "anim_open",
+    "anim_open", "anim_open", "anim_open", "anim_open", "anim_open",
+    "anim_open", "anim_open", "anim_open", "anim_open", "anim_open",
+    "anim_open", "anim_open", "anim_open", "anim_open", "anim_open",
+    "anim_half", "anim_closed", "anim_closed", "anim_half", "anim_open"
+  ],
+  "duration": 100,
+  "loop": true
+}
+
+{
+  "type": "animation",
+  "name": "head_talking",
+  "frames": [
+    "talk_closed", "talk_small", "talk_wide", "talk_small",
+    "talk_closed", "talk_small", "talk_wide", "talk_wide",
+    "talk_small", "talk_closed", "talk_closed", "talk_small"
+  ],
+  "duration": 80,
+  "loop": true
+}
+
+// ============================================================================
+// FEATURE: source + palette (color variants)
+// ============================================================================
+{
+  "type": "sprite",
+  "name": "head_base_redhead",
+  "source": "head_base",
+  "palette": "head_pal_redhead"
+}
+
+// ============================================================================
+// FEATURE: transforms
+// ============================================================================
+// Supported: mirror-h, mirror-v, rotate:90/180/270, scale:x,y, skew-x:deg
+
+{
+  "type": "sprite",
+  "name": "head_base_mirrored",
+  "source": "head_base",
+  "palette": "head_pal",
+  "transform": ["mirror-h"]
+}
+
+{
+  "type": "sprite",
+  "name": "head_base_skewed",
+  "source": "head_base",
+  "palette": "head_pal",
+  "transform": ["skew-x:15"]
+}
