@@ -209,7 +209,7 @@ mod tests {
 
         // Create a file with only a sprite (no palette)
         let mut file = fs::File::create(&sprite_path).unwrap();
-        let content = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+        let content = r##"{"type": "sprite", "name": "test", "size": [1, 1], "palette": {"x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}"##;
         writeln!(file, "{}", content).unwrap();
 
         let result = resolve_include("sprite.jsonl", temp_dir.path());

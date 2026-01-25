@@ -865,7 +865,7 @@ mod tests {
         // Create a valid sprite file with inline palette
         let src_dir = temp.path().join("src/pxl");
         let sprite_file = src_dir.join("red_dot.pxl");
-        let sprite_content = r##"{"type": "sprite", "name": "red_dot", "palette": {"{r}": "#FF0000"}, "grid": ["{r}"]}"##;
+        let sprite_content = r##"{"type": "sprite", "name": "red_dot", "size": [1, 1], "palette": {"r": "#FF0000"}, "regions": {"r": {"points": [[0, 0]], "z": 0}}}"##;
         File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
 
         // Create output directory
@@ -929,11 +929,11 @@ mod tests {
         let src_dir = temp.path().join("src/pxl");
 
         let red_file = src_dir.join("red.pxl");
-        let red_content = r##"{"type": "sprite", "name": "red", "palette": {"{r}": "#FF0000"}, "grid": ["{r}"]}"##;
+        let red_content = r##"{"type": "sprite", "name": "red", "size": [1, 1], "palette": {"r": "#FF0000"}, "regions": {"r": {"points": [[0, 0]], "z": 0}}}"##;
         File::create(&red_file).unwrap().write_all(red_content.as_bytes()).unwrap();
 
         let green_file = src_dir.join("green.pxl");
-        let green_content = r##"{"type": "sprite", "name": "green", "palette": {"{g}": "#00FF00"}, "grid": ["{g}"]}"##;
+        let green_content = r##"{"type": "sprite", "name": "green", "size": [1, 1], "palette": {"g": "#00FF00"}, "regions": {"g": {"points": [[0, 0]], "z": 0}}}"##;
         File::create(&green_file).unwrap().write_all(green_content.as_bytes()).unwrap();
 
         // Create output directory
@@ -973,7 +973,7 @@ mod tests {
         // Create source file with metadata
         let src_dir = temp.path().join("src/pxl");
         let sprite_file = src_dir.join("player.pxl");
-        let sprite_content = r##"{"type": "sprite", "name": "player", "palette": {"{r}": "#FF0000"}, "grid": ["{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}"], "metadata": {"origin": [2, 4], "boxes": {"hurt": {"x": 0, "y": 0, "w": 4, "h": 4}}}}"##;
+        let sprite_content = r##"{"type": "sprite", "name": "player", "size": [4, 4], "palette": {"r": "#FF0000"}, "regions": {"r": {"rect": [0, 0, 4, 4], "z": 0}}, "metadata": {"origin": [2, 4], "boxes": {"hurt": {"x": 0, "y": 0, "w": 4, "h": 4}}}}"##;
         File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
 
         // Create output directory

@@ -187,10 +187,10 @@ pub fn validate(jsonl: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
-    const MINIMAL_DOT: &str = r##"{"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    const MINIMAL_DOT: &str = r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}"##;
 
-    const HEART_WITH_PALETTE: &str = r##"{"type": "palette", "name": "reds", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}}
-{"type": "sprite", "name": "heart", "palette": "reds", "grid": ["{_}{r}{r}{_}", "{r}{r}{r}{r}", "{_}{r}{r}{_}", "{_}{_}{r}{_}"]}"##;
+    const HEART_WITH_PALETTE: &str = r##"{"type": "palette", "name": "reds", "colors": {"_": "#00000000", "r": "#FF0000", "p": "#FF6B6B"}}
+{"type": "sprite", "name": "heart", "size": [4, 4], "palette": "reds", "regions": {"r": {"points": [[1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [2, 3]], "z": 0}}}"##;
 
     #[test]
     fn test_list_sprites() {
@@ -200,8 +200,8 @@ mod tests {
 
     #[test]
     fn test_list_sprites_multiple() {
-        let jsonl = r#"{"type": "sprite", "name": "a", "palette": {}, "grid": []}
-{"type": "sprite", "name": "b", "palette": {}, "grid": []}"#;
+        let jsonl = r#"{"type": "sprite", "name": "a", "size": [1, 1], "palette": {}, "regions": {}}
+{"type": "sprite", "name": "b", "size": [1, 1], "palette": {}, "regions": {}}"#;
         let result = list_sprites(jsonl);
         assert_eq!(result, vec!["a", "b"]);
     }
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_validate_missing_palette() {
         let jsonl =
-            r#"{"type": "sprite", "name": "bad", "palette": "nonexistent", "grid": ["{x}"]}"#;
+            r#"{"type": "sprite", "name": "bad", "size": [2, 1], "palette": "nonexistent", "regions": {"x": {"rect": [0, 0, 2, 1], "z": 0}}}"#;
         let result = validate(jsonl);
         assert!(!result.is_empty());
         assert!(result[0].contains("not found"));
