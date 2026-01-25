@@ -519,8 +519,8 @@ impl Validator {
         // Get palette tokens for validation
         let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
 
-        // Validate sprites have regions defined
-        if sprite.regions.is_none() {
+        // Validate sprites have regions defined (unless they reference a source sprite)
+        if sprite.regions.is_none() && sprite.source.is_none() {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
