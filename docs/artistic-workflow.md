@@ -15,6 +15,69 @@ Pixelsrc:    Regions (surfaces + shading) → Render → 2D Sprite
 
 ---
 
+## Phase 0: Silhouette First
+
+**Before adding detail, nail the outline.** A good silhouette is recognizable even when filled solid.
+
+### The Mushroom Principle
+
+Most organic forms can be built from 3 basic shapes:
+
+```
+     ●●●●●        ← Circle (head/cranium)
+    ●●●●●●●
+   ●●●●●●●●●
+    ███████      ← Rectangle (torso/mid-section)
+    ███████
+     █████       ← Triangle (tapers - jaw/legs)
+      ███
+       █
+```
+
+**Start simple.** If you can't make the silhouette work with 3 shapes, the problem is proportions, not detail.
+
+### Available Shape Primitives
+
+| Shape | Syntax | Notes |
+|-------|--------|-------|
+| **Circle** | `circle: [cx, cy, r]` | Center + radius. Use for heads, round objects |
+| **Ellipse** | `ellipse: [cx, cy, rx, ry]` | Center + x/y radii. Ovals, stretched circles |
+| **Rectangle** | `rect: [x, y, w, h]` | Top-left corner + width/height |
+| **Stroke** | `stroke: [x, y, w, h]` | Rectangle outline only (1px border) |
+| **Polygon** | `polygon: [[x,y], ...]` | Arbitrary shape. List vertices clockwise |
+| **Line** | `line: [[x1,y1], [x2,y2], ...]` | Connected line segments |
+| **Points** | `points: [[x,y], ...]` | Individual pixels |
+
+### Polygon Tips
+
+- **Keep it simple**: 3-5 vertices work reliably
+- **Triangles**: `polygon: [[x1,y1], [x2,y2], [x3,y3]]`
+- **Trapezoids**: `polygon: [[x1,y1], [x2,y1], [x3,y2], [x4,y2]]` (4 vertices)
+- **Complex shapes**: Consider using `union` of simpler shapes instead
+
+### Silhouette Workflow
+
+1. **Define the outline** with 2-3 basic shapes (circle + rect + triangle)
+2. **Adjust proportions** until the shape reads correctly
+3. **Add asymmetry** for 3/4 view (shift shapes, change angles)
+4. **Only then** add internal detail, shading, features
+
+### 3/4 View Orientation
+
+To orient a face in 3/4 view:
+- Shift the circle (head) slightly to one side
+- Angle the triangle (chin/jaw) to point in the facing direction
+- The direction the triangle points = the direction the face looks
+
+```
+Front view:       3/4 right:
+    ●●●              ●●●
+   █████            █████
+     ▼                 ▶    ← Triangle points right = facing right
+```
+
+---
+
 ## The Three-Surface Rule
 
 Every 3D form has three visible surfaces under directional light:
@@ -303,6 +366,32 @@ artisan-[artwork] (epic)
 ├── integrate (task) - integration loop, can reopen component tasks
 └── submit (task) - final render, logs, comparison
 ```
+
+---
+
+## Known Rendering Limitations
+
+Some combinations of shapes can cause rendering artifacts. Work around these:
+
+| Issue | Trigger | Workaround |
+|-------|---------|------------|
+| **Stripe artifacts** | 5+ shape primitives with same color | Keep to 4 shapes max, or use different z-levels |
+| **Polygon fill gaps** | Complex polygons (6+ vertices) | Break into simpler shapes, use union |
+| **Overlap artifacts** | Multiple regions overlapping at same z | Use different z-levels for overlapping regions |
+
+**Safe patterns:**
+- 3-4 simple shapes (circle, rect, triangle) = reliable
+- Polygons with 3-5 vertices = reliable
+- `union` of simple shapes = usually works
+
+**Risky patterns:**
+- 5+ overlapping regions with same color
+- Single polygon with 6+ vertices
+- Complex unions with many shapes
+
+When in doubt, **keep it simple**. If you hit artifacts, reduce complexity.
+
+See bead TTP-vi3r for detailed bug analysis.
 
 ---
 
