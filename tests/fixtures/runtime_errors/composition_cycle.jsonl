@@ -1,4 +1,4 @@
-{"type": "palette", "name": "cycle_test", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
-{"type": "sprite", "name": "block", "size": [4, 4], "palette": "cycle_test", "grid": ["{x}{x}{x}{x}", "{x}{x}{x}{x}", "{x}{x}{x}{x}", "{x}{x}{x}{x}"]}
+{"type": "palette", "name": "cycle_test", "colors": {"_": "#00000000", "x": "#FF0000"}}
+{"type": "sprite", "name": "block", "size": [4, 4], "palette": "cycle_test", "regions": {"x": {"rect": [0, 0, 4, 4], "z": 0}}}
 {"type": "composition", "name": "comp_a", "size": [8, 8], "cell_size": [8, 8], "sprites": {"B": "comp_b", ".": null}, "layers": [{"map": ["B"]}]}
 {"type": "composition", "name": "comp_b", "size": [8, 8], "cell_size": [8, 8], "sprites": {"A": "comp_a", ".": null}, "layers": [{"map": ["A"]}]}

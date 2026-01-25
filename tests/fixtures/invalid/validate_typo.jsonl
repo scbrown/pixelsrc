@@ -1,2 +1,2 @@
-{"type": "palette", "name": "char", "colors": {"{skin}": "#FFCC99", "{hair}": "#8B4513"}}
-{"type": "sprite", "name": "test", "size": [2, 1], "palette": "char", "grid": ["{skni}{hiar}"]}
+{"type": "palette", "name": "char", "colors": {"skin": "#FFCC99", "hair": "#8B4513"}}
+{"type": "sprite", "name": "test", "size": [2, 1], "palette": "char", "regions": {"skni": {"points": [[0, 0]], "z": 0}, "hiar": {"points": [[1, 0]], "z": 1}}}

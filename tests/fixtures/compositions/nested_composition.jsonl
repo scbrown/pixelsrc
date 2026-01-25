@@ -1,6 +1,6 @@
-{"type": "palette", "name": "nested_test", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
-{"type": "sprite", "name": "red_block", "size": [4, 4], "palette": "nested_test", "grid": ["{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}", "{r}{r}{r}{r}"]}
-{"type": "sprite", "name": "green_block", "size": [4, 4], "palette": "nested_test", "grid": ["{g}{g}{g}{g}", "{g}{g}{g}{g}", "{g}{g}{g}{g}", "{g}{g}{g}{g}"]}
-{"type": "sprite", "name": "blue_block", "size": [4, 4], "palette": "nested_test", "grid": ["{b}{b}{b}{b}", "{b}{b}{b}{b}", "{b}{b}{b}{b}", "{b}{b}{b}{b}"]}
+{"type": "palette", "name": "nested_test", "colors": {"_": "#00000000", "r": "#FF0000", "g": "#00FF00", "b": "#0000FF"}}
+{"type": "sprite", "name": "red_block", "size": [4, 4], "palette": "nested_test", "regions": {"r": {"rect": [0, 0, 4, 4], "z": 0}}}
+{"type": "sprite", "name": "green_block", "size": [4, 4], "palette": "nested_test", "regions": {"g": {"rect": [0, 0, 4, 4], "z": 0}}}
+{"type": "sprite", "name": "blue_block", "size": [4, 4], "palette": "nested_test", "regions": {"b": {"rect": [0, 0, 4, 4], "z": 0}}}
 {"type": "composition", "name": "inner_comp", "size": [8, 4], "cell_size": [4, 4], "sprites": {"R": "red_block", "G": "green_block", ".": null}, "layers": [{"map": ["RG"]}]}
 {"type": "composition", "name": "outer_comp", "size": [16, 8], "cell_size": [8, 4], "sprites": {"I": "inner_comp", "B": "blue_block", ".": null}, "layers": [{"map": ["II", "BB"]}]}

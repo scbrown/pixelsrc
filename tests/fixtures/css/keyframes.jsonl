@@ -1,5 +1,5 @@
-{"type": "palette", "name": "test_palette", "colors": {"{_}": "transparent", "{bg}": "#000000", "{fg}": "#ffffff", "{accent}": "#ff0000"}}
-{"type": "sprite", "name": "frame_a", "palette": "test_palette", "grid": ["{fg}{_}{_}", "{_}{fg}{_}", "{_}{_}{fg}"]}
-{"type": "sprite", "name": "frame_b", "palette": "test_palette", "grid": ["{_}{_}{accent}", "{_}{accent}{_}", "{accent}{_}{_}"]}
+{"type": "palette", "name": "test_palette", "colors": {"_": "transparent", "bg": "#000000", "fg": "#ffffff", "accent": "#ff0000"}}
+{"type": "sprite", "name": "frame_a", "size": [3, 3], "palette": "test_palette", "regions": {"fg": {"points": [[0, 0], [1, 1], [2, 2]], "z": 0}}}
+{"type": "sprite", "name": "frame_b", "size": [3, 3], "palette": "test_palette", "regions": {"accent": {"points": [[2, 0], [1, 1], [0, 2]], "z": 0}}}
 {"type": "animation", "name": "css_keyframe_test", "keyframes": {"0%": {"sprite": "frame_a", "opacity": 1.0}, "50%": {"sprite": "frame_b", "opacity": 0.5, "offset": [1, 0]}, "100%": {"sprite": "frame_a", "opacity": 1.0}}, "duration": "500ms", "timing_function": "ease-in-out"}
 {"type": "animation", "name": "simple_fade", "keyframes": {"from": {"sprite": "frame_a", "opacity": 0.0}, "to": {"sprite": "frame_a", "opacity": 1.0}}, "duration": "1s"}

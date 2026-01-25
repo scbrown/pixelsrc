@@ -1,2 +1,2 @@
-{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}
-{"type": "sprite", "name": "test", "size": [4, 2], "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}{b}{a}"]}
+{"type": "palette", "name": "test", "colors": {"a": "#FF0000"}}
+{"type": "sprite", "name": "test", "size": [4, 2], "palette": "test", "regions": {"a": {"rect": [0, 0, 4, 1], "z": 0}, "b": {"points": [[1, 1]], "z": 1}}}
