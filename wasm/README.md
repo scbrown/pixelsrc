@@ -17,7 +17,7 @@ import init, { render_to_png, render_to_rgba, list_sprites } from '@stiwi/pixels
 await init();
 
 // Define a sprite in pixelsrc JSONL format
-const jsonl = `{"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}`;
+const jsonl = `{"type":"sprite","name":"heart","size":[7,5],"palette":{"_":"#00000000","r":"#FF0000"},"regions":{"r":{"union":[{"rect":[1,0,2,1]},{"rect":[4,0,2,1]},{"rect":[0,1,7,1]},{"rect":[1,2,5,1]},{"rect":[2,3,3,1]},{"points":[[3,4]]}],"z":0}}}`;
 
 // Render to PNG bytes
 const pngBytes = render_to_png(jsonl);
@@ -80,8 +80,8 @@ Validate JSONL without rendering. Returns array of error/warning messages.
 pixelsrc uses JSONL (JSON Lines) format. Each line is a self-contained JSON object:
 
 ```jsonl
-{"type":"palette","name":"mono","colors":{"{_}":"#00000000","{on}":"#FFFFFF","{off}":"#000000"}}
-{"type":"sprite","name":"checker","palette":"mono","grid":["{on}{off}{on}{off}","{off}{on}{off}{on}"]}
+{"type":"palette","name":"mono","colors":{"_":"#00000000","on":"#FFFFFF","off":"#000000"}}
+{"type":"sprite","name":"checker","size":[4,2],"palette":"mono","regions":{"on":{"points":[[0,0],[2,0],[1,1],[3,1]],"z":0},"off":{"points":[[1,0],[3,0],[0,1],[2,1]],"z":0}}}
 ```
 
 See the [full documentation](https://github.com/scbrown/pixelsrc) for more details.
