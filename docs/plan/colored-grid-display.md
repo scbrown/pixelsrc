@@ -5,11 +5,19 @@ title: Colored Terminal Output & Alias Management
 
 # Phase 17: Colored Terminal Output & Alias Management
 
-**Related:** [Transforms](./transforms.md) - Use `pxl show` to visualize transform results
+> **STATUS: WONT-DO (2026-01-25)**
+>
+> This phase is obsolete. The format has moved from grid-based sprites to structured
+> regions (shapes: rect, ellipse, polygon, path, etc.). Grid-based display commands
+> are no longer relevant.
+>
+> See `src/structured.rs` for the current region-based rendering.
 
-**Status:** In Progress (pxl show implemented, grid/inline/alias/sketch pending)
+~~**Related:** [Transforms](./transforms.md) - Use `pxl show` to visualize transform results~~
 
-**Depends on:** Phase 0 (Core CLI exists)
+~~**Status:** In Progress (pxl show implemented, grid/inline/alias/sketch pending)~~
+
+~~**Depends on:** Phase 0 (Core CLI exists)~~
 
 ---
 

@@ -9,7 +9,15 @@ Project-level build configuration for pixelsrc.
 
 **Personas:** Animator, Motion Designer, Game Developer
 
-**Status:** In Progress (init/build/new commands implemented, audit needed for completion)
+**Status:** Complete (2026-01-25)
+
+> Core build system implemented:
+> - `pxl build` with --watch, --dry-run, --force, incremental builds
+> - `pxl init` with presets (minimal, artist, animator, game)
+> - `pxl new` for scaffolding sprite/animation/palette
+> - Config system (pxl.toml schema, loader, defaults)
+> - Build pipeline (discovery, incremental, parallel, manifest, progress)
+> - Export formats: Godot, Unity, libGDX, JSON
 
 **Depends on:** Phase 18 (Transforms - for atlas generation with transforms applied)
 

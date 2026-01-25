@@ -5,17 +5,37 @@ title: Sprite Transforms
 
 # Phase 18: Sprite Transforms
 
-**Status:** In Progress (CLI command implemented, format support partial)
+> **STATUS UPDATE (2026-01-25)**
+>
+> **CLI command `pxl transform`:** DEPRECATED - Grid-based transforms are obsolete
+> since the format moved to structured regions. The CLI command prints an error.
+> See `src/cli/transform.rs`.
+>
+> **CSS Transforms:** IMPLEMENTED - Transforms are now specified using CSS syntax
+> in the format itself (e.g., `translate(10, 5) rotate(90deg) scale(2)`).
+> See `src/transforms/css.rs` for the CSS transform parser.
+>
+> Supported CSS transform functions:
+> - `translate(x, y)` - Translation in pixels
+> - `rotate(deg)` - Rotation (90, 180, 270 for pixel art)
+> - `scale(n)` / `scale(x, y)` - Scaling
+> - `flip(x)` / `flip(y)` - Horizontal/vertical flip
+> - `skewX(deg)` / `skewY(deg)` - Skew transforms
 
-**Depends on:** Phase 17 (Colored Grid Display - for `pxl show` visualization)
+~~**Status:** In Progress (CLI command implemented, format support partial)~~
+
+~~**Depends on:** Phase 17 (Colored Grid Display - for `pxl show` visualization)~~
 
 ---
 
-Add transform operations for pixelsrc sprites at two levels:
-1. **CLI command** (`pxl transform`) - Source-to-source transformation, outputs new `.pxl`
-2. **Format attribute** - Declarative transforms applied at render time (source unchanged)
+~~Add transform operations for pixelsrc sprites at two levels:~~
+~~1. **CLI command** (`pxl transform`) - Source-to-source transformation, outputs new `.pxl`~~
+~~2. **Format attribute** - Declarative transforms applied at render time (source unchanged)~~
 
-**Related:** [Colored Grid Display](./colored-grid-display.md) - Use `pxl show` to visualize transforms in terminal
+~~**Related:** [Colored Grid Display](./colored-grid-display.md) - Use `pxl show` to visualize transforms in terminal~~
+
+**Current Implementation:** Transforms are applied via CSS syntax in the format, parsed by
+`src/transforms/css.rs` and converted to internal `Transform` operations.
 
 ---
 
