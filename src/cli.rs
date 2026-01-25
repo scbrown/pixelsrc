@@ -17,7 +17,6 @@ use crate::explain::{explain_object, format_explanation, resolve_palette_colors,
 use crate::fmt::format_pixelsrc;
 use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
-use crate::terminal::render_ansi_grid;
 use crate::validate::{Severity, Validator};
 use glob::glob;
 
@@ -46,7 +45,6 @@ pub fn find_pixelsrc_files(dir: &std::path::Path) -> Vec<PathBuf> {
     files
 }
 use crate::gif::render_gif;
-use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::lsp_agent_client::LspAgentClient;
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
@@ -3467,15 +3465,6 @@ fn run_show(
                 eprintln!("Error: No sprites found in input file");
                 return ExitCode::from(EXIT_ERROR);
             }
-        }
-    };
-
-    // Resolve the palette colors
-    let resolved_palette = match registry.resolve(sprite, false) {
-        Ok(result) => result.palette.colors,
-        Err(e) => {
-            eprintln!("Error: sprite '{}': {}", sprite.name, e);
-            return ExitCode::from(EXIT_ERROR);
         }
     };
 

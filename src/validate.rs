@@ -743,6 +743,7 @@ impl Validator {
         let mut bracket_depth = 0;
         let mut in_string = false;
         let mut escape_next = false;
+        #[allow(unused_assignments)]
         let mut in_single_line_comment = false;
         let mut in_multi_line_comment = false;
         let mut prev_char: Option<char> = None;
@@ -848,7 +849,7 @@ impl Validator {
                 accumulator.clear();
                 in_string = false;
                 escape_next = false;
-                in_single_line_comment = false;
+                // in_single_line_comment is reset at line start (line 766)
             }
         }
 

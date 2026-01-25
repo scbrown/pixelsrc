@@ -3,7 +3,6 @@
 //! Provides ANSI escape sequence generation for displaying sprites with
 //! true-color backgrounds in terminal emulators that support 24-bit color.
 
-use crate::color::parse_color;
 use image::Rgba;
 use std::collections::HashMap;
 

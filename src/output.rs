@@ -81,7 +81,6 @@ pub fn skew_x(image: &RgbaImage, degrees: f32) -> RgbaImage {
     }
 
     let (w, h) = image.dimensions();
-    let w_f = w as f32;
     let h_f = h as f32;
 
     // Calculate the horizontal shift at the top/bottom of the image
@@ -137,7 +136,6 @@ pub fn skew_y(image: &RgbaImage, degrees: f32) -> RgbaImage {
 
     let (w, h) = image.dimensions();
     let w_f = w as f32;
-    let h_f = h as f32;
 
     // Calculate the vertical shift at the left/right of the image
     let tan_angle = (degrees * std::f32::consts::PI / 180.0).tan();

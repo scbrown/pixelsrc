@@ -97,7 +97,7 @@ pub fn diff_sprites(
     palette_b: &HashMap<String, String>,
 ) -> SpriteDiff {
     let mut palette_changes = Vec::new();
-    let mut grid_changes = Vec::new();
+    let grid_changes = Vec::new();
 
     // Compare dimensions
     let dim_a = get_sprite_dimensions(a);
@@ -169,16 +169,6 @@ fn get_sprite_dimensions(sprite: &Sprite) -> (u32, u32) {
 
     // Grid format deprecated - cannot infer dimensions without size field
     (0, 0)
-}
-
-/// Describe the change between two rows
-fn describe_row_change(_row_idx: usize, old: &str, new: &str) -> String {
-    // Grid tokenization removed - just compare strings
-    if old == new {
-        "No change".to_string()
-    } else {
-        "Row content changed".to_string()
-    }
 }
 
 /// Generate a human-readable summary of the diff

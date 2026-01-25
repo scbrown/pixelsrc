@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::color::generate_ramp;
-use crate::models::{Composition, Palette, PaletteRef, Sprite, TransformSpec, Variant};
+use crate::models::{Composition, Palette, PaletteRef, Sprite, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
 use crate::transforms::{self, Transform, TransformError};
@@ -1105,6 +1105,7 @@ pub fn lookup_renderable<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::TransformSpec;
 
     fn mono_palette() -> Palette {
         Palette {

@@ -1,6 +1,5 @@
 //! Sprite rendering to image buffers
 
-use crate::color::parse_color;
 use crate::models::Sprite;
 use crate::registry::ResolvedSprite;
 use crate::structured::render_structured;
@@ -18,9 +17,6 @@ impl Warning {
         Self { message: message.into() }
     }
 }
-
-/// Magenta color used for unknown tokens and invalid colors
-const MAGENTA: Rgba<u8> = Rgba([255, 0, 255, 255]);
 
 /// Transparent color used for padding
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
