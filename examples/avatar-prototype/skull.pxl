@@ -1,0 +1,371 @@
+// ============================================================================
+// SKULL HEAD - Artisan Workflow Test
+// ============================================================================
+// Reference: examples/iso-prototype/reference-skull.jpg
+// Target: 32x40 isometric skull with 3-surface shading
+//
+// Components:
+// - cranium (dome shape)
+// - eye_sockets (dark recessed areas)
+// - nose (triangular cavity)
+// - jaw (teeth, lower structure)
+// - shading (lit/shadow overlays)
+// ============================================================================
+
+// Bone palette - derived from reference skull colors
+{
+  "type": "palette",
+  "name": "skull_pal",
+  "colors": {
+    "_": "transparent",
+
+    // Bone ramp (5 levels)
+    "bone_hi": "#f8f4f0",
+    "bone_lit": "#e8e0d8",
+    "bone": "#d8d0c8",
+    "bone_shd": "#b8b0a8",
+    "bone_dark": "#989088",
+
+    // Cavities (eye sockets, nose)
+    "cavity": "#484040",
+    "cavity_deep": "#302828",
+
+    // Teeth
+    "tooth": "#e0d8d0",
+    "tooth_shd": "#c8c0b8",
+    "tooth_gap": "#686060",
+
+    // Multiple regions with same color
+    "cavity_l": "#484040",
+    "cavity_r": "#484040",
+    "cavity_nose": "#484040",
+    "bone_jaw": "#d8d0c8",
+    "bone_lit_jaw": "#e8e0d8",
+    "bone_shd_jaw": "#b8b0a8",
+    "bone_shd_nose": "#b8b0a8",
+    "bone_dark_l": "#989088",
+    "bone_dark_r": "#989088"
+  }
+}
+
+// V0: Initial skull draft
+{
+  "type": "sprite",
+  "name": "skull_v0",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // CRANIUM - main dome shape
+    "bone": { "ellipse": [16, 14, 13, 12], "z": 0 },
+
+    // Cranium shading - lit side (right)
+    "bone_lit": {
+      "polygon": [
+        [18, 4], [24, 6], [27, 10], [28, 16], [27, 22], [24, 24], [18, 24],
+        [20, 20], [22, 16], [22, 10], [20, 6]
+      ],
+      "z": 1
+    },
+
+    // Cranium shading - shadow side (left)
+    "bone_shd": {
+      "polygon": [
+        [14, 4], [8, 6], [5, 10], [4, 16], [5, 22], [8, 24], [14, 24],
+        [12, 20], [10, 16], [10, 10], [12, 6]
+      ],
+      "z": 1
+    },
+
+    // Highlight on dome
+    "bone_hi": {
+      "polygon": [[20, 6], [24, 8], [25, 12], [23, 14], [20, 12], [19, 8]],
+      "z": 2
+    },
+
+    // EYE SOCKETS - dark recessed areas
+    "cavity_l": {
+      "ellipse": [11, 16, 4, 3],
+      "z": 3
+    },
+    "cavity_r": {
+      "ellipse": [21, 16, 4, 3],
+      "z": 3
+    },
+
+    // Deeper eye shadows
+    "cavity_deep": {
+      "points": [[10, 16], [11, 17], [20, 16], [21, 17]],
+      "z": 4
+    },
+
+    // NOSE - triangular cavity
+    "cavity_nose": {
+      "polygon": [[14, 20], [18, 20], [16, 26]],
+      "z": 3
+    },
+
+    // Nose bone ridge
+    "bone_shd_nose": {
+      "line": [[16, 14], [16, 20]],
+      "z": 2
+    },
+
+    // JAW - lower face structure
+    "bone_jaw": {
+      "polygon": [
+        [8, 26], [24, 26], [26, 28], [26, 34], [24, 38], [8, 38], [6, 34], [6, 28]
+      ],
+      "z": 0
+    },
+
+    // Jaw shading
+    "bone_lit_jaw": {
+      "polygon": [[20, 26], [24, 26], [26, 28], [26, 34], [24, 36], [20, 36]],
+      "z": 1
+    },
+    "bone_shd_jaw": {
+      "polygon": [[8, 26], [12, 26], [12, 36], [8, 38], [6, 34], [6, 28]],
+      "z": 1
+    },
+
+    // TEETH - horizontal lines
+    "tooth": {
+      "rect": [10, 28, 12, 6],
+      "z": 2
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[10, 30], [22, 30]] },
+        { "line": [[10, 32], [22, 32]] },
+        { "points": [[12, 28], [14, 28], [16, 28], [18, 28], [20, 28]] },
+        { "points": [[12, 34], [14, 34], [16, 34], [18, 34], [20, 34]] }
+      ],
+      "z": 3
+    },
+
+    // Cheekbone structure
+    "bone_dark_l": {
+      "polygon": [[6, 22], [8, 20], [10, 22], [10, 26], [6, 26]],
+      "z": 1
+    },
+    "bone_dark_r": {
+      "polygon": [[26, 22], [24, 20], [22, 22], [22, 26], [26, 26]],
+      "z": 1
+    }
+  }
+}
+
+// ============================================================================
+// CRANIUM ITERATION - Round 1
+// ============================================================================
+
+// FINAL: Based on V1A - winner of cranium iteration
+{
+  "type": "sprite",
+  "name": "skull",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // CRANIUM - wider dome shape
+    "bone": { "ellipse": [16, 13, 14, 11], "z": 0 },
+
+    // Cranium shading - lit side (right) - following rounder contour
+    "bone_lit": {
+      "polygon": [
+        [18, 3], [25, 5], [28, 9], [29, 14], [28, 20], [25, 23], [18, 24],
+        [21, 19], [23, 14], [23, 9], [21, 5]
+      ],
+      "z": 1
+    },
+
+    // Cranium shading - shadow side (left)
+    "bone_shd": {
+      "polygon": [
+        [14, 3], [7, 5], [4, 9], [3, 14], [4, 20], [7, 23], [14, 24],
+        [11, 19], [9, 14], [9, 9], [11, 5]
+      ],
+      "z": 1
+    },
+
+    // Highlight on dome - larger, more prominent
+    "bone_hi": {
+      "polygon": [[19, 4], [24, 6], [26, 10], [25, 14], [21, 13], [19, 9]],
+      "z": 2
+    },
+
+    // EYE SOCKETS - angular trapezoid shape like reference
+    "cavity_l": {
+      "polygon": [[7, 14], [13, 13], [14, 18], [8, 19]],
+      "z": 3
+    },
+    "cavity_r": {
+      "polygon": [[19, 13], [25, 14], [24, 19], [18, 18]],
+      "z": 3
+    },
+
+    // Deeper eye shadows
+    "cavity_deep": {
+      "points": [[9, 16], [10, 17], [11, 16], [21, 16], [22, 17], [23, 16]],
+      "z": 4
+    },
+
+    // NOSE - narrower, more vertical heart shape
+    "cavity_nose": {
+      "polygon": [[14, 19], [18, 19], [17, 22], [16, 25], [15, 22]],
+      "z": 3
+    },
+
+    // Nose bone ridge
+    "bone_shd_nose": {
+      "line": [[16, 12], [16, 19]],
+      "z": 2
+    },
+
+    // JAW - more tapered like reference
+    "bone_jaw": {
+      "polygon": [
+        [7, 25], [25, 25], [27, 27], [26, 33], [23, 37], [9, 37], [6, 33], [5, 27]
+      ],
+      "z": 0
+    },
+
+    // Jaw shading
+    "bone_lit_jaw": {
+      "polygon": [[20, 25], [25, 25], [27, 27], [26, 33], [23, 35], [20, 35]],
+      "z": 1
+    },
+    "bone_shd_jaw": {
+      "polygon": [[7, 25], [12, 25], [12, 35], [9, 37], [6, 33], [5, 27]],
+      "z": 1
+    },
+
+    // TEETH - horizontal lines with vertical separators
+    "tooth": {
+      "rect": [9, 27, 14, 6],
+      "z": 2
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[9, 29], [23, 29]] },
+        { "line": [[9, 31], [23, 31]] },
+        { "points": [[11, 27], [13, 27], [15, 27], [17, 27], [19, 27], [21, 27]] },
+        { "points": [[11, 33], [13, 33], [15, 33], [17, 33], [19, 33], [21, 33]] }
+      ],
+      "z": 3
+    },
+
+    // Cheekbone/temporal structure - more defined
+    "bone_dark_l": {
+      "polygon": [[4, 20], [7, 18], [8, 20], [8, 25], [5, 25]],
+      "z": 1
+    },
+    "bone_dark_r": {
+      "polygon": [[28, 20], [25, 18], [24, 20], [24, 25], [27, 25]],
+      "z": 1
+    }
+  }
+}
+
+// V1B: Taller dome, more pronounced brow ridge
+{
+  "type": "sprite",
+  "name": "skull_v1b",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // CRANIUM - taller dome
+    "bone": { "ellipse": [16, 12, 13, 12], "z": 0 },
+
+    // Brow ridge - prominent overhang
+    "bone_shd": {
+      "polygon": [
+        [5, 12], [8, 10], [16, 9], [24, 10], [27, 12], [27, 15], [5, 15]
+      ],
+      "z": 1
+    },
+
+    // Cranium shading - lit side
+    "bone_lit": {
+      "polygon": [
+        [18, 2], [24, 4], [27, 8], [28, 12], [27, 10], [24, 6], [18, 4],
+        [20, 6], [22, 9], [23, 12]
+      ],
+      "z": 1
+    },
+
+    // Highlight
+    "bone_hi": {
+      "polygon": [[19, 3], [23, 5], [24, 8], [22, 10], [19, 8]],
+      "z": 2
+    },
+
+    // EYE SOCKETS - recessed under brow
+    "cavity_l": {
+      "polygon": [[7, 15], [13, 15], [13, 19], [7, 19]],
+      "z": 3
+    },
+    "cavity_r": {
+      "polygon": [[19, 15], [25, 15], [25, 19], [19, 19]],
+      "z": 3
+    },
+
+    // Deeper shadows
+    "cavity_deep": {
+      "points": [[9, 17], [10, 17], [11, 17], [21, 17], [22, 17], [23, 17]],
+      "z": 4
+    },
+
+    // NOSE
+    "cavity_nose": {
+      "polygon": [[14, 20], [18, 20], [17, 23], [16, 26], [15, 23]],
+      "z": 3
+    },
+
+    "bone_shd_nose": {
+      "line": [[16, 15], [16, 20]],
+      "z": 2
+    },
+
+    // JAW
+    "bone_jaw": {
+      "polygon": [
+        [7, 26], [25, 26], [27, 28], [26, 34], [23, 38], [9, 38], [6, 34], [5, 28]
+      ],
+      "z": 0
+    },
+
+    "bone_lit_jaw": {
+      "polygon": [[20, 26], [25, 26], [27, 28], [26, 34], [23, 36], [20, 36]],
+      "z": 1
+    },
+    "bone_shd_jaw": {
+      "polygon": [[7, 26], [12, 26], [12, 36], [9, 38], [6, 34], [5, 28]],
+      "z": 1
+    },
+
+    // TEETH
+    "tooth": {
+      "rect": [9, 28, 14, 6],
+      "z": 2
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[9, 30], [23, 30]] },
+        { "line": [[9, 32], [23, 32]] },
+        { "points": [[11, 28], [13, 28], [15, 28], [17, 28], [19, 28], [21, 28]] },
+        { "points": [[11, 34], [13, 34], [15, 34], [17, 34], [19, 34], [21, 34]] }
+      ],
+      "z": 3
+    },
+
+    // Cheekbones
+    "bone_dark_l": {
+      "polygon": [[5, 19], [7, 17], [8, 19], [8, 26], [5, 26]],
+      "z": 1
+    },
+    "bone_dark_r": {
+      "polygon": [[27, 19], [25, 17], [24, 19], [24, 26], [27, 26]],
+      "z": 1
+    }
+  }
+}
