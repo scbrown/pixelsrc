@@ -1,1 +1,1 @@
-{"type": "sprite", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
+{"type": "sprite", "size": [1, 1], "palette": {"x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}

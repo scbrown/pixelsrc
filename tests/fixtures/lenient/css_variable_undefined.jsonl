@@ -1,2 +1,2 @@
-{"type": "palette", "name": "undefined_var", "colors": {"{_}": "transparent", "{valid}": "#00FF00", "{undefined}": "var(--nonexistent)"}}
-{"type": "sprite", "name": "undef_test", "palette": "undefined_var", "grid": ["{valid}{undefined}", "{undefined}{valid}"]}
+{"type": "palette", "name": "undefined_var", "colors": {"_": "transparent", "valid": "#00FF00", "undefined": "var(--nonexistent)"}}
+{"type": "sprite", "name": "undef_test", "size": [2, 2], "palette": "undefined_var", "regions": {"valid": {"points": [[0, 0], [1, 1]], "z": 0}, "undefined": {"points": [[1, 0], [0, 1]], "z": 0}}}

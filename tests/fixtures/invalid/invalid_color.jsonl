@@ -1,1 +1,1 @@
-{"type": "sprite", "name": "bad_color", "palette": {"{x}": "not-a-color"}, "grid": ["{x}"]}
+{"type": "sprite", "name": "bad_color", "size": [1, 1], "palette": {"x": "not-a-color"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}

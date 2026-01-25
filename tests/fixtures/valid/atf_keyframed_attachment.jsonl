@@ -1,5 +1,5 @@
-{"type": "palette", "name": "char", "colors": {"{_}": "#00000000", "{b}": "#000000", "{h}": "#8B4513"}}
-{"type": "sprite", "name": "char1", "palette": "char", "grid": ["{b}{b}", "{b}{b}"]}
-{"type": "sprite", "name": "char2", "palette": "char", "grid": ["{b}{b}", "{b}{b}"]}
-{"type": "sprite", "name": "ponytail", "palette": "char", "grid": ["{h}", "{h}"], "metadata": {"attach_in": [0, 0]}}
+{"type": "palette", "name": "char", "colors": {"_": "#00000000", "b": "#000000", "h": "#8B4513"}}
+{"type": "sprite", "name": "char1", "size": [2, 2], "palette": "char", "regions": {"b": {"rect": [0, 0, 2, 2], "z": 0}}}
+{"type": "sprite", "name": "char2", "size": [2, 2], "palette": "char", "regions": {"b": {"rect": [0, 0, 2, 2], "z": 0}}}
+{"type": "sprite", "name": "ponytail", "size": [1, 2], "palette": "char", "regions": {"h": {"rect": [0, 0, 1, 2], "z": 0}}, "metadata": {"attach_in": [0, 0]}}
 {"type": "animation", "name": "char_walk", "frames": ["char1", "char2", "char1", "char2"], "duration": 100, "attachments": [{"name": "ponytail", "anchor": [1, 0], "chain": ["ponytail"], "keyframes": {"0": {"offset": [0, 0]}, "1": {"offset": [1, 0]}, "2": {"offset": [0, 1]}, "3": {"offset": [-1, 0]}}}]}

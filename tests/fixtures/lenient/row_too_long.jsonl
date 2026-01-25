@@ -1,1 +1,1 @@
-{"type": "sprite", "name": "long_row", "size": [2, 2], "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}{x}{x}{x}", "{x}{x}"]}
+{"type": "sprite", "name": "long_row", "size": [2, 2], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"rect": [0, 0, 5, 1], "z": 0}}}

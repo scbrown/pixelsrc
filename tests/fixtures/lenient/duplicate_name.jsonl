@@ -1,2 +1,2 @@
-{"type": "sprite", "name": "dupe", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
-{"type": "sprite", "name": "dupe", "palette": {"{x}": "#00FF00"}, "grid": ["{x}"]}
+{"type": "sprite", "name": "dupe", "size": [1, 1], "palette": {"x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}
+{"type": "sprite", "name": "dupe", "size": [1, 1], "palette": {"x": "#00FF00"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}

@@ -1,1 +1,1 @@
-{"type": "sprite", "name": "unknown", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{y}{x}", "{x}{x}{x}"]}
+{"type": "sprite", "name": "unknown", "size": [3, 2], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"rect": [0, 0, 3, 2], "z": 0}, "y": {"points": [[1, 0]], "z": 1}}}
