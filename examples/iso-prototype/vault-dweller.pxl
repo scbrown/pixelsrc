@@ -1,0 +1,34 @@
+// Vault Dweller - SIMPLE AND CLEAR
+// Start with absolute basics that READ as a person
+{
+  "type": "sprite",
+  "name": "vault-dweller",
+  "size": [16, 24],
+  "palette": {
+    "_": "#00000000",
+    "hair": "#3a2818",
+    "skin": "#dca878",
+    "suit": "#2860a0",
+    "suit_lt": "#3878b8",
+    "suit_dk": "#184068",
+    "feet": "#282828"
+  },
+  "regions": {
+    // HEAD - simple round shape
+    "hair": { "rect": [5, 0, 6, 3] },
+    "skin": { "rect": [5, 3, 6, 5] },
+
+    // BODY - simple rectangle with shading
+    "suit": { "rect": [4, 8, 8, 10] },
+    "suit_lt": { "rect": [9, 9, 2, 8] },
+    "suit_dk": { "rect": [5, 9, 2, 8] },
+
+    // LEGS - two columns
+    "suit": { "rect": [4, 18, 3, 4] },
+    "suit": { "rect": [9, 18, 3, 4] },
+
+    // FEET
+    "feet": { "rect": [4, 22, 3, 2] },
+    "feet": { "rect": [9, 22, 3, 2] }
+  }
+}
