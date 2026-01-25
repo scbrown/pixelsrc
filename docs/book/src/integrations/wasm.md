@@ -23,8 +23,26 @@ import init, { render_to_png, render_to_rgba, list_sprites } from '@stiwi/pixels
 // Initialize WASM module (required before first use)
 await init();
 
-// Define a sprite in pixelsrc JSONL format
-const jsonl = `{"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}`;
+// Define a sprite in pixelsrc format
+const jsonl = `{
+  type: "sprite",
+  name: "heart",
+  size: [7, 5],
+  palette: { _: "transparent", r: "#FF0000" },
+  regions: {
+    r: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { rect: [4, 0, 2, 1] },
+        { rect: [0, 1, 7, 1] },
+        { rect: [1, 2, 5, 1] },
+        { rect: [2, 3, 3, 1] },
+        { rect: [3, 4, 1, 1] },
+      ],
+      z: 0,
+    },
+  },
+}`;
 
 // Render to PNG bytes
 const pngBytes = render_to_png(jsonl);
@@ -318,14 +336,42 @@ Chronicle embeds pixelsrc rather than exposing it to clients because:
 
 When generating assets for use with Chronicle, follow the standard pixelsrc format:
 
-```jsonl
-{"type": "palette", "name": "hero_colors", "{skin}": "#FFDAB9", "{hair}": "#8B4513", "{armor}": "#4682B4"}
-{"type": "sprite", "name": "hero_neutral", "palette": "hero_colors", "grid": [...]}
-{"type": "sprite", "name": "hero_happy", "palette": "hero_colors", "grid": [...]}
-{"type": "animation", "name": "hero_talk", "frames": ["hero_talk_1", "hero_talk_2"], "duration": 100}
+```json5
+{
+  type: "palette",
+  name: "hero_colors",
+  colors: {
+    skin: "#FFDAB9",
+    hair: "#8B4513",
+    armor: "#4682B4",
+  },
+}
+
+{
+  type: "sprite",
+  name: "hero_neutral",
+  size: [32, 48],
+  palette: "hero_colors",
+  regions: { ... },
+}
+
+{
+  type: "sprite",
+  name: "hero_happy",
+  size: [32, 48],
+  palette: "hero_colors",
+  regions: { ... },
+}
+
+{
+  type: "animation",
+  name: "hero_talk",
+  frames: ["hero_talk_1", "hero_talk_2"],
+  duration: 100,
+}
 ```
 
-Chronicle will parse this JSONL and render each sprite/animation to its cache.
+Chronicle will parse this and render each sprite/animation to its cache.
 
 ## Related
 
