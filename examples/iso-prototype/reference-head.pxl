@@ -271,30 +271,46 @@
   "size": [32, 40],
   "palette": "head_pal",
   "regions": {
-    // Main hair mass
-    "hair": {
+    // Main hair mass - more volume on top
+    "hair_top": {
       "polygon": [
-        [6, 14], [8, 8], [12, 4], [16, 2], [20, 4], [24, 8], [26, 14],
-        [25, 10], [22, 6], [16, 4], [10, 6], [7, 10]
+        [5, 14], [6, 9], [8, 5], [12, 2], [16, 1], [20, 2], [24, 5], [26, 9], [27, 14],
+        [26, 11], [24, 7], [20, 4], [16, 3], [12, 4], [8, 7], [6, 11]
       ],
       "z": 10
     },
-    // Highlight
-    "hair_hi": {
+    // Tufts for texture
+    "hair_tuft": {
       "points": [
-        [18, 3], [19, 3], [20, 4], [21, 5], [22, 6], [23, 7],
-        [19, 4], [20, 5], [21, 6]
+        [14, 1], [15, 0], [17, 0], [18, 1],
+        [10, 3], [22, 3]
       ],
       "z": 11
     },
-    // Shadow
-    "hair_shd": {
-      "points": [[8, 9], [9, 8], [10, 7], [11, 6], [9, 10], [10, 9], [8, 11]],
-      "z": 11
+    // Highlight - stronger definition
+    "hair_hi": {
+      "points": [
+        [18, 1], [19, 2], [20, 2], [21, 3], [22, 4], [23, 5], [24, 6],
+        [19, 3], [20, 4], [21, 5]
+      ],
+      "z": 12
     },
-    // Sideburns (hair visible on sides)
-    "hair": {
-      "polygon": [[4, 12], [6, 10], [7, 14], [5, 16], [3, 15]],
+    // Shadow - better depth
+    "hair_shd": {
+      "points": [
+        [7, 8], [8, 7], [9, 6], [10, 5], [11, 4],
+        [6, 10], [7, 9], [8, 10], [6, 12]
+      ],
+      "z": 12
+    },
+    // Left sideburn - natural taper
+    "hair_sideburn_l": {
+      "polygon": [[3, 12], [5, 9], [7, 12], [6, 17], [4, 18], [2, 16]],
+      "z": -2
+    },
+    // Right sideburn (behind ear area)
+    "hair_sideburn_r": {
+      "polygon": [[29, 12], [27, 9], [25, 12], [26, 17], [28, 18], [30, 16]],
       "z": -2
     }
   }
@@ -307,40 +323,66 @@
   "size": [32, 40],
   "palette": "head_pal",
   "regions": {
-    // Top of hair
-    "hair": {
+    // Top/crown of hair - voluminous
+    "hair_top": {
       "polygon": [
-        [4, 16], [6, 8], [10, 3], [16, 1], [22, 3], [26, 8], [28, 16],
-        [27, 12], [24, 6], [16, 3], [8, 6], [5, 12]
+        [3, 16], [5, 8], [9, 3], [16, 0], [23, 3], [27, 8], [29, 16],
+        [28, 12], [25, 6], [16, 2], [7, 6], [4, 12]
       ],
       "z": 10
     },
-    // Flowing sides (goes below head)
-    "hair": {
-      "polygon": [[2, 14], [4, 10], [6, 16], [5, 28], [3, 32], [1, 28], [1, 20]],
+    // Left flowing side (goes behind head)
+    "hair_side_l": {
+      "polygon": [
+        [1, 14], [3, 9], [5, 14], [5, 22], [4, 30], [2, 36], [0, 32], [0, 22], [0, 16]
+      ],
       "z": -2
     },
-    "hair": {
-      "polygon": [[30, 14], [28, 10], [26, 16], [27, 28], [29, 32], [31, 28], [31, 20]],
+    // Right flowing side (goes behind head)
+    "hair_side_r": {
+      "polygon": [
+        [31, 14], [29, 9], [27, 14], [27, 22], [28, 30], [30, 36], [32, 32], [32, 22], [32, 16]
+      ],
       "z": -2
     },
-    // Highlights
+    // Left side highlight
+    "hair_side_l_hi": {
+      "points": [[29, 16], [29, 18], [29, 20], [29, 22], [28, 24], [28, 26]],
+      "z": -1
+    },
+    // Left side shadow
+    "hair_side_l_shd": {
+      "points": [[3, 18], [3, 20], [3, 22], [3, 24], [2, 26], [2, 28]],
+      "z": -1
+    },
+    // Top highlights - cascading down right
     "hair_hi": {
       "points": [
-        [20, 2], [21, 3], [22, 4], [23, 5], [24, 6],
-        [28, 18], [28, 20], [28, 22]
+        [20, 1], [21, 2], [22, 3], [23, 4], [24, 5], [25, 6], [26, 8],
+        [22, 2], [23, 3], [24, 4]
       ],
       "z": 11
     },
-    // Shadows
+    // Top shadows - left side depth
     "hair_shd": {
-      "points": [[6, 10], [7, 8], [8, 6], [4, 20], [4, 24], [4, 28]],
+      "points": [
+        [6, 8], [7, 7], [8, 6], [9, 5], [10, 4],
+        [4, 10], [5, 9], [4, 12], [3, 14]
+      ],
       "z": 11
     },
-    // Bangs in front
-    "hair": {
-      "polygon": [[10, 10], [14, 8], [18, 8], [22, 10], [20, 12], [16, 11], [12, 12]],
+    // Bangs in front of forehead
+    "hair_bangs": {
+      "polygon": [
+        [9, 10], [12, 7], [16, 6], [20, 7], [23, 10],
+        [21, 12], [18, 11], [14, 11], [11, 12]
+      ],
       "z": 12
+    },
+    // Bangs highlight
+    "hair_bangs_hi": {
+      "points": [[18, 7], [19, 8], [20, 9]],
+      "z": 13
     }
   }
 }
@@ -365,6 +407,137 @@
   }
 }
 
+// Style 4: Mohawk
+{
+  "type": "sprite",
+  "name": "hair_mohawk",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Central ridge - tall spiky
+    "hair_ridge": {
+      "polygon": [
+        [14, 14], [13, 8], [14, 2], [16, -2], [18, 2], [19, 8], [18, 14],
+        [17, 10], [16, 4], [15, 10]
+      ],
+      "z": 15
+    },
+    // Ridge highlight
+    "hair_hi": {
+      "points": [
+        [17, 0], [17, 1], [17, 2], [17, 3], [18, 4], [18, 5], [18, 6]
+      ],
+      "z": 16
+    },
+    // Ridge shadow
+    "hair_shd": {
+      "points": [
+        [14, 4], [14, 5], [14, 6], [14, 7], [13, 8], [13, 9], [13, 10]
+      ],
+      "z": 16
+    },
+    // Shaved sides - subtle stubble
+    "hair_stubble": {
+      "points": [
+        [8, 8], [9, 7], [10, 6], [11, 5],
+        [21, 5], [22, 6], [23, 7], [24, 8]
+      ],
+      "jitter": { "position": 1 },
+      "z": 1
+    }
+  }
+}
+
+// Style 5: Ponytail
+{
+  "type": "sprite",
+  "name": "hair_ponytail",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Top hair - slicked back
+    "hair_top": {
+      "polygon": [
+        [6, 14], [7, 9], [10, 5], [16, 3], [22, 5], [25, 9], [26, 14],
+        [25, 10], [22, 6], [16, 4], [10, 6], [7, 10]
+      ],
+      "z": 10
+    },
+    // Hair band/tie
+    "hair_band": {
+      "circle": [16, 6, 2],
+      "z": 11
+    },
+    // Ponytail hanging back
+    "hair_tail": {
+      "polygon": [
+        [14, 6], [18, 6], [20, 10], [19, 20], [17, 28], [15, 28], [13, 20], [12, 10]
+      ],
+      "z": -3
+    },
+    // Ponytail highlight
+    "hair_hi": {
+      "points": [
+        [18, 8], [18, 10], [18, 12], [17, 16], [17, 20], [16, 24]
+      ],
+      "z": -2
+    },
+    // Ponytail shadow
+    "hair_shd": {
+      "points": [
+        [14, 10], [14, 12], [14, 16], [15, 20], [15, 24]
+      ],
+      "z": -2
+    },
+    // Top highlight
+    "hair_top_hi": {
+      "points": [[20, 4], [21, 5], [22, 6], [23, 7]],
+      "z": 11
+    }
+  }
+}
+
+// Style 6: Curly/Afro
+{
+  "type": "sprite",
+  "name": "hair_curly",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Main curly mass - big and round
+    "hair_mass": {
+      "ellipse": [16, 8, 14, 10],
+      "z": 10
+    },
+    // Curly texture - scattered points
+    "hair_hi": {
+      "points": [
+        [18, 1], [22, 2], [25, 4], [27, 8], [26, 12],
+        [20, 3], [24, 6], [23, 10],
+        [19, 5], [21, 8]
+      ],
+      "z": 11
+    },
+    "hair_shd": {
+      "points": [
+        [10, 2], [7, 5], [5, 8], [6, 12],
+        [8, 4], [9, 7], [8, 10],
+        [12, 3], [11, 6]
+      ],
+      "z": 11
+    },
+    // Curly side tufts
+    "hair_side_l": {
+      "ellipse": [3, 14, 4, 5],
+      "z": -2
+    },
+    "hair_side_r": {
+      "ellipse": [29, 14, 4, 5],
+      "z": -2
+    }
+  }
+}
+
 // ============================================================================
 // HATS (layer on top of hair)
 // ============================================================================
@@ -377,7 +550,7 @@
   "palette": "head_pal",
   "regions": {
     // Cap dome
-    "hat": {
+    "hat_dome": {
       "polygon": [
         [6, 12], [8, 6], [12, 3], [16, 2], [20, 3], [24, 6], [26, 12],
         [25, 8], [20, 5], [16, 4], [12, 5], [7, 8]
@@ -395,12 +568,12 @@
       "z": 21
     },
     // Bill/brim (sticks out front)
-    "hat": {
+    "hat_bill": {
       "polygon": [[8, 12], [12, 10], [20, 10], [24, 12], [22, 14], [10, 14]],
       "z": 22
     },
     // Bill shadow underneath
-    "hat_shd": {
+    "hat_bill_shd": {
       "polygon": [[10, 14], [22, 14], [20, 16], [12, 16]],
       "z": 19
     }
@@ -415,7 +588,7 @@
   "palette": "head_pal",
   "regions": {
     // Crown
-    "hat": {
+    "hat_crown": {
       "polygon": [
         [8, 10], [10, 4], [14, 1], [18, 1], [22, 4], [24, 10],
         [22, 6], [18, 4], [14, 4], [10, 6]
@@ -423,7 +596,7 @@
       "z": 20
     },
     // Crown dent
-    "hat_shd": {
+    "hat_crown_dent": {
       "polygon": [[12, 4], [16, 2], [20, 4], [18, 5], [14, 5]],
       "z": 21
     },
@@ -433,12 +606,12 @@
       "z": 21
     },
     // Wide brim
-    "hat": {
+    "hat_brim": {
       "polygon": [[2, 12], [6, 10], [26, 10], [30, 12], [28, 14], [4, 14]],
       "z": 22
     },
     // Brim shadow
-    "hat_shd": {
+    "hat_brim_shd": {
       "polygon": [[4, 14], [28, 14], [26, 16], [6, 16]],
       "z": 19
     },
@@ -594,6 +767,45 @@
   "size": [32, 40],
   "cell_size": [32, 40],
   "sprites": { "B": "head_base", "H": "hair_bald" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Head with mohawk
+{
+  "type": "composition",
+  "name": "head_mohawk",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_mohawk" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Head with ponytail
+{
+  "type": "composition",
+  "name": "head_ponytail",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_ponytail" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] }
+  ]
+}
+
+// Head with curly/afro hair
+{
+  "type": "composition",
+  "name": "head_curly",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_curly" },
   "layers": [
     { "map": ["B"] },
     { "map": ["H"] }
