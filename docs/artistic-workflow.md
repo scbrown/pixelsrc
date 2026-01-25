@@ -49,6 +49,79 @@ Most organic forms can be built from 3 basic shapes:
 | **Points** | `points: [[x,y], ...]` | Individual pixels |
 | **Union** | `union: [{ shape }, ...]` | Combine multiple shapes into one region |
 
+### Shape Diagrams with Coordinates
+
+```
+CIRCLE: circle: [cx, cy, r]
+Example: circle: [16, 12, 8]
+
+       0   4   8  12  16  20  24  28  32
+     0 ┌───────────────────────────────┐
+     4 │         ●●●●●●●               │  ← radius 8
+     8 │       ●●       ●●             │
+    12 │      ●    (16,12)  ●          │  ← center at (16, 12)
+    16 │       ●●       ●●             │
+    20 │         ●●●●●●●               │
+    24 └───────────────────────────────┘
+
+RECTANGLE: rect: [x, y, w, h]
+Example: rect: [8, 16, 16, 8]
+
+       0   4   8  12  16  20  24  28  32
+     0 ┌───────────────────────────────┐
+    16 │        ████████████████       │  ← y=16 (top edge)
+    20 │        ████████████████       │
+    24 │        ████████████████       │  ← y=24 (top + height)
+    28 └───────────────────────────────┘
+                ↑               ↑
+              x=8            x=24 (x + width)
+
+POLYGON (Triangle): polygon: [[x1,y1], [x2,y2], [x3,y3]]
+Example: polygon: [[16, 4], [4, 28], [28, 28]]
+
+       0   4   8  12  16  20  24  28  32
+     0 ┌───────────────────────────────┐
+     4 │               ▲ (16,4)        │  ← vertex 1 (tip)
+     8 │              ███              │
+    12 │             █████             │
+    16 │            ███████            │
+    20 │           █████████           │
+    24 │          ███████████          │
+    28 │ (4,28)  █████████████ (28,28) │  ← vertices 2 & 3 (base)
+    32 └───────────────────────────────┘
+
+POLYGON (Trapezoid): polygon: [[6,28], [26,28], [24,38], [6,38]]
+Example: Jaw shape - wider at top, narrower at bottom
+
+       0   4   8  12  16  20  24  28  32
+    24 ┌───────────────────────────────┐
+    28 │      ████████████████████     │  ← top: (6,28) to (26,28)
+    32 │      ██████████████████       │
+    36 │       ████████████████        │
+    38 │       ████████████████        │  ← bottom: (6,38) to (24,38)
+    40 └───────────────────────────────┘
+              ↑                 ↑
+           x=6               x=24-26 (tapers)
+
+COMBINED EXAMPLE: Skull silhouette (circle + rect + trapezoid)
+
+       0   4   8  12  16  20  24  28  32
+     0 ┌───────────────────────────────┐
+     4 │         ●●●●●●●               │
+     8 │       ●●●●●●●●●●●             │  ← circle: [14, 12, 12]
+    12 │      ●●●●●●●●●●●●●            │     (cranium)
+    16 │       ●●●●●●●●●●●             │
+    20 │        ████████████████       │
+    24 │        ████████████████       │  ← rect: [6, 18, 20, 10]
+    28 │        ████████████████       │     (mid-face)
+    32 │         ██████████████        │
+    36 │          ████████████         │  ← polygon: trapezoid
+    38 │           ██████████          │     (jaw taper)
+    40 └───────────────────────────────┘
+
+Tip: Shapes overlap where they connect - no gaps needed.
+```
+
 ### Polygon Reference
 
 **Winding order doesn't matter** - clockwise or counter-clockwise vertices produce identical results.
