@@ -6,22 +6,34 @@ Item description:
 - [DESCRIBE STYLE: fantasy RPG, sci-fi, cute, realistic]
 
 Requirements:
-- Use semantic token names based on materials: {blade}, {hilt}, {gem}, {wood}, {metal}
-- Include {_} mapped to #00000000 for transparent background
-- Add {highlight} and {shadow} variants for depth
+- Use semantic token names based on materials: blade, hilt, gem, wood, metal
+- Include "_" mapped to #00000000 for transparent background
+- Add "highlight" and "shadow" variants for depth
 - Keep palette under 8 colors for clean retro look
 - Center the item in the sprite frame
+- Include "size": [WIDTH, HEIGHT] in sprite definition
 
 Output format:
 1. Single line with inline palette in sprite definition
-2. Ensure each grid row has exactly [SIZE] tokens
+2. Use shape primitives: rect [x, y, w, h], points [[x,y],...], union [...]
 3. Use valid hex colors: #RRGGBB
+4. Each region needs a "z" value for layering
 
 Example structure:
-{"type":"sprite","name":"[ITEM_NAME]","palette":{"{_}":"#00000000","{blade}":"#C0C0C0","{hilt}":"#8B4513"},"grid":["...",...]}
+{"type":"sprite","name":"[ITEM_NAME]","size":[SIZE,SIZE],"palette":{"_":"#00000000","blade":"#C0C0C0","hilt":"#8B4513"},"regions":{
+  "blade":{"union":[{"rect":[7,0,2,10]},{"points":[[6,8],[9,8]]}],"z":0},
+  "hilt":{"rect":[6,10,4,2],"z":0},
+  "highlight":{"points":[[7,1],[7,2],[7,3]],"z":1}
+}}
 
 Visual guidelines:
 - Use lighter colors on top-left for highlight (light source)
 - Use darker colors on bottom-right for shadow
 - Include an outline or edge color for definition
 - Leave 1-2 pixel margin for breathing room
+
+Shape primitives:
+- rect [x, y, width, height] - rectangular region
+- points [[x1,y1],[x2,y2],...] - individual pixels
+- union [{shape1},{shape2},...] - combine multiple shapes
+- line [[x1,y1],[x2,y2]] - for diagonal elements

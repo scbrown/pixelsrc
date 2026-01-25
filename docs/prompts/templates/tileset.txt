@@ -10,20 +10,35 @@ Requirements:
 - Tiles must be seamlessly tileable (edges match)
 - Use 3-4 shades per base color for natural variation
 - Include transition tiles if creating edge pieces
-- Token names should describe the color purpose: {grass_light}, {grass_mid}, {grass_dark}
+- Token names should describe the color purpose: grass_light, grass_mid, grass_dark
+- Include "size": [WIDTH, HEIGHT] in each sprite definition
 
 Output format:
 1. First line: shared palette definition
-2. Following lines: individual tile sprites referencing the palette
-3. Ensure each grid row has exactly [SIZE] tokens
+2. Following lines: individual tile sprites referencing the palette with "regions"
+3. Use shape primitives for efficient region definition
 
 Example structure:
-{"type":"palette","name":"[TERRAIN]_tiles","colors":{"{g1}":"#228B22","{g2}":"#32CD32","{g3}":"#1E5F1E"}}
-{"type":"sprite","name":"[TERRAIN]_1","palette":"[TERRAIN]_tiles","grid":["...",...]}
-{"type":"sprite","name":"[TERRAIN]_2","palette":"[TERRAIN]_tiles","grid":["...",...]}
+{"type":"palette","name":"[TERRAIN]_tiles","colors":{"g1":"#228B22","g2":"#32CD32","g3":"#1E5F1E"}}
+{"type":"sprite","name":"[TERRAIN]_1","size":[SIZE,SIZE],"palette":"[TERRAIN]_tiles","regions":{
+  "g1":{"rect":[0,0,SIZE,SIZE],"z":0},
+  "g2":{"points":[[1,2],[3,5],[6,1],[4,7]],"z":1},
+  "g3":{"points":[[0,4],[7,3],[2,6]],"z":1}
+}}
+{"type":"sprite","name":"[TERRAIN]_2","size":[SIZE,SIZE],"palette":"[TERRAIN]_tiles","regions":{
+  "g1":{"rect":[0,0,SIZE,SIZE],"z":0},
+  "g2":{"points":[[2,1],[5,4],[1,6],[7,2]],"z":1},
+  "g3":{"points":[[3,0],[6,5],[4,3]],"z":1}
+}}
 
 Tiling guidelines:
-- Distribute color variations randomly but evenly
+- Base color fills entire tile with rect [0,0,SIZE,SIZE]
+- Scatter variation points randomly across the tile
 - Avoid obvious repeating patterns
 - Edge pixels should transition smoothly to adjacent tiles
 - Test by mentally placing 4 tiles in a 2x2 grid
+
+Shape primitives:
+- rect [x, y, width, height] - fill base color
+- points [[x1,y1],...] - scatter variation pixels
+- union [{shape1},{shape2},...] - combine shapes
