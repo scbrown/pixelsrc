@@ -80,17 +80,6 @@
 - [Interactive Sandbox](playground/sandbox.md)
 - [Example Gallery](playground/gallery.md)
 
-# Demos
-
-- [CSS Colors](demos/colors.md)
-- [CSS Variables](demos/variables.md)
-- [CSS Timing Functions](demos/timing.md)
-- [CSS Keyframes](demos/keyframes.md)
-- [CSS Transforms](demos/transforms.md)
-- [PNG Export](demos/export_png.md)
-- [GIF Animation](demos/export_gif.md)
-- [Spritesheets](demos/spritesheets.md)
-
 # Reference
 
 - [Built-in Palettes](reference/palettes.md)
