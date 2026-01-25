@@ -1,4 +1,4 @@
-{"type": "palette", "name": "blink", "colors": {"{_}": "#00000000", "{o}": "#FFFF00"}}
-{"type": "sprite", "name": "on", "palette": "blink", "grid": ["{o}{o}", "{o}{o}"]}
-{"type": "sprite", "name": "off", "palette": "blink", "grid": ["{_}{_}", "{_}{_}"]}
+{"type": "palette", "name": "blink", "colors": {"_": "#00000000", "o": "#FFFF00"}}
+{"type": "sprite", "name": "on", "size": [2, 2], "palette": "blink", "regions": {"o": {"rect": [0, 0, 2, 2], "z": 0}}}
+{"type": "sprite", "name": "off", "size": [2, 2], "palette": "blink", "regions": {}}
 {"type": "animation", "name": "blink_anim", "frames": ["on", "off"], "duration": 500, "loop": true}

@@ -1,2 +1,2 @@
-{"type": "palette", "name": "rgb_vars", "colors": {"--r": "255", "--g": "128", "--b": "0", "{_}": "transparent", "{orange}": "rgb(var(--r), var(--g), var(--b))"}}
-{"type": "sprite", "name": "rgb_test", "palette": "rgb_vars", "grid": ["{orange}"]}
+{"type": "palette", "name": "rgb_vars", "colors": {"--r": "255", "--g": "128", "--b": "0", "_": "transparent", "orange": "rgb(var(--r), var(--g), var(--b))"}}
+{"type": "sprite", "name": "rgb_test", "size": [1, 1], "palette": "rgb_vars", "regions": {"orange": {"points": [[0, 0]], "z": 0}}}

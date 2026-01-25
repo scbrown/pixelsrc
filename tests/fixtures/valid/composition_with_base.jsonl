@@ -1,4 +1,4 @@
-{"type": "palette", "name": "base_colors", "colors": {"{_}": "#00000000", "{bg}": "#4169E1", "{fg}": "#FFD700"}}
-{"type": "sprite", "name": "hero_base", "size": [8, 8], "palette": "base_colors", "grid": ["{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}", "{bg}{bg}{bg}{bg}{bg}{bg}{bg}{bg}"]}
-{"type": "sprite", "name": "crown", "size": [4, 2], "palette": "base_colors", "grid": ["{fg}{_}{_}{fg}", "{fg}{fg}{fg}{fg}"]}
+{"type": "palette", "name": "base_colors", "colors": {"_": "#00000000", "bg": "#4169E1", "fg": "#FFD700"}}
+{"type": "sprite", "name": "hero_base", "size": [8, 8], "palette": "base_colors", "regions": {"bg": {"rect": [0, 0, 8, 8], "z": 0}}}
+{"type": "sprite", "name": "crown", "size": [4, 2], "palette": "base_colors", "regions": {"fg": {"union": [{"points": [[0, 0], [3, 0]]}, {"rect": [0, 1, 4, 1]}], "z": 0}}}
 {"type": "composition", "name": "hero_with_crown", "base": "hero_base", "cell_size": [4, 4], "sprites": {".": null, "C": "crown"}, "layers": [{"name": "gear", "map": ["C.", ".."]}]}

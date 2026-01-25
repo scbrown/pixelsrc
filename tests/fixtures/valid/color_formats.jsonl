@@ -1,1 +1,1 @@
-{"type": "sprite", "name": "color_test", "palette": {"{a}": "#F00", "{b}": "#FF0000", "{c}": "#FF0000FF", "{d}": "#F00F"}, "grid": ["{a}{b}", "{c}{d}"]}
+{"type": "sprite", "name": "color_test", "size": [2, 2], "palette": {"a": "#F00", "b": "#FF0000", "c": "#FF0000FF", "d": "#F00F"}, "regions": {"a": {"points": [[0, 0]], "z": 0}, "b": {"points": [[1, 0]], "z": 0}, "c": {"points": [[0, 1]], "z": 0}, "d": {"points": [[1, 1]], "z": 0}}}

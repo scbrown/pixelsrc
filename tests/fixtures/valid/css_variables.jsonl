@@ -1,2 +1,2 @@
-{"type": "palette", "name": "themed", "colors": {"--primary": "#4169E1", "--accent": "#FFD700", "{_}": "transparent", "{main}": "var(--primary)", "{highlight}": "var(--accent)", "{fallback}": "var(--missing, #FF6666)"}}
-{"type": "sprite", "name": "var_test", "palette": "themed", "grid": ["{main}{highlight}{fallback}", "{highlight}{main}{_}", "{fallback}{_}{main}"]}
+{"type": "palette", "name": "themed", "colors": {"--primary": "#4169E1", "--accent": "#FFD700", "_": "transparent", "main": "var(--primary)", "highlight": "var(--accent)", "fallback": "var(--missing, #FF6666)"}}
+{"type": "sprite", "name": "var_test", "size": [3, 3], "palette": "themed", "regions": {"main": {"points": [[0, 0], [1, 1], [2, 2]], "z": 0}, "highlight": {"points": [[1, 0], [0, 1]], "z": 0}, "fallback": {"points": [[2, 0], [0, 2]], "z": 0}}}

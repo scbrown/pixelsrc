@@ -1,3 +1,3 @@
-{"type": "palette", "name": "water", "colors": {"{_}": "#00000000", "{w1}": "#1E90FF", "{w2}": "#00BFFF", "{w3}": "#87CEEB", "{w4}": "#ADD8E6"}}
-{"type": "sprite", "name": "water_tile", "palette": "water", "grid": ["{w1}{w2}{w3}{w4}", "{w4}{w1}{w2}{w3}", "{w3}{w4}{w1}{w2}", "{w2}{w3}{w4}{w1}"]}
-{"type": "animation", "name": "water_cycle", "frames": ["water_tile"], "duration": 100, "palette_cycle": [{"tokens": ["{w1}", "{w2}", "{w3}", "{w4}"], "duration": 150}]}
+{"type": "palette", "name": "water", "colors": {"_": "#00000000", "w1": "#1E90FF", "w2": "#00BFFF", "w3": "#87CEEB", "w4": "#ADD8E6"}}
+{"type": "sprite", "name": "water_tile", "size": [4, 4], "palette": "water", "regions": {"w1": {"points": [[0, 0], [1, 1], [2, 2], [3, 3]], "z": 0}, "w2": {"points": [[1, 0], [2, 1], [3, 2], [0, 3]], "z": 0}, "w3": {"points": [[2, 0], [3, 1], [0, 2], [1, 3]], "z": 0}, "w4": {"points": [[3, 0], [0, 1], [1, 2], [2, 3]], "z": 0}}}
+{"type": "animation", "name": "water_cycle", "frames": ["water_tile"], "duration": 100, "palette_cycle": [{"tokens": ["w1", "w2", "w3", "w4"], "duration": 150}]}

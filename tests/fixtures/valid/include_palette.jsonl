@@ -1,1 +1,1 @@
-{"type": "sprite", "name": "rgb_square", "palette": "@include:shared/palette.jsonl", "grid": ["{r}{g}", "{b}{_}"]}
+{"type": "sprite", "name": "rgb_square", "size": [2, 2], "palette": "@include:shared/palette.jsonl", "regions": {"r": {"points": [[0, 0]], "z": 0}, "g": {"points": [[1, 0]], "z": 0}, "b": {"points": [[0, 1]], "z": 0}}}
