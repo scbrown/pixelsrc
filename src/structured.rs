@@ -408,6 +408,65 @@ pub fn render_structured(
     (image, warnings)
 }
 
+/// Extract bounding boxes for all anchor-role regions in a structured sprite.
+///
+/// This is used for anchor preservation during scaling operations.
+/// Regions with `role: "anchor"` are identified and their pixel coordinates
+/// are converted to bounding boxes.
+///
+/// # Arguments
+///
+/// * `regions` - Map of token names to region definitions
+/// * `canvas_width` - Width of the sprite canvas
+/// * `canvas_height` - Height of the sprite canvas
+///
+/// # Returns
+///
+/// A vector of `AnchorBounds` representing the bounding box of each anchor region.
+pub fn extract_anchor_bounds(
+    regions: &HashMap<String, RegionDef>,
+    canvas_width: i32,
+    canvas_height: i32,
+) -> Vec<crate::transforms::AnchorBounds> {
+    let mut anchor_bounds = Vec::new();
+    let mut warnings = Vec::new();
+
+    // First pass: rasterize non-fill regions (needed for fill references)
+    let mut rasterized_regions: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+    let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
+
+    for (token, region) in regions {
+        if region.fill.is_some() || region.auto_shadow.is_some() {
+            pending_regions.push((token.clone(), region.clone()));
+        } else {
+            let pixels =
+                rasterize_region(region, &rasterized_regions, canvas_width, canvas_height, &mut warnings);
+            rasterized_regions.insert(token.clone(), pixels);
+        }
+    }
+
+    // Second pass: rasterize fill/auto-shadow regions
+    for (token, region) in pending_regions {
+        let pixels =
+            rasterize_region(&region, &rasterized_regions, canvas_width, canvas_height, &mut warnings);
+        rasterized_regions.insert(token, pixels);
+    }
+
+    // Now extract bounding boxes for anchor regions
+    for (token, region) in regions {
+        if region.role == Some(Role::Anchor) {
+            if let Some(pixels) = rasterized_regions.get(token) {
+                let points: Vec<(i32, i32)> = pixels.iter().copied().collect();
+                if let Some(bounds) = crate::transforms::AnchorBounds::from_points(&points) {
+                    anchor_bounds.push(bounds);
+                }
+            }
+        }
+    }
+
+    anchor_bounds
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

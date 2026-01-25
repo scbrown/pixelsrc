@@ -108,5 +108,8 @@ pub use registry::{
 
 // Rendering
 pub use renderer::{render_resolved, render_sprite};
-pub use structured::render_structured;
+pub use structured::{extract_anchor_bounds, render_structured};
+
+// Transform scaling with anchor preservation (TTP-ca8cj)
+pub use transforms::{scale_image, scale_image_with_anchor_preservation, AnchorBounds};
 

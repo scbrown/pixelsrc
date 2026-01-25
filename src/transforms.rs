@@ -3,6 +3,7 @@
 //! Supports both CLI transforms (`pxl transform`) and format attributes
 //! (`"transform": ["mirror-h", "rotate:90"]`).
 
+use image::{imageops::FilterType, RgbaImage};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -2658,6 +2659,170 @@ fn parse_transform_spec_internal(
     }
 }
 
+// ============================================================================
+// Anchor-Preserving Scaling (TTP-ca8cj)
+// ============================================================================
+
+/// Bounding box for an anchor region.
+///
+/// Used to track regions that should be preserved during downscaling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnchorBounds {
+    /// Left edge (inclusive)
+    pub x: u32,
+    /// Top edge (inclusive)
+    pub y: u32,
+    /// Width in pixels
+    pub width: u32,
+    /// Height in pixels
+    pub height: u32,
+}
+
+impl AnchorBounds {
+    /// Create a new anchor bounds.
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self { x, y, width, height }
+    }
+
+    /// Create anchor bounds from a set of pixel coordinates.
+    ///
+    /// Returns `None` if the points set is empty.
+    pub fn from_points(points: &[(i32, i32)]) -> Option<Self> {
+        if points.is_empty() {
+            return None;
+        }
+
+        let min_x = points.iter().map(|(x, _)| *x).min().unwrap();
+        let max_x = points.iter().map(|(x, _)| *x).max().unwrap();
+        let min_y = points.iter().map(|(_, y)| *y).min().unwrap();
+        let max_y = points.iter().map(|(_, y)| *y).max().unwrap();
+
+        // Handle negative coordinates by clamping to 0
+        let x = min_x.max(0) as u32;
+        let y = min_y.max(0) as u32;
+        let width = (max_x - min_x + 1).max(1) as u32;
+        let height = (max_y - min_y + 1).max(1) as u32;
+
+        Some(Self { x, y, width, height })
+    }
+
+    /// Get the center point of the bounding box.
+    pub fn center(&self) -> (u32, u32) {
+        (self.x + self.width / 2, self.y + self.height / 2)
+    }
+
+    /// Scale the bounds by the given factors.
+    ///
+    /// For downscaling, this may result in very small or zero dimensions.
+    pub fn scaled(&self, scale_x: f32, scale_y: f32) -> Self {
+        let new_x = (self.x as f32 * scale_x).round() as u32;
+        let new_y = (self.y as f32 * scale_y).round() as u32;
+        let new_width = (self.width as f32 * scale_x).round() as u32;
+        let new_height = (self.height as f32 * scale_y).round() as u32;
+
+        Self { x: new_x, y: new_y, width: new_width, height: new_height }
+    }
+}
+
+/// Scale an image with preservation of anchor regions.
+///
+/// When downscaling (scale factors < 1.0), ensures that anchor regions
+/// maintain at least 1x1 pixel bounds. This is important for pixel art
+/// where small details like eyes should not disappear during scaling.
+///
+/// # Arguments
+///
+/// * `image` - The source image to scale
+/// * `scale_x` - Horizontal scale factor
+/// * `scale_y` - Vertical scale factor
+/// * `anchors` - List of anchor region bounds to preserve
+///
+/// # Returns
+///
+/// The scaled image with anchor regions preserved.
+///
+/// # Example
+///
+/// ```ignore
+/// use pixelsrc::transforms::{scale_image_with_anchor_preservation, AnchorBounds};
+///
+/// let anchors = vec![
+///     AnchorBounds::new(10, 5, 2, 2),  // Eye region
+/// ];
+///
+/// let scaled = scale_image_with_anchor_preservation(&image, 0.5, 0.5, &anchors);
+/// // The eye region will be preserved at minimum 1x1 pixel
+/// ```
+pub fn scale_image_with_anchor_preservation(
+    image: &RgbaImage,
+    scale_x: f32,
+    scale_y: f32,
+    anchors: &[AnchorBounds],
+) -> RgbaImage {
+    // For upscaling or no anchors, use standard nearest-neighbor scaling
+    if (scale_x >= 1.0 && scale_y >= 1.0) || anchors.is_empty() {
+        return scale_image(image, scale_x, scale_y);
+    }
+
+    let (src_width, src_height) = image.dimensions();
+    let dst_width = ((src_width as f32 * scale_x).round() as u32).max(1);
+    let dst_height = ((src_height as f32 * scale_y).round() as u32).max(1);
+
+    // First, do standard nearest-neighbor scaling
+    let mut result = scale_image(image, scale_x, scale_y);
+
+    // For downscaling, ensure each anchor region has at least 1x1 representation
+    // by explicitly writing the anchor's center pixel to the scaled image
+    for anchor in anchors {
+        // Find the center of the original anchor region
+        let (center_x, center_y) = anchor.center();
+
+        // Map the center to destination coordinates
+        let dst_x = ((center_x as f32 * scale_x).round() as u32).min(dst_width.saturating_sub(1));
+        let dst_y = ((center_y as f32 * scale_y).round() as u32).min(dst_height.saturating_sub(1));
+
+        // Get the color from the center of the original anchor region
+        if center_x < src_width && center_y < src_height {
+            let pixel = *image.get_pixel(center_x, center_y);
+
+            // Write the anchor pixel - this ensures the anchor is always visible
+            // even if the standard scaling algorithm would have skipped it
+            if dst_x < dst_width && dst_y < dst_height {
+                result.put_pixel(dst_x, dst_y, pixel);
+            }
+        }
+    }
+
+    result
+}
+
+/// Scale an image by fractional factors using nearest-neighbor interpolation.
+///
+/// This preserves crisp pixel edges for pixel art. Unlike `output::scale_image`
+/// which only handles integer upscaling, this function supports any scale factor.
+///
+/// # Arguments
+///
+/// * `image` - The image to scale
+/// * `scale_x` - Horizontal scale factor (e.g., 0.5 for half width)
+/// * `scale_y` - Vertical scale factor (e.g., 2.0 for double height)
+///
+/// # Returns
+///
+/// The scaled image.
+pub fn scale_image(image: &RgbaImage, scale_x: f32, scale_y: f32) -> RgbaImage {
+    // Handle no-op case
+    if (scale_x - 1.0).abs() < 0.001 && (scale_y - 1.0).abs() < 0.001 {
+        return image.clone();
+    }
+
+    let (w, h) = image.dimensions();
+    let new_w = ((w as f32 * scale_x).round() as u32).max(1);
+    let new_h = ((h as f32 * scale_y).round() as u32).max(1);
+
+    image::imageops::resize(image, new_w, new_h, FilterType::Nearest)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4312,5 +4477,192 @@ mod tests {
             }
             _ => panic!("Expected Scale transform"),
         }
+    }
+
+    // ============================================================================
+    // Anchor Preservation Scaling Tests (TTP-ca8cj)
+    // ============================================================================
+
+    #[test]
+    fn test_anchor_bounds_new() {
+        let bounds = AnchorBounds::new(10, 20, 5, 3);
+        assert_eq!(bounds.x, 10);
+        assert_eq!(bounds.y, 20);
+        assert_eq!(bounds.width, 5);
+        assert_eq!(bounds.height, 3);
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points() {
+        let points = vec![(5, 10), (7, 10), (6, 11), (5, 12)];
+        let bounds = AnchorBounds::from_points(&points).unwrap();
+
+        assert_eq!(bounds.x, 5);
+        assert_eq!(bounds.y, 10);
+        assert_eq!(bounds.width, 3); // 5, 6, 7 -> width 3
+        assert_eq!(bounds.height, 3); // 10, 11, 12 -> height 3
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points_single() {
+        let points = vec![(5, 10)];
+        let bounds = AnchorBounds::from_points(&points).unwrap();
+
+        assert_eq!(bounds.x, 5);
+        assert_eq!(bounds.y, 10);
+        assert_eq!(bounds.width, 1);
+        assert_eq!(bounds.height, 1);
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points_empty() {
+        let points: Vec<(i32, i32)> = vec![];
+        let bounds = AnchorBounds::from_points(&points);
+        assert!(bounds.is_none());
+    }
+
+    #[test]
+    fn test_anchor_bounds_center() {
+        let bounds = AnchorBounds::new(10, 20, 6, 4);
+        let (cx, cy) = bounds.center();
+        assert_eq!(cx, 13); // 10 + 6/2 = 13
+        assert_eq!(cy, 22); // 20 + 4/2 = 22
+    }
+
+    #[test]
+    fn test_anchor_bounds_scaled() {
+        let bounds = AnchorBounds::new(10, 20, 4, 6);
+        let scaled = bounds.scaled(0.5, 0.5);
+
+        assert_eq!(scaled.x, 5); // 10 * 0.5 = 5
+        assert_eq!(scaled.y, 10); // 20 * 0.5 = 10
+        assert_eq!(scaled.width, 2); // 4 * 0.5 = 2
+        assert_eq!(scaled.height, 3); // 6 * 0.5 = 3
+    }
+
+    #[test]
+    fn test_scale_image_noop() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let scaled = scale_image(&image, 1.0, 1.0);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_upscale() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Red
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255])); // Green
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255])); // Blue
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255])); // Yellow
+
+        let scaled = scale_image(&image, 2.0, 2.0);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+
+        // Red block (0,0) -> (0,0), (1,0), (0,1), (1,1)
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_downscale() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        // Fill with red
+        for y in 0..4 {
+            for x in 0..4 {
+                image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let scaled = scale_image(&image, 0.5, 0.5);
+
+        assert_eq!(scaled.width(), 2);
+        assert_eq!(scaled.height(), 2);
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_no_anchors() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(1, 1, Rgba([255, 0, 0, 255]));
+
+        let anchors: Vec<AnchorBounds> = vec![];
+        let scaled = scale_image_with_anchor_preservation(&image, 0.5, 0.5, &anchors);
+
+        assert_eq!(scaled.width(), 2);
+        assert_eq!(scaled.height(), 2);
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_preserves_small_anchor() {
+        use image::Rgba;
+
+        // Create an 8x8 image with a 2x2 "eye" region at (3, 3)
+        let mut image = RgbaImage::new(8, 8);
+
+        // Fill with transparent
+        for y in 0..8 {
+            for x in 0..8 {
+                image.put_pixel(x, y, Rgba([0, 0, 0, 0]));
+            }
+        }
+
+        // Draw the "eye" (anchor) at (3, 3) with size 2x2
+        image.put_pixel(3, 3, Rgba([0, 0, 255, 255])); // Blue eye
+        image.put_pixel(4, 3, Rgba([0, 0, 255, 255]));
+        image.put_pixel(3, 4, Rgba([0, 0, 255, 255]));
+        image.put_pixel(4, 4, Rgba([0, 0, 255, 255]));
+
+        // Define the anchor region
+        let anchors = vec![AnchorBounds::new(3, 3, 2, 2)];
+
+        // Scale down to 25% - the 2x2 eye would normally shrink to 0x0 or less than 1px
+        let scaled = scale_image_with_anchor_preservation(&image, 0.25, 0.25, &anchors);
+
+        assert_eq!(scaled.width(), 2); // 8 * 0.25 = 2
+        assert_eq!(scaled.height(), 2);
+
+        // The anchor center is at (4, 4) -> maps to (1, 1) in scaled image
+        // Check that at least one blue pixel exists in the scaled image
+        let mut found_blue = false;
+        for y in 0..scaled.height() {
+            for x in 0..scaled.width() {
+                let pixel = scaled.get_pixel(x, y);
+                if pixel[2] > 200 && pixel[3] > 200 {
+                    // Blue with alpha
+                    found_blue = true;
+                    break;
+                }
+            }
+        }
+        assert!(found_blue, "Anchor region should be preserved during downscaling");
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_upscale_passthrough() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        // Even with anchors, upscaling should work normally
+        let anchors = vec![AnchorBounds::new(0, 0, 1, 1)];
+        let scaled = scale_image_with_anchor_preservation(&image, 2.0, 2.0, &anchors);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
     }
 }
