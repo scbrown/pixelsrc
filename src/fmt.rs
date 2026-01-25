@@ -117,9 +117,6 @@ fn format_sprite(sprite: &Sprite) -> String {
         }
     }
 
-    // Grid format is deprecated - output empty grid for compatibility
-    s.push_str(r#", "grid": []"#);
-
     // Regions (if present)
     if let Some(regions) = &sprite.regions {
         s.push_str(r#", "regions": "#);
@@ -461,8 +458,6 @@ mod tests {
         assert!(formatted.contains(r#""type": "sprite""#));
         assert!(formatted.contains(r#""name": "test""#));
         assert!(formatted.contains(r#""size": [4, 2]"#));
-        // Grid format is deprecated, outputs empty array
-        assert!(formatted.contains(r#""grid": []"#));
     }
 
     #[test]
@@ -475,8 +470,7 @@ mod tests {
             ..Default::default()
         };
         let formatted = format_sprite(&sprite);
-        // Grid format is deprecated, outputs empty array
-        assert!(formatted.contains(r#""grid": []"#));
+        assert!(formatted.contains(r#""type": "sprite""#));
     }
 
     #[test]
@@ -514,8 +508,8 @@ mod tests {
 
     #[test]
     fn test_format_pixelsrc_roundtrip() {
-        let input = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#FF0000"}}
-{"type": "sprite", "name": "s", "palette": "p", "grid": ["{a}{a}", "{a}{a}"]}"##;
+        let input = r##"{"type": "palette", "name": "p", "colors": {"a": "#FF0000"}}
+{"type": "sprite", "name": "s", "size": [2, 2], "palette": "p", "regions": {"a": {"rect": [0, 0, 2, 2], "z": 0}}}"##;
 
         let formatted = format_pixelsrc(input).unwrap();
 

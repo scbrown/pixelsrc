@@ -173,12 +173,7 @@ pub fn new_palette(name: &str) -> Result<PathBuf, ScaffoldError> {
 /// Generate sprite template content.
 fn generate_sprite_template(name: &str, palette: &str) -> String {
     format!(
-        r#"{{"type": "sprite", "name": "{}", "palette": "{}", "grid": [
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}"
-]}}"#,
+        r#"{{"type": "sprite", "name": "{}", "size": [4, 4], "palette": "{}", "regions": {{}}}}"#,
         name, palette
     )
 }
@@ -189,18 +184,8 @@ fn generate_animation_template(name: &str, palette: &str) -> String {
     let frame2 = format!("{}_2", name);
 
     format!(
-        r#"{{"type": "sprite", "name": "{}", "palette": "{}", "grid": [
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}"
-]}}
-{{"type": "sprite", "name": "{}", "palette": "{}", "grid": [
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}",
-  "{{_}}{{_}}{{_}}{{_}}"
-]}}
+        r#"{{"type": "sprite", "name": "{}", "size": [4, 4], "palette": "{}", "regions": {{}}}}
+{{"type": "sprite", "name": "{}", "size": [4, 4], "palette": "{}", "regions": {{}}}}
 {{"type": "animation", "name": "{}", "frames": ["{}", "{}"], "duration": 200}}"#,
         frame1, palette, frame2, palette, name, frame1, frame2
     )
@@ -210,12 +195,12 @@ fn generate_animation_template(name: &str, palette: &str) -> String {
 fn generate_palette_template(name: &str) -> String {
     format!(
         r##"{{"type": "palette", "name": "{}", "colors": {{
-  "{{_}}": "#00000000",
-  "{{black}}": "#000000",
-  "{{white}}": "#FFFFFF",
-  "{{color1}}": "#FF0000",
-  "{{color2}}": "#00FF00",
-  "{{color3}}": "#0000FF"
+  "_": "#00000000",
+  "black": "#000000",
+  "white": "#FFFFFF",
+  "color1": "#FF0000",
+  "color2": "#00FF00",
+  "color3": "#0000FF"
 }}}}"##,
         name
     )
