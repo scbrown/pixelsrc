@@ -1173,6 +1173,20 @@
   ]
 }
 
+// Sad expression
+{
+  "type": "composition",
+  "name": "head_sad",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "brows_sad" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
 // Blushing expression
 {
   "type": "composition",
