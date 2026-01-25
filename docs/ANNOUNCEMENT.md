@@ -26,17 +26,12 @@ Existing text-based formats (XPM, PPM) were designed for storage, not generation
 Pixelsrc is a pixel art format built from the ground up for LLM generation.
 
 ```jsonl
-{"type": "palette", "name": "coin", "colors": {"{_}": "#00000000", "{gold}": "#FFD700", "{shine}": "#FFFACD", "{shadow}": "#B8860B"}}
-{"type": "sprite", "name": "coin", "size": [8, 8], "grid": [
-  "{_}{_}{gold}{gold}{gold}{gold}{_}{_}",
-  "{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{shadow}{shadow}{gold}",
-  "{_}{gold}{gold}{gold}{gold}{gold}{gold}{_}",
-  "{_}{_}{gold}{gold}{gold}{gold}{_}{_}"
-]}
+{"type": "palette", "name": "coin", "colors": {"_": "#00000000", "gold": "#FFD700", "shine": "#FFFACD", "shadow": "#B8860B"}}
+{"type": "sprite", "name": "coin", "size": [8, 8], "regions": {
+  "gold": {"union": [{"rect": [2, 0, 4, 1]}, {"rect": [1, 1, 6, 1]}, {"rect": [0, 2, 8, 4]}, {"rect": [1, 6, 6, 1]}, {"rect": [2, 7, 4, 1]}], "z": 0},
+  "shine": {"union": [{"rect": [2, 1, 2, 1]}, {"points": [[1, 2], [1, 3]]}], "z": 1},
+  "shadow": {"union": [{"points": [[6, 2], [6, 3], [6, 4]]}, {"points": [[5, 5], [6, 5]]}], "z": 1}
+}}
 ```
 
 Then:
@@ -52,16 +47,17 @@ That's it. Text in, pixels out.
 
 **1. Semantic tokens, not coordinates**
 
-Instead of "place #FFD700 at (2, 0)", write `{gold}`. The token name carries meaning. An LLM can "read" the sprite as it generates:
+Instead of "place #FFD700 at (2, 0)", name your colors `gold`, `shine`, `shadow`. The token names carry meaning, and shapes describe regions with simple geometry:
 
-```
-{_}{_}{gold}{gold}{_}{_}    ← clearly the top of something round
-{_}{gold}{shine}{shine}...  ← highlight on upper-left, makes sense
+```json5
+shine: { points: [[2, 1], [2, 2]] },  // highlight pixels
+shadow: { points: [[6, 2], [6, 3]] }, // depth pixels
+gold: { fill: "background" }           // everything else
 ```
 
 **2. No spatial reasoning required**
 
-Write rows top-to-bottom, left-to-right. Sequential text generation. No coordinate math. No "where was I?" confusion.
+Describe shapes geometrically. `rect: [2, 0, 4, 1]` is "4-pixel wide rectangle at the top". No pixel-by-pixel enumeration. No counting errors.
 
 **3. Streaming-friendly**
 
@@ -110,17 +106,17 @@ pxl render walk.jsonl -o walk.gif --gif
 
 It's text. Git diff shows exactly what changed:
 ```diff
-- "{_}{skin}{skin}{_}"
-+ "{_}{skin}{armor}{_}"
+- body: { rect: [4, 8, 8, 4] }
++ body: { rect: [4, 8, 10, 4] }  // made body wider
 ```
 
 ---
 
 ## Design Principles
 
-1. **Expressability over brevity** — `{skin}` beats `S`. Readable beats compact.
+1. **Expressability over brevity** — `skin` beats `S`. Readable beats compact.
 
-2. **Implicit over explicit** — Position comes from grid location, not coordinates.
+2. **Shapes over pixels** — Describe regions geometrically, let the compiler render pixels.
 
 3. **Don't reinvent the wheel** — Pixelsrc defines sprites. ImageMagick renders them.
 
