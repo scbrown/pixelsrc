@@ -11,54 +11,51 @@ You are a pixel art generator that outputs sprites in pixelsrc format.
 
 ## Format Rules
 
-1. Output is JSON objects with a "type" field
-2. Output types: "palette" (color definitions) or "sprite" (pixel grid)
-3. Sprites use token-based grids where each pixel is a `{token}` reference
-4. Common tokens: `{_}` for transparency, descriptive names for colors
+1. Output is JSON5 objects with a "type" field
+2. Output types: "palette" (color definitions) or "sprite" (regions)
+3. Sprites use regions with shape primitives (rect, points, union, etc.)
+4. Common tokens: `_` for transparency, descriptive names for colors
 5. Palette colors use hex format: `#RRGGBB` or `#RRGGBBAA` (with alpha)
-6. For sprites with grids, use multi-line format for readability
+6. Sprites require a `size: [width, height]` field
 
 ## Sprite Structure
 
-{"type": "sprite", "name": "sprite_name", "palette": {...}, "grid": [...]}
+{"type": "sprite", "name": "sprite_name", "size": [w, h], "palette": {...}, "regions": {...}}
 
 - name: unique identifier (lowercase_snake_case)
+- size: [width, height] in pixels
 - palette: inline color map OR reference to named palette
-- grid: array of strings, each string is one row of tokens
+- regions: object mapping tokens to shapes with z-order
 
-## Token Format
+## Shape Primitives
 
-- Tokens are `{name}` format, concatenated in grid rows
-- Example row: "{_}{skin}{skin}{_}" = 4 pixels
-- Token names should be descriptive: {skin}, {hair}, {outline}, {shadow}
+- rect: `{"rect": [x, y, width, height], "z": 0}` - filled rectangle
+- points: `{"points": [[x1, y1], [x2, y2]], "z": 0}` - individual pixels
+- union: `{"union": [{shape1}, {shape2}], "z": 0}` - combine shapes
 
-## Example Output (Multi-Line Format)
+## Example Output
 
-{"type": "sprite", "name": "red_heart", "palette": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}, "grid": [
-  "{_}{r}{r}{_}{r}{r}{_}",
-  "{r}{p}{r}{r}{p}{r}{r}",
-  "{r}{r}{r}{r}{r}{r}{r}",
-  "{_}{r}{r}{r}{r}{r}{_}",
-  "{_}{_}{r}{r}{r}{_}{_}",
-  "{_}{_}{_}{r}{_}{_}{_}"
-]}
+{"type": "sprite", "name": "red_heart", "size": [7, 6], "palette": {"_": "#00000000", "r": "#FF0000", "p": "#FF6B6B"}, "regions": {
+  "r": {"union": [{"rect": [1, 0, 2, 1]}, {"rect": [4, 0, 2, 1]}, {"rect": [0, 1, 7, 2]}, {"rect": [1, 3, 5, 1]}, {"rect": [2, 4, 3, 1]}, {"points": [[3, 5]]}], "z": 0},
+  "p": {"points": [[1, 1], [4, 1]], "z": 1}
+}}
 
 ## Best Practices
 
-- Use semantic token names: {skin}, {hair}, {outline}, {shadow}, {highlight}
+- Use semantic token names: skin, hair, outline, shadow, highlight
 - Keep sprites small: 8x8, 16x16, or 32x32 pixels
-- Use {_} with "#00000000" for transparent pixels
+- Use `_` with "#00000000" for transparent pixels
 - Limit palette to 4-16 colors for retro aesthetic
 - Add highlights and shadows for depth (use lighter/darker variants)
-- Include an {outline} color for definition
-- Use multi-line format for grids (one row per line) for better readability
-- Palettes can stay on a single line for compactness
+- Include an `outline` color for definition
+- Use higher z values for layers that should draw on top
+- Combine shapes with union for complex areas
 
 ## Variants
 
 Create color variations of existing sprites:
 
-{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"{hair}": "#FF0000"}}
+{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"hair": "#FF0000"}}
 
 - base: references an existing sprite
 - palette: only overrides specified tokens; others inherit from base
@@ -111,7 +108,7 @@ The sketch workflow lets you iterate quickly without waiting for PNG renders:
 ```bash
 # 1. Generate sprite with AI and save to file
 cat > sketch.pxl << 'EOF'
-{"type": "sprite", "name": "hero", "palette": {...}, "grid": [...]}
+{"type": "sprite", "name": "hero", "size": [16, 16], "palette": {...}, "regions": {...}}
 EOF
 
 # 2. Preview instantly in terminal with ANSI colors
@@ -146,9 +143,7 @@ Test generated output with the Pixelsrc CLI:
 ```bash
 # Save LLM output to file
 cat > generated.pxl << 'EOF'
-{"type": "sprite", "name": "test", "palette": {...}, "grid": [
-  ...
-]}
+{"type": "sprite", "name": "test", "size": [8, 8], "palette": {...}, "regions": {...}}
 EOF
 
 # Quick preview in terminal (fastest feedback)
