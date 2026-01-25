@@ -369,3 +369,299 @@
     }
   }
 }
+
+// ============================================================================
+// TALKING ANIMATION - Mouth State Overlays
+// ============================================================================
+// Skull mouth positions for dialogue:
+// - mouth_closed: jaw in neutral position (default skull)
+// - mouth_small: slight jaw drop, gap between teeth rows
+// - mouth_wide: full jaw drop, more teeth visible
+// ============================================================================
+
+// MOUTH CLOSED - neutral position, covers base and redraws at same position
+// Use this to ensure consistent overlay behavior in compositions
+{
+  "type": "sprite",
+  "name": "skull_mouth_closed",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // Cover existing jaw area completely
+    "bone": { "rect": [4, 24, 24, 16], "z": 10 },
+
+    // JAW - same as base skull (neutral position)
+    "bone_jaw": {
+      "polygon": [
+        [7, 25], [25, 25], [27, 27], [26, 33], [23, 37], [9, 37], [6, 33], [5, 27]
+      ],
+      "z": 11
+    },
+
+    // Jaw shading
+    "bone_lit_jaw": {
+      "polygon": [[20, 25], [25, 25], [27, 27], [26, 33], [23, 35], [20, 35]],
+      "z": 12
+    },
+    "bone_shd_jaw": {
+      "polygon": [[7, 25], [12, 25], [12, 35], [9, 37], [6, 33], [5, 27]],
+      "z": 12
+    },
+
+    // TEETH - upper row only (jaw closed, teeth mesh)
+    "tooth": {
+      "rect": [9, 27, 14, 6],
+      "z": 13
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[9, 29], [23, 29]] },
+        { "line": [[9, 31], [23, 31]] },
+        { "points": [[11, 27], [13, 27], [15, 27], [17, 27], [19, 27], [21, 27]] },
+        { "points": [[11, 33], [13, 33], [15, 33], [17, 33], [19, 33], [21, 33]] }
+      ],
+      "z": 14
+    },
+
+    // Cheekbone structure
+    "bone_dark_l": {
+      "polygon": [[4, 20], [7, 18], [8, 20], [8, 25], [5, 25]],
+      "z": 12
+    },
+    "bone_dark_r": {
+      "polygon": [[28, 20], [25, 18], [24, 20], [24, 25], [27, 25]],
+      "z": 12
+    }
+  }
+}
+
+// MOUTH SMALL OPEN - slight jaw drop (2px), gap between upper and lower teeth
+{
+  "type": "sprite",
+  "name": "skull_mouth_small",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // Cover existing jaw area completely
+    "bone": { "rect": [4, 24, 24, 16], "z": 10 },
+
+    // Dark cavity behind teeth (mouth interior)
+    "cavity": {
+      "rect": [9, 30, 14, 3],
+      "z": 11
+    },
+
+    // UPPER JAW - stays in place (attached to skull)
+    "bone_jaw": {
+      "polygon": [
+        [7, 25], [25, 25], [27, 27], [26, 30], [6, 30], [5, 27]
+      ],
+      "z": 12
+    },
+
+    // Upper jaw shading
+    "bone_lit_jaw": {
+      "polygon": [[20, 25], [25, 25], [27, 27], [26, 30], [20, 30]],
+      "z": 13
+    },
+    "bone_shd_jaw": {
+      "polygon": [[7, 25], [12, 25], [12, 30], [6, 30], [5, 27]],
+      "z": 13
+    },
+
+    // UPPER TEETH - 2 rows
+    "tooth": {
+      "rect": [9, 27, 14, 3],
+      "z": 14
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[9, 29], [23, 29]] },
+        { "points": [[11, 27], [13, 27], [15, 27], [17, 27], [19, 27], [21, 27]] }
+      ],
+      "z": 15
+    },
+
+    // LOWER JAW - dropped 2px
+    "bone_dark": {
+      "polygon": [
+        [7, 33], [25, 33], [26, 35], [23, 39], [9, 39], [6, 35]
+      ],
+      "z": 12
+    },
+
+    // Lower jaw shading
+    "bone_lit": {
+      "polygon": [[20, 33], [25, 33], [26, 35], [23, 37], [20, 37]],
+      "z": 13
+    },
+    "bone_shd": {
+      "polygon": [[7, 33], [12, 33], [12, 37], [9, 39], [6, 35]],
+      "z": 13
+    },
+
+    // LOWER TEETH - dropped, 2 rows visible
+    "tooth_shd": {
+      "rect": [9, 33, 14, 3],
+      "z": 14
+    },
+    "cavity_deep": {
+      "union": [
+        { "line": [[9, 35], [23, 35]] },
+        { "points": [[11, 33], [13, 33], [15, 33], [17, 33], [19, 33], [21, 33]] }
+      ],
+      "z": 15
+    },
+
+    // Cheekbones
+    "bone_dark_l": {
+      "polygon": [[4, 20], [7, 18], [8, 20], [8, 25], [5, 25]],
+      "z": 13
+    },
+    "bone_dark_r": {
+      "polygon": [[28, 20], [25, 18], [24, 20], [24, 25], [27, 25]],
+      "z": 13
+    }
+  }
+}
+
+// MOUTH WIDE OPEN - full jaw drop (4px), maximum teeth exposure
+{
+  "type": "sprite",
+  "name": "skull_mouth_wide",
+  "size": [32, 40],
+  "palette": "skull_pal",
+  "regions": {
+    // Cover existing jaw area completely
+    "bone": { "rect": [4, 24, 24, 16], "z": 10 },
+
+    // Dark cavity behind teeth (larger mouth interior)
+    "cavity": {
+      "rect": [8, 30, 16, 5],
+      "z": 11
+    },
+    "cavity_deep": {
+      "rect": [10, 31, 12, 3],
+      "z": 12
+    },
+
+    // UPPER JAW - stays in place
+    "bone_jaw": {
+      "polygon": [
+        [7, 25], [25, 25], [27, 27], [26, 30], [6, 30], [5, 27]
+      ],
+      "z": 13
+    },
+
+    // Upper jaw shading
+    "bone_lit_jaw": {
+      "polygon": [[20, 25], [25, 25], [27, 27], [26, 30], [20, 30]],
+      "z": 14
+    },
+    "bone_shd_jaw": {
+      "polygon": [[7, 25], [12, 25], [12, 30], [6, 30], [5, 27]],
+      "z": 14
+    },
+
+    // UPPER TEETH - 2 rows
+    "tooth": {
+      "rect": [9, 27, 14, 3],
+      "z": 15
+    },
+    "tooth_gap": {
+      "union": [
+        { "line": [[9, 29], [23, 29]] },
+        { "points": [[11, 27], [13, 27], [15, 27], [17, 27], [19, 27], [21, 27]] }
+      ],
+      "z": 16
+    },
+
+    // LOWER JAW - dropped 4px
+    "bone_dark": {
+      "polygon": [
+        [7, 35], [25, 35], [26, 37], [23, 41], [9, 41], [6, 37]
+      ],
+      "z": 13
+    },
+
+    // Lower jaw shading
+    "bone_lit": {
+      "polygon": [[20, 35], [25, 35], [26, 37], [23, 39], [20, 39]],
+      "z": 14
+    },
+    "bone_shd": {
+      "polygon": [[7, 35], [12, 35], [12, 39], [9, 41], [6, 37]],
+      "z": 14
+    },
+
+    // LOWER TEETH - dropped further, 2 rows
+    "tooth_shd": {
+      "rect": [9, 35, 14, 3],
+      "z": 15
+    },
+    "bone_shd_nose": {
+      "union": [
+        { "line": [[9, 37], [23, 37]] },
+        { "points": [[11, 35], [13, 35], [15, 35], [17, 35], [19, 35], [21, 35]] }
+      ],
+      "z": 16
+    },
+
+    // Cheekbones
+    "bone_dark_l": {
+      "polygon": [[4, 20], [7, 18], [8, 20], [8, 25], [5, 25]],
+      "z": 14
+    },
+    "bone_dark_r": {
+      "polygon": [[28, 20], [25, 18], [24, 20], [24, 25], [27, 25]],
+      "z": 14
+    }
+  }
+}
+
+// ============================================================================
+// TALKING COMPOSITIONS - Layer mouth states on skull base
+// ============================================================================
+
+{
+  "type": "composition",
+  "name": "skull_talk_closed",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "S": "skull", "M": "skull_mouth_closed" },
+  "layers": [{ "map": ["S"] }, { "map": ["M"] }]
+}
+
+{
+  "type": "composition",
+  "name": "skull_talk_small",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "S": "skull", "M": "skull_mouth_small" },
+  "layers": [{ "map": ["S"] }, { "map": ["M"] }]
+}
+
+{
+  "type": "composition",
+  "name": "skull_talk_wide",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "S": "skull", "M": "skull_mouth_wide" },
+  "layers": [{ "map": ["S"] }, { "map": ["M"] }]
+}
+
+// ============================================================================
+// TALKING ANIMATION - Frame sequence for dialogue
+// ============================================================================
+
+{
+  "type": "animation",
+  "name": "skull_talking",
+  "frames": [
+    "skull_talk_closed", "skull_talk_small", "skull_talk_wide", "skull_talk_small",
+    "skull_talk_closed", "skull_talk_small", "skull_talk_wide", "skull_talk_wide",
+    "skull_talk_small", "skull_talk_closed", "skull_talk_closed", "skull_talk_small"
+  ],
+  "duration": 80,
+  "loop": true
+}
