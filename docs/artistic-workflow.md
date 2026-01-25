@@ -44,16 +44,53 @@ Most organic forms can be built from 3 basic shapes:
 | **Ellipse** | `ellipse: [cx, cy, rx, ry]` | Center + x/y radii. Ovals, stretched circles |
 | **Rectangle** | `rect: [x, y, w, h]` | Top-left corner + width/height |
 | **Stroke** | `stroke: [x, y, w, h]` | Rectangle outline only (1px border) |
-| **Polygon** | `polygon: [[x,y], ...]` | Arbitrary shape. List vertices clockwise |
+| **Polygon** | `polygon: [[x,y], ...]` | Arbitrary shape. Winding order doesn't matter |
 | **Line** | `line: [[x1,y1], [x2,y2], ...]` | Connected line segments |
 | **Points** | `points: [[x,y], ...]` | Individual pixels |
+| **Union** | `union: [{ shape }, ...]` | Combine multiple shapes into one region |
 
-### Polygon Tips
+### Polygon Reference
 
-- **Keep it simple**: 3-5 vertices work reliably
-- **Triangles**: `polygon: [[x1,y1], [x2,y2], [x3,y3]]`
-- **Trapezoids**: `polygon: [[x1,y1], [x2,y1], [x3,y2], [x4,y2]]` (4 vertices)
-- **Complex shapes**: Consider using `union` of simpler shapes instead
+**Winding order doesn't matter** - clockwise or counter-clockwise vertices produce identical results.
+
+Common polygon patterns:
+```
+Triangle (3 vertices):
+  "polygon": [[16, 4], [4, 28], [28, 28]]
+
+  Tip at top, base at bottom. Vertices can be listed in any order.
+
+Trapezoid (4 vertices):
+  "polygon": [[6, 28], [26, 28], [24, 38], [6, 38]]
+
+  Top edge wider than bottom = jaw shape.
+  Match top edge to rect above for seamless connection.
+
+Pentagon+ (5+ vertices):
+  ⚠️ May cause fill artifacts - prefer union of simpler shapes
+```
+
+### Union: Combining Shapes
+
+Use `union` to combine multiple shapes into one region:
+
+```json
+"fill": {
+  "union": [
+    { "circle": [16, 12, 12] },
+    { "rect": [6, 18, 20, 10] },
+    { "polygon": [[6, 28], [26, 28], [24, 38], [6, 38]] }
+  ],
+  "z": 0
+}
+```
+
+**When to use union:**
+- Combining circle + rect + triangle for silhouettes
+- Complex organic shapes that would need 6+ polygon vertices
+- Reusing shape logic across regions
+
+**Gotcha:** Union still counts toward the 4-shape limit (see Known Limitations)
 
 ### Silhouette Workflow
 
