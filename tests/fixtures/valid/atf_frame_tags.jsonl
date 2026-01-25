@@ -1,7 +1,7 @@
-{"type": "palette", "name": "player", "colors": {"{_}": "#00000000", "{b}": "#000000", "{s}": "#FFCC99"}}
-{"type": "sprite", "name": "idle1", "palette": "player", "grid": ["{b}{s}{b}", "{s}{s}{s}", "{b}{s}{b}"]}
-{"type": "sprite", "name": "idle2", "palette": "player", "grid": ["{b}{s}{b}", "{s}{b}{s}", "{b}{s}{b}"]}
-{"type": "sprite", "name": "run1", "palette": "player", "grid": ["{_}{s}{b}", "{s}{s}{s}", "{b}{_}{b}"]}
-{"type": "sprite", "name": "run2", "palette": "player", "grid": ["{b}{s}{_}", "{s}{s}{s}", "{b}{_}{b}"]}
-{"type": "sprite", "name": "jump", "palette": "player", "grid": ["{b}{s}{b}", "{s}{s}{s}", "{_}{b}{_}"]}
+{"type": "palette", "name": "player", "colors": {"_": "#00000000", "b": "#000000", "s": "#FFCC99"}}
+{"type": "sprite", "name": "idle1", "size": [3, 3], "palette": "player", "regions": {"b": {"points": [[0, 0], [2, 0], [0, 2], [2, 2]], "z": 0}, "s": {"union": [{"points": [[1, 0]]}, {"rect": [0, 1, 3, 1]}, {"points": [[1, 2]]}], "z": 1}}}
+{"type": "sprite", "name": "idle2", "size": [3, 3], "palette": "player", "regions": {"b": {"points": [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], "z": 0}, "s": {"points": [[1, 0], [0, 1], [2, 1], [1, 2]], "z": 1}}}
+{"type": "sprite", "name": "run1", "size": [3, 3], "palette": "player", "regions": {"b": {"points": [[2, 0], [0, 2], [2, 2]], "z": 0}, "s": {"union": [{"points": [[1, 0]]}, {"rect": [0, 1, 3, 1]}], "z": 1}}}
+{"type": "sprite", "name": "run2", "size": [3, 3], "palette": "player", "regions": {"b": {"points": [[0, 0], [0, 2], [2, 2]], "z": 0}, "s": {"union": [{"points": [[1, 0]]}, {"rect": [0, 1, 3, 1]}], "z": 1}}}
+{"type": "sprite", "name": "jump", "size": [3, 3], "palette": "player", "regions": {"b": {"points": [[0, 0], [2, 0], [1, 2]], "z": 0}, "s": {"union": [{"points": [[1, 0]]}, {"rect": [0, 1, 3, 1]}], "z": 1}}}
 {"type": "animation", "name": "player_anim", "frames": ["idle1", "idle2", "run1", "run2", "jump"], "duration": 100, "tags": {"idle": {"start": 0, "end": 1, "loop": true}, "run": {"start": 2, "end": 3, "loop": true}, "jump": {"start": 4, "end": 4, "loop": false}}}
