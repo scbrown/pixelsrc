@@ -1,0 +1,397 @@
+// ============================================================================
+// SKULL OUTLINE - 3/4 View Silhouette Study
+// ============================================================================
+// Reference: reference-skull.jpg
+// Goal: Nail the silhouette before adding internal detail
+// Canvas: 32x40
+// ============================================================================
+
+{
+  "type": "palette",
+  "name": "outline_pal",
+  "colors": {
+    "_": "transparent",
+    "outline": "#302828",
+    "fill": "#e8e0d8",
+    "fill2": "#e8e0d8",
+    "fill3": "#e8e0d8",
+    "fill4": "#e8e0d8",
+    "fill5": "#e8e0d8",
+    "fill6": "#e8e0d8"
+  }
+}
+
+// V1: Build from simple shapes
+{
+  "type": "sprite",
+  "name": "skull_outline_v1",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": {
+      "union": [
+        { "ellipse": [14, 12, 13, 11] },
+        { "rect": [5, 18, 22, 20] }
+      ],
+      "z": 0
+    }
+  }
+}
+
+// V2: Capture 3/4 view asymmetry
+{
+  "type": "sprite",
+  "name": "skull_outline_v2",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": {
+      "union": [
+        { "ellipse": [13, 11, 12, 10] },
+        { "ellipse": [6, 13, 5, 8] },
+        { "ellipse": [24, 20, 5, 6] },
+        { "rect": [6, 18, 20, 8] },
+        { "rect": [8, 26, 16, 8] },
+        { "ellipse": [10, 34, 4, 5] },
+        { "ellipse": [22, 34, 4, 5] }
+      ],
+      "z": 0
+    }
+  }
+}
+
+// V3: Refined proportions (has gap bug)
+{
+  "type": "sprite",
+  "name": "skull_outline_v3",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": {
+      "union": [
+        { "ellipse": [14, 10, 13, 10] },
+        { "ellipse": [5, 12, 4, 6] },
+        { "rect": [5, 16, 22, 10] },
+        { "ellipse": [25, 22, 4, 4] },
+        { "ellipse": [15, 32, 9, 7] }
+      ],
+      "z": 0
+    }
+  }
+}
+
+// V4: Simpler approach - just 3 main shapes with guaranteed overlap
+{
+  "type": "sprite",
+  "name": "skull_outline_v4",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    // Cranium
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    // Mid-face + jaw as one tall rect (will trim later)
+    "fill2": { "rect": [6, 18, 20, 20], "z": 0 }
+  }
+}
+
+// V5: Separate regions - same z (has overlap bug)
+{
+  "type": "sprite",
+  "name": "skull_outline_v5",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill3": { "ellipse": [6, 14, 5, 7], "z": 0 },
+    "fill4": { "rect": [6, 18, 21, 12], "z": 0 },
+    "fill5": { "ellipse": [25, 23, 4, 5], "z": 0 },
+    "fill6": { "ellipse": [16, 34, 8, 5], "z": 0 }
+  }
+}
+
+// V6: Different z-levels (still has bug)
+{
+  "type": "sprite",
+  "name": "skull_outline_v6",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": { "ellipse": [6, 14, 5, 7], "z": 1 },
+    "fill3": { "rect": [6, 18, 21, 12], "z": 2 },
+    "fill4": { "ellipse": [25, 23, 4, 5], "z": 3 },
+    "fill5": { "ellipse": [16, 34, 8, 5], "z": 4 }
+  }
+}
+
+// V7: 3 shapes - works
+{
+  "type": "sprite",
+  "name": "skull_outline_v7",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 20], "z": 0 },
+    "fill3": { "ellipse": [25, 23, 4, 5], "z": 0 }
+  }
+}
+
+// V8: 4 shapes - works
+{
+  "type": "sprite",
+  "name": "skull_outline_v8",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 20], "z": 0 },
+    "fill3": { "ellipse": [25, 23, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [5, 14, 4, 6], "z": 0 }
+  }
+}
+
+// V9: 5 shapes - has bug (5 region limit)
+{
+  "type": "sprite",
+  "name": "skull_outline_v9",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": { "ellipse": [25, 23, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [5, 14, 4, 6], "z": 0 },
+    "fill5": { "ellipse": [16, 34, 8, 6], "z": 0 }
+  }
+}
+
+// V10: 4 regions using union (has bug - 5 total shapes)
+{
+  "type": "sprite",
+  "name": "skull_outline_v10",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": {
+      "union": [
+        { "rect": [6, 18, 20, 10] },
+        { "ellipse": [16, 34, 8, 6] }
+      ],
+      "z": 0
+    },
+    "fill3": { "ellipse": [25, 23, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [5, 14, 4, 6], "z": 0 }
+  }
+}
+
+// V11: 4 shapes - has gap between cranium and jaw
+{
+  "type": "sprite",
+  "name": "skull_outline_v11",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 10, 13, 10], "z": 0 },
+    "fill2": { "ellipse": [15, 28, 11, 12], "z": 0 },
+    "fill3": { "ellipse": [26, 22, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [4, 13, 4, 7], "z": 0 }
+  }
+}
+
+// V12: Overlaps well but jaw too long
+{
+  "type": "sprite",
+  "name": "skull_outline_v12",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 14, 12], "z": 0 },
+    "fill2": { "ellipse": [15, 26, 11, 14], "z": 0 },
+    "fill3": { "ellipse": [26, 22, 4, 6], "z": 0 },
+    "fill4": { "ellipse": [4, 14, 4, 7], "z": 0 }
+  }
+}
+
+// V13: Better proportions - has gap
+{
+  "type": "sprite",
+  "name": "skull_outline_v13",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 12, 14, 12], "z": 0 },
+    "fill2": { "ellipse": [15, 28, 10, 10], "z": 0 },
+    "fill3": { "ellipse": [25, 24, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [4, 14, 3, 6], "z": 0 }
+  }
+}
+
+// V14: Good baseline
+{
+  "type": "sprite",
+  "name": "skull_outline_v14",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 12, 14, 12], "z": 0 },
+    "fill2": { "ellipse": [15, 26, 10, 12], "z": 0 },
+    "fill3": { "ellipse": [26, 23, 4, 5], "z": 0 },
+    "fill4": { "ellipse": [4, 14, 3, 6], "z": 0 }
+  }
+}
+
+// V15: Has gap - shapes taper at overlap zone
+{
+  "type": "sprite",
+  "name": "skull_outline_v15",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 11, 13, 11], "z": 0 },
+    "fill2": { "ellipse": [15, 27, 9, 11], "z": 0 },
+    "fill3": { "ellipse": [26, 21, 4, 6], "z": 0 },
+    "fill4": { "ellipse": [4, 13, 3, 6], "z": 0 }
+  }
+}
+
+// V16: 4 ellipses - works but overly complex
+{
+  "type": "sprite",
+  "name": "skull_outline_v16",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "ellipse": [14, 13, 13, 13], "z": 0 },
+    "fill2": { "ellipse": [15, 29, 10, 10], "z": 0 },
+    "fill3": { "ellipse": [26, 22, 4, 6], "z": 0 },
+    "fill4": { "ellipse": [4, 14, 3, 7], "z": 0 }
+  }
+}
+
+// ============================================================================
+// SIMPLE APPROACH: Circle + Rect + Triangle (mushroom shape)
+// ============================================================================
+
+// V17: Simple mushroom - symmetric front view
+{
+  "type": "sprite",
+  "name": "skull_outline_v17",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [16, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": { "polygon": [[6, 28], [26, 28], [16, 38]], "z": 0 }
+  }
+}
+
+// V18: 3/4 view - shapes shifted left
+{
+  "type": "sprite",
+  "name": "skull_outline_v18",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [4, 18, 22, 10], "z": 0 },
+    "fill3": { "polygon": [[4, 28], [26, 28], [14, 38]], "z": 0 }
+  }
+}
+
+// V19: Has gap - triangle not connected
+{
+  "type": "sprite",
+  "name": "skull_outline_v19",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [8, 18, 20, 10], "z": 0 },
+    "fill3": { "polygon": [[8, 28], [8, 38], [26, 33]], "z": 0 }
+  }
+}
+
+// V20: Triangle too narrow
+{
+  "type": "sprite",
+  "name": "skull_outline_v20",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": { "polygon": [[6, 28], [6, 38], [28, 33]], "z": 0 }
+  }
+}
+
+// V21: Sharp triangle chin
+{
+  "type": "sprite",
+  "name": "skull_outline_v21",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": { "polygon": [[6, 28], [26, 28], [28, 36]], "z": 0 }
+  }
+}
+
+// V22: 6-vertex polygon has fill bug
+{
+  "type": "sprite",
+  "name": "skull_outline_v22",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": {
+      "polygon": [
+        [6, 28], [26, 28], [20, 32], [24, 36], [20, 38], [6, 38]
+      ],
+      "z": 0
+    }
+  }
+}
+
+// V23: 4-vertex trapezoid - works but straight hypotenuse
+{
+  "type": "sprite",
+  "name": "skull_outline_v23",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    "fill3": {
+      "polygon": [[6, 28], [26, 28], [24, 38], [6, 38]],
+      "z": 0
+    }
+  }
+}
+
+// V24: 5-vertex polygon - bowed hypotenuse
+{
+  "type": "sprite",
+  "name": "skull_outline_v24",
+  "size": [32, 40],
+  "palette": "outline_pal",
+  "regions": {
+    "fill": { "circle": [14, 12, 12], "z": 0 },
+    "fill2": { "rect": [6, 18, 20, 10], "z": 0 },
+    // 5 vertices: add midpoint on hypotenuse that bows inward
+    "fill3": {
+      "polygon": [
+        [6, 28],    // top-left
+        [26, 28],   // top-right
+        [20, 33],   // midpoint bows inward (was ~25,33 on straight line)
+        [24, 38],   // chin right
+        [6, 38]     // chin left
+      ],
+      "z": 0
+    }
+  }
+}
