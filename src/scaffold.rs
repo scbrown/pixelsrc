@@ -256,7 +256,7 @@ version = "0.1.0"
         assert!(content.contains("\"type\": \"sprite\""));
         assert!(content.contains("\"name\": \"hero\""));
         assert!(content.contains("\"palette\": \"main\""));
-        assert!(content.contains("\"grid\""));
+        assert!(content.contains("\"regions\""));
     }
 
     #[test]
@@ -276,9 +276,9 @@ version = "0.1.0"
         let content = generate_palette_template("enemies");
         assert!(content.contains("\"type\": \"palette\""));
         assert!(content.contains("\"name\": \"enemies\""));
-        assert!(content.contains("\"{_}\""));
-        assert!(content.contains("\"{black}\""));
-        assert!(content.contains("\"{white}\""));
+        assert!(content.contains("\"_\""));
+        assert!(content.contains("\"black\""));
+        assert!(content.contains("\"white\""));
     }
 
     #[test]
