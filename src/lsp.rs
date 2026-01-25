@@ -1796,7 +1796,7 @@ mod tests {
     fn test_collect_defined_tokens_multiple_palettes() {
         let content = r##"{"type": "palette", "name": "p1", "colors": {"{red}": "#FF0000"}}
 {"type": "palette", "name": "p2", "colors": {"{blue}": "#0000FF"}}
-{"type": "sprite", "name": "s", "grid": ["{red}{blue}"]}"##;
+{"type": "sprite", "name": "s", "size": [2,1], "regions": {"red": {"points": [[0,0]]}, "blue": {"points": [[1,0]]}}}"##;
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
 
         assert_eq!(tokens.len(), 2);
@@ -1806,7 +1806,7 @@ mod tests {
 
     #[test]
     fn test_collect_defined_tokens_no_palettes() {
-        let content = r#"{"type": "sprite", "name": "s", "grid": ["{a}{b}"]}"#;
+        let content = r#"{"type": "sprite", "name": "s", "size": [2,1], "regions": {"a": {"points": [[0,0]]}, "b": {"points": [[1,0]]}}}"#;
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
         assert!(tokens.is_empty());
     }
@@ -1862,7 +1862,7 @@ mod tests {
 
     #[test]
     fn test_extract_symbols_single_sprite() {
-        let content = r#"{"type": "sprite", "name": "player", "grid": ["{a}"]}"#;
+        let content = r#"{"type": "sprite", "name": "player", "size": [1,1], "regions": {"a": {"points": [[0,0]]}}}"#;
         let symbols = PixelsrcLanguageServer::extract_symbols(content);
 
         assert_eq!(symbols.len(), 1);
@@ -1894,8 +1894,8 @@ mod tests {
     #[test]
     fn test_extract_symbols_multiple_objects() {
         let content = r##"{"type": "palette", "name": "colors", "colors": {"{a}": "#FF0000"}}
-{"type": "sprite", "name": "hero", "grid": ["{a}"]}
-{"type": "sprite", "name": "enemy", "grid": ["{a}"]}
+{"type": "sprite", "name": "hero", "size": [1,1], "regions": {"a": {"points": [[0,0]]}}}
+{"type": "sprite", "name": "enemy", "size": [1,1], "regions": {"a": {"points": [[0,0]]}}}
 {"type": "animation", "name": "idle", "frames": ["hero"]}"##;
         let symbols = PixelsrcLanguageServer::extract_symbols(content);
 
@@ -2243,7 +2243,7 @@ also not json"##;
 
     #[test]
     fn test_parse_transform_context_not_a_transform() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}"]}"#;
+        let line = r#"{"type": "sprite", "name": "test", "size": [2,1], "regions": {}}"#;
         let info = PixelsrcLanguageServer::parse_transform_context(line, 30);
         assert!(info.is_none());
     }
@@ -2471,7 +2471,7 @@ also not json"##;
 
     #[test]
     fn test_extract_colors_from_line_not_palette() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}"]}"#;
+        let line = r#"{"type": "sprite", "name": "test", "size": [1,1], "regions": {}}"#;
         let registry = crate::variables::VariableRegistry::new();
         let colors = PixelsrcLanguageServer::extract_colors_from_line(line, 0, &registry);
 

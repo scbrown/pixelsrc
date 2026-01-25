@@ -2778,9 +2778,9 @@ fn run_agent_verify(
         .collect();
     result.insert("warnings".to_string(), serde_json::json!(warnings));
 
-    // Optional: grid info
+    // Optional: sprite dimension info
     if grid_info {
-        // Extract grid info from sprites
+        // Extract size info from sprites (supports both legacy grid and regions format)
         let grid_info_vec: Vec<serde_json::Value> = content_string
             .lines()
             .filter_map(|line| {
@@ -2790,42 +2790,23 @@ fn run_agent_verify(
                     return None;
                 }
                 let name = obj.get("name")?.as_str()?;
-                let grid = obj.get("grid")?.as_array()?;
 
-                // Calculate row widths (grid format deprecated, just count grid entries)
-                let row_widths: Vec<usize> = grid
-                    .iter()
-                    .filter_map(|row| {
-                        let _row_str = row.as_str()?;
-                        // Grid tokenization removed - assume width from size field only
-                        Some(0)
-                    })
-                    .collect();
+                // Get size from size field (primary source for both grid and regions format)
+                let size = obj.get("size").and_then(|s| s.as_array())?;
+                let width = size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                let height = size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize;
 
-                // Get size from size field or first row
-                let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
-                {
-                    size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
-                } else {
-                    row_widths.first().copied().unwrap_or(0)
-                };
-
-                let expected_height = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
-                {
-                    size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize
-                } else {
-                    row_widths.len()
-                };
-
-                let aligned = row_widths.iter().all(|&w| w == expected_width)
-                    && row_widths.len() == expected_height;
+                // Count regions if using regions format
+                let region_count = obj
+                    .get("regions")
+                    .and_then(|r| r.as_object())
+                    .map(|r| r.len())
+                    .unwrap_or(0);
 
                 Some(serde_json::json!({
                     "name": name,
-                    "size": [expected_width, expected_height],
-                    "actual_rows": row_widths.len(),
-                    "row_widths": row_widths,
-                    "aligned": aligned,
+                    "size": [width, height],
+                    "region_count": region_count,
                 }))
             })
             .collect();

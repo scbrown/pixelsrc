@@ -11,12 +11,12 @@
 //! let client = LspAgentClient::new();
 //!
 //! // Verify content
-//! let result = client.verify_content(r#"{"type": "sprite", "name": "test", "grid": ["{a}"]}"#);
+//! let result = client.verify_content(r#"{"type": "sprite", "name": "test", "size": [1,1], "regions": {"a": {"points": [[0,0]]}}}"#);
 //! println!("Valid: {}", result.valid);
 //!
 //! // Get completions at position 2:45 (line 2, column 45)
 //! let content = r##"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000"}}
-//! {"type": "sprite", "name": "s", "grid": ["{red}"]}"##;
+//! {"type": "sprite", "name": "s", "size": [1,1], "regions": {"red": {"points": [[0,0]]}}}"##;
 //! let completions = client.get_completions(content, 2, 45);
 //! for c in &completions.items {
 //!     println!("{}: {}", c.label, c.detail.clone().unwrap_or_default());
@@ -690,13 +690,13 @@ impl LspAgentClient {
         }
     }
 
-    /// Check if a line appears to be within a grid context
+    /// Check if a line appears to be a sprite (with grid or regions)
     fn is_grid_context(line: &str) -> bool {
-        // Quick check: does this line look like a sprite with a grid?
+        // Quick check: does this line look like a sprite?
         if let Ok(obj) = serde_json::from_str::<Value>(line) {
             if let Some(obj) = obj.as_object() {
                 return obj.get("type").and_then(|t| t.as_str()) == Some("sprite")
-                    && obj.contains_key("grid");
+                    && (obj.contains_key("regions") || obj.contains_key("grid"));
             }
         }
         false
@@ -832,7 +832,7 @@ mod tests {
     fn test_get_completions_with_palette() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "p", "colors": {"{skin}": "#FFE0BD", "{hair}": "#4A3C31"}}
-{"type": "sprite", "name": "s", "palette": "p", "grid": ["{"]}"##;
+{"type": "sprite", "name": "s", "palette": "p", "size": [1,1], "regions": {"{": {}}}"##;
         let result = client.get_completions(content, 2, 50);
 
         let labels: Vec<&str> = result.items.iter().map(|i| i.label.as_str()).collect();

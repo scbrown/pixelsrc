@@ -185,7 +185,7 @@ pub struct ImportResult {
 }
 
 impl ImportResult {
-    /// Serialize to legacy JSONL format (palette line + sprite line with grid).
+    /// Serialize to JSONL format (palette line + sprite line with regions).
     pub fn to_jsonl(&self) -> String {
         let palette_json = serde_json::json!({
             "type": "palette",
@@ -193,12 +193,28 @@ impl ImportResult {
             "colors": self.palette
         });
 
+        // Build regions object - use structured regions if available, fallback to points
+        let regions: HashMap<String, serde_json::Value> =
+            if let Some(ref structured) = self.structured_regions {
+                structured
+                    .iter()
+                    .map(|(token, region)| (token.clone(), region.to_json()))
+                    .collect()
+            } else {
+                self.regions
+                    .iter()
+                    .map(|(token, points)| {
+                        (token.clone(), serde_json::json!({ "points": points }))
+                    })
+                    .collect()
+            };
+
         let sprite_json = serde_json::json!({
             "type": "sprite",
             "name": self.name,
             "size": [self.width, self.height],
             "palette": format!("{}_palette", self.name),
-            "grid": self.grid
+            "regions": regions
         });
 
         format!("{}\n{}", palette_json, sprite_json)
@@ -622,5 +638,7 @@ mod tests {
         assert!(jsonl.contains("\"type\":\"sprite\""));
         assert!(jsonl.contains("test_sprite_palette"));
         assert!(jsonl.contains("test_sprite"));
+        assert!(jsonl.contains("\"regions\""));
+        assert!(!jsonl.contains("\"grid\""));
     }
 }
