@@ -1286,7 +1286,7 @@ mod tests {
         // {"type": "palette", "name": "mono", "colors": {"{_}": "#00000000", "{on}": "#FFFFFF", "{off}": "#000000"}}
         registry.register(mono_palette());
 
-        // {"type": "sprite", "name": "checker", "palette": "mono", "grid": [...]}
+        // {"type": "sprite", "name": "checker", "palette": "mono", "regions": {...}}
         let sprite = checker_sprite_named();
         let result = registry.resolve_strict(&sprite).unwrap();
 
@@ -1302,7 +1302,7 @@ mod tests {
     fn test_fixture_unknown_palette_ref_strict() {
         let registry = PaletteRegistry::new();
 
-        // {"type": "sprite", "name": "bad_ref", "palette": "nonexistent", "grid": ["{x}{x}"]}
+        // {"type": "sprite", "name": "bad_ref", "palette": "nonexistent", "regions": {...}}
         let sprite = bad_ref_sprite();
         let result = registry.resolve_strict(&sprite);
 
@@ -1314,7 +1314,7 @@ mod tests {
     fn test_fixture_unknown_palette_ref_lenient() {
         let registry = PaletteRegistry::new();
 
-        // {"type": "sprite", "name": "bad_ref", "palette": "nonexistent", "grid": ["{x}{x}"]}
+        // {"type": "sprite", "name": "bad_ref", "palette": "nonexistent", "regions": {...}}
         let sprite = bad_ref_sprite();
         let result = registry.resolve_lenient(&sprite);
 
@@ -1459,7 +1459,7 @@ mod tests {
     }
 
     // Test fixture matching plan doc:
-    // {"type": "sprite", "name": "test", "palette": "@gameboy", "grid": ["{lightest}{dark}"]}
+    // {"type": "sprite", "name": "test", "palette": "@gameboy", "regions": {...}}
     #[test]
     fn test_fixture_builtin_palette() {
         let registry = PaletteRegistry::new();

@@ -1533,8 +1533,8 @@ mod tests {
             _ => panic!("Expected palette"),
         }
 
-        // {"type": "sprite", "name": "checker", "palette": "mono", "grid": [...]}
-        let json = r#"{"type": "sprite", "name": "checker", "palette": "mono", "grid": ["{on}{off}{on}{off}", "{off}{on}{off}{on}"]}"#;
+        // {"type": "sprite", "name": "checker", "palette": "mono", "regions": {...}}
+        let json = r#"{"type": "sprite", "name": "checker", "palette": "mono", "size": [4,2], "regions": {"on": {"points": [[0,0],[2,0],[1,1],[3,1]]}, "off": {"points": [[1,0],[3,0],[0,1],[2,1]]}}}"#;
         let obj: TtpObject = serde_json::from_str(json).unwrap();
         match obj {
             TtpObject::Sprite(sprite) => {
@@ -2066,7 +2066,8 @@ mod tests {
             "type": "sprite",
             "name": "player_attack",
             "palette": "characters",
-            "grid": ["{x}"],
+            "size": [1, 1],
+            "regions": {"x": {"points": [[0,0]]}},
             "metadata": {
                 "origin": [16, 32],
                 "boxes": {
@@ -2123,7 +2124,8 @@ mod tests {
             "type": "sprite",
             "name": "centered_sprite",
             "palette": "default",
-            "grid": ["{x}"],
+            "size": [1, 1],
+            "regions": {"x": {"points": [[0,0]]}},
             "metadata": {
                 "origin": [8, 16]
             }
@@ -2146,7 +2148,8 @@ mod tests {
             "type": "sprite",
             "name": "collider",
             "palette": "default",
-            "grid": ["{x}"],
+            "size": [1, 1],
+            "regions": {"x": {"points": [[0,0]]}},
             "metadata": {
                 "boxes": {
                     "collide": {"x": 0, "y": 0, "w": 16, "h": 16}
@@ -2511,7 +2514,8 @@ mod tests {
             "type": "sprite",
             "name": "hair_2",
             "palette": "character",
-            "grid": ["{x}"],
+            "size": [1, 1],
+            "regions": {"x": {"points": [[0,0]]}},
             "metadata": {
                 "attach_in": [4, 0],
                 "attach_out": [4, 8]
