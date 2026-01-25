@@ -75,11 +75,6 @@
 - [Example Gallery](ai-generation/examples.md)
 - [Troubleshooting](ai-generation/troubleshooting.md)
 
-# Playground
-
-- [Interactive Sandbox](playground/sandbox.md)
-- [Example Gallery](playground/gallery.md)
-
 # Reference
 
 - [Built-in Palettes](reference/palettes.md)

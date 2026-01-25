@@ -11,105 +11,128 @@ You are a pixel art generator that outputs sprites in pixelsrc format.
 
 ## Format Rules
 
-1. Output is JSON objects with a "type" field
-2. Output types: "palette" (color definitions) or "sprite" (pixel grid)
-3. Sprites use token-based grids where each pixel is a `{token}` reference
-4. Common tokens: `{_}` for transparency, descriptive names for colors
+1. Output is JSON5 objects with a "type" field
+2. Output types: "palette" (color definitions) or "sprite" (structured regions)
+3. Sprites use structured regions that define shapes, not pixel grids
+4. Common tokens: `_` for transparency, descriptive names for colors
 5. Palette colors use hex format: `#RRGGBB` or `#RRGGBBAA` (with alpha)
-6. For sprites with grids, use multi-line format for readability
 
 ## Sprite Structure
 
-{"type": "sprite", "name": "sprite_name", "palette": {...}, "grid": [...]}
+{
+  type: "sprite",
+  name: "sprite_name",
+  size: [width, height],
+  palette: "palette_name",
+  regions: {
+    token: { shape: [params], z: order },
+  },
+}
 
 - name: unique identifier (lowercase_snake_case)
-- palette: inline color map OR reference to named palette
-- grid: array of strings, each string is one row of tokens
+- size: [width, height] in pixels
+- palette: name of defined palette
+- regions: map of token names to shape definitions
 
-## Token Format
+## Shape Primitives
 
-- Tokens are `{name}` format, concatenated in grid rows
-- Example row: "{_}{skin}{skin}{_}" = 4 pixels
-- Token names should be descriptive: {skin}, {hair}, {outline}, {shadow}
+- rect: [x, y, width, height] - Filled rectangle
+- stroke: [x, y, width, height] - Rectangle outline
+- points: [[x, y], ...] - Individual pixels
+- circle: [cx, cy, radius] - Filled circle
+- ellipse: [cx, cy, rx, ry] - Filled ellipse
+- polygon: [[x, y], ...] - Filled polygon
+- line: [[x1, y1], [x2, y2], ...] - Connected line
 
-## CSS Variables (Recommended)
+## Compound Shapes
 
-Use CSS variables for theming and color-mix() for derived colors:
+Combine shapes with union, subtract, or intersect:
 
-{"type": "palette", "name": "themed", "colors": {
-  "--primary": "#4169E1",
-  "{_}": "transparent",
-  "{main}": "var(--primary)",
-  "{shadow}": "color-mix(in oklch, var(--primary) 70%, black)",
-  "{highlight}": "color-mix(in oklch, var(--primary) 60%, white)"
-}}
-
-- Define base colors with `--name` prefix
-- Reference with `var(--name)` or `var(--name, fallback)`
-- Generate shadows: `color-mix(in oklch, color 70%, black)`
-- Generate highlights: `color-mix(in oklch, color 60%, white)`
-
-## CSS Keyframes Animation (Recommended)
-
-Use percentage-based keyframes for animations:
-
-{"type": "animation", "name": "pulse", "keyframes": {
-  "0%": {"sprite": "star", "opacity": 1.0},
-  "50%": {"sprite": "star", "transform": "scale(1.2)", "opacity": 0.7},
-  "100%": {"sprite": "star", "opacity": 1.0}
-}, "duration": "1s", "timing_function": "ease-in-out", "loop": true}
-
-- Transform functions: translate(x, y), rotate(deg), scale(n), flip(x/y)
-- Timing functions: linear, ease, ease-in, ease-out, ease-in-out, steps(n)
-- Duration: "500ms", "1s", or number in milliseconds
+{
+  union: [
+    { rect: [2, 0, 4, 1] },
+    { rect: [0, 2, 8, 4] },
+  ],
+  z: 0,
+}
 
 ## Example Output
 
-{"type": "palette", "name": "heart", "colors": {
-  "--red": "#FF0000",
-  "{_}": "transparent",
-  "{r}": "var(--red)",
-  "{p}": "color-mix(in oklch, var(--red) 70%, white)",
-  "{dark}": "color-mix(in oklch, var(--red) 70%, black)"
-}}
-{"type": "sprite", "name": "heart", "palette": "heart", "grid": [
-  "{_}{r}{r}{_}{r}{r}{_}",
-  "{r}{p}{r}{r}{p}{r}{r}",
-  "{r}{r}{r}{r}{r}{r}{r}",
-  "{_}{r}{r}{r}{r}{r}{_}",
-  "{_}{_}{r}{r}{r}{_}{_}",
-  "{_}{_}{_}{dark}{_}{_}{_}"
-]}
-{"type": "animation", "name": "heart_beat", "keyframes": {
-  "0%": {"sprite": "heart", "transform": "scale(1)"},
-  "15%": {"sprite": "heart", "transform": "scale(1.1)"},
-  "30%": {"sprite": "heart", "transform": "scale(1)"}
-}, "duration": "1s", "timing_function": "ease-out", "loop": true}
+{
+  type: "palette",
+  name: "heart",
+  colors: {
+    _: "transparent",
+    r: "#FF0000",
+    p: "#FF6B6B",
+    dark: "#B80000",
+  },
+}
+
+{
+  type: "sprite",
+  name: "heart",
+  size: [7, 6],
+  palette: "heart",
+  regions: {
+    r: {
+      union: [
+        { rect: [1, 0, 2, 1] },     // Left lobe
+        { rect: [4, 0, 2, 1] },     // Right lobe
+        { rect: [0, 1, 7, 2] },     // Wide middle
+        { rect: [1, 3, 5, 1] },     // Narrowing
+        { rect: [2, 4, 3, 1] },     // Tip area
+      ],
+      z: 0,
+    },
+    p: { points: [[1, 1], [4, 1]], z: 1 },
+    dark: { points: [[3, 5]], z: 2 },
+  },
+}
+
+{
+  type: "animation",
+  name: "heart_beat",
+  keyframes: {
+    "0%": { sprite: "heart", transform: "scale(1)" },
+    "15%": { sprite: "heart", transform: "scale(1.1)" },
+    "30%": { sprite: "heart", transform: "scale(1)" },
+  },
+  duration: "1s",
+  timing_function: "ease-out",
+  loop: true,
+}
 
 ## Best Practices
 
-- Use semantic token names: {skin}, {hair}, {outline}, {shadow}, {highlight}
+- Use semantic token names: skin, hair, outline, shadow, highlight
 - Keep sprites small: 8x8, 16x16, or 32x32 pixels
-- Use {_} with "transparent" for transparent pixels
+- Use _ with "transparent" for transparent pixels
 - Limit palette to 4-16 colors for retro aesthetic
-- Use CSS variables (--name) for base colors, enables easy theming
-- Use color-mix() to auto-generate shadow/highlight variants
+- Use shapes (rect, circle) for large areas, points for details
+- Higher z values draw on top
 - Add highlights and shadows for depth
-- Include an {outline} color for definition
+- Include an outline color for definition
 
 ## Variants
 
 Create color variations of existing sprites:
 
-{"type": "variant", "name": "hero_red", "base": "hero", "palette": {"{hair}": "#FF0000"}}
+{ type: "variant", name: "hero_red", base: "hero", palette: { hair: "#FF0000" } }
 
-## Compositions (Tiling)
+## Compositions (Layering)
 
 Compose multiple sprites into larger images:
 
-{"type": "composition", "name": "scene", "size": [32, 32], "cell_size": [8, 8],
-  "sprites": {".": null, "G": "grass", "T": "tree"},
-  "layers": [{"map": ["GGGG", "GGGG", "G.GG", "GTGG"]}]}
+{
+  type: "composition",
+  name: "scene",
+  size: [32, 32],
+  layers: [
+    { sprite: "background", x: 0, y: 0 },
+    { sprite: "hero", x: 12, y: 12 },
+  ],
+}
 ```
 
 ## Specialized Templates
@@ -119,7 +142,7 @@ Compose multiple sprites into larger images:
 Use this for generating character sprites:
 
 ```
-Create a [SIZE]x[SIZE] pixel art character sprite in pixelsrc JSONL format.
+Create a [SIZE]x[SIZE] pixel art character sprite in pixelsrc format.
 
 Character description:
 - [DESCRIBE CHARACTER: hero, villain, NPC, monster, etc.]
@@ -127,29 +150,29 @@ Character description:
 - [DESCRIBE STYLE: cute, realistic, retro, etc.]
 
 Requirements:
-- Use CSS variables for base colors: --skin-tone, --hair-color, --shirt-color
-- Use semantic token names: {skin}, {hair}, {eye}, {shirt}, {pants}, {outline}
-- Use color-mix() for shadows: color-mix(in oklch, var(--color) 70%, black)
-- Use color-mix() for highlights: color-mix(in oklch, var(--color) 60%, white)
-- Include {_} mapped to "transparent" for transparent background
-- Use an {outline} color for definition
-- Limit palette to 8-12 visible colors (CSS variables don't count)
+- Use semantic token names: skin, hair, eye, shirt, pants, outline
+- Define outline first with stroke, then fill with rect shapes
+- Include _ mapped to "transparent" for transparent background
+- Limit palette to 8-12 colors
+- Use z-ordering: outline z:0, fills z:1, details z:2
 
 Output format:
-1. First line: palette with CSS variables and color-mix() derived colors
-2. Second line: sprite definition with "type": "sprite"
-3. Ensure each grid row has exactly [SIZE] tokens
+1. First: palette with colors
+2. Second: sprite with regions using shapes
 
 Example palette structure:
-{"type": "palette", "name": "char", "colors": {
-  "--skin": "#FFCC99",
-  "--hair": "#8B4513",
-  "{_}": "transparent",
-  "{skin}": "var(--skin)",
-  "{skin_shadow}": "color-mix(in oklch, var(--skin) 70%, black)",
-  "{hair}": "var(--hair)",
-  "{hair_highlight}": "color-mix(in oklch, var(--hair) 70%, white)"
-}}
+{
+  type: "palette",
+  name: "char",
+  colors: {
+    _: "transparent",
+    outline: "#2C1810",
+    skin: "#FFCC99",
+    skin_shadow: "#D4A574",
+    hair: "#8B4513",
+    shirt: "#4169E1",
+  },
+}
 ```
 
 ### Item Template
@@ -157,7 +180,7 @@ Example palette structure:
 Use this for objects and collectibles:
 
 ```
-Create a [SIZE]x[SIZE] pixel art item/object sprite in pixelsrc JSONL format.
+Create a [SIZE]x[SIZE] pixel art item/object sprite in pixelsrc format.
 
 Item description:
 - [DESCRIBE ITEM: sword, potion, key, chest, etc.]
@@ -165,28 +188,29 @@ Item description:
 - [DESCRIBE STYLE: fantasy RPG, sci-fi, cute, realistic]
 
 Requirements:
-- Use CSS variables for material base colors: --metal, --wood, --gem
-- Use semantic token names: {blade}, {hilt}, {gem}, {wood}, {metal}
-- Use color-mix() for shadows and highlights
-- Include {_} mapped to "transparent" for transparent background
-- Keep palette under 8 visible colors
+- Use semantic token names: blade, hilt, gem, wood, metal
+- Use stroke for outlines, rect/ellipse for fills
+- Include _ mapped to "transparent" for transparent background
+- Keep palette under 8 colors
 
 Visual guidelines:
-- Use lighter colors (color-mix with white) on top-left for highlight
-- Use darker colors (color-mix with black) on bottom-right for shadow
+- Use lighter colors on top-left for highlight
+- Use darker colors on bottom-right for shadow
 - Leave 1-2 pixel margin for breathing room
 
 Example palette:
-{"type": "palette", "name": "sword", "colors": {
-  "--steel": "#C0C0C0",
-  "--gold": "#FFD700",
-  "{_}": "transparent",
-  "{blade}": "var(--steel)",
-  "{blade_shine}": "color-mix(in oklch, var(--steel) 50%, white)",
-  "{blade_shadow}": "color-mix(in oklch, var(--steel) 70%, black)",
-  "{guard}": "var(--gold)",
-  "{hilt}": "#8B4513"
-}}
+{
+  type: "palette",
+  name: "sword",
+  colors: {
+    _: "transparent",
+    blade: "#C0C0C0",
+    blade_shine: "#E8E8E8",
+    blade_shadow: "#808080",
+    guard: "#FFD700",
+    hilt: "#8B4513",
+  },
+}
 ```
 
 ### Animation Template
@@ -194,7 +218,7 @@ Example palette:
 Use this for animated sprites:
 
 ```
-Create a [SIZE]x[SIZE] pixel art animation in pixelsrc JSONL format.
+Create a [SIZE]x[SIZE] pixel art animation in pixelsrc format.
 
 Animation description:
 - [DESCRIBE SUBJECT: character, object, effect]
@@ -202,62 +226,36 @@ Animation description:
 - [DESCRIBE FRAME COUNT: 2, 4, 6, 8 frames]
 
 Requirements:
-- All frames must use the SAME shared palette with CSS variables
+- All frames must use the SAME shared palette
 - Keep subject centered and consistent across frames
 - Only animate the parts that move
 - Use meaningful frame names: [name]_1, [name]_2, etc.
 - Use CSS keyframes format for animations
 
 Output format:
-1. First line: shared palette with --variables and color-mix() shadows
-2. Following lines: sprite frames in order
-3. Last line: CSS keyframes animation
+1. First: shared palette
+2. Following: sprite frames in order
+3. Last: CSS keyframes animation
 
 CSS Keyframes format:
-{"type": "animation", "name": "anim", "keyframes": {
-  "0%": {"sprite": "frame_1"},
-  "50%": {"sprite": "frame_2", "transform": "translate(0, -2)"},
-  "100%": {"sprite": "frame_1"}
-}, "duration": "500ms", "timing_function": "ease-in-out", "loop": true}
+{
+  type: "animation",
+  name: "anim",
+  keyframes: {
+    "0%": { sprite: "frame_1" },
+    "50%": { sprite: "frame_2", transform: "translate(0, -2)" },
+    "100%": { sprite: "frame_1" },
+  },
+  duration: "500ms",
+  timing_function: "ease-in-out",
+  loop: true,
+}
 
 Frame timing:
 - Fast action: "50ms" to "100ms"
 - Normal movement: "100ms" to "150ms"
 - Slow/relaxed: "200ms" to "300ms"
 - Idle breathing: "400ms" to "2s"
-```
-
-### Tileset Template
-
-Use this for seamless tiles:
-
-```
-Create a [SIZE]x[SIZE] pixel art tileset in pixelsrc JSONL format.
-
-Tileset description:
-- [DESCRIBE TERRAIN: grass, water, stone, sand]
-- [DESCRIBE STYLE: top-down RPG, platformer]
-- [DESCRIBE VARIATION: how many tile variants]
-
-Requirements:
-- All tiles must use the SAME shared palette with CSS variables
-- Tiles must be seamlessly tileable (edges match)
-- Use color-mix() to auto-generate shades from base color
-- Define base color as --grass, derive {grass_light}, {grass_mid}, {grass_dark}
-
-Example palette structure:
-{"type": "palette", "name": "terrain", "colors": {
-  "--grass": "#228B22",
-  "{_}": "transparent",
-  "{grass}": "var(--grass)",
-  "{grass_light}": "color-mix(in oklch, var(--grass) 70%, white)",
-  "{grass_dark}": "color-mix(in oklch, var(--grass) 70%, black)"
-}}
-
-Tiling guidelines:
-- Distribute color variations randomly but evenly
-- Avoid obvious repeating patterns
-- Test by mentally placing 4 tiles in a 2x2 grid
 ```
 
 ## Usage with Different Models
@@ -280,57 +278,20 @@ For smaller local models:
 - May need multiple generation attempts
 - Consider fine-tuning for pixelsrc format
 
-## Sketch Workflow
-
-Iterate quickly without rendering PNGs:
-
-```bash
-# 1. Generate sprite with AI and save to file
-cat > sketch.pxl << 'EOF'
-{"type": "sprite", "name": "hero", "palette": {...}, "grid": [...]}
-EOF
-
-# 2. Preview instantly in terminal with ANSI colors
-pxl show sketch.pxl -s hero
-
-# 3. Check structure with coordinate grid
-pxl grid sketch.pxl -s hero
-
-# 4. Get human-readable breakdown
-pxl explain sketch.pxl -s hero
-
-# 5. Iterate: Edit file, re-run pxl show (fast feedback!)
-
-# 6. When satisfied, render final PNG
-pxl render sketch.pxl -o hero.png --scale 4
-```
-
-**Benefits:**
-- Instant feedback with `pxl show`
-- No file clutter from preview PNGs
-- `pxl grid` shows coordinates for precise edits
-- `pxl explain` helps understand AI output
-
 ## Verification
 
 Always verify generated output:
 
 ```bash
 # Quick preview in terminal
-pxl show generated.pxl -s test
-
-# View with coordinates
-pxl grid generated.pxl -s test
+pxl show generated.pxl
 
 # Render to PNG
 pxl render generated.pxl -o output.png
 
 # Catch format issues
-pxl render generated.pxl --strict
+pxl validate generated.pxl --strict
 
 # Format for consistency
 pxl fmt generated.pxl
-
-# Get fix suggestions
-pxl suggest generated.pxl
 ```
