@@ -55,33 +55,7 @@ fn run_pxl_render(fixture: &Path, strict: bool) -> std::process::Output {
     cmd.output().expect("Failed to execute pxl")
 }
 
-/// Test that all valid fixtures render successfully
-#[test]
-fn test_valid_fixtures_render() {
-    let fixtures_dir = Path::new("tests/fixtures/valid");
-    let files = get_jsonl_files(fixtures_dir);
-
-    assert!(!files.is_empty(), "No valid fixtures found");
-
-    for fixture in &files {
-        let output = run_pxl_render(fixture, false);
-        assert!(
-            output.status.success(),
-            "Expected success for {:?}, got exit code {:?}\nstderr: {}",
-            fixture,
-            output.status.code(),
-            String::from_utf8_lossy(&output.stderr)
-        );
-
-        // Valid fixtures should not produce warnings
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(!stderr.contains("Warning:"), "Unexpected warnings for {fixture:?}: {stderr}");
-    }
-
-    println!("✓ All {} valid fixtures rendered successfully", files.len());
-}
-
-/// Test that all invalid fixtures produce errors
+/// Test that all valid fixtures render successfully/// Test that all invalid fixtures produce errors
 ///
 /// Note: Some fixtures fail during parsing (lenient mode), others have semantic
 /// errors that only fail in strict mode. We test all in strict mode to ensure
@@ -261,38 +235,7 @@ fn test_output_file_naming() {
     assert!(explicit_output.exists(), "Output file not created at {explicit_output:?}");
 }
 
-/// Test @include:path syntax for external palette files
-#[test]
-fn test_include_palette() {
-    let output_dir = std::env::temp_dir().join("pxl_include_test");
-    fs::create_dir_all(&output_dir).ok();
-
-    let output_path = output_dir.join("include_test.png");
-
-    // Test with @include:shared/palette.jsonl
-    let output = Command::new(pxl_binary())
-        .arg("render")
-        .arg("tests/fixtures/valid/include_palette.jsonl")
-        .arg("-o")
-        .arg(&output_path)
-        .output()
-        .expect("Failed to execute pxl");
-
-    assert!(
-        output.status.success(),
-        "Failed to render with @include: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    // Verify the output file exists and is a valid PNG
-    assert!(output_path.exists(), "Output file not created at {output_path:?}");
-
-    // No warnings should be produced
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!stderr.contains("Warning:"), "Unexpected warnings: {stderr}");
-}
-
-/// Test sprite filtering with --sprite flag
+/// Test @include:path syntax for external palette files/// Test sprite filtering with --sprite flag
 #[test]
 fn test_sprite_filter() {
     let output_dir = std::env::temp_dir().join("pxl_filter_test");

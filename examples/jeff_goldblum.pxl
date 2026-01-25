@@ -1,0 +1,212 @@
+// jeff_goldblum.pxl - The man, the myth, the legend
+// A 32x32 portrait using structured regions
+
+{
+  type: "palette",
+  name: "goldblum",
+  colors: {
+    _: "transparent",
+
+    // Structure
+    outline: "#0a0a0a",
+
+    // Hair - dark, voluminous
+    hair: "#1a1a1a",
+    "hair-hi": "#2d2d2d",
+
+    // Skin - warm tones with depth
+    skin: "#d4a574",
+    "skin-hi": "#e8c4a0",
+    "skin-sh": "#b8865c",
+    "skin-dp": "#8a5a3c",
+
+    // Eyes
+    "eye-w": "#f5f0eb",
+    iris: "#4a3c28",
+    pupil: "#0a0a0a",
+
+    // Eyebrows
+    brow: "#1a1a1a",
+
+    // Nose and details
+    nose: "#c49a6a",
+
+    // Mouth
+    lip: "#b86860",
+
+    // Glasses
+    frame: "#1a1a1a",
+    lens: "#88aabb60",
+
+    // Shirt
+    shirt: "#1a1a1a",
+    collar: "#2a2a2a",
+  },
+
+  roles: {
+    outline: "boundary",
+    skin: "fill",
+    hair: "fill",
+    iris: "anchor",
+    pupil: "anchor",
+    frame: "anchor",
+    "skin-sh": "shadow",
+    "skin-dp": "shadow",
+    "skin-hi": "highlight",
+    "hair-hi": "highlight",
+  },
+}
+
+{
+  type: "sprite",
+  name: "jeff_goldblum",
+  size: [32, 32],
+  palette: "goldblum",
+
+  regions: {
+    // === HAIR (z: 0-9) ===
+    hair: {
+      union: [
+        { rect: [6, 0, 20, 4] },    // Top mass
+        { rect: [5, 4, 22, 4] },    // Mid section
+        { rect: [4, 8, 24, 4] },    // Lower (sides)
+      ],
+      z: 0,
+    },
+
+    "hair-hi": {
+      points: [
+        [9, 2], [12, 1], [15, 2], [18, 1], [21, 2],
+        [8, 4], [11, 3], [14, 4], [17, 3], [20, 4], [23, 3],
+        [7, 6], [10, 5], [13, 6], [16, 5], [19, 6], [22, 5], [25, 6],
+      ],
+      z: 1,
+    },
+
+    // === FACE (z: 10-29) ===
+    skin: {
+      union: [
+        { rect: [8, 10, 16, 16] },   // Main face area
+        { rect: [10, 26, 12, 2] },   // Chin
+      ],
+      z: 10,
+    },
+
+    "skin-hi": {
+      rect: [11, 11, 10, 3],  // Forehead highlight
+      z: 11,
+    },
+
+    "skin-sh": {
+      union: [
+        { rect: [8, 16, 2, 6] },    // Left cheek shadow
+        { rect: [22, 16, 2, 6] },   // Right cheek shadow
+        { rect: [11, 24, 10, 2] },  // Jaw shadow
+      ],
+      z: 12,
+    },
+
+    "skin-dp": {
+      points: [
+        [8, 19], [8, 20], [23, 19], [23, 20],  // Deep cheek shadows
+        [13, 25], [18, 25],  // Under chin
+      ],
+      z: 13,
+    },
+
+    // === EYES (z: 30-39) ===
+    brow: {
+      union: [
+        { rect: [9, 13, 5, 1] },   // Left brow
+        { rect: [18, 13, 5, 1] },  // Right brow
+      ],
+      z: 30,
+    },
+
+    "eye-w": {
+      union: [
+        { rect: [10, 15, 4, 2] },  // Left eye white
+        { rect: [18, 15, 4, 2] },  // Right eye white
+      ],
+      z: 31,
+    },
+
+    iris: {
+      union: [
+        { rect: [11, 15, 2, 2] },  // Left iris
+        { rect: [19, 15, 2, 2] },  // Right iris
+      ],
+      z: 32,
+    },
+
+    pupil: {
+      points: [[11, 16], [19, 16]],
+      z: 33,
+    },
+
+    // === NOSE (z: 40-44) ===
+    nose: {
+      union: [
+        { rect: [15, 16, 2, 4] },  // Bridge
+        { rect: [14, 20, 4, 1] },  // Tip
+      ],
+      z: 40,
+    },
+
+    // === MOUTH (z: 45-49) ===
+    lip: {
+      rect: [13, 22, 6, 2],
+      z: 45,
+    },
+
+    // === GLASSES (z: 50-59) ===
+    lens: {
+      union: [
+        { rect: [9, 14, 5, 4] },   // Left lens
+        { rect: [18, 14, 5, 4] },  // Right lens
+      ],
+      z: 50,
+    },
+
+    frame: {
+      union: [
+        // Left frame
+        { stroke: [9, 14, 5, 4] },
+        // Right frame
+        { stroke: [18, 14, 5, 4] },
+        // Bridge
+        { rect: [14, 15, 4, 1] },
+        // Left temple
+        { line: [[9, 16], [5, 14]] },
+        // Right temple
+        { line: [[23, 16], [27, 14]] },
+      ],
+      z: 51,
+    },
+
+    // === SHIRT (z: 60-69) ===
+    shirt: {
+      rect: [4, 28, 24, 4],
+      z: 60,
+    },
+
+    collar: {
+      union: [
+        { line: [[12, 28], [16, 30]] },
+        { line: [[20, 28], [16, 30]] },
+      ],
+      z: 61,
+    },
+
+    // === OUTLINE (z: 90+) ===
+    outline: {
+      union: [
+        // Face contour
+        { stroke: [8, 10, 16, 16] },
+        // Neck/chin
+        { line: [[10, 26], [10, 28], [22, 28], [22, 26]] },
+      ],
+      z: 90,
+    },
+  },
+}

@@ -2,7 +2,7 @@
 //!
 //! Demonstrates minimal pxl.toml project configuration.
 
-use pixelsrc::config::{PxlConfig, load_config};
+use pixelsrc::config::{load_config, PxlConfig};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -31,16 +31,8 @@ fn test_basic_config_minimal() {
 
     // Verify defaults are applied
     assert_eq!(config.project.version, "0.1.0", "Default version should be 0.1.0");
-    assert_eq!(
-        config.project.src,
-        PathBuf::from("src/pxl"),
-        "Default src should be src/pxl"
-    );
-    assert_eq!(
-        config.project.out,
-        PathBuf::from("build"),
-        "Default out should be build"
-    );
+    assert_eq!(config.project.src, PathBuf::from("src/pxl"), "Default src should be src/pxl");
+    assert_eq!(config.project.out, PathBuf::from("build"), "Default out should be build");
 
     // Verify defaults section gets default values
     assert_eq!(config.defaults.scale, 1, "Default scale should be 1");
@@ -136,10 +128,7 @@ name = ""
     let config: PxlConfig = toml::from_str(invalid_name).expect("Should parse");
     let errors = config.validate();
     assert!(!errors.is_empty(), "Empty name should produce error");
-    assert!(
-        errors.iter().any(|e| e.field == "project.name"),
-        "Should have project.name error"
-    );
+    assert!(errors.iter().any(|e| e.field == "project.name"), "Should have project.name error");
 
     // Zero scale
     let invalid_scale = r#"
@@ -151,10 +140,7 @@ scale = 0
 "#;
     let config: PxlConfig = toml::from_str(invalid_scale).expect("Should parse");
     let errors = config.validate();
-    assert!(
-        errors.iter().any(|e| e.field == "defaults.scale"),
-        "Should have defaults.scale error"
-    );
+    assert!(errors.iter().any(|e| e.field == "defaults.scale"), "Should have defaults.scale error");
 
     // Empty atlas sources
     let invalid_atlas = r#"

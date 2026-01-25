@@ -144,7 +144,7 @@ The web editor is built with:
 
 - **TypeScript** - Type-safe codebase
 - **Vite** - Fast development and bundling
-- **WASM** - `@pixelsrc/wasm` for rendering
+- **WASM** - `@stiwi/pixelsrc-wasm` for rendering
 - **LZ-String** - URL hash compression
 
 No framework dependencies. The editor uses vanilla DOM manipulation for minimal bundle size.

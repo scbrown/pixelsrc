@@ -39,6 +39,7 @@ fn gameboy() -> Palette {
             ("{dark}".to_string(), "#306230".to_string()),
             ("{darkest}".to_string(), "#0F380F".to_string()),
         ]),
+        ..Default::default()
     }
 }
 
@@ -62,6 +63,7 @@ fn nes() -> Palette {
             ("{gray}".to_string(), "#7C7C7C".to_string()),
             ("{skin}".to_string(), "#FCB8B8".to_string()),
         ]),
+        ..Default::default()
     }
 }
 
@@ -89,6 +91,7 @@ fn pico8() -> Palette {
             ("{pink}".to_string(), "#FF77A8".to_string()),
             ("{peach}".to_string(), "#FFCCAA".to_string()),
         ]),
+        ..Default::default()
     }
 }
 
@@ -107,6 +110,7 @@ fn grayscale() -> Palette {
             ("{gray6}".to_string(), "#3F3F3F".to_string()),
             ("{black}".to_string(), "#000000".to_string()),
         ]),
+        ..Default::default()
     }
 }
 
@@ -119,6 +123,7 @@ fn one_bit() -> Palette {
             ("{black}".to_string(), "#000000".to_string()),
             ("{white}".to_string(), "#FFFFFF".to_string()),
         ]),
+        ..Default::default()
     }
 }
 
@@ -141,6 +146,7 @@ fn dracula() -> Palette {
             ("{red}".to_string(), "#FF5555".to_string()),
             ("{yellow}".to_string(), "#F1FA8C".to_string()),
         ]),
+        ..Default::default()
     }
 }
 

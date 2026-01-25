@@ -1,8 +1,0 @@
-{"type": "sprite", "name": "fast1", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["x..", ".x.", "..x"]}
-{"type": "sprite", "name": "fast2", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["..x", ".x.", "x.."]}
-{"type": "sprite", "name": "slow1", "size": [3, 3], "palette": {".": "#00000000", "x": "#0000FF"}, "grid": ["xxx", "...", "..."]}
-{"type": "sprite", "name": "slow2", "size": [3, 3], "palette": {".": "#00000000", "x": "#0000FF"}, "grid": ["...", "xxx", "..."]}
-{"type": "sprite", "name": "slow3", "size": [3, 3], "palette": {".": "#00000000", "x": "#0000FF"}, "grid": ["...", "...", "xxx"]}
-{"type": "animation", "name": "fast_blink", "frames": ["fast1", "fast2"], "duration": 50}
-{"type": "animation", "name": "slow_pulse", "frames": ["slow1", "slow2", "slow3"], "duration": "500ms"}
-{"type": "animation", "name": "one_second", "frames": ["fast1", "fast2"], "duration": "1s"}

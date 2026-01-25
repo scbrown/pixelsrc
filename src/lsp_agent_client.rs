@@ -39,7 +39,6 @@
 
 use crate::color::parse_color;
 use crate::motion::{parse_timing_function, Interpolation, StepPosition};
-use crate::tokenizer::tokenize;
 use crate::validate::{Severity, ValidationIssue, Validator};
 use crate::variables::VariableRegistry;
 use serde::{Deserialize, Serialize};
@@ -411,11 +410,8 @@ impl LspAgentClient {
             };
             let _ = obj_type;
 
-            let palette_name = obj
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
+            let palette_name =
+                obj.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
 
             // Get the colors object
             let palette_colors = match obj.get("colors").and_then(|c| c.as_object()) {
@@ -474,11 +470,7 @@ impl LspAgentClient {
             }
         }
 
-        ColorResolutionResult {
-            error_count: errors.len(),
-            colors,
-            errors,
-        }
+        ColorResolutionResult { error_count: errors.len(), colors, errors }
     }
 
     /// Resolve colors and return JSON string
@@ -486,9 +478,8 @@ impl LspAgentClient {
     /// Convenience method that returns the color resolution result as a JSON string.
     pub fn resolve_colors_json(&self, content: &str) -> String {
         let result = self.resolve_colors(content);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Analyze timing functions in animations.
@@ -537,18 +528,12 @@ impl LspAgentClient {
             };
             let _ = obj_type;
 
-            let anim_name = obj
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
+            let anim_name =
+                obj.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
 
             // Get timing function (default to "linear" if not specified)
-            let timing_str = obj
-                .get("timing_function")
-                .and_then(|t| t.as_str())
-                .unwrap_or("linear")
-                .to_string();
+            let timing_str =
+                obj.get("timing_function").and_then(|t| t.as_str()).unwrap_or("linear").to_string();
 
             // Parse the timing function
             let (description, curve_type, ascii_curve) = match parse_timing_function(&timing_str) {
@@ -558,9 +543,11 @@ impl LspAgentClient {
                     let ascii = Self::render_ascii_curve(&interpolation, 20, 8);
                     (desc, curve_type, Some(ascii))
                 }
-                Err(_) => {
-                    (format!("Unknown timing function: {}", timing_str), "unknown".to_string(), None)
-                }
+                Err(_) => (
+                    format!("Unknown timing function: {}", timing_str),
+                    "unknown".to_string(),
+                    None,
+                ),
             };
 
             animations.push(TimingAnalysis {
@@ -580,9 +567,8 @@ impl LspAgentClient {
     /// Convenience method that returns the timing analysis result as a JSON string.
     pub fn analyze_timing_json(&self, content: &str) -> String {
         let result = self.analyze_timing(content);
-        serde_json::to_string_pretty(&result).unwrap_or_else(|e| {
-            format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e)
-        })
+        serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!(r#"{{"error": "Failed to serialize result: {}"}}"#, e))
     }
 
     /// Build a VariableRegistry from document content
@@ -760,98 +746,10 @@ impl LspAgentClient {
     }
 
     /// Parse grid context from a JSON line at a specific character position
-    fn parse_grid_context(line: &str, char_pos: u32) -> Option<GridPosition> {
-        let obj: Value = serde_json::from_str(line).ok()?;
-        let obj = obj.as_object()?;
-
-        if obj.get("type")?.as_str()? != "sprite" {
-            return None;
-        }
-
-        let sprite_name = obj.get("name")?.as_str()?.to_string();
-        let grid = obj.get("grid")?.as_array()?;
-
-        if grid.is_empty() {
-            return None;
-        }
-
-        // Get expected width from size field or first row
-        let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
-            size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
-        } else {
-            let first_row = grid.first()?.as_str()?;
-            let (tokens, _) = tokenize(first_row);
-            tokens.len()
-        };
-
-        // Find the "grid" key position
-        let grid_key_pos = line.find("\"grid\"")?;
-        let after_key = &line[grid_key_pos..];
-        let bracket_offset = after_key.find('[')?;
-        let grid_array_start = grid_key_pos + bracket_offset;
-
-        if (char_pos as usize) <= grid_array_start {
-            return None;
-        }
-
-        let grid_portion = &line[grid_array_start..];
-        let char_in_grid = (char_pos as usize) - grid_array_start;
-
-        let mut pos = 0;
-        let chars: Vec<char> = grid_portion.chars().collect();
-
-        for (row_idx, grid_row) in grid.iter().enumerate() {
-            let row_str = grid_row.as_str()?;
-
-            while pos < chars.len() && chars[pos] != '"' {
-                pos += 1;
-            }
-            if pos >= chars.len() {
-                return None;
-            }
-
-            let string_start = pos + 1;
-
-            pos += 1;
-            while pos < chars.len() && chars[pos] != '"' {
-                if chars[pos] == '\\' && pos + 1 < chars.len() {
-                    pos += 2;
-                    continue;
-                }
-                pos += 1;
-            }
-
-            let string_end = pos;
-
-            if char_in_grid >= string_start && char_in_grid < string_end {
-                let char_in_string = char_in_grid - string_start;
-                let (tokens, _) = tokenize(row_str);
-                let row_width = tokens.len();
-
-                let mut string_pos = 0;
-                for (token_idx, token) in tokens.iter().enumerate() {
-                    let token_start = string_pos;
-                    let token_end = string_pos + token.len();
-
-                    if char_in_string >= token_start && char_in_string < token_end {
-                        return Some(GridPosition {
-                            x: token_idx,
-                            y: row_idx,
-                            token: token.clone(),
-                            row_width,
-                            expected_width,
-                            sprite_name,
-                            aligned: row_width == expected_width,
-                        });
-                    }
-
-                    string_pos = token_end;
-                }
-            }
-
-            pos += 1;
-        }
-
+    /// Note: Grid format is deprecated - this always returns None now.
+    #[allow(unused_variables)]
+    fn parse_grid_context(_line: &str, _char_pos: u32) -> Option<GridPosition> {
+        // Grid format is deprecated - use structured regions format
         None
     }
 }
@@ -914,22 +812,7 @@ mod tests {
         // Warning makes it invalid in strict mode
         assert!(!result.valid);
         assert_eq!(result.warning_count, 1);
-    }
-
-    #[test]
-    fn test_verify_undefined_token() {
-        let client = LspAgentClient::new();
-        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}
-{"type": "sprite", "name": "s", "palette": "test", "grid": ["{a}{b}"]}"##;
-        let result = client.verify_content(content);
-
-        // Undefined token {b} should be a warning
-        assert!(result.valid); // Still valid (only warning)
-        assert_eq!(result.warning_count, 1);
-        assert!(result.warnings[0].message.contains("{b}"));
-    }
-
-    #[test]
+    }    #[test]
     fn test_get_completions_basic() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}"##;
@@ -955,27 +838,7 @@ mod tests {
         let labels: Vec<&str> = result.items.iter().map(|i| i.label.as_str()).collect();
         assert!(labels.contains(&"{skin}"));
         assert!(labels.contains(&"{hair}"));
-    }
-
-    #[test]
-    fn test_get_grid_position() {
-        let client = LspAgentClient::new();
-        let content = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-
-        // Position within {b}
-        let grid_start = content.find("[\"").unwrap() + 2 + 3; // After [" and {a}
-        let pos = client.get_grid_position(content, 1, grid_start);
-
-        assert!(pos.is_some());
-        let pos = pos.unwrap();
-        assert_eq!(pos.x, 1);
-        assert_eq!(pos.y, 0);
-        assert_eq!(pos.token, "{b}");
-        assert_eq!(pos.sprite_name, "test");
-        assert!(pos.aligned);
-    }
-
-    #[test]
+    }    #[test]
     fn test_verify_content_json() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
@@ -996,36 +859,7 @@ mod tests {
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed["items"].as_array().unwrap().len() >= 3);
-    }
-
-    #[test]
-    fn test_multiline_verification() {
-        let client = LspAgentClient::new();
-        let content = r##"{"type": "palette", "name": "p1", "colors": {"{a}": "#FF0000"}}
-{"type": "palette", "name": "p2", "colors": {"{b}": "#00FF00"}}
-{"type": "sprite", "name": "s1", "palette": "p1", "grid": ["{a}"]}
-{"type": "sprite", "name": "s2", "palette": "p2", "grid": ["{b}"]}"##;
-
-        let result = client.verify_content(content);
-        assert!(result.valid);
-        assert_eq!(result.error_count, 0);
-        assert_eq!(result.warning_count, 0);
-    }
-
-    #[test]
-    fn test_suggestion_in_diagnostic() {
-        let client = LspAgentClient::new();
-        // Typo: {skni} instead of {skin}
-        let content = r##"{"type": "palette", "name": "p", "colors": {"{skin}": "#FFE0BD"}}
-{"type": "sprite", "name": "s", "palette": "p", "grid": ["{skni}"]}"##;
-
-        let result = client.verify_content(content);
-        assert_eq!(result.warning_count, 1);
-        assert!(result.warnings[0].suggestion.is_some());
-        assert!(result.warnings[0].suggestion.as_ref().unwrap().contains("{skin}"));
-    }
-
-    #[test]
+    }    #[test]
     fn test_empty_content() {
         let client = LspAgentClient::new();
         let result = client.verify_content("");
@@ -1131,7 +965,7 @@ mod tests {
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["error_count"], 0);
-        assert!(parsed["colors"].as_array().unwrap().len() >= 1);
+        assert!(!parsed["colors"].as_array().unwrap().is_empty());
     }
 
     // === Timing Function Analysis Tests ===
@@ -1181,7 +1015,8 @@ mod tests {
     #[test]
     fn test_analyze_timing_steps() {
         let client = LspAgentClient::new();
-        let content = r#"{"type": "animation", "name": "walk", "timing_function": "steps(4, jump-end)"}"#;
+        let content =
+            r#"{"type": "animation", "name": "walk", "timing_function": "steps(4, jump-end)"}"#;
 
         let result = client.analyze_timing(content);
         assert_eq!(result.animations.len(), 1);
@@ -1245,7 +1080,7 @@ mod tests {
 
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(parsed["animations"].as_array().unwrap().len() >= 1);
+        assert!(!parsed["animations"].as_array().unwrap().is_empty());
     }
 
     #[test]

@@ -227,13 +227,13 @@ Complete example with theming:
   "{eyes}": "var(--cyan)",
   "{shirt}": "var(--pink)"
 }}
-{"type": "sprite", "name": "character", "palette": "dracula", "grid": [
-  "{_}{hair}{hair}{hair}{_}",
-  "{hair}{skin}{skin}{skin}{hair}",
-  "{outline}{eyes}{skin}{eyes}{outline}",
-  "{_}{skin}{skin}{skin}{_}",
-  "{_}{shirt}{shirt}{shirt}{_}"
-]}
+{"type": "sprite", "name": "character", "size": [5, 5], "palette": "dracula", "regions": {
+  "hair": {"union": [{"rect": [1, 0, 3, 1]}, {"points": [[0, 1], [4, 1]]}], "z": 0},
+  "skin": {"union": [{"rect": [1, 1, 3, 1]}, {"points": [[2, 2]]}, {"rect": [1, 3, 3, 1]}], "z": 1},
+  "outline": {"points": [[0, 2], [4, 2]], "z": 0},
+  "eyes": {"points": [[1, 2], [3, 2]], "z": 2},
+  "shirt": {"rect": [1, 4, 3, 1], "z": 0}
+}}
 ```
 
 This creates a character sprite using Dracula theme colors, with all colors defined as variables for easy theme switching.

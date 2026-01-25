@@ -1,10 +1,9 @@
 //! Typo suggestions using Levenshtein distance
 //!
 //! Also provides comprehensive suggestion analysis for pixelsrc files,
-//! including missing token detection and row completion suggestions.
+//! including missing token detection.
 
 use crate::models::{PaletteRef, Sprite, TtpObject};
-use crate::tokenizer::tokenize;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
@@ -15,15 +14,12 @@ use std::io::BufRead;
 pub enum SuggestionType {
     /// A token is used but not defined in the palette
     MissingToken,
-    /// A row is shorter than others and could be completed
-    RowCompletion,
 }
 
 impl std::fmt::Display for SuggestionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SuggestionType::MissingToken => write!(f, "missing_token"),
-            SuggestionType::RowCompletion => write!(f, "row_completion"),
         }
     }
 }
@@ -40,7 +36,7 @@ pub struct Suggestion {
     pub sprite: String,
     /// Human-readable message describing the issue
     pub message: String,
-    /// The fix to apply (e.g., token to add, row to extend)
+    /// The fix to apply
     pub fix: SuggestionFix,
 }
 
@@ -61,19 +57,6 @@ pub enum SuggestionFix {
         token: String,
         /// Suggested color (hex)
         suggested_color: String,
-    },
-    /// Extend a row to match expected width
-    ExtendRow {
-        /// The row index (0-indexed)
-        row_index: usize,
-        /// Current row content
-        current: String,
-        /// Suggested extended row content
-        suggested: String,
-        /// Token used for padding
-        pad_token: String,
-        /// Number of tokens to add
-        tokens_to_add: usize,
     },
 }
 
@@ -177,14 +160,13 @@ impl Suggester {
         // Get palette tokens
         let palette_tokens = self.get_palette_tokens(&sprite.palette);
 
-        // Analyze grid
+        // Analyze regions - collect all token names used as region keys
         let mut all_tokens_used: HashSet<String> = HashSet::new();
-        let mut row_lengths: Vec<(usize, String, Vec<String>)> = Vec::new();
 
-        for row in sprite.grid.iter() {
-            let (tokens, _warnings) = tokenize(row);
-            all_tokens_used.extend(tokens.iter().cloned());
-            row_lengths.push((tokens.len(), row.clone(), tokens));
+        if let Some(regions) = &sprite.regions {
+            for token in regions.keys() {
+                all_tokens_used.insert(token.clone());
+            }
         }
 
         // Check for missing tokens
@@ -192,29 +174,6 @@ impl Suggester {
             for token in &all_tokens_used {
                 if !defined_tokens.contains(token) {
                     self.suggest_missing_token(line_number, sprite, token, defined_tokens);
-                }
-            }
-        }
-
-        // Check for row length mismatches
-        if !row_lengths.is_empty() {
-            let max_length = row_lengths.iter().map(|(len, _, _)| *len).max().unwrap_or(0);
-            if max_length > 0 {
-                // Find the most common token for padding (prefer {_} if present)
-                let pad_token = self.find_pad_token(&all_tokens_used, palette_tokens.as_ref());
-
-                for (row_idx, (length, row_content, _tokens)) in row_lengths.iter().enumerate() {
-                    if *length < max_length {
-                        self.suggest_row_completion(
-                            line_number,
-                            sprite,
-                            row_idx,
-                            row_content,
-                            *length,
-                            max_length,
-                            &pad_token,
-                        );
-                    }
                 }
             }
         }
@@ -262,70 +221,6 @@ impl Suggester {
                 },
             });
         }
-    }
-
-    /// Suggest extending a row to match expected width
-    fn suggest_row_completion(
-        &mut self,
-        line_number: usize,
-        sprite: &Sprite,
-        row_idx: usize,
-        current_row: &str,
-        current_length: usize,
-        expected_length: usize,
-        pad_token: &str,
-    ) {
-        let tokens_to_add = expected_length - current_length;
-        let padding = pad_token.repeat(tokens_to_add);
-        let suggested_row = format!("{}{}", current_row, padding);
-
-        self.report.suggestions.push(Suggestion {
-            suggestion_type: SuggestionType::RowCompletion,
-            line: line_number,
-            sprite: sprite.name.clone(),
-            message: format!(
-                "Row {} has {} tokens, expected {}. Add {} {} token(s) to complete.",
-                row_idx + 1,
-                current_length,
-                expected_length,
-                tokens_to_add,
-                pad_token
-            ),
-            fix: SuggestionFix::ExtendRow {
-                row_index: row_idx,
-                current: current_row.to_string(),
-                suggested: suggested_row,
-                pad_token: pad_token.to_string(),
-                tokens_to_add,
-            },
-        });
-    }
-
-    /// Find the best token to use for padding
-    fn find_pad_token(
-        &self,
-        used_tokens: &HashSet<String>,
-        defined_tokens: Option<&HashSet<String>>,
-    ) -> String {
-        // Prefer {_} if it's defined (conventional transparent token)
-        if let Some(defined) = defined_tokens {
-            if defined.contains("{_}") {
-                return "{_}".to_string();
-            }
-        }
-        if used_tokens.contains("{_}") {
-            return "{_}".to_string();
-        }
-
-        // Otherwise, use the first defined token or a default
-        if let Some(defined) = defined_tokens {
-            if let Some(first) = defined.iter().next() {
-                return first.clone();
-            }
-        }
-
-        // Fallback
-        "{_}".to_string()
     }
 
     /// Get tokens defined in a palette reference
@@ -525,15 +420,15 @@ mod tests {
     #[test]
     fn test_suggester_missing_token_typo() {
         let mut suggester = Suggester::new();
-        // Palette with {skin} and {hair}
+        // Palette with skin and hair
         suggester.analyze_line(
             1,
-            r##"{"type": "palette", "name": "char", "colors": {"{skin}": "#FFCC99", "{hair}": "#8B4513"}}"##,
+            r##"{"type": "palette", "name": "char", "colors": {"skin": "#FFCC99", "hair": "#8B4513"}}"##,
         );
-        // Sprite using {skni} (typo for {skin})
+        // Sprite using skni (typo for skin) as region name
         suggester.analyze_line(
             2,
-            r#"{"type": "sprite", "name": "test", "palette": "char", "grid": ["{skni}"]}"#,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "char", "regions": {"skni": {"rect": [0, 0, 4, 4]}}}"#,
         );
 
         let report = suggester.into_report();
@@ -543,11 +438,11 @@ mod tests {
         let missing_token = report.filter_by_type(SuggestionType::MissingToken);
         assert_eq!(missing_token.len(), 1);
 
-        // Should suggest replacing {skni} with {skin}
+        // Should suggest replacing skni with skin
         match &missing_token[0].fix {
             SuggestionFix::ReplaceToken { from, to } => {
-                assert_eq!(from, "{skni}");
-                assert_eq!(to, "{skin}");
+                assert_eq!(from, "skni");
+                assert_eq!(to, "skin");
             }
             _ => panic!("Expected ReplaceToken fix"),
         }
@@ -556,10 +451,10 @@ mod tests {
     #[test]
     fn test_suggester_missing_token_add_to_palette() {
         let mut suggester = Suggester::new();
-        // Palette with {_} and {x} - using {unknown_color} which is very different from both
+        // Palette with _ and x - using unknown_color which is very different from both
         suggester.analyze_line(
             1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{unknown_color}{x}"]}"##,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"unknown_color": {"rect": [0, 0, 4, 4]}}}"##,
         );
 
         let report = suggester.into_report();
@@ -569,50 +464,22 @@ mod tests {
         let missing_token = report.filter_by_type(SuggestionType::MissingToken);
         assert_eq!(missing_token.len(), 1);
 
-        // {unknown_color} is too different from {_} and {x} to be a typo, so suggest adding it
+        // unknown_color is too different from _ and x to be a typo, so suggest adding it
         match &missing_token[0].fix {
             SuggestionFix::AddToPalette { token, .. } => {
-                assert_eq!(token, "{unknown_color}");
+                assert_eq!(token, "unknown_color");
             }
             _ => panic!("Expected AddToPalette fix"),
         }
     }
 
     #[test]
-    fn test_suggester_row_completion() {
-        let mut suggester = Suggester::new();
-        // Sprite with uneven row lengths
-        suggester.analyze_line(
-            1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}", "{x}{x}{x}{x}"]}"##,
-        );
-
-        let report = suggester.into_report();
-        assert_eq!(report.sprites_analyzed, 1);
-        assert!(report.has_suggestions());
-
-        let row_completion = report.filter_by_type(SuggestionType::RowCompletion);
-        assert_eq!(row_completion.len(), 1);
-
-        // First row (2 tokens) should be extended to match second row (4 tokens)
-        match &row_completion[0].fix {
-            SuggestionFix::ExtendRow { row_index, tokens_to_add, pad_token, suggested, .. } => {
-                assert_eq!(*row_index, 0);
-                assert_eq!(*tokens_to_add, 2);
-                assert_eq!(pad_token, "{_}");
-                assert_eq!(suggested, "{x}{x}{_}{_}");
-            }
-            _ => panic!("Expected ExtendRow fix"),
-        }
-    }
-
-    #[test]
     fn test_suggester_no_suggestions_for_valid_sprite() {
         let mut suggester = Suggester::new();
-        // Valid sprite with no issues
+        // Valid sprite with regions - all region names defined in palette
         suggester.analyze_line(
             1,
-            r##"{"type": "sprite", "name": "valid", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}{x}", "{x}{_}{x}", "{x}{x}{x}"]}"##,
+            r##"{"type": "sprite", "name": "valid", "size": [4, 4], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"rect": [0, 0, 4, 4]}}}"##,
         );
 
         let report = suggester.into_report();
@@ -623,35 +490,34 @@ mod tests {
     #[test]
     fn test_suggester_inline_palette() {
         let mut suggester = Suggester::new();
-        // Sprite with inline palette
+        // Sprite with inline palette - region name not in palette
         suggester.analyze_line(
             1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{a}": "#FF0000", "{b}": "#00FF00"}, "grid": ["{a}{b}{c}"]}"##,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"a": "#FF0000", "b": "#00FF00"}, "regions": {"c": {"rect": [0, 0, 4, 4]}}}"##,
         );
 
         let report = suggester.into_report();
         assert_eq!(report.sprites_analyzed, 1);
         assert!(report.has_suggestions());
 
-        // {c} is undefined
+        // c is undefined
         let missing_token = report.filter_by_type(SuggestionType::MissingToken);
         assert_eq!(missing_token.len(), 1);
-        assert!(missing_token[0].message.contains("{c}"));
+        assert!(missing_token[0].message.contains("c"));
     }
 
     #[test]
     fn test_suggestion_report_filter() {
         let mut suggester = Suggester::new();
-        // Multiple issues
+        // Sprite with missing token in region
         suggester.analyze_line(
             1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{y}{x}", "{x}{x}{x}{x}"]}"##,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"y": {"rect": [0, 0, 4, 4]}}}"##,
         );
 
         let report = suggester.into_report();
 
-        // Should have both missing token and row completion
+        // Should have missing token
         assert!(report.count_by_type(SuggestionType::MissingToken) > 0);
-        assert!(report.count_by_type(SuggestionType::RowCompletion) > 0);
     }
 }

@@ -62,6 +62,114 @@ pub fn scale_image(image: RgbaImage, factor: u8) -> RgbaImage {
     image::imageops::resize(&image, new_w, new_h, FilterType::Nearest)
 }
 
+/// Apply a skew transform along the X axis (horizontal shear).
+///
+/// Positive angles skew the top edge to the right. Uses nearest-neighbor
+/// sampling to preserve crisp pixel edges for pixel art.
+///
+/// # Arguments
+///
+/// * `image` - The image to transform
+/// * `degrees` - Skew angle in degrees (must be between -89 and 89)
+///
+/// # Returns
+///
+/// A new image with the skew applied. The canvas expands to fit the skewed content.
+pub fn skew_x(image: &RgbaImage, degrees: f32) -> RgbaImage {
+    if degrees.abs() < 0.001 {
+        return image.clone();
+    }
+
+    let (w, h) = image.dimensions();
+    let h_f = h as f32;
+
+    // Calculate the horizontal shift at the top/bottom of the image
+    let tan_angle = (degrees * std::f32::consts::PI / 180.0).tan();
+    let max_shift = (h_f * tan_angle.abs()).ceil() as u32;
+
+    // New canvas width includes the shift
+    let new_w = w + max_shift;
+    let new_h = h;
+
+    let mut output = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+
+    for y in 0..h {
+        // Calculate horizontal offset for this row
+        // For positive angles: top rows shift right, bottom rows stay
+        // For negative angles: top rows stay, bottom rows shift right
+        let y_ratio = y as f32 / h_f;
+        let x_offset = if degrees > 0.0 {
+            ((1.0 - y_ratio) * h_f * tan_angle).round() as i32
+        } else {
+            (y_ratio * h_f * tan_angle.abs()).round() as i32
+        };
+
+        for x in 0..w {
+            let src_pixel = image.get_pixel(x, y);
+            let new_x = (x as i32 + x_offset) as u32;
+            if new_x < new_w {
+                output.put_pixel(new_x, y, *src_pixel);
+            }
+        }
+    }
+
+    output
+}
+
+/// Apply a skew transform along the Y axis (vertical shear).
+///
+/// Positive angles skew the left edge downward. Uses nearest-neighbor
+/// sampling to preserve crisp pixel edges for pixel art.
+///
+/// # Arguments
+///
+/// * `image` - The image to transform
+/// * `degrees` - Skew angle in degrees (must be between -89 and 89)
+///
+/// # Returns
+///
+/// A new image with the skew applied. The canvas expands to fit the skewed content.
+pub fn skew_y(image: &RgbaImage, degrees: f32) -> RgbaImage {
+    if degrees.abs() < 0.001 {
+        return image.clone();
+    }
+
+    let (w, h) = image.dimensions();
+    let w_f = w as f32;
+
+    // Calculate the vertical shift at the left/right of the image
+    let tan_angle = (degrees * std::f32::consts::PI / 180.0).tan();
+    let max_shift = (w_f * tan_angle.abs()).ceil() as u32;
+
+    // New canvas height includes the shift
+    let new_w = w;
+    let new_h = h + max_shift;
+
+    let mut output = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+
+    for x in 0..w {
+        // Calculate vertical offset for this column
+        // For positive angles: left columns shift down, right columns stay
+        // For negative angles: left columns stay, right columns shift down
+        let x_ratio = x as f32 / w_f;
+        let y_offset = if degrees > 0.0 {
+            ((1.0 - x_ratio) * w_f * tan_angle).round() as i32
+        } else {
+            (x_ratio * w_f * tan_angle.abs()).round() as i32
+        };
+
+        for y in 0..h {
+            let src_pixel = image.get_pixel(x, y);
+            let new_y = (y as i32 + y_offset) as u32;
+            if new_y < new_h {
+                output.put_pixel(x, new_y, *src_pixel);
+            }
+        }
+    }
+
+    output
+}
+
 /// Generate the output path for a sprite.
 ///
 /// # Output Naming Rules (from spec)
@@ -408,5 +516,107 @@ mod tests {
         assert_eq!(*scaled.get_pixel(15, 7), Rgba([200, 200, 200, 255]));
         assert_eq!(*scaled.get_pixel(0, 8), Rgba([50, 50, 50, 255]));
         assert_eq!(*scaled.get_pixel(8, 8), Rgba([150, 150, 150, 255]));
+    }
+
+    #[test]
+    fn test_skew_x_zero_angle() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255]));
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255]));
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255]));
+
+        let skewed = skew_x(&image, 0.0);
+
+        // Zero angle should return identical image
+        assert_eq!(skewed.width(), 2);
+        assert_eq!(skewed.height(), 2);
+        assert_eq!(*skewed.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*skewed.get_pixel(1, 0), Rgba([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_skew_x_positive_angle() {
+        let mut image = RgbaImage::new(2, 4);
+        // Fill with red for visibility
+        for y in 0..4 {
+            for x in 0..2 {
+                image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let skewed = skew_x(&image, 45.0);
+
+        // Canvas should expand horizontally
+        assert!(skewed.width() > 2);
+        assert_eq!(skewed.height(), 4);
+
+        // Top row should be shifted right
+        // Bottom row should stay near original position
+    }
+
+    #[test]
+    fn test_skew_y_zero_angle() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255]));
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255]));
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255]));
+
+        let skewed = skew_y(&image, 0.0);
+
+        // Zero angle should return identical image
+        assert_eq!(skewed.width(), 2);
+        assert_eq!(skewed.height(), 2);
+        assert_eq!(*skewed.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*skewed.get_pixel(1, 0), Rgba([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_skew_y_positive_angle() {
+        let mut image = RgbaImage::new(4, 2);
+        // Fill with red for visibility
+        for y in 0..2 {
+            for x in 0..4 {
+                image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let skewed = skew_y(&image, 45.0);
+
+        // Canvas should expand vertically
+        assert_eq!(skewed.width(), 4);
+        assert!(skewed.height() > 2);
+
+        // Left column should be shifted down
+        // Right column should stay near original position
+    }
+
+    #[test]
+    fn test_skew_x_preserves_transparency() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Opaque
+        image.put_pixel(1, 0, Rgba([0, 0, 0, 0])); // Transparent
+        image.put_pixel(0, 1, Rgba([0, 255, 0, 128])); // Semi-transparent
+        image.put_pixel(1, 1, Rgba([0, 0, 255, 255])); // Opaque
+
+        let skewed = skew_x(&image, 20.0);
+
+        // Check that we still have transparent and semi-transparent pixels somewhere
+        let mut has_transparent = false;
+        let mut has_semi = false;
+        for y in 0..skewed.height() {
+            for x in 0..skewed.width() {
+                let p = skewed.get_pixel(x, y);
+                if p[3] == 0 {
+                    has_transparent = true;
+                }
+                if p[3] > 0 && p[3] < 255 {
+                    has_semi = true;
+                }
+            }
+        }
+        assert!(has_transparent, "Should preserve transparent pixels");
+        assert!(has_semi, "Should preserve semi-transparent pixels");
     }
 }

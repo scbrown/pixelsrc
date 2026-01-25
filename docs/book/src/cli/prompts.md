@@ -63,6 +63,19 @@ pxl prompts character | ai-chat --model gpt-4
 pxl prompts tileset > tileset-prompt.txt
 ```
 
+### Preview AI output quickly
+
+```bash
+# After generating sprite, preview in terminal
+pxl show sprite.pxl -s character
+
+# View with coordinates for debugging
+pxl grid sprite.pxl -s character
+
+# Get structural breakdown
+pxl explain sprite.pxl -s character
+```
+
 ## Sample Template Output
 
 ```

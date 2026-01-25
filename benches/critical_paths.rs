@@ -15,7 +15,6 @@ use pixelsrc::models::{PaletteRef, Sprite};
 use pixelsrc::parser::{parse_line, parse_stream};
 use pixelsrc::registry::ResolvedSprite;
 use pixelsrc::renderer::{render_resolved, render_sprite};
-use pixelsrc::tokenizer::tokenize;
 use std::collections::HashMap;
 use std::io::Cursor;
 
@@ -77,7 +76,10 @@ fn make_jsonl_content(sprite_count: usize, width: usize, height: usize) -> Strin
 fn make_test_sprite(width: usize, height: usize) -> Sprite {
     let mut palette_colors = HashMap::new();
     for i in 0..16 {
-        palette_colors.insert(format!("{{t{}}}", i), format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16));
+        palette_colors.insert(
+            format!("{{t{}}}", i),
+            format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16),
+        );
     }
 
     Sprite {
@@ -94,7 +96,10 @@ fn make_test_sprite(width: usize, height: usize) -> Sprite {
 fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
     let mut palette = HashMap::new();
     for i in 0..16 {
-        palette.insert(format!("{{t{}}}", i), format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16));
+        palette.insert(
+            format!("{{t{}}}", i),
+            format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16),
+        );
     }
 
     ResolvedSprite {
@@ -103,6 +108,8 @@ fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
         grid: (0..height).map(|_| make_grid_row(width)).collect(),
         palette,
         warnings: vec![],
+        nine_slice: None,
+        regions: None,
     }
 }
 
@@ -126,37 +133,6 @@ fn make_sprite_inputs(count: usize, size: u32) -> Vec<SpriteInput> {
 }
 
 // =============================================================================
-// Tokenizer Benchmarks
-// =============================================================================
-
-fn bench_tokenizer(c: &mut Criterion) {
-    let mut group = c.benchmark_group("tokenizer");
-
-    // Benchmark different row lengths
-    for size in [8, 16, 32, 64, 128].iter() {
-        let row = make_grid_row(*size);
-        group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(BenchmarkId::new("tokenize", size), &row, |b, row| {
-            b.iter(|| tokenize(black_box(row)))
-        });
-    }
-
-    // Benchmark with longer token names
-    let long_tokens: String = (0..32).map(|i| format!("{{token_name_{:04}}}", i)).collect();
-    group.bench_function("tokenize_long_names", |b| {
-        b.iter(|| tokenize(black_box(&long_tokens)))
-    });
-
-    // Benchmark worst case: many warnings (characters outside tokens)
-    let noisy_row = "x{a}y{b}z{c}w{d}v{e}u{f}t{g}s{h}r{i}q{j}";
-    group.bench_function("tokenize_with_warnings", |b| {
-        b.iter(|| tokenize(black_box(noisy_row)))
-    });
-
-    group.finish();
-}
-
-// =============================================================================
 // Parser Benchmarks
 // =============================================================================
 
@@ -168,17 +144,14 @@ fn bench_parser(c: &mut Criterion) {
     let medium_sprite = make_sprite_json(32, 32);
     let large_sprite = make_sprite_json(64, 64);
 
-    group.bench_function("parse_line_8x8", |b| {
-        b.iter(|| parse_line(black_box(&small_sprite), 1))
-    });
+    group.bench_function("parse_line_8x8", |b| b.iter(|| parse_line(black_box(&small_sprite), 1)));
 
     group.bench_function("parse_line_32x32", |b| {
         b.iter(|| parse_line(black_box(&medium_sprite), 1))
     });
 
-    group.bench_function("parse_line_64x64", |b| {
-        b.iter(|| parse_line(black_box(&large_sprite), 1))
-    });
+    group
+        .bench_function("parse_line_64x64", |b| b.iter(|| parse_line(black_box(&large_sprite), 1)));
 
     // Stream parsing
     for (sprite_count, width, height) in [(10, 16, 16), (50, 16, 16), (10, 32, 32)].iter() {
@@ -214,17 +187,13 @@ fn bench_color(c: &mut Criterion) {
     group.bench_function("parse_hex_8", |b| b.iter(|| parse_color(black_box("#FF0000FF"))));
 
     // CSS functional formats (uses lightningcss)
-    group.bench_function("parse_rgb", |b| {
-        b.iter(|| parse_color(black_box("rgb(255, 0, 0)")))
-    });
+    group.bench_function("parse_rgb", |b| b.iter(|| parse_color(black_box("rgb(255, 0, 0)"))));
 
     group.bench_function("parse_rgba", |b| {
         b.iter(|| parse_color(black_box("rgba(255, 0, 0, 0.5)")))
     });
 
-    group.bench_function("parse_hsl", |b| {
-        b.iter(|| parse_color(black_box("hsl(0, 100%, 50%)")))
-    });
+    group.bench_function("parse_hsl", |b| b.iter(|| parse_color(black_box("hsl(0, 100%, 50%)"))));
 
     group.bench_function("parse_named", |b| b.iter(|| parse_color(black_box("red"))));
 
@@ -388,13 +357,6 @@ fn bench_atlas(c: &mut Criterion) {
 // Criterion Configuration
 // =============================================================================
 
-criterion_group!(
-    benches,
-    bench_tokenizer,
-    bench_parser,
-    bench_color,
-    bench_renderer,
-    bench_atlas
-);
+criterion_group!(benches, bench_parser, bench_color, bench_renderer, bench_atlas);
 
 criterion_main!(benches);

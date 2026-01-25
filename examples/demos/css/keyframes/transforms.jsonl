@@ -1,4 +1,0 @@
-{"type": "palette", "name": "demo", "colors": {".": "#00000000", "{bg}": "#0a0a0f", "{star}": "#ffd93d"}}
-{"type": "sprite", "name": "star", "palette": "demo", "grid": [". . {star} . .", ". {star} {star} {star} .", "{star} {star} {star} {star} {star}", ". {star} {star} {star} .", ". . {star} . ."]}
-{"type": "animation", "name": "spin", "keyframes": {"0%": {"sprite": "star", "transform": "rotate(0deg)"}, "100%": {"sprite": "star", "transform": "rotate(360deg)"}}, "duration": 1000, "timing_function": "linear"}
-{"type": "animation", "name": "pulse", "keyframes": {"0%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "star", "transform": "scale(1.5)", "opacity": 0.5}, "100%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}}, "duration": "2s", "timing_function": "ease-in-out"}

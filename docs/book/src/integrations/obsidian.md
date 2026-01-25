@@ -31,7 +31,25 @@ Create a code block with language `pixelsrc` or `pxl`:
 
 ~~~markdown
 ```pixelsrc
-{"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}
+{
+  type: "sprite",
+  name: "heart",
+  size: [7, 5],
+  palette: { _: "transparent", r: "#FF0000" },
+  regions: {
+    r: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { rect: [4, 0, 2, 1] },
+        { rect: [0, 1, 7, 1] },
+        { rect: [1, 2, 5, 1] },
+        { rect: [2, 3, 3, 1] },
+        { rect: [3, 4, 1, 1] },
+      ],
+      z: 0,
+    },
+  },
+}
 ```
 ~~~
 
@@ -43,23 +61,41 @@ For better readability, use the multi-line format:
 
 ~~~markdown
 ```pxl
-{"type": "palette", "name": "skin", "colors": {
-  "{_}": "#00000000",
-  "{s}": "#FFD5B8",
-  "{h}": "#8B4513",
-  "{e}": "#000000"
-}}
+{
+  type: "palette",
+  name: "skin",
+  colors: {
+    _: "transparent",
+    s: "#FFD5B8",
+    h: "#8B4513",
+    e: "#000000",
+  },
+}
 
-{"type": "sprite", "name": "face", "palette": "skin", "grid": [
-  "{_}{h}{h}{h}{h}{h}{h}{_}",
-  "{h}{s}{s}{s}{s}{s}{s}{h}",
-  "{h}{s}{e}{s}{s}{e}{s}{h}",
-  "{h}{s}{s}{s}{s}{s}{s}{h}",
-  "{h}{s}{s}{_}{_}{s}{s}{h}",
-  "{h}{s}{s}{s}{s}{s}{s}{h}",
-  "{_}{h}{s}{s}{s}{s}{h}{_}",
-  "{_}{_}{h}{h}{h}{h}{_}{_}"
-]}
+{
+  type: "sprite",
+  name: "face",
+  size: [8, 8],
+  palette: "skin",
+  regions: {
+    h: {
+      union: [
+        { rect: [1, 0, 6, 1] },
+        { points: [[0, 1], [7, 1], [0, 6], [7, 6]] },
+        { rect: [2, 7, 4, 1] },
+      ],
+      z: 0,
+    },
+    s: {
+      union: [
+        { rect: [1, 1, 6, 5] },
+        { rect: [2, 6, 4, 1] },
+      ],
+      z: 1,
+    },
+    e: { points: [[2, 2], [5, 2]], z: 2 },
+  },
+}
 ```
 ~~~
 
@@ -94,7 +130,16 @@ Scale: 16x16 pixels
 Animation: 4-frame walk cycle
 
 ```pxl
-{"type":"sprite","name":"player","palette":{"{_}":"#0000","{body}":"#4169E1","{skin}":"#FFCC99"},"grid":["{_}{skin}{skin}{_}","{body}{body}{body}{body}","{_}{body}{body}{_}","{skin}{_}{_}{skin}"]}
+{
+  type: "sprite",
+  name: "player",
+  size: [4, 4],
+  palette: { _: "transparent", body: "#4169E1", skin: "#FFCC99" },
+  regions: {
+    skin: { rect: [1, 0, 2, 1], z: 0 },
+    body: { rect: [0, 1, 4, 2], z: 0 },
+  },
+}
 ```
 
 States: idle, walk, jump, attack
@@ -109,12 +154,32 @@ Create visual reference collections:
 
 ## Warm Sunset
 ```pxl
-{"type":"sprite","name":"sunset","palette":{"{a}":"#FF6B35","{b}":"#F7C59F","{c}":"#EFEFEF"},"grid":["{a}{a}{a}","{b}{b}{b}","{c}{c}{c}"]}
+{
+  type: "sprite",
+  name: "sunset",
+  size: [3, 3],
+  palette: { a: "#FF6B35", b: "#F7C59F", c: "#EFEFEF" },
+  regions: {
+    a: { rect: [0, 0, 3, 1], z: 0 },
+    b: { rect: [0, 1, 3, 1], z: 0 },
+    c: { rect: [0, 2, 3, 1], z: 0 },
+  },
+}
 ```
 
 ## Cool Ocean
 ```pxl
-{"type":"sprite","name":"ocean","palette":{"{a}":"#1A535C","{b}":"#4ECDC4","{c}":"#F7FFF7"},"grid":["{a}{a}{a}","{b}{b}{b}","{c}{c}{c}"]}
+{
+  type: "sprite",
+  name: "ocean",
+  size: [3, 3],
+  palette: { a: "#1A535C", b: "#4ECDC4", c: "#F7FFF7" },
+  regions: {
+    a: { rect: [0, 0, 3, 1], z: 0 },
+    b: { rect: [0, 1, 3, 1], z: 0 },
+    c: { rect: [0, 2, 3, 1], z: 0 },
+  },
+}
 ```
 ~~~
 
@@ -127,7 +192,15 @@ Embed sprites inline with explanations:
 
 Start with the trunk:
 ```pxl
-{"type":"sprite","name":"trunk","palette":{"{_}":"#0000","{t}":"#8B4513"},"grid":["{_}{t}{t}{_}","{_}{t}{t}{_}","{_}{t}{t}{_}"]}
+{
+  type: "sprite",
+  name: "trunk",
+  size: [4, 3],
+  palette: { _: "transparent", t: "#8B4513" },
+  regions: {
+    t: { rect: [1, 0, 2, 3], z: 0 },
+  },
+}
 ```
 
 Then add the foliage...
@@ -138,7 +211,7 @@ Then add the foliage...
 ### Sprite Not Rendering
 
 1. Check that the code block language is `pixelsrc` or `pxl`
-2. Verify JSON syntax (look for missing quotes or commas)
+2. Verify JSON5 syntax (look for missing quotes or commas)
 3. Ensure the plugin is enabled
 4. Try toggling Live Preview off and on
 
@@ -167,4 +240,4 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin directo
 ## Related
 
 - [WASM Module](wasm.md) - The rendering engine used by this plugin
-- [Format Specification](../format/overview.md) - Complete JSONL format reference
+- [Format Specification](../format/overview.md) - Complete format reference

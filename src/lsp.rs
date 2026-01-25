@@ -1,10 +1,22 @@
 //! Language Server Protocol implementation for Pixelsrc
 //!
 //! Provides LSP support for .pxl files in editors like VS Code, Neovim, etc.
+//!
+//! # Structured Format Support
+//!
+//! This LSP provides intelligent completions for the structured region format:
+//! - Shape primitives: `points`, `line`, `rect`, `stroke`, `ellipse`, `circle`, `polygon`, `path`, `fill`
+//! - Modifiers: `symmetric`, `z`, `round`, `thickness`, `repeat`, `spacing`, `transform`, `jitter`
+//! - Constraints: `within`, `adjacent-to`, `x`, `y`
+//! - Roles: `boundary`, `anchor`, `fill`, `shadow`, `highlight`
+//! - Relationships: `derives-from`, `contained-within`, `adjacent-to`, `paired-with`
 
 use crate::color::parse_color;
+// Note: RelationshipType and Role are available for future enhancements
+// (e.g., enum-based completion generation instead of string literals)
+#[allow(unused_imports)]
+use crate::models::{RelationshipType, Role};
 use crate::motion::{ease, parse_timing_function, Interpolation, StepPosition};
-use crate::tokenizer::tokenize;
 use crate::transforms::{explain_transform, parse_transform_str, Transform};
 use crate::validate::{Severity, ValidationIssue, Validator};
 use crate::variables::VariableRegistry;
@@ -15,21 +27,23 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-/// Information about a token's position in a grid
-#[derive(Debug, Clone)]
-struct GridInfo {
-    /// Column index (0-indexed)
-    x: usize,
-    /// Row index (0-indexed within grid array)
-    y: usize,
-    /// The token at this position
-    token: String,
-    /// Width of this row in tokens
-    row_width: usize,
-    /// Expected width (from first row or size field)
-    expected_width: usize,
-    /// Name of the sprite
-    sprite_name: String,
+/// Completion context for structured format elements
+#[derive(Debug, Clone, PartialEq)]
+enum CompletionContext {
+    /// Inside a sprite's regions object - suggest shape types and modifiers
+    Regions,
+    /// Inside a region definition - suggest modifiers
+    RegionDef,
+    /// Inside a palette's roles object - suggest role values
+    Roles,
+    /// Inside a palette's relationships object - suggest relationship types
+    Relationships,
+    /// Inside a state_rules rules array - suggest selector patterns
+    StateRules,
+    /// Inside a state rule's apply object - suggest applicable properties
+    StateRuleApply,
+    /// Unknown/other context
+    Other,
 }
 
 /// Information about a timing function at cursor position
@@ -91,11 +105,8 @@ impl PixelsrcLanguageServer {
             validator.validate_line(line_num + 1, line);
         }
 
-        let diagnostics: Vec<Diagnostic> = validator
-            .issues()
-            .iter()
-            .map(Self::issue_to_diagnostic)
-            .collect();
+        let diagnostics: Vec<Diagnostic> =
+            validator.issues().iter().map(Self::issue_to_diagnostic).collect();
 
         self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
     }
@@ -127,118 +138,280 @@ impl PixelsrcLanguageServer {
         }
     }
 
-    /// Parse grid context from a JSON line at a specific character position
+    /// Detect completion context for the structured format
     ///
-    /// Returns GridInfo if the cursor is positioned within a grid token.
-    fn parse_grid_context(line: &str, char_pos: u32) -> Option<GridInfo> {
-        // Parse the JSON line
-        let obj: Value = serde_json::from_str(line).ok()?;
-        let obj = obj.as_object()?;
+    /// Analyzes the JSON structure to determine what kind of completions should be offered.
+    fn detect_completion_context(content: &str, line: &str, _char_pos: u32) -> CompletionContext {
+        // Try to parse the line as JSON to determine object type
+        if let Ok(obj) = serde_json::from_str::<Value>(line) {
+            if let Some(obj) = obj.as_object() {
+                let obj_type = obj.get("type").and_then(|t| t.as_str());
 
-        // Must be a sprite type
-        let obj_type = obj.get("type")?.as_str()?;
-        if obj_type != "sprite" {
-            return None;
-        }
-
-        let sprite_name = obj.get("name")?.as_str()?.to_string();
-
-        // Get the grid array
-        let grid = obj.get("grid")?.as_array()?;
-        if grid.is_empty() {
-            return None;
-        }
-
-        // Get expected width from size field or first row
-        let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
-            size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
-        } else {
-            // Use first row width as expected
-            let first_row = grid.first()?.as_str()?;
-            let (tokens, _) = tokenize(first_row);
-            tokens.len()
-        };
-
-        // Find the "grid" key position in the raw JSON
-        // We need to locate where the grid array starts in the line
-        let grid_key_pos = line.find("\"grid\"")?;
-
-        // Find the opening bracket of the grid array
-        let after_key = &line[grid_key_pos..];
-        let bracket_offset = after_key.find('[')?;
-        let grid_array_start = grid_key_pos + bracket_offset;
-
-        // If cursor is before the grid array, no hover
-        if (char_pos as usize) <= grid_array_start {
-            return None;
-        }
-
-        // Now we need to find which row string contains the cursor
-        // Walk through the grid array portion of the line
-        let grid_portion = &line[grid_array_start..];
-        let char_in_grid = (char_pos as usize) - grid_array_start;
-
-        // Parse through the grid array manually to find string positions
-        let mut pos = 0;
-        let chars: Vec<char> = grid_portion.chars().collect();
-
-        for (row_idx, grid_row) in grid.iter().enumerate() {
-            let row_str = grid_row.as_str()?;
-
-            // Find the opening quote for this row string
-            while pos < chars.len() && chars[pos] != '"' {
-                pos += 1;
-            }
-            if pos >= chars.len() {
-                return None;
-            }
-
-            let string_start = pos + 1; // Position after opening quote
-
-            // Find the closing quote
-            pos += 1; // Move past opening quote
-            while pos < chars.len() && chars[pos] != '"' {
-                // Handle escaped quotes
-                if chars[pos] == '\\' && pos + 1 < chars.len() {
-                    pos += 2;
-                    continue;
-                }
-                pos += 1;
-            }
-
-            let string_end = pos; // Position of closing quote
-
-            // Check if cursor is within this string
-            if char_in_grid >= string_start && char_in_grid < string_end {
-                // Cursor is in this row string
-                let char_in_string = char_in_grid - string_start;
-
-                // Tokenize the row and find which token the cursor is in
-                let (tokens, _) = tokenize(row_str);
-                let row_width = tokens.len();
-
-                // Track position within the string to map to token index
-                let mut string_pos = 0;
-                for (token_idx, token) in tokens.iter().enumerate() {
-                    let token_start = string_pos;
-                    let token_end = string_pos + token.len();
-
-                    if char_in_string >= token_start && char_in_string < token_end {
-                        return Some(GridInfo {
-                            x: token_idx,
-                            y: row_idx,
-                            token: token.clone(),
-                            row_width,
-                            expected_width,
-                            sprite_name,
-                        });
+                match obj_type {
+                    Some("sprite") => {
+                        // Check if we're in the regions field
+                        if line.contains("\"regions\"") {
+                            return CompletionContext::Regions;
+                        }
                     }
-
-                    string_pos = token_end;
+                    Some("palette") => {
+                        if line.contains("\"roles\"") {
+                            return CompletionContext::Roles;
+                        }
+                        if line.contains("\"relationships\"") {
+                            return CompletionContext::Relationships;
+                        }
+                    }
+                    Some("state_rules") | Some("state-rules") => {
+                        if line.contains("\"apply\"") {
+                            return CompletionContext::StateRuleApply;
+                        }
+                        return CompletionContext::StateRules;
+                    }
+                    _ => {}
                 }
             }
+        }
 
-            pos += 1; // Move past closing quote
+        // For multi-line JSON5 files, check the full content for context
+        if let Ok(obj) = serde_json::from_str::<Value>(content) {
+            if let Some(obj) = obj.as_object() {
+                let obj_type = obj.get("type").and_then(|t| t.as_str());
+
+                match obj_type {
+                    Some("sprite") if line.contains(':') && !line.contains("\"type\"") => {
+                        // Likely inside a region definition
+                        return CompletionContext::RegionDef;
+                    }
+                    Some("palette") if line.contains(':') => {
+                        if content.contains("\"roles\"") && !line.contains("\"colors\"") {
+                            return CompletionContext::Roles;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        CompletionContext::Other
+    }
+
+    /// Get shape primitive completions for the structured format
+    fn get_shape_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("points", "Individual pixels: [[x, y], ...]", CompletionItemKind::PROPERTY, "points: [[0, 0]]"),
+            Self::make_completion("line", "Bresenham line: [[x1, y1], [x2, y2]]", CompletionItemKind::PROPERTY, "line: [[0, 0], [8, 8]]"),
+            Self::make_completion("rect", "Filled rectangle: [x, y, w, h]", CompletionItemKind::PROPERTY, "rect: [0, 0, 8, 8]"),
+            Self::make_completion("stroke", "Rectangle outline: [x, y, w, h]", CompletionItemKind::PROPERTY, "stroke: [0, 0, 8, 8]"),
+            Self::make_completion("ellipse", "Filled ellipse: [cx, cy, rx, ry]", CompletionItemKind::PROPERTY, "ellipse: [4, 4, 3, 2]"),
+            Self::make_completion("circle", "Filled circle: [cx, cy, r]", CompletionItemKind::PROPERTY, "circle: [4, 4, 3]"),
+            Self::make_completion("polygon", "Filled polygon: [[x, y], ...]", CompletionItemKind::PROPERTY, "polygon: [[0, 0], [8, 0], [4, 8]]"),
+            Self::make_completion("path", "SVG-lite path (M, L, H, V, Z)", CompletionItemKind::PROPERTY, "path: \"M0,0 L8,8\""),
+            Self::make_completion("fill", "Flood fill: \"inside(token)\"", CompletionItemKind::PROPERTY, "fill: \"inside(outline)\""),
+        ]
+    }
+
+    /// Get compound operation completions
+    fn get_compound_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("union", "Combine multiple shapes", CompletionItemKind::PROPERTY, "union: [{ rect: [0, 0, 4, 4] }]"),
+            Self::make_completion("base", "Base shape for subtraction", CompletionItemKind::PROPERTY, "base: { rect: [0, 0, 8, 8] }"),
+            Self::make_completion("subtract", "Remove shapes from base", CompletionItemKind::PROPERTY, "subtract: [{ circle: [4, 4, 2] }]"),
+            Self::make_completion("intersect", "Keep overlapping area", CompletionItemKind::PROPERTY, "intersect: [{ rect: [0, 0, 4, 4] }]"),
+            Self::make_completion("except", "Subtract token pixels", CompletionItemKind::PROPERTY, "except: [\"eye\", \"mouth\"]"),
+        ]
+    }
+
+    /// Get modifier completions for region definitions
+    fn get_modifier_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("symmetric", "Mirror across axis: \"x\", \"y\", \"xy\"", CompletionItemKind::PROPERTY, "symmetric: \"x\""),
+            Self::make_completion("z", "Render order (higher = on top)", CompletionItemKind::PROPERTY, "z: 10"),
+            Self::make_completion("round", "Corner radius for rect/stroke", CompletionItemKind::PROPERTY, "round: 2"),
+            Self::make_completion("thickness", "Line thickness", CompletionItemKind::PROPERTY, "thickness: 1"),
+            Self::make_completion("within", "Validate containment", CompletionItemKind::PROPERTY, "within: \"eye\""),
+            Self::make_completion("adjacent-to", "Validate adjacency", CompletionItemKind::PROPERTY, "\"adjacent-to\": \"skin\""),
+            Self::make_completion("x", "Column range: [min, max]", CompletionItemKind::PROPERTY, "x: [0, 8]"),
+            Self::make_completion("y", "Row range: [min, max]", CompletionItemKind::PROPERTY, "y: [0, 8]"),
+            Self::make_completion("auto-outline", "Generate outline", CompletionItemKind::PROPERTY, "\"auto-outline\": \"body\""),
+            Self::make_completion("auto-shadow", "Generate shadow", CompletionItemKind::PROPERTY, "\"auto-shadow\": \"body\""),
+            Self::make_completion("offset", "Shadow offset: [x, y]", CompletionItemKind::PROPERTY, "offset: [1, 1]"),
+            Self::make_completion("repeat", "Tile shape: [count_x, count_y]", CompletionItemKind::PROPERTY, "repeat: [4, 4]"),
+            Self::make_completion("spacing", "Tile spacing: [x, y]", CompletionItemKind::PROPERTY, "spacing: [1, 1]"),
+            Self::make_completion("offset-alternate", "Offset alternating rows", CompletionItemKind::PROPERTY, "\"offset-alternate\": true"),
+            Self::make_completion("transform", "Geometric transform", CompletionItemKind::PROPERTY, "transform: \"rotate(45deg)\""),
+            Self::make_completion("jitter", "Controlled randomness", CompletionItemKind::PROPERTY, "jitter: { y: [-1, 1] }"),
+            Self::make_completion("seed", "Random seed for jitter", CompletionItemKind::PROPERTY, "seed: 42"),
+            Self::make_completion("role", "Semantic role", CompletionItemKind::PROPERTY, "role: \"fill\""),
+        ]
+    }
+
+    /// Get role value completions
+    fn get_role_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("boundary", "Edge-defining (outlines) - high priority", CompletionItemKind::ENUM_MEMBER, "\"boundary\""),
+            Self::make_completion("anchor", "Critical details (eyes) - must survive transforms", CompletionItemKind::ENUM_MEMBER, "\"anchor\""),
+            Self::make_completion("fill", "Interior mass (skin, clothes) - can shrink", CompletionItemKind::ENUM_MEMBER, "\"fill\""),
+            Self::make_completion("shadow", "Depth indicators - derives from parent", CompletionItemKind::ENUM_MEMBER, "\"shadow\""),
+            Self::make_completion("highlight", "Light indicators - derives from parent", CompletionItemKind::ENUM_MEMBER, "\"highlight\""),
+        ]
+    }
+
+    /// Get relationship type completions
+    fn get_relationship_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("derives-from", "Color derived from another token", CompletionItemKind::ENUM_MEMBER, "{ \"type\": \"derives-from\", \"target\": \"skin\" }"),
+            Self::make_completion("contained-within", "Spatially inside another region", CompletionItemKind::ENUM_MEMBER, "{ \"type\": \"contained-within\", \"target\": \"eye\" }"),
+            Self::make_completion("adjacent-to", "Must touch specified region", CompletionItemKind::ENUM_MEMBER, "{ \"type\": \"adjacent-to\", \"target\": \"outline\" }"),
+            Self::make_completion("paired-with", "Symmetric relationship", CompletionItemKind::ENUM_MEMBER, "{ \"type\": \"paired-with\", \"target\": \"right-eye\" }"),
+        ]
+    }
+
+    /// Get state rule apply property completions
+    fn get_state_apply_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("color", "Override region color", CompletionItemKind::PROPERTY, "\"color\": \"#FF0000\""),
+            Self::make_completion("visible", "Override visibility", CompletionItemKind::PROPERTY, "\"visible\": false"),
+            Self::make_completion("z", "Override z-index", CompletionItemKind::PROPERTY, "\"z\": 100"),
+            Self::make_completion("transform", "Apply transform", CompletionItemKind::PROPERTY, "\"transform\": \"scale(1.1)\""),
+        ]
+    }
+
+    /// Get state selector completions
+    fn get_state_selector_completions() -> Vec<CompletionItem> {
+        vec![
+            Self::make_completion("[token=name]", "Select by token name", CompletionItemKind::SNIPPET, "[token=outline]"),
+            Self::make_completion("[role=type]", "Select by role", CompletionItemKind::SNIPPET, "[role=boundary]"),
+            Self::make_completion(".state", "Select by sprite state", CompletionItemKind::SNIPPET, ".hover"),
+            Self::make_completion(".hover [role=fill]", "Example: hover state fill regions", CompletionItemKind::SNIPPET, ".hover [role=fill]"),
+            Self::make_completion(".pressed [token=background]", "Example: pressed state background", CompletionItemKind::SNIPPET, ".pressed [token=background]"),
+        ]
+    }
+
+    /// Helper to create completion items
+    fn make_completion(label: &str, detail: &str, kind: CompletionItemKind, insert: &str) -> CompletionItem {
+        CompletionItem {
+            label: label.to_string(),
+            detail: Some(detail.to_string()),
+            kind: Some(kind),
+            insert_text: Some(insert.to_string()),
+            ..Default::default()
+        }
+    }
+
+    /// Get hover information for a role
+    fn get_role_hover(role: &str) -> Option<String> {
+        match role {
+            "boundary" => Some("**Role: Boundary**\n\nEdge-defining regions (outlines, borders).\n\n**Transform Behavior:** High priority, preserve connectivity.".to_string()),
+            "anchor" => Some("**Role: Anchor**\n\nCritical details like eyes that identify the sprite.\n\n**Transform Behavior:** Must survive transforms (minimum 1px).".to_string()),
+            "fill" => Some("**Role: Fill**\n\nInterior mass regions (skin, clothes).\n\n**Transform Behavior:** Can shrink, low priority.".to_string()),
+            "shadow" => Some("**Role: Shadow**\n\nDepth indicators, typically darker variants.\n\n**Transform Behavior:** Derives position from parent.".to_string()),
+            "highlight" => Some("**Role: Highlight**\n\nLight indicators, typically lighter variants.\n\n**Transform Behavior:** Derives position from parent.".to_string()),
+            _ => None,
+        }
+    }
+
+    /// Get hover information for a shape type
+    fn get_shape_hover(shape: &str) -> Option<String> {
+        match shape {
+            "points" => Some("**Shape: Points**\n\nIndividual pixels at specific coordinates.\n\n```json5\npoints: [[2, 3], [5, 3]]\n```".to_string()),
+            "line" => Some("**Shape: Line**\n\nBresenham line between points.\n\n```json5\nline: [[0, 0], [8, 8]]\n```\n\nOptional: `thickness` (default: 1)".to_string()),
+            "rect" => Some("**Shape: Rectangle**\n\nFilled rectangle.\n\n```json5\nrect: [x, y, width, height]\n```\n\nOptional: `round` (corner radius)".to_string()),
+            "stroke" => Some("**Shape: Stroke**\n\nRectangle outline (unfilled).\n\n```json5\nstroke: [x, y, width, height]\n```\n\nOptional: `thickness`, `round`".to_string()),
+            "ellipse" => Some("**Shape: Ellipse**\n\nFilled ellipse.\n\n```json5\nellipse: [cx, cy, rx, ry]\n```".to_string()),
+            "circle" => Some("**Shape: Circle**\n\nShorthand for equal-radius ellipse.\n\n```json5\ncircle: [cx, cy, r]\n```".to_string()),
+            "polygon" => Some("**Shape: Polygon**\n\nFilled polygon from vertices.\n\n```json5\npolygon: [[0, 0], [8, 0], [4, 8]]\n```".to_string()),
+            "path" => Some("**Shape: Path**\n\nSVG-lite path syntax.\n\n**Supported commands:** M (move), L (line), H (horizontal), V (vertical), Z (close)\n\n```json5\npath: \"M2,0 L6,0 L8,2 Z\"\n```".to_string()),
+            "fill" => Some("**Shape: Fill**\n\nFlood fill inside a boundary.\n\n```json5\nfill: \"inside(outline)\"\n```\n\nOptional: `seed: [x, y]` (starting point)".to_string()),
+            _ => None,
+        }
+    }
+
+    /// Get hover information for a modifier
+    fn get_modifier_hover(modifier: &str) -> Option<String> {
+        match modifier {
+            "symmetric" => Some("**Modifier: Symmetric**\n\nAuto-mirror across axis.\n\n**Values:**\n- `\"x\"` - Horizontal mirror\n- `\"y\"` - Vertical mirror\n- `\"xy\"` - Both axes (4-way)\n- `8` - Mirror around specific x-coordinate".to_string()),
+            "z" => Some("**Modifier: Z-Order**\n\nExplicit render order. Higher values render on top.\n\nDefault: definition order.".to_string()),
+            "within" => Some("**Constraint: Within**\n\nValidates that this region stays inside another.\n\nChecked after all regions are resolved.".to_string()),
+            "adjacent-to" => Some("**Constraint: Adjacent-To**\n\nValidates that this region touches another.\n\nChecked after all regions are resolved.".to_string()),
+            "repeat" => Some("**Transform: Repeat**\n\nTile a shape.\n\n```json5\nrepeat: [count_x, count_y],\nspacing: [gap_x, gap_y],\n\"offset-alternate\": true\n```".to_string()),
+            "jitter" => Some("**Transform: Jitter**\n\nControlled randomness.\n\n```json5\njitter: { x: [-1, 1], y: [-2, 0] },\nseed: 42\n```".to_string()),
+            _ => None,
+        }
+    }
+
+    /// Get hover information for structured format elements at cursor position
+    ///
+    /// Checks for roles, shapes, and modifiers in the line and provides hover info.
+    fn get_structured_format_hover(line: &str, char_pos: u32) -> Option<String> {
+        let pos = char_pos as usize;
+
+        // List of keywords to check for hover
+        let shape_keywords = ["points", "line", "rect", "stroke", "ellipse", "circle", "polygon", "path", "fill"];
+        let modifier_keywords = ["symmetric", "z", "within", "adjacent-to", "repeat", "jitter", "round", "thickness"];
+        let role_keywords = ["boundary", "anchor", "fill", "shadow", "highlight"];
+
+        // Find the word at cursor position
+        let line_chars: Vec<char> = line.chars().collect();
+
+        // Find word boundaries
+        let mut start = pos;
+        while start > 0 && (line_chars.get(start - 1).map(|c| c.is_alphanumeric() || *c == '-' || *c == '_').unwrap_or(false)) {
+            start -= 1;
+        }
+
+        let mut end = pos;
+        while end < line_chars.len() && (line_chars.get(end).map(|c| c.is_alphanumeric() || *c == '-' || *c == '_').unwrap_or(false)) {
+            end += 1;
+        }
+
+        if start >= end {
+            return None;
+        }
+
+        let word: String = line_chars[start..end].iter().collect();
+        let word_lower = word.to_lowercase();
+
+        // Check if it's a role value (either as key in roles object or as value)
+        for role in &role_keywords {
+            if word_lower == *role {
+                return Self::get_role_hover(role);
+            }
+        }
+
+        // Check if it's a shape keyword
+        for shape in &shape_keywords {
+            if word_lower == *shape {
+                return Self::get_shape_hover(shape);
+            }
+        }
+
+        // Check if it's a modifier keyword
+        for modifier in &modifier_keywords {
+            if word_lower == *modifier {
+                return Self::get_modifier_hover(modifier);
+            }
+        }
+
+        // Check for relationship types in the line
+        if line.contains("derives-from") && (word == "derives" || word == "from" || word_lower == "derives-from") {
+            return Some("**Relationship: Derives-From**\n\nColor is derived from another token.\n\nUsed for shadow/highlight variants.".to_string());
+        }
+        if line.contains("contained-within") && (word == "contained" || word == "within" || word_lower == "contained-within") {
+            return Some("**Relationship: Contained-Within**\n\nRegion is spatially inside another.\n\nUsed for nested elements like pupils in eyes.".to_string());
+        }
+        if line.contains("paired-with") && (word == "paired" || word == "with" || word_lower == "paired-with") {
+            return Some("**Relationship: Paired-With**\n\nSymmetric relationship with another region.\n\nUsed for left/right pairs like eyes.".to_string());
+        }
+
+        // Check for state selector patterns
+        if line.contains("[token=") || line.contains("[role=") {
+            if word == "token" {
+                return Some("**Selector: [token=name]**\n\nSelects regions by token name.\n\nExample: `[token=eye]` matches the 'eye' region.".to_string());
+            }
+            if word == "role" {
+                return Some("**Selector: [role=type]**\n\nSelects regions by their semantic role.\n\nExample: `[role=boundary]` matches all boundary regions.".to_string());
+            }
         }
 
         None
@@ -381,8 +554,8 @@ impl PixelsrcLanguageServer {
 
     /// Collect all defined tokens from palettes in the document
     ///
-    /// Returns a list of (token, color) pairs from all palette definitions.
-    fn collect_defined_tokens(content: &str) -> Vec<(String, String)> {
+    /// Returns a list of (token, color, optional_role) tuples from all palette definitions.
+    fn collect_defined_tokens(content: &str) -> Vec<(String, String, Option<String>)> {
         let mut tokens = Vec::new();
 
         for line in content.lines() {
@@ -413,6 +586,9 @@ impl PixelsrcLanguageServer {
                 None => continue,
             };
 
+            // Get the roles object (if present)
+            let roles = obj.get("roles").and_then(|r| r.as_object());
+
             // Extract tokens (keys starting with '{' and ending with '}')
             for (key, value) in colors {
                 if key.starts_with('{') && key.ends_with('}') {
@@ -420,7 +596,12 @@ impl PixelsrcLanguageServer {
                         Some(s) => s.to_string(),
                         None => continue,
                     };
-                    tokens.push((key.clone(), color_str));
+                    // Look up role for this token
+                    let role = roles
+                        .and_then(|r| r.get(key))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    tokens.push((key.clone(), color_str, role));
                 }
             }
         }
@@ -1042,33 +1223,8 @@ impl LanguageServer for PixelsrcLanguageServer {
             None => return Ok(None),
         };
 
-        // Try to parse grid context at the cursor position
-        if let Some(grid_info) = Self::parse_grid_context(line, pos.character) {
-            // Format alignment status
-            let alignment_status = if grid_info.row_width == grid_info.expected_width {
-                "✓ Aligned".to_string()
-            } else if grid_info.row_width < grid_info.expected_width {
-                format!("⚠ Short by {} token(s)", grid_info.expected_width - grid_info.row_width)
-            } else {
-                format!("⚠ Long by {} token(s)", grid_info.row_width - grid_info.expected_width)
-            };
-
-            let hover_text = format!(
-                "**Grid Position**: ({}, {})\n\n\
-                 **Token**: `{}`\n\n\
-                 **Row Width**: {} tokens\n\n\
-                 **Expected Width**: {} tokens\n\n\
-                 **Status**: {}\n\n\
-                 **Sprite**: `{}`",
-                grid_info.x,
-                grid_info.y,
-                grid_info.token,
-                grid_info.row_width,
-                grid_info.expected_width,
-                alignment_status,
-                grid_info.sprite_name,
-            );
-
+        // Check for structured format elements (roles, shapes, modifiers)
+        if let Some(hover_text) = Self::get_structured_format_hover(line, pos.character) {
             return Ok(Some(Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
@@ -1253,39 +1409,64 @@ impl LanguageServer for PixelsrcLanguageServer {
             return Ok(Some(CompletionResponse::Array(completions)));
         }
 
-        // Standard token completions (for grid context)
-        let defined_tokens = Self::collect_defined_tokens(&content);
+        // Detect structured format completion context
+        let context = Self::detect_completion_context(&content, current_line, pos.character);
 
-        // Build completion items
         let mut completions: Vec<CompletionItem> = Vec::new();
 
-        // Add built-in transparent token
-        completions.push(CompletionItem {
-            label: "{_}".to_string(),
-            detail: Some("Transparent (built-in)".to_string()),
-            kind: Some(CompletionItemKind::COLOR),
-            insert_text: Some("{_}".to_string()),
-            ..Default::default()
-        });
+        match context {
+            CompletionContext::Regions | CompletionContext::RegionDef => {
+                // Inside regions - offer shape primitives, compounds, and modifiers
+                completions.extend(Self::get_shape_completions());
+                completions.extend(Self::get_compound_completions());
+                completions.extend(Self::get_modifier_completions());
+            }
+            CompletionContext::Roles => {
+                // Inside roles - offer role values
+                completions.extend(Self::get_role_completions());
+            }
+            CompletionContext::Relationships => {
+                // Inside relationships - offer relationship types
+                completions.extend(Self::get_relationship_completions());
+            }
+            CompletionContext::StateRules => {
+                // Inside state rules - offer selector patterns
+                completions.extend(Self::get_state_selector_completions());
+            }
+            CompletionContext::StateRuleApply => {
+                // Inside state rule apply - offer applicable properties
+                completions.extend(Self::get_state_apply_completions());
+            }
+            CompletionContext::Other => {
+                // Fall back to token completions for palettes
+                let defined_tokens = Self::collect_defined_tokens(&content);
 
-        // Add the standard dot token for transparent
-        completions.push(CompletionItem {
-            label: ".".to_string(),
-            detail: Some("Transparent (shorthand)".to_string()),
-            kind: Some(CompletionItemKind::COLOR),
-            insert_text: Some(".".to_string()),
-            ..Default::default()
-        });
+                // Add built-in transparent token (v2 format uses bare token names)
+                completions.push(CompletionItem {
+                    label: "_".to_string(),
+                    detail: Some("Transparent (built-in)".to_string()),
+                    kind: Some(CompletionItemKind::COLOR),
+                    insert_text: Some("_".to_string()),
+                    ..Default::default()
+                });
 
-        // Add defined tokens from palettes
-        for (token, color) in defined_tokens {
-            completions.push(CompletionItem {
-                label: token.clone(),
-                detail: Some(color),
-                kind: Some(CompletionItemKind::COLOR),
-                insert_text: Some(token),
-                ..Default::default()
-            });
+                // Add defined tokens from palettes
+                for (token, color, role) in defined_tokens {
+                    // Strip braces for v2 format display
+                    let display_token = token.trim_start_matches('{').trim_end_matches('}');
+                    let detail = match role {
+                        Some(r) => format!("{} ({})", color, r),
+                        None => color,
+                    };
+                    completions.push(CompletionItem {
+                        label: display_token.to_string(),
+                        detail: Some(detail),
+                        kind: Some(CompletionItemKind::COLOR),
+                        insert_text: Some(display_token.to_string()),
+                        ..Default::default()
+                    });
+                }
+            }
         }
 
         Ok(Some(CompletionResponse::Array(completions)))
@@ -1501,76 +1682,104 @@ mod tests {
         assert_eq!(diagnostic.message, "Undefined token {skni} (did you mean {skin}?)");
     }
 
-    #[test]
-    fn test_parse_grid_context_first_row_first_token() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-        // Find position of first {a} - after the opening quote of the first grid row
-        let grid_start = line.find("[\"").unwrap() + 2; // Position after ["
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
+    // === Structured Format Context Detection Tests ===
 
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 0);
-        assert_eq!(info.y, 0);
-        assert_eq!(info.token, "{a}");
-        assert_eq!(info.row_width, 3);
-        assert_eq!(info.expected_width, 3);
-        assert_eq!(info.sprite_name, "test");
+    #[test]
+    fn test_detect_completion_context_sprite_regions() {
+        let content = r#"{"type": "sprite", "name": "test", "regions": {"eye": {"rect": [0, 0, 8, 8]}}}"#;
+        let line = content;
+        let context = PixelsrcLanguageServer::detect_completion_context(content, line, 50);
+        assert_eq!(context, CompletionContext::Regions);
     }
 
     #[test]
-    fn test_parse_grid_context_second_token() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}{c}"]}"#;
-        // Position within {b}
-        let grid_start = line.find("[\"").unwrap() + 2 + 3; // After [" and {a}
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 1);
-        assert_eq!(info.y, 0);
-        assert_eq!(info.token, "{b}");
+    fn test_detect_completion_context_palette_roles() {
+        let content = r#"{"type": "palette", "name": "test", "roles": {"eye": "anchor"}}"#;
+        let line = content;
+        let context = PixelsrcLanguageServer::detect_completion_context(content, line, 50);
+        assert_eq!(context, CompletionContext::Roles);
     }
 
     #[test]
-    fn test_parse_grid_context_second_row() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{a}", "{b}{b}"]}"#;
-        // Find position within second row
-        let second_row_start = line.rfind("\"{b}").unwrap() + 1; // Position after the quote
-        let info = PixelsrcLanguageServer::parse_grid_context(line, second_row_start as u32);
-
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.x, 0);
-        assert_eq!(info.y, 1);
-        assert_eq!(info.token, "{b}");
+    fn test_detect_completion_context_state_rules() {
+        let content = r#"{"type": "state_rules", "name": "test", "rules": []}"#;
+        let line = content;
+        let context = PixelsrcLanguageServer::detect_completion_context(content, line, 30);
+        assert_eq!(context, CompletionContext::StateRules);
     }
 
     #[test]
-    fn test_parse_grid_context_with_size() {
-        let line = r#"{"type": "sprite", "name": "sized", "size": [4, 2], "grid": ["{a}{a}"]}"#;
-        let grid_start = line.find("[\"").unwrap() + 2;
-        let info = PixelsrcLanguageServer::parse_grid_context(line, grid_start as u32);
+    fn test_detect_completion_context_other() {
+        let content = r#"{"type": "animation", "name": "test", "frames": []}"#;
+        let line = content;
+        let context = PixelsrcLanguageServer::detect_completion_context(content, line, 30);
+        assert_eq!(context, CompletionContext::Other);
+    }
 
-        assert!(info.is_some());
-        let info = info.unwrap();
-        assert_eq!(info.row_width, 2);
-        assert_eq!(info.expected_width, 4); // From size field
+    // === Structured Format Hover Tests ===
+
+    #[test]
+    fn test_get_structured_format_hover_role() {
+        // Position on "boundary" keyword
+        let line = r#"  "outline": "boundary","#;
+        let hover = PixelsrcLanguageServer::get_structured_format_hover(line, 15);
+        assert!(hover.is_some());
+        assert!(hover.unwrap().contains("Role: Boundary"));
     }
 
     #[test]
-    fn test_parse_grid_context_not_sprite() {
-        let line = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
-        let info = PixelsrcLanguageServer::parse_grid_context(line, 50);
-        assert!(info.is_none());
+    fn test_get_structured_format_hover_shape() {
+        // Position on "rect" keyword
+        let line = r#"  "eye": { "rect": [0, 0, 8, 8] }"#;
+        let hover = PixelsrcLanguageServer::get_structured_format_hover(line, 12);
+        assert!(hover.is_some());
+        assert!(hover.unwrap().contains("Shape: Rectangle"));
     }
 
     #[test]
-    fn test_parse_grid_context_outside_grid() {
-        let line = r#"{"type": "sprite", "name": "test", "grid": ["{a}{b}"]}"#;
-        // Position before the grid array
-        let info = PixelsrcLanguageServer::parse_grid_context(line, 10);
-        assert!(info.is_none());
+    fn test_get_structured_format_hover_modifier() {
+        // Position on "symmetric" keyword
+        let line = r#"  "symmetric": "x","#;
+        let hover = PixelsrcLanguageServer::get_structured_format_hover(line, 5);
+        assert!(hover.is_some());
+        assert!(hover.unwrap().contains("Modifier: Symmetric"));
+    }
+
+    #[test]
+    fn test_get_structured_format_hover_no_match() {
+        // Position on a value, not a keyword
+        let line = r#"  "name": "test","#;
+        let hover = PixelsrcLanguageServer::get_structured_format_hover(line, 12);
+        // "test" is not a recognized keyword
+        assert!(hover.is_none());
+    }
+
+    // === Shape Completions Tests ===
+
+    #[test]
+    fn test_get_shape_completions() {
+        let completions = PixelsrcLanguageServer::get_shape_completions();
+        assert!(!completions.is_empty());
+        assert!(completions.iter().any(|c| c.label == "rect"));
+        assert!(completions.iter().any(|c| c.label == "circle"));
+        assert!(completions.iter().any(|c| c.label == "polygon"));
+    }
+
+    #[test]
+    fn test_get_role_completions() {
+        let completions = PixelsrcLanguageServer::get_role_completions();
+        assert_eq!(completions.len(), 5);
+        assert!(completions.iter().any(|c| c.label == "boundary"));
+        assert!(completions.iter().any(|c| c.label == "anchor"));
+        assert!(completions.iter().any(|c| c.label == "fill"));
+    }
+
+    #[test]
+    fn test_get_modifier_completions() {
+        let completions = PixelsrcLanguageServer::get_modifier_completions();
+        assert!(completions.iter().any(|c| c.label == "symmetric"));
+        assert!(completions.iter().any(|c| c.label == "within"));
+        assert!(completions.iter().any(|c| c.label == "z"));
     }
 
     #[test]
@@ -1579,8 +1788,8 @@ mod tests {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
 
         assert_eq!(tokens.len(), 2); // Only {a} and {b}, not --var
-        assert!(tokens.iter().any(|(t, c)| t == "{a}" && c == "#FF0000"));
-        assert!(tokens.iter().any(|(t, c)| t == "{b}" && c == "#00FF00"));
+        assert!(tokens.iter().any(|(t, c, _)| t == "{a}" && c == "#FF0000"));
+        assert!(tokens.iter().any(|(t, c, _)| t == "{b}" && c == "#00FF00"));
     }
 
     #[test]
@@ -1591,8 +1800,8 @@ mod tests {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
 
         assert_eq!(tokens.len(), 2);
-        assert!(tokens.iter().any(|(t, _)| t == "{red}"));
-        assert!(tokens.iter().any(|(t, _)| t == "{blue}"));
+        assert!(tokens.iter().any(|(t, _, _)| t == "{red}"));
+        assert!(tokens.iter().any(|(t, _, _)| t == "{blue}"));
     }
 
     #[test]
@@ -1606,6 +1815,36 @@ mod tests {
     fn test_collect_defined_tokens_empty_content() {
         let tokens = PixelsrcLanguageServer::collect_defined_tokens("");
         assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_with_roles() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{outline}": "#000000", "{fill}": "#FF0000"}, "roles": {"{outline}": "boundary", "{fill}": "fill"}}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2);
+        let outline_token = tokens.iter().find(|(t, _, _)| t == "{outline}");
+        assert!(outline_token.is_some());
+        assert_eq!(outline_token.unwrap().2, Some("boundary".to_string()));
+
+        let fill_token = tokens.iter().find(|(t, _, _)| t == "{fill}");
+        assert!(fill_token.is_some());
+        assert_eq!(fill_token.unwrap().2, Some("fill".to_string()));
+    }
+
+    #[test]
+    fn test_collect_defined_tokens_partial_roles() {
+        let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "anchor"}}"##;
+        let tokens = PixelsrcLanguageServer::collect_defined_tokens(content);
+
+        assert_eq!(tokens.len(), 2);
+        let a_token = tokens.iter().find(|(t, _, _)| t == "{a}");
+        assert!(a_token.is_some());
+        assert_eq!(a_token.unwrap().2, Some("anchor".to_string()));
+
+        let b_token = tokens.iter().find(|(t, _, _)| t == "{b}");
+        assert!(b_token.is_some());
+        assert_eq!(b_token.unwrap().2, None); // {b} has no role
     }
 
     // === Document Symbol Tests ===

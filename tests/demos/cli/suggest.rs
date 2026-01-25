@@ -1,0 +1,102 @@
+//! Suggest Command Demo Tests
+//!
+//! Demonstrates the `pxl suggest` command functionality for finding
+//! potential improvements and fixes in pixelsrc files.
+
+use pixelsrc::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
+use std::io::Cursor;
+
+// ============================================================================
+// Typo Suggestion Tests
+// ============================================================================
+#[test]
+fn test_suggest_typo_correction() {
+    let candidates = vec!["skin", "hair", "shirt", "shadow"];
+
+    // "shin" is close to "skin"
+    let suggestions = suggest("shin", &candidates, 2);
+
+    assert!(suggestions.contains(&"skin"), "Should suggest 'skin' for typo 'shin'");
+}
+#[test]
+fn test_suggest_distance_threshold() {
+    let candidates = vec!["red", "green", "blue", "yellow"];
+
+    // "reed" is distance 1 from "red"
+    let close_suggestions = suggest("reed", &candidates, 1);
+    assert!(close_suggestions.contains(&"red"), "Should suggest 'red' within distance 1");
+
+    // "xyz" is far from all candidates
+    let far_suggestions = suggest("xyz", &candidates, 2);
+    assert!(far_suggestions.is_empty(), "Should not suggest anything for very different input");
+}
+#[test]
+fn test_format_suggestions() {
+    let candidates = vec!["skin", "shadow"];
+    let suggestions = suggest("skn", &candidates, 2);
+
+    let formatted = format_suggestion(&suggestions);
+
+    assert!(formatted.is_some(), "Should have formatted output");
+    let output = formatted.unwrap();
+    assert!(output.contains("skin"), "Formatted output should mention suggested token");
+}
+
+// ============================================================================
+// Missing Token Detection Tests
+// ============================================================================
+/// @title Missing Token Fix Suggestion
+/// @description Suggests adding the missing token to the palette with a color.// ============================================================================
+// ============================================================================
+// Report Tests
+// ============================================================================
+/// @title Filter Suggestions by Type
+/// @description Can filter suggestions to only show specific types.
+#[test]
+fn test_suggest_filter_by_type() {
+    // Sprite with missing token in region
+    let jsonl = r##"{"type": "sprite", "name": "test", "size": [2, 2], "palette": {"x": "#FF0000"}, "regions": {"y": {"rect": [0, 0, 2, 2]}}}"##;
+
+    let mut suggester = Suggester::new();
+    suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
+    let report = suggester.into_report();
+
+    let missing_only = report.filter_by_type(SuggestionType::MissingToken);
+
+    // All filtered suggestions should be of the requested type
+    for suggestion in missing_only {
+        assert_eq!(suggestion.suggestion_type, SuggestionType::MissingToken);
+    }
+}
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+#[test]
+fn test_suggest_no_suggestions_valid_file() {
+    let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{x}": "#FF0000", "{y}": "#00FF00"}}
+{"type": "sprite", "name": "test", "palette": "colors", "grid": ["{x}{y}", "{y}{x}"]}"##;
+
+    let mut suggester = Suggester::new();
+    suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
+    let report = suggester.into_report();
+
+    assert!(!report.has_suggestions(), "Valid file should have no suggestions");
+}
+/// @title Suggestion Line Numbers
+/// @description Suggestions include accurate line numbers for locating issues.
+#[test]
+fn test_suggest_line_numbers() {
+    let jsonl = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}
+{"type": "sprite", "name": "test", "palette": "p", "grid": ["{x}{y}"]}"##;
+
+    let mut suggester = Suggester::new();
+    suggester.analyze_reader(Cursor::new(jsonl)).unwrap();
+    let report = suggester.into_report();
+
+    if !report.suggestions.is_empty() {
+        let suggestion = &report.suggestions[0];
+        assert!(suggestion.line > 0, "Line number should be 1-indexed and positive");
+        assert_eq!(suggestion.line, 2, "Missing token should be on line 2 (sprite line)");
+    }
+}

@@ -1,5 +1,0 @@
-{"type": "palette", "name": "ui", "colors": {"{_}": "#00000000", "{w}": "#FFFFFF", "{g}": "#4CAF50", "{r}": "#F44336", "{d}": "#212121"}}
-{"type": "sprite", "name": "button_normal", "palette": "ui", "grid": ["{d}{d}{d}{d}{d}{d}", "{d}{w}{w}{w}{w}{d}", "{d}{w}{w}{w}{w}{d}", "{d}{d}{d}{d}{d}{d}"], "metadata": {"origin": [3, 2]}}
-{"type": "sprite", "name": "button_hover", "palette": "ui", "grid": ["{g}{g}{g}{g}{g}{g}", "{g}{w}{w}{w}{w}{g}", "{g}{w}{w}{w}{w}{g}", "{g}{g}{g}{g}{g}{g}"], "metadata": {"origin": [3, 2]}}
-{"type": "sprite", "name": "button_pressed", "palette": "ui", "grid": ["{r}{r}{r}{r}{r}{r}", "{r}{d}{d}{d}{d}{r}", "{r}{d}{d}{d}{d}{r}", "{r}{r}{r}{r}{r}{r}"], "metadata": {"origin": [3, 2]}}
-{"type": "sprite", "name": "icon_check", "palette": "ui", "grid": ["{_}{_}{_}{g}", "{_}{_}{g}{_}", "{g}{g}{_}{_}", "{_}{g}{_}{_}"]}

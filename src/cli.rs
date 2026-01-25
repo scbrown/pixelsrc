@@ -7,7 +7,6 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use crate::alias::{parse_simple_grid, simple_grid_to_sprite};
 use crate::analyze::{collect_files, format_report_text, AnalysisReport};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
@@ -18,7 +17,6 @@ use crate::explain::{explain_object, format_explanation, resolve_palette_colors,
 use crate::fmt::format_pixelsrc;
 use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
-use crate::terminal::{render_ansi_grid, render_coordinate_grid};
 use crate::validate::{Severity, Validator};
 use glob::glob;
 
@@ -47,21 +45,17 @@ pub fn find_pixelsrc_files(dir: &std::path::Path) -> Vec<PathBuf> {
     files
 }
 use crate::gif::render_gif;
-use crate::import::import_png;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
+use crate::lsp_agent_client::LspAgentClient;
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
 use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
 use crate::palettes;
 use crate::parser::parse_stream;
-use crate::lsp_agent_client::LspAgentClient;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette, SpriteRegistry};
 use crate::renderer::{render_resolved, render_sprite};
 use crate::spritesheet::render_spritesheet;
-use crate::transforms::{
-    apply_crop, apply_mirror_horizontal, apply_mirror_vertical, apply_outline, apply_pad,
-    apply_rotate, apply_shadow, apply_shift, apply_tile,
-};
+// Grid transform functions removed (grid format deprecated)
 
 /// Exit codes per Pixelsrc spec
 const EXIT_SUCCESS: u8 = 0;
@@ -140,6 +134,11 @@ pub enum Commands {
         /// Force power-of-two dimensions for atlas
         #[arg(long)]
         power_of_two: bool,
+
+        /// Render nine-slice sprite to target size (e.g., "64x32")
+        /// Requires sprite to have nine_slice attribute defined
+        #[arg(long)]
+        nine_slice: Option<String>,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -157,6 +156,22 @@ pub enum Commands {
         /// Name for the generated sprite (default: derived from filename)
         #[arg(short, long)]
         name: Option<String>,
+
+        /// Enable role/relationship inference analysis
+        #[arg(long)]
+        analyze: bool,
+
+        /// Confidence threshold for inferences (0.0-1.0, default: 0.7)
+        #[arg(long, default_value = "0.7")]
+        confidence: f64,
+
+        /// Show token naming suggestions based on detected features
+        #[arg(long)]
+        hints: bool,
+
+        /// Disable extraction of structured shapes (polygons, rects)
+        #[arg(long)]
+        no_shapes: bool,
     },
 
     /// Show GenAI prompt templates for sprite generation
@@ -325,40 +340,6 @@ pub enum Commands {
         only: Option<String>,
     },
 
-    /// Expand grid with column-aligned spacing for readability
-    Inline {
-        /// Input file containing sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple)
-        #[arg(long)]
-        sprite: Option<String>,
-    },
-
-    /// Extract repeated patterns into single-letter aliases (outputs JSON)
-    Alias {
-        /// Input file containing sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple)
-        #[arg(long)]
-        sprite: Option<String>,
-    },
-
-    /// Display grid with row/column coordinates for easy reference
-    Grid {
-        /// Input file containing palette and sprite definitions
-        input: PathBuf,
-
-        /// Sprite name (if file contains multiple sprites)
-        #[arg(long)]
-        sprite: Option<String>,
-
-        /// Show full token names instead of abbreviations
-        #[arg(long)]
-        full: bool,
-    },
-
     /// Display sprite with colored terminal output (ANSI true-color)
     Show {
         /// Input file containing sprite definitions
@@ -455,31 +436,6 @@ pub enum Commands {
         preset: String,
     },
 
-    /// Create sprite from simple text grid (space-separated characters)
-    ///
-    /// Input format: each line is a row, characters separated by spaces.
-    /// Use _ for transparent pixels. Example:
-    ///   _ _ b b
-    ///   _ b c b
-    ///   b c c b
-    Sketch {
-        /// Input file (omit to read from stdin)
-        #[arg()]
-        file: Option<PathBuf>,
-
-        /// Sprite name (default: "sketch")
-        #[arg(short, long, default_value = "sketch")]
-        name: String,
-
-        /// Reference a named palette instead of inline placeholder colors
-        #[arg(short, long)]
-        palette: Option<String>,
-
-        /// Output file (default: stdout)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
     /// Transform sprites (mirror, rotate, tile, etc.)
     ///
     /// Applies transforms to sprite grids and outputs new source files.
@@ -546,8 +502,67 @@ pub enum Commands {
     },
 
     /// Start the Language Server Protocol server (for editor integration)
+    #[cfg(feature = "lsp")]
     #[command(hide = true)]
     Lsp,
+
+    /// Agent-mode validation and diagnostics (for AI/CLI integration)
+    Agent {
+        /// Subcommand: verify, completions, position
+        #[command(subcommand)]
+        action: AgentAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AgentAction {
+    /// Verify content and return structured diagnostics
+    Verify {
+        /// Input file to verify (omit for stdin)
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Treat warnings as errors
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Get token completions at a position
+    Completions {
+        /// Input file
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Line number (1-indexed)
+        #[arg(long, default_value = "1")]
+        line: usize,
+
+        /// Character position (0-indexed)
+        #[arg(long, default_value = "0")]
+        character: usize,
+    },
+    /// Get grid position information
+    Position {
+        /// Input file
+        file: Option<PathBuf>,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Line number (1-indexed)
+        #[arg(long)]
+        line: usize,
+
+        /// Character position (0-indexed)
+        #[arg(long)]
+        character: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -581,6 +596,7 @@ pub fn run() -> ExitCode {
             max_size,
             padding,
             power_of_two,
+            nine_slice,
         } => run_render(
             &input,
             output.as_deref(),
@@ -596,9 +612,10 @@ pub fn run() -> ExitCode {
             max_size.as_deref(),
             padding,
             power_of_two,
+            nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name } => {
-            run_import(&input, output.as_deref(), max_colors, name.as_deref())
+        Commands::Import { input, output, max_colors, name, analyze, confidence, hints, no_shapes } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints, !no_shapes)
         }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
@@ -634,9 +651,6 @@ pub fn run() -> ExitCode {
         Commands::Suggest { files, stdin, json, only } => {
             run_suggest(&files, stdin, json, only.as_deref())
         }
-        Commands::Inline { input, sprite } => run_inline(&input, sprite.as_deref()),
-        Commands::Alias { input, sprite } => run_alias(&input, sprite.as_deref()),
-        Commands::Grid { input, sprite, full } => run_grid(&input, sprite.as_deref(), full),
         Commands::Show {
             file,
             sprite,
@@ -668,9 +682,6 @@ pub fn run() -> ExitCode {
         }
         Commands::Init { path, name, preset } => {
             run_init(path.as_deref(), name.as_deref(), &preset)
-        }
-        Commands::Sketch { file, name, palette, output } => {
-            run_sketch(file.as_deref(), &name, palette.as_deref(), output.as_deref())
         }
         Commands::Transform {
             input,
@@ -705,18 +716,14 @@ pub fn run() -> ExitCode {
             stdin,
             allow_large,
         ),
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(feature = "lsp")]
         Commands::Lsp => run_lsp(),
-        #[cfg(target_arch = "wasm32")]
-        Commands::Lsp => {
-            eprintln!("Error: LSP is not available in WASM builds");
-            ExitCode::from(EXIT_ERROR)
-        }
+        Commands::Agent { action } => run_agent(action),
     }
 }
 
 /// Execute the LSP server command
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "lsp")]
 fn run_lsp() -> ExitCode {
     use tokio::runtime::Runtime;
 
@@ -730,6 +737,94 @@ fn run_lsp() -> ExitCode {
 
     rt.block_on(crate::lsp::run_server());
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Execute agent command (verify, completions, position)
+fn run_agent(action: AgentAction) -> ExitCode {
+    use crate::lsp_agent_client::LspAgentClient;
+    use std::io::{self, Read};
+
+    match action {
+        AgentAction::Verify { file, stdin, strict } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = if strict { LspAgentClient::strict() } else { LspAgentClient::new() };
+            println!("{}", client.verify_content_json(&content));
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        AgentAction::Completions { file, stdin, line, character } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = LspAgentClient::new();
+            println!("{}", client.get_completions_json(&content, line, character));
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        AgentAction::Position { file, stdin, line, character } => {
+            let content = if stdin {
+                let mut buf = String::new();
+                if let Err(e) = io::stdin().read_to_string(&mut buf) {
+                    eprintln!("Error reading stdin: {}", e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                buf
+            } else if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                }
+            } else {
+                eprintln!("Error: Provide a file or use --stdin");
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            };
+
+            let client = LspAgentClient::new();
+            if let Some(pos) = client.get_grid_position(&content, line, character) {
+                println!("{}", serde_json::to_string_pretty(&pos).unwrap());
+            } else {
+                println!("null");
+            }
+            ExitCode::from(EXIT_SUCCESS)
+        }
+    }
 }
 
 // Embedded prompt templates
@@ -870,7 +965,32 @@ fn run_render(
     max_size_arg: Option<&str>,
     padding: u32,
     power_of_two: bool,
+    nine_slice_arg: Option<&str>,
 ) -> ExitCode {
+    // Parse nine-slice target size if provided
+    let nine_slice_size = if let Some(size_str) = nine_slice_arg {
+        let parts: Vec<&str> = size_str.split('x').collect();
+        if parts.len() != 2 {
+            eprintln!(
+                "Error: Invalid nine-slice size format '{}'. Use WxH format (e.g., '64x32')",
+                size_str
+            );
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+        match (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
+            (Ok(w), Ok(h)) if w > 0 && h > 0 => Some((w, h)),
+            _ => {
+                eprintln!(
+                    "Error: Invalid nine-slice size '{}'. Width and height must be positive integers",
+                    size_str
+                );
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        }
+    } else {
+        None
+    };
+
     // Open input file
     let file = match File::open(input) {
         Ok(f) => f,
@@ -969,6 +1089,9 @@ fn run_render(
                 // User-defined transforms are stored in transform registry
                 // (future: register in transform_registry)
             }
+            TtpObject::StateRules(_) => {
+                // State rules are runtime styling, applied during rendering
+            }
         }
     }
 
@@ -985,6 +1108,7 @@ fn run_render(
             output,
             &animations_by_name,
             &sprites_by_name,
+            &compositions_by_name,
             &sprite_registry,
             &registry,
             input_dir,
@@ -1079,7 +1203,7 @@ fn run_render(
 
             // For @include: palettes, resolve palette first, then apply transforms
             // For normal palettes, use sprite_registry.resolve() which handles both
-            let (final_grid, final_palette) = if uses_include_palette {
+            let final_palette = if uses_include_palette {
                 // Handle @include: palette specially
                 let include_path = if let PaletteRef::Named(name) = &sprite.palette {
                     extract_include_path(name).unwrap()
@@ -1087,7 +1211,7 @@ fn run_render(
                     unreachable!()
                 };
 
-                let palette_colors = match resolve_include_with_detection(
+                match resolve_include_with_detection(
                     include_path,
                     input_dir,
                     &mut include_visited,
@@ -1101,24 +1225,9 @@ fn run_render(
                         all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
                         std::collections::HashMap::new()
                     }
-                };
-
-                // Still use sprite registry to get transformed grid
-                let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        if strict {
-                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                            return ExitCode::from(EXIT_ERROR);
-                        }
-                        all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                        continue;
-                    }
-                };
-                // Use transformed grid but with include-resolved palette
-                (resolved.grid, palette_colors)
+                }
             } else {
-                // Normal path: sprite_registry handles both transforms and palette
+                // Normal path: sprite_registry handles source resolution and palette
                 let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
                     Ok(r) => {
                         for warning in &r.warnings {
@@ -1136,20 +1245,106 @@ fn run_render(
                         continue;
                     }
                 };
-                (resolved.grid, resolved.palette)
+                resolved.palette
             };
 
-            // Create resolved sprite for rendering
+            // Get regions from resolved source if sprite has a source reference
+            // This is critical for derived sprites that reference a regions-based source
+            let resolved_regions = if sprite.source.is_some() {
+                // Need to re-resolve to get the regions (palette was already extracted above)
+                match sprite_registry.resolve(&sprite.name, &registry, false) {
+                    Ok(r) => r.regions,
+                    Err(_) => sprite.regions.clone(),
+                }
+            } else {
+                sprite.regions.clone()
+            };
+
+            // Create resolved sprite for rendering with correct regions
             let render_sprite_data = crate::registry::ResolvedSprite {
                 name: sprite.name.clone(),
-                size: sprite.size,
-                grid: final_grid,
-                palette: final_palette,
+                size: sprite.size.or_else(|| {
+                    // For derived sprites, get size from resolved source
+                    if sprite.source.is_some() {
+                        sprite_registry.resolve(&sprite.name, &registry, false).ok().and_then(|r| r.size)
+                    } else {
+                        None
+                    }
+                }),
+                palette: final_palette.clone(),
                 warnings: vec![],
+                nine_slice: sprite.nine_slice.clone(),
+                regions: resolved_regions,
             };
 
-            // Render the resolved sprite (transforms already applied)
-            let (image, render_warnings) = render_resolved(&render_sprite_data);
+            // Render the resolved sprite
+            let (mut image, render_warnings) = render_resolved(&render_sprite_data);
+
+            // Apply transforms from sprite.transform if present
+            if let Some(ref transform_specs) = sprite.transform {
+                use crate::transforms::{apply_image_transform, parse_transform_str};
+                use crate::models::TransformSpec;
+
+                for spec in transform_specs {
+                    let transform_result = match spec {
+                        TransformSpec::String(s) => parse_transform_str(s),
+                        TransformSpec::Object { op, params } => {
+                            // Convert object to JSON and parse
+                            let mut obj = serde_json::Map::new();
+                            obj.insert("op".to_string(), serde_json::Value::String(op.clone()));
+                            for (k, v) in params {
+                                obj.insert(k.clone(), v.clone());
+                            }
+                            crate::transforms::parse_transform_value(&serde_json::Value::Object(obj))
+                        }
+                    };
+
+                    match transform_result {
+                        Ok(transform) => {
+                            // Skip animation transforms (they don't apply to images)
+                            if crate::transforms::is_animation_transform(&transform) {
+                                continue;
+                            }
+                            match apply_image_transform(&image, &transform, Some(&final_palette)) {
+                                Ok(transformed) => image = transformed,
+                                Err(e) => {
+                                    let msg = format!("sprite '{}': transform error: {}", sprite.name, e);
+                                    if strict {
+                                        eprintln!("Error: {}", msg);
+                                        return ExitCode::from(EXIT_ERROR);
+                                    }
+                                    all_warnings.push(msg);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            let msg = format!("sprite '{}': invalid transform: {}", sprite.name, e);
+                            if strict {
+                                eprintln!("Error: {}", msg);
+                                return ExitCode::from(EXIT_ERROR);
+                            }
+                            all_warnings.push(msg);
+                        }
+                    }
+                }
+            }
+
+            // Apply nine-slice rendering if requested
+            if let Some((target_w, target_h)) = nine_slice_size {
+                if let Some(ref nine_slice) = sprite.nine_slice {
+                    let (ns_image, ns_warnings) =
+                        crate::renderer::render_nine_slice(&image, nine_slice, target_w, target_h);
+                    image = ns_image;
+                    for warning in ns_warnings {
+                        all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
+                    }
+                } else {
+                    eprintln!(
+                        "Warning: --nine-slice specified but sprite '{}' has no nine_slice attribute",
+                        sprite.name
+                    );
+                }
+            }
 
             // Apply scaling if requested
             let image = scale_image(image, scale);
@@ -1407,9 +1602,10 @@ fn render_composition_to_image(
         let render_sprite_data = crate::registry::ResolvedSprite {
             name: resolved_sprite.name.clone(),
             size: resolved_sprite.size,
-            grid: resolved_sprite.grid.clone(),
             palette: final_palette,
             warnings: vec![],
+            nine_slice: resolved_sprite.nine_slice.clone(),
+            regions: resolved_sprite.regions.clone(),
         };
 
         // Render the resolved sprite (transforms already applied)
@@ -1451,13 +1647,15 @@ fn render_composition_to_image(
 
 /// Render an animation as GIF or spritesheet
 /// TRF-9: Now uses SpriteRegistry for transform support
+// TTP-9qjwr: Added compositions parameter to support compositions as animation frames
 #[allow(clippy::too_many_arguments)]
 fn run_animation_render(
     input: &std::path::Path,
     output: Option<&std::path::Path>,
     animations: &std::collections::HashMap<String, Animation>,
     sprites: &std::collections::HashMap<String, Sprite>,
-    _sprite_registry: &SpriteRegistry,
+    compositions: &std::collections::HashMap<String, Composition>,
+    sprite_registry: &SpriteRegistry,
     palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
@@ -1491,17 +1689,18 @@ fn run_animation_render(
         }
     };
 
-    // Validate animation: check that all frame references exist
+    // Validate animation: check that all frame references exist (sprites OR compositions)
+    // TTP-9qjwr: Now also checks compositions as valid frame references
     let mut missing_frames = Vec::new();
     for frame_name in &animation.frames {
-        if !sprites.contains_key(frame_name) {
+        if !sprites.contains_key(frame_name) && !compositions.contains_key(frame_name) {
             missing_frames.push(frame_name.clone());
         }
     }
 
     if !missing_frames.is_empty() {
         let warning_msg = format!(
-            "Animation '{}' references missing sprites: {}",
+            "Animation '{}' references missing sprites/compositions: {}",
             animation.name,
             missing_frames.join(", ")
         );
@@ -1605,75 +1804,96 @@ fn run_animation_render(
         (scaled_frames, duration)
     } else {
         // Traditional frame-based animation
+        // TTP-9qjwr: Now supports both sprites and compositions as frames
         let mut frame_images = Vec::new();
         for frame_name in &animation.frames {
-            let sprite = match sprites.get(frame_name) {
-                Some(s) => s,
-                None => continue, // Skip missing sprites (warned above)
-            };
-
-            // Resolve palette
-            let resolved = match &sprite.palette {
-                PaletteRef::Named(name) if is_include_ref(name) => {
-                    let include_path = extract_include_path(name).unwrap();
-                    match resolve_include_with_detection(include_path, input_dir, include_visited) {
-                        Ok(palette) => ResolvedPalette {
-                            colors: palette.colors,
-                            source: PaletteSource::Named(format!("@include:{}", include_path)),
-                        },
-                        Err(e) => {
-                            if strict {
-                                eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                                return ExitCode::from(EXIT_ERROR);
-                            }
-                            all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                            ResolvedPalette {
-                                colors: std::collections::HashMap::new(),
-                                source: PaletteSource::Fallback,
-                            }
-                        }
-                    }
-                }
-                _ => match palette_registry.resolve(sprite, strict) {
-                    Ok(result) => {
-                        if let Some(warning) = result.warning {
-                            all_warnings
-                                .push(format!("sprite '{}': {}", sprite.name, warning.message));
-                            if strict {
-                                for warning in all_warnings.iter() {
-                                    eprintln!("Error: {}", warning);
+            // First try to get as sprite
+            if let Some(sprite) = sprites.get(frame_name) {
+                // Resolve palette
+                let resolved = match &sprite.palette {
+                    PaletteRef::Named(name) if is_include_ref(name) => {
+                        let include_path = extract_include_path(name).unwrap();
+                        match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                            Ok(palette) => ResolvedPalette {
+                                colors: palette.colors,
+                                source: PaletteSource::Named(format!("@include:{}", include_path)),
+                            },
+                            Err(e) => {
+                                if strict {
+                                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                                    return ExitCode::from(EXIT_ERROR);
                                 }
-                                return ExitCode::from(EXIT_ERROR);
+                                all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                                ResolvedPalette {
+                                    colors: std::collections::HashMap::new(),
+                                    source: PaletteSource::Fallback,
+                                }
                             }
                         }
-                        result.palette
                     }
-                    Err(e) => {
-                        eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                        return ExitCode::from(EXIT_ERROR);
-                    }
-                },
-            };
+                    _ => match palette_registry.resolve(sprite, strict) {
+                        Ok(result) => {
+                            if let Some(warning) = result.warning {
+                                all_warnings
+                                    .push(format!("sprite '{}': {}", sprite.name, warning.message));
+                                if strict {
+                                    for warning in all_warnings.iter() {
+                                        eprintln!("Error: {}", warning);
+                                    }
+                                    return ExitCode::from(EXIT_ERROR);
+                                }
+                            }
+                            result.palette
+                        }
+                        Err(e) => {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                    },
+                };
 
-            // Render sprite
-            let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+                // Render sprite
+                let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
 
-            // Apply scaling if requested
-            let image = scale_image(image, scale);
+                // Apply scaling if requested
+                let image = scale_image(image, scale);
 
-            // Collect render warnings
-            for warning in render_warnings {
-                all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
-            }
-
-            if strict && !all_warnings.is_empty() {
-                for warning in all_warnings.iter() {
-                    eprintln!("Error: {}", warning);
+                // Collect render warnings
+                for warning in render_warnings {
+                    all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
                 }
-                return ExitCode::from(EXIT_ERROR);
-            }
 
-            frame_images.push(image);
+                if strict && !all_warnings.is_empty() {
+                    for warning in all_warnings.iter() {
+                        eprintln!("Error: {}", warning);
+                    }
+                    return ExitCode::from(EXIT_ERROR);
+                }
+
+                frame_images.push(image);
+            } else if let Some(comp) = compositions.get(frame_name) {
+                // TTP-9qjwr: Render composition as animation frame
+                let result = render_composition_to_image(
+                    comp,
+                    sprites,
+                    sprite_registry,
+                    palette_registry,
+                    input_dir,
+                    include_visited,
+                    all_warnings,
+                    strict,
+                );
+
+                match result {
+                    Ok(image) => {
+                        // Apply scaling if requested
+                        let image = scale_image(image, scale);
+                        frame_images.push(image);
+                    }
+                    Err(code) => return code,
+                }
+            }
+            // If neither sprite nor composition found, skip (warned above)
         }
 
         (frame_images, animation.duration_ms())
@@ -2046,10 +2266,20 @@ fn run_import(
     output: Option<&std::path::Path>,
     max_colors: usize,
     sprite_name: Option<&str>,
+    analyze: bool,
+    confidence: f64,
+    hints: bool,
+    shapes: bool,
 ) -> ExitCode {
     // Validate max_colors
     if !(2..=256).contains(&max_colors) {
         eprintln!("Error: --max-colors must be between 2 and 256");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Validate confidence threshold
+    if !(0.0..=1.0).contains(&confidence) {
+        eprintln!("Error: --confidence must be between 0.0 and 1.0");
         return ExitCode::from(EXIT_INVALID_ARGS);
     }
 
@@ -2058,8 +2288,19 @@ fn run_import(
         .map(String::from)
         .unwrap_or_else(|| input.file_stem().unwrap_or_default().to_string_lossy().to_string());
 
-    // Import the PNG
-    let result = match import_png(input, &name, max_colors) {
+    // Import the PNG with analysis options
+    let options = crate::import::ImportOptions {
+        analyze,
+        confidence_threshold: confidence,
+        hints,
+        extract_shapes: shapes,
+        half_sprite: false, // TODO: Add CLI flag when needed
+        dither_handling: crate::import::DitherHandling::Keep, // TODO: Add CLI flag when needed
+        detect_upscale: analyze, // Enable upscale detection when analysis is on
+        detect_outlines: analyze, // Enable outline detection when analysis is on
+    };
+
+    let result = match crate::import::import_png_with_options(input, &name, max_colors, &options) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -2070,16 +2311,24 @@ fn run_import(
     // Generate output path
     let output_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
         let stem = input.file_stem().unwrap_or_default().to_string_lossy();
-        input.parent().unwrap_or(std::path::Path::new(".")).join(format!("{}.jsonl", stem))
+        // Use .pxl extension if analysis is enabled, otherwise .jsonl
+        let ext = if analyze { "pxl" } else { "jsonl" };
+        input.parent().unwrap_or(std::path::Path::new(".")).join(format!("{}.{}", stem, ext))
     });
 
-    // Write JSONL output
-    let jsonl = result.to_jsonl();
-    if let Err(e) = std::fs::write(&output_path, jsonl) {
+    // Write output (JSONL for legacy, structured for analysis)
+    let output_content = if analyze {
+        result.to_structured_jsonl()
+    } else {
+        result.to_jsonl()
+    };
+
+    if let Err(e) = std::fs::write(&output_path, &output_content) {
         eprintln!("Error: Failed to write '{}': {}", output_path.display(), e);
         return ExitCode::from(EXIT_ERROR);
     }
 
+    // Print summary
     println!(
         "Imported: {} ({}x{}, {} colors)",
         output_path.display(),
@@ -2087,6 +2336,61 @@ fn run_import(
         result.height,
         result.palette.len()
     );
+
+    // Print analysis results if enabled
+    if analyze {
+        if let Some(ref analysis) = result.analysis {
+            if !analysis.roles.is_empty() {
+                println!("  Roles inferred: {}", analysis.roles.len());
+            }
+            if !analysis.relationships.is_empty() {
+                println!("  Relationships: {}", analysis.relationships.len());
+            }
+            if let Some(ref symmetry) = analysis.symmetry {
+                println!("  Symmetry: {:?}", symmetry);
+            }
+        }
+    }
+
+    // Print hints if requested
+    if hints {
+        if let Some(ref analysis) = result.analysis {
+            if !analysis.naming_hints.is_empty() {
+                println!("  Token naming hints:");
+                for hint in &analysis.naming_hints {
+                    println!("    {}: {}", hint.token, hint.suggested_name);
+                }
+            }
+        }
+    }
+
+    // Print shape extraction results
+    if shapes {
+        if let Some(ref structured) = result.structured_regions {
+            let mut rects = 0;
+            let mut polys = 0;
+            let mut points = 0;
+            for region in structured.values() {
+                match region {
+                    crate::import::StructuredRegion::Rect(_) => rects += 1,
+                    crate::import::StructuredRegion::Polygon(_) => polys += 1,
+                    crate::import::StructuredRegion::Points(_) => points += 1,
+                    crate::import::StructuredRegion::Union(sub) => {
+                        for s in sub {
+                            match s {
+                                crate::import::StructuredRegion::Rect(_) => rects += 1,
+                                crate::import::StructuredRegion::Polygon(_) => polys += 1,
+                                crate::import::StructuredRegion::Points(_) => points += 1,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            println!("  Shapes extracted: {} rects, {} polygons, {} point arrays", rects, polys, points);
+        }
+    }
+
     ExitCode::from(EXIT_SUCCESS)
 }
 
@@ -2421,11 +2725,7 @@ fn run_agent_verify(
     };
 
     // Create client with appropriate strictness
-    let client = if strict {
-        LspAgentClient::strict()
-    } else {
-        LspAgentClient::new()
-    };
+    let client = if strict { LspAgentClient::strict() } else { LspAgentClient::new() };
 
     // Build the result object
     let mut result = serde_json::Map::new();
@@ -2492,24 +2792,26 @@ fn run_agent_verify(
                 let name = obj.get("name")?.as_str()?;
                 let grid = obj.get("grid")?.as_array()?;
 
-                // Calculate row widths
+                // Calculate row widths (grid format deprecated, just count grid entries)
                 let row_widths: Vec<usize> = grid
                     .iter()
                     .filter_map(|row| {
-                        let row_str = row.as_str()?;
-                        let (tokens, _) = crate::tokenizer::tokenize(row_str);
-                        Some(tokens.len())
+                        let _row_str = row.as_str()?;
+                        // Grid tokenization removed - assume width from size field only
+                        Some(0)
                     })
                     .collect();
 
                 // Get size from size field or first row
-                let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
+                let expected_width = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
+                {
                     size.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize
                 } else {
                     row_widths.first().copied().unwrap_or(0)
                 };
 
-                let expected_height = if let Some(size) = obj.get("size").and_then(|s| s.as_array()) {
+                let expected_height = if let Some(size) = obj.get("size").and_then(|s| s.as_array())
+                {
                     size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize
                 } else {
                     row_widths.len()
@@ -2598,10 +2900,7 @@ fn run_agent_verify(
     }
 
     // Output JSON result
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&serde_json::Value::Object(result)).unwrap()
-    );
+    println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(result)).unwrap());
 
     if verification.valid {
         ExitCode::from(EXIT_SUCCESS)
@@ -2653,6 +2952,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                 TtpObject::Variant(v) => v.name == name,
                 TtpObject::Particle(p) => p.name == name,
                 TtpObject::Transform(t) => t.name == name,
+                TtpObject::StateRules(sr) => sr.name == name,
             })
             .collect();
 
@@ -2670,6 +2970,7 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     TtpObject::Variant(v) => v.name.as_str(),
                     TtpObject::Particle(p) => p.name.as_str(),
                     TtpObject::Transform(t) => t.name.as_str(),
+                    TtpObject::StateRules(sr) => sr.name.as_str(),
                 })
                 .collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &all_names, 3)) {
@@ -2774,6 +3075,12 @@ fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> ExitCo
                     "generates_animation": t.generates_animation,
                     "frame_count": t.frame_count,
                     "transform_type": t.transform_type,
+                }),
+                Explanation::StateRules(sr) => serde_json::json!({
+                    "type": "state-rules",
+                    "name": sr.name,
+                    "rule_count": sr.rule_count,
+                    "selectors": sr.selectors,
                 }),
             })
             .collect();
@@ -2918,9 +3225,8 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
     // Parse the --only filter
     let type_filter: Option<SuggestionType> = match only {
         Some("token") => Some(SuggestionType::MissingToken),
-        Some("row") => Some(SuggestionType::RowCompletion),
         Some(other) => {
-            eprintln!("Error: Unknown suggestion type '{}'. Use 'token' or 'row'.", other);
+            eprintln!("Error: Unknown suggestion type '{}'. Use 'token'.", other);
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         None => None,
@@ -3007,21 +3313,6 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                     SuggestionFix::AddToPalette { token, suggested_color } => {
                         println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
                     }
-                    SuggestionFix::ExtendRow {
-                        row_index,
-                        suggested,
-                        tokens_to_add,
-                        pad_token,
-                        ..
-                    } => {
-                        println!(
-                            "  Fix: Extend row {} by adding {} {} token(s)",
-                            row_index + 1,
-                            tokens_to_add,
-                            pad_token
-                        );
-                        println!("  Suggested: \"{}\"", suggested);
-                    }
                 }
                 println!();
             }
@@ -3031,239 +3322,12 @@ fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str>) -
                 .iter()
                 .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
                 .count();
-            let row_count = suggestions
-                .iter()
-                .filter(|s| s.suggestion_type == SuggestionType::RowCompletion)
-                .count();
 
-            if token_count > 0 || row_count > 0 {
-                print!("Summary: ");
-                let mut parts = Vec::new();
-                if token_count > 0 {
-                    parts.push(format!("{} missing token(s)", token_count));
-                }
-                if row_count > 0 {
-                    parts.push(format!("{} row completion(s)", row_count));
-                }
-                println!("{}", parts.join(", "));
+            if token_count > 0 {
+                println!("Summary: {} missing token(s)", token_count);
             }
         }
     }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
-/// Execute the inline command
-fn run_inline(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
-    use crate::alias::{format_columns, parse_grid_row};
-    use crate::models::TtpObject;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites: Vec<_> = parse_result
-        .objects
-        .into_iter()
-        .filter_map(|obj| match obj {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .collect();
-
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Filter by sprite name if specified
-    if let Some(name) = sprite_filter {
-        // Collect names for suggestion before filtering
-        let sprite_names: Vec<String> = sprites.iter().map(|s| s.name.clone()).collect();
-        sprites.retain(|s| s.name == name);
-        if sprites.is_empty() {
-            eprintln!("Error: No sprite named '{}' found in input", name);
-            let name_refs: Vec<&str> = sprite_names.iter().map(|s| s.as_str()).collect();
-            if let Some(suggestion) = format_suggestion(&suggest(name, &name_refs, 3)) {
-                eprintln!("{}", suggestion);
-            }
-            return ExitCode::from(EXIT_ERROR);
-        }
-    }
-
-    // Process each sprite
-    for (i, sprite) in sprites.iter().enumerate() {
-        if i > 0 {
-            println!(); // Blank line between sprites
-        }
-
-        if sprites.len() > 1 {
-            println!("# {}", sprite.name);
-        }
-
-        // Convert grid rows to tokenized vectors
-        let rows: Vec<Vec<String>> = sprite.grid.iter().map(|row| parse_grid_row(row)).collect();
-
-        // Format with column alignment
-        let formatted = format_columns(rows);
-
-        // Output each row
-        for row in formatted {
-            println!("{}", row);
-        }
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
-/// Execute the alias command - extract repeated patterns into single-letter aliases
-fn run_alias(input: &PathBuf, sprite_filter: Option<&str>) -> ExitCode {
-    use crate::alias::extract_aliases;
-    use crate::models::TtpObject;
-    use serde_json::json;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites: Vec<_> = parse_result
-        .objects
-        .into_iter()
-        .filter_map(|obj| match obj {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .collect();
-
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Filter by sprite name if specified
-    if let Some(name) = sprite_filter {
-        // Collect names for suggestion before filtering
-        let sprite_names: Vec<String> = sprites.iter().map(|s| s.name.clone()).collect();
-        sprites.retain(|s| s.name == name);
-        if sprites.is_empty() {
-            eprintln!("Error: No sprite named '{}' found in input", name);
-            let name_refs: Vec<&str> = sprite_names.iter().map(|s| s.as_str()).collect();
-            if let Some(suggestion) = format_suggestion(&suggest(name, &name_refs, 3)) {
-                eprintln!("{}", suggestion);
-            }
-            return ExitCode::from(EXIT_ERROR);
-        }
-    }
-
-    // Process each sprite
-    for (i, sprite) in sprites.iter().enumerate() {
-        if i > 0 {
-            println!(); // Blank line between sprites
-        }
-
-        // Extract aliases from the grid
-        let (aliases, transformed_grid) = extract_aliases(&sprite.grid);
-
-        // Convert aliases HashMap to a sorted JSON object (char -> String)
-        // Sort by alias character for consistent output
-        let mut alias_pairs: Vec<_> = aliases.iter().collect();
-        alias_pairs.sort_by_key(|(c, _)| *c);
-        let aliases_map: serde_json::Map<String, serde_json::Value> =
-            alias_pairs.into_iter().map(|(c, name)| (c.to_string(), json!(name))).collect();
-
-        // Build output JSON
-        let output = json!({
-            "aliases": aliases_map,
-            "grid": transformed_grid
-        });
-
-        // Pretty-print the JSON
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
-/// Execute the grid command
-fn run_grid(input: &PathBuf, sprite_filter: Option<&str>, full_names: bool) -> ExitCode {
-    use crate::models::TtpObject;
-
-    // Open input file
-    let file = match File::open(input) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot open input file '{}': {}", input.display(), e);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-    };
-
-    // Parse JSONL stream
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
-
-    // Collect sprites
-    let mut sprites_by_name: std::collections::HashMap<String, crate::models::Sprite> =
-        std::collections::HashMap::new();
-
-    for obj in parse_result.objects {
-        if let TtpObject::Sprite(sprite) = obj {
-            sprites_by_name.insert(sprite.name.clone(), sprite);
-        }
-    }
-
-    if sprites_by_name.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    // Find the sprite to display
-    let sprite = if let Some(name) = sprite_filter {
-        match sprites_by_name.get(name) {
-            Some(s) => s,
-            None => {
-                eprintln!("Error: No sprite named '{}' found in input", name);
-                let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
-                if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
-                    eprintln!("{}", suggestion);
-                }
-                return ExitCode::from(EXIT_ERROR);
-            }
-        }
-    } else {
-        // Use the first sprite found
-        sprites_by_name.values().next().unwrap()
-    };
-
-    // Render the coordinate grid
-    let output = render_coordinate_grid(&sprite.grid, full_names);
-
-    // Print sprite name if there are multiple sprites
-    if sprites_by_name.len() > 1 || sprite_filter.is_some() {
-        println!("Sprite: {}", sprite.name);
-        println!();
-    }
-
-    print!("{}", output);
 
     ExitCode::from(EXIT_SUCCESS)
 }
@@ -3472,46 +3536,21 @@ fn run_show(
         }
     };
 
-    // Resolve the palette colors
-    let resolved_palette = match registry.resolve(sprite, false) {
-        Ok(result) => result.palette.colors,
-        Err(e) => {
-            eprintln!("Error: sprite '{}': {}", sprite.name, e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-    };
+    // Grid-based terminal rendering is deprecated
+    // Use render command to generate PNG output instead
+    eprintln!("Error: Terminal view requires grid format, which is deprecated.");
+    eprintln!("Use 'pxl render' to generate PNG output, or use sprites with structured regions format.");
 
-    // Convert palette colors to hex strings for render_ansi_grid
-    let palette_hex: HashMap<String, String> =
-        resolved_palette.iter().map(|(token, hex)| (token.clone(), hex.clone())).collect();
-
-    // Build aliases map (empty for now - we'll use auto-aliasing)
-    let aliases: HashMap<char, String> = HashMap::new();
-
-    // Render the colored grid
-    let (colored_output, legend) = render_ansi_grid(&sprite.grid, &palette_hex, &aliases);
-
-    // Calculate dimensions from grid if size not provided
-    let height = sprite.grid.len();
-    let width = if let Some(size) = &sprite.size {
-        size[0] as usize
+    // Show basic sprite info
+    let (width, height) = if let Some(size) = sprite.size {
+        (size[0] as usize, size[1] as usize)
     } else {
-        // Infer from first row by counting tokens
-        use crate::tokenizer::tokenize;
-        sprite.grid.first().map(|row| tokenize(row).0.len()).unwrap_or(0)
+        (0, 0)
     };
-
-    // Print sprite name and dimensions
     println!("Sprite: {} ({}x{})", sprite.name, width, height);
-    println!();
+    println!("Has regions: {}", sprite.regions.is_some());
 
-    // Print the colored grid
-    print!("{}", colored_output);
-
-    // Print the legend
-    println!("{}", legend);
-
-    ExitCode::from(EXIT_SUCCESS)
+    ExitCode::from(EXIT_ERROR)
 }
 
 /// Run the build command
@@ -3758,82 +3797,11 @@ fn run_init(path: Option<&Path>, name: Option<&str>, preset: &str) -> ExitCode {
     }
 }
 
-/// Create sprite from simple text grid input
-fn run_sketch(
-    file: Option<&Path>,
-    name: &str,
-    palette: Option<&str>,
-    output: Option<&Path>,
-) -> ExitCode {
-    use std::io::{self, Read, Write};
-
-    // Read input
-    let input = match file {
-        Some(path) => match std::fs::read_to_string(path) {
-            Ok(content) => content,
-            Err(e) => {
-                eprintln!("Error: Cannot read '{}': {}", path.display(), e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-        },
-        None => {
-            // Read from stdin
-            let mut buffer = String::new();
-            if let Err(e) = io::stdin().read_to_string(&mut buffer) {
-                eprintln!("Error: Cannot read from stdin: {}", e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-            buffer
-        }
-    };
-
-    // Parse the simple grid
-    let grid = parse_simple_grid(&input);
-
-    if grid.is_empty() {
-        eprintln!("Error: Empty input - no grid data found");
-        return ExitCode::from(EXIT_INVALID_ARGS);
-    }
-
-    // Convert to sprite JSON
-    let sprite = simple_grid_to_sprite(grid, name, palette);
-
-    // Format output as pretty JSON
-    let json_output = match serde_json::to_string_pretty(&sprite) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Error: Failed to serialize sprite: {}", e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-    };
-
-    // Write output
-    match output {
-        Some(path) => {
-            let mut file = match std::fs::File::create(path) {
-                Ok(f) => f,
-                Err(e) => {
-                    eprintln!("Error: Cannot create '{}': {}", path.display(), e);
-                    return ExitCode::from(EXIT_ERROR);
-                }
-            };
-            if let Err(e) = writeln!(file, "{}", json_output) {
-                eprintln!("Error: Cannot write to '{}': {}", path.display(), e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-        }
-        None => {
-            println!("{}", json_output);
-        }
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
-}
-
 /// Transform sprites (mirror, rotate, tile, etc.)
 ///
 /// Applies transforms to sprite grids and outputs new source files.
 #[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
 fn run_transform(
     input: &Path,
     mirror: Option<&str>,
@@ -3851,326 +3819,10 @@ fn run_transform(
     stdin: bool,
     allow_large: bool,
 ) -> ExitCode {
-    use std::io::{self, Cursor, Read, Write};
-
-    // Read input
-    let content = if stdin {
-        let mut buffer = String::new();
-        if let Err(e) = io::stdin().read_to_string(&mut buffer) {
-            eprintln!("Error: Cannot read from stdin: {}", e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-        buffer
-    } else {
-        match std::fs::read_to_string(input) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("Error: Cannot read '{}': {}", input.display(), e);
-                return ExitCode::from(EXIT_ERROR);
-            }
-        }
-    };
-
-    // Parse the file
-    let reader = Cursor::new(content.as_bytes());
-    let parse_result = parse_stream(reader);
-    let objects = parse_result.objects;
-
-    // Report any parsing warnings
-    for warning in &parse_result.warnings {
-        eprintln!("Warning: {}", warning.message);
-    }
-
-    // Find the target sprite
-    let sprites: Vec<&Sprite> = objects
-        .iter()
-        .filter_map(|obj| match obj {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .collect();
-
-    if sprites.is_empty() {
-        eprintln!("Error: No sprites found in input file");
-        return ExitCode::from(EXIT_INVALID_ARGS);
-    }
-
-    let target_sprite = match sprite_name {
-        Some(name) => match sprites.iter().find(|s| s.name == name) {
-            Some(s) => *s,
-            None => {
-                eprintln!("Error: Sprite '{}' not found in input file", name);
-                eprintln!(
-                    "Available sprites: {}",
-                    sprites.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(", ")
-                );
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        },
-        None => {
-            if sprites.len() > 1 {
-                eprintln!("Warning: Multiple sprites found, using '{}'", sprites[0].name);
-                eprintln!("Use --sprite to specify which sprite to transform");
-            }
-            sprites[0]
-        }
-    };
-
-    // Get the grid (grid is Vec<String>, not Option)
-    let mut grid: Vec<String> = if target_sprite.grid.is_empty() {
-        eprintln!("Error: Sprite '{}' has no grid data", target_sprite.name);
-        return ExitCode::from(EXIT_ERROR);
-    } else {
-        target_sprite.grid.clone()
-    };
-
-    // Apply transforms in order of specification (simulate CLI order by checking each)
-    // Note: In a real CLI implementation, we'd track the order flags were specified.
-    // For now, we apply in a logical order: geometric -> expansion -> effects
-
-    // Geometric transforms: mirror
-    if let Some(axis) = mirror {
-        match axis.to_lowercase().as_str() {
-            "h" | "horizontal" => {
-                grid = apply_mirror_horizontal(&grid);
-            }
-            "v" | "vertical" => {
-                grid = apply_mirror_vertical(&grid);
-            }
-            "both" => {
-                grid = apply_mirror_horizontal(&grid);
-                grid = apply_mirror_vertical(&grid);
-            }
-            _ => {
-                eprintln!(
-                    "Error: Invalid mirror axis '{}'. Use 'horizontal', 'vertical', or 'both'",
-                    axis
-                );
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        }
-    }
-
-    // Geometric transforms: rotate
-    if let Some(degrees) = rotate {
-        if degrees != 90 && degrees != 180 && degrees != 270 {
-            eprintln!("Error: Invalid rotation degrees {}. Use 90, 180, or 270", degrees);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-        grid = apply_rotate(&grid, degrees);
-    }
-
-    // Expansion transforms: tile
-    if let Some(tile_spec) = tile {
-        let parts: Vec<&str> = tile_spec.split('x').collect();
-        if parts.len() != 2 {
-            eprintln!("Error: Invalid tile format '{}'. Use 'WxH' (e.g., '2x3')", tile_spec);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-        let w: u32 = match parts[0].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid tile width '{}'. Must be a positive integer", parts[0]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let h: u32 = match parts[1].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid tile height '{}'. Must be a positive integer", parts[1]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-
-        // Check for large expansion
-        if !allow_large && w * h > 100 {
-            eprintln!("Warning: Tile {}x{} creates {} copies of the sprite", w, h, w * h);
-            eprintln!("Use --allow-large to proceed with large expansions");
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-
-        grid = apply_tile(&grid, w, h);
-    }
-
-    // Expansion transforms: pad
-    if let Some(size) = pad {
-        grid = apply_pad(&grid, size);
-    }
-
-    // Expansion transforms: crop
-    if let Some(crop_spec) = crop {
-        let parts: Vec<&str> = crop_spec.split(',').collect();
-        if parts.len() != 4 {
-            eprintln!(
-                "Error: Invalid crop format '{}'. Use 'X,Y,W,H' (e.g., '0,0,8,8')",
-                crop_spec
-            );
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-        let x: u32 = match parts[0].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid crop X '{}'", parts[0]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let y: u32 = match parts[1].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid crop Y '{}'", parts[1]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let w: u32 = match parts[2].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid crop width '{}'", parts[2]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let h: u32 = match parts[3].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid crop height '{}'", parts[3]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        grid = apply_crop(&grid, x, y, w, h);
-    }
-
-    // Effect transforms: shift
-    if let Some(shift_spec) = shift {
-        let parts: Vec<&str> = shift_spec.split(',').collect();
-        if parts.len() != 2 {
-            eprintln!("Error: Invalid shift format '{}'. Use 'X,Y' (e.g., '4,0')", shift_spec);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-        let x: i32 = match parts[0].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid shift X '{}'", parts[0]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let y: i32 = match parts[1].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid shift Y '{}'", parts[1]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        grid = apply_shift(&grid, x, y);
-    }
-
-    // Effect transforms: shadow
-    if let Some(shadow_spec) = shadow {
-        let parts: Vec<&str> = shadow_spec.split(',').collect();
-        if parts.len() < 2 {
-            eprintln!("Error: Invalid shadow format '{}'. Use 'X,Y' (e.g., '2,2')", shadow_spec);
-            return ExitCode::from(EXIT_INVALID_ARGS);
-        }
-        let x: i32 = match parts[0].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid shadow X '{}'", parts[0]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        let y: i32 = match parts[1].parse() {
-            Ok(v) => v,
-            Err(_) => {
-                eprintln!("Error: Invalid shadow Y '{}'", parts[1]);
-                return ExitCode::from(EXIT_INVALID_ARGS);
-            }
-        };
-        grid = apply_shadow(&grid, x, y, shadow_token);
-    }
-
-    // Effect transforms: outline
-    if let Some(outline_opt) = outline {
-        // outline_opt is Option<String> - Some("token") or Some("") for --outline with value, None for bare --outline
-        let token = outline_opt.as_deref().filter(|s| !s.is_empty());
-        grid = apply_outline(&grid, token, outline_width);
-    }
-
-    // Build the output sprite
-    let mut output_sprite = target_sprite.clone();
-    output_sprite.grid = grid;
-
-    // Serialize to JSON Lines format
-    let sprite_json = match serde_json::to_string(&serde_json::json!({
-        "type": "sprite",
-        "name": output_sprite.name,
-        "palette": output_sprite.palette,
-        "grid": output_sprite.grid,
-    })) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Error: Failed to serialize sprite: {}", e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-    };
-
-    // Find all non-sprite objects (palettes, animations, etc.) to preserve
-    let mut output_lines: Vec<String> = Vec::new();
-
-    // Add all palettes first
-    for obj in &objects {
-        if let TtpObject::Palette(p) = obj {
-            match serde_json::to_string(&serde_json::json!({
-                "type": "palette",
-                "name": p.name,
-                "colors": p.colors,
-            })) {
-                Ok(line) => output_lines.push(line),
-                Err(e) => {
-                    eprintln!("Error: Failed to serialize palette '{}': {}", p.name, e);
-                    return ExitCode::from(EXIT_ERROR);
-                }
-            }
-        }
-    }
-
-    // Add the transformed sprite
-    output_lines.push(sprite_json);
-
-    // Add any other sprites that weren't transformed
-    for obj in &objects {
-        if let TtpObject::Sprite(s) = obj {
-            if s.name != target_sprite.name {
-                match serde_json::to_string(&serde_json::json!({
-                    "type": "sprite",
-                    "name": s.name,
-                    "palette": s.palette,
-                    "grid": s.grid,
-                })) {
-                    Ok(line) => output_lines.push(line),
-                    Err(e) => {
-                        eprintln!("Error: Failed to serialize sprite '{}': {}", s.name, e);
-                        return ExitCode::from(EXIT_ERROR);
-                    }
-                }
-            }
-        }
-    }
-
-    // Write output
-    let output_content = output_lines.join("\n");
-
-    let mut file = match std::fs::File::create(output) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error: Cannot create '{}': {}", output.display(), e);
-            return ExitCode::from(EXIT_ERROR);
-        }
-    };
-
-    if let Err(e) = writeln!(file, "{}", output_content) {
-        eprintln!("Error: Cannot write to '{}': {}", output.display(), e);
-        return ExitCode::from(EXIT_ERROR);
-    }
-
-    ExitCode::from(EXIT_SUCCESS)
+    eprintln!("Error: The 'transform' command is deprecated.");
+    eprintln!("Grid-based transforms are no longer supported.");
+    eprintln!("Use structured regions format for sprite definitions.");
+    ExitCode::from(EXIT_ERROR)
 }
 
 #[cfg(test)]

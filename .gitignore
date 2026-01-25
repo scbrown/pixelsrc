@@ -1,2 +1,9 @@
 /target/
 **/.DS_STORE
+
+# Gas Town (added by gt)
+.runtime/
+.claude/
+# .beads/ - KEEP TRACKED for rig-level beads sync
+.logs/
+.opencode/

@@ -407,13 +407,10 @@ Transforms apply in array order: first sel-out, then dither.
   "{outline}": "#000000"
 }}
 
-{"type": "sprite", "name": "hero_raw", "palette": "character", "grid": [
-  "{_}{_}{hair}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{hair}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}"
-]}
+{"type": "sprite", "name": "hero_raw", "size": [7, 5], "palette": "character", "regions": {
+  "hair": {"union": [{"rect": [2, 0, 3, 1]}, {"rect": [1, 1, 5, 1]}], "z": 0},
+  "skin": {"rect": [1, 2, 5, 2], "z": 0}
+}}
 
 {"type": "sprite", "name": "hero", "source": "hero_raw", "transform": [
   {"op": "sel-out", "mapping": {

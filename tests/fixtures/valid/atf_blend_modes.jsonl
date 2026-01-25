@@ -1,5 +1,5 @@
-{"type": "palette", "name": "blend", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF", "{w}": "#FFFFFF", "{k}": "#000000"}}
-{"type": "sprite", "name": "red_square", "palette": "blend", "grid": ["{r}{r}", "{r}{r}"]}
-{"type": "sprite", "name": "green_square", "palette": "blend", "grid": ["{g}{g}", "{g}{g}"]}
-{"type": "sprite", "name": "shadow", "palette": "blend", "grid": ["{k}{k}", "{k}{k}"]}
+{"type": "palette", "name": "blend", "colors": {"_": "#00000000", "r": "#FF0000", "g": "#00FF00", "b": "#0000FF", "w": "#FFFFFF", "k": "#000000"}}
+{"type": "sprite", "name": "red_square", "size": [2, 2], "palette": "blend", "regions": {"r": {"rect": [0, 0, 2, 2], "z": 0}}}
+{"type": "sprite", "name": "green_square", "size": [2, 2], "palette": "blend", "regions": {"g": {"rect": [0, 0, 2, 2], "z": 0}}}
+{"type": "sprite", "name": "shadow", "size": [2, 2], "palette": "blend", "regions": {"k": {"rect": [0, 0, 2, 2], "z": 0}}}
 {"type": "composition", "name": "blended_scene", "size": [4, 4], "cell_size": [2, 2], "sprites": {".": null, "R": "red_square", "G": "green_square"}, "layers": [{"name": "base", "map": ["R.", ".R"]}, {"name": "overlay", "map": [".G", "G."]}]}

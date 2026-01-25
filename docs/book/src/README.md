@@ -16,14 +16,12 @@ Traditional pixel art tools produce binary files that are difficult for AI to ge
 
 Here's a simple coin sprite in Pixelsrc format:
 
-```json
-{"type": "palette", "name": "coin", "colors": {"{_}": "#0000", "{gold}": "#FFD700", "{shine}": "#FFFACD"}}
-{"type": "sprite", "name": "coin", "palette": "coin", "grid": [
-  "{_}{gold}{gold}{_}",
-  "{gold}{shine}{gold}{gold}",
-  "{gold}{gold}{gold}{gold}",
-  "{_}{gold}{gold}{_}"
-]}
+```json5
+{"type": "palette", "name": "coin", "colors": {"_": "#0000", "gold": "#FFD700", "shine": "#FFFACD"}}
+{"type": "sprite", "name": "coin", "size": [4, 4], "palette": "coin", "regions": {
+  "gold": {"union": [{"rect": [1, 0, 2, 1]}, {"rect": [0, 1, 4, 2]}, {"rect": [1, 3, 2, 1]}], "z": 0},
+  "shine": {"points": [[1, 1]], "z": 1}
+}}
 ```
 
 Render it with:

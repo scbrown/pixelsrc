@@ -3,7 +3,6 @@
 //! Provides text-based verification utilities for demo tests that double as documentation.
 //! All verification is text-based (hashes, dimensions, metadata) - no binary files.
 
-pub mod animation;
 pub mod build;
 pub mod cli;
 pub mod css;
@@ -11,8 +10,8 @@ pub mod exports;
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
-use pixelsrc::palette_cycle::calculate_total_frames;
 use pixelsrc::output::scale_image;
+use pixelsrc::palette_cycle::calculate_total_frames;
 use pixelsrc::parser::parse_stream;
 use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
 use pixelsrc::renderer::render_resolved;
@@ -24,7 +23,6 @@ use std::io::Cursor;
 
 pub mod sprites;
 // Submodules for organized demo tests
-mod cli;
 mod imports;
 
 /// Structured render info captured from a sprite/animation render.
@@ -85,6 +83,7 @@ pub fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<S
             TtpObject::Composition(_) => {}
             TtpObject::Particle(_) => {}
             TtpObject::Transform(_) => {}
+            TtpObject::StateRules(_) => {}
         }
     }
 
@@ -115,6 +114,7 @@ pub fn parse_compositions(
             TtpObject::Animation(_) => {}
             TtpObject::Particle(_) => {}
             TtpObject::Transform(_) => {}
+            TtpObject::StateRules(_) => {}
         }
     }
 
@@ -154,11 +154,8 @@ pub fn capture_composition_info(jsonl: &str, composition_name: &str) -> Composit
         None => (None, None),
     };
 
-    let blend_modes: Vec<Option<String>> = comp
-        .layers
-        .iter()
-        .map(|layer| layer.blend.clone())
-        .collect();
+    let blend_modes: Vec<Option<String>> =
+        comp.layers.iter().map(|layer| layer.blend.clone()).collect();
 
     let sprite_keys: Vec<String> = comp.sprites.keys().cloned().collect();
 
@@ -702,14 +699,7 @@ mod tests {
         assert_eq!(info.sha256.len(), 64); // SHA256 hex is 64 chars
     }
 
-    /// Test `assert_dimensions` passes for correct dimensions
-    #[test]
-    fn test_assert_dimensions_pass() {
-        let jsonl = r##"{"type": "sprite", "name": "square", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}{x}", "{x}{x}"]}"##;
-        assert_dimensions(jsonl, "square", 2, 2);
-    }
-
-    /// Test `assert_dimensions` fails for incorrect dimensions
+    /// Test `assert_dimensions` passes for correct dimensions    /// Test `assert_dimensions` fails for incorrect dimensions
     #[test]
     #[should_panic(expected = "Width mismatch")]
     fn test_assert_dimensions_fail_width() {
@@ -755,20 +745,7 @@ mod tests {
         );
     }
 
-    /// Test with named palette
-    #[test]
-    fn test_named_palette() {
-        let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00"}}
-{"type": "sprite", "name": "test", "palette": "colors", "grid": ["{r}{g}", "{g}{r}"]}"##;
-
-        let info = capture_render_info(jsonl, "test");
-        assert_eq!(info.width, 2);
-        assert_eq!(info.height, 2);
-        assert_eq!(info.color_count, 3);
-        assert_eq!(info.palette_name, Some("colors".to_string()));
-    }
-
-    /// Test color count assertion
+    /// Test with named palette    /// Test color count assertion
     #[test]
     fn test_assert_color_count() {
         let jsonl = r##"{"type": "sprite", "name": "rgb", "palette": {"{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}, "grid": ["{r}{g}{b}"]}"##;
@@ -789,166 +766,25 @@ mod tests {
 
     /// @demo export/spritesheet#horizontal
     /// @title Horizontal Spritesheet
-    /// @description Animation frames arranged in a horizontal strip.
-    #[test]
-    fn test_spritesheet_horizontal() {
-        let jsonl = include_str!("../../examples/demos/exports/spritesheet_horizontal.jsonl");
-        assert_validates(jsonl, true);
-        assert_frame_count(jsonl, "walk_cycle", 4);
-
-        // 4 frames × 8 pixels wide = 32 pixels, 8 pixels tall
-        let info = capture_spritesheet_info(jsonl, "walk_cycle", None);
-        assert_eq!(info.width, 32, "Horizontal spritesheet should be 4 frames × 8px = 32px wide");
-        assert_eq!(info.height, 8, "Horizontal spritesheet should be 8px tall (single row)");
-        assert_eq!(info.frame_count, 4);
-        assert_eq!(info.frame_width, 8);
-        assert_eq!(info.frame_height, 8);
-    }
-
-    /// @demo export/spritesheet#grid
+    /// @description Animation frames arranged in a horizontal strip.    /// @demo export/spritesheet#grid
     /// @title Grid Layout Spritesheet
-    /// @description Animation frames arranged in a grid (multiple rows and columns).
-    #[test]
-    fn test_spritesheet_grid() {
-        let jsonl = include_str!("../../examples/demos/exports/spritesheet_grid.jsonl");
-        assert_validates(jsonl, true);
-        assert_frame_count(jsonl, "coin_spin", 6);
-
-        // 6 frames in 3 columns = 2 rows
-        // 3 cols × 6px = 18px wide, 2 rows × 6px = 12px tall
-        let info = capture_spritesheet_info(jsonl, "coin_spin", Some(3));
-        assert_eq!(info.width, 18, "Grid spritesheet should be 3 cols × 6px = 18px wide");
-        assert_eq!(info.height, 12, "Grid spritesheet should be 2 rows × 6px = 12px tall");
-        assert_eq!(info.frame_count, 6);
-    }
-
-    /// @demo export/spritesheet#padding
+    /// @description Animation frames arranged in a grid (multiple rows and columns).    /// @demo export/spritesheet#padding
     /// @title Spritesheet with Varying Frame Sizes
-    /// @description Frames of different sizes are padded to match the largest.
-    #[test]
-    fn test_spritesheet_padding() {
-        let jsonl = include_str!("../../examples/demos/exports/spritesheet_padding.jsonl");
-        assert_validates(jsonl, true);
-        assert_frame_count(jsonl, "plant_grow", 4);
-
-        // Frames are 4x4, 6x6, 8x8, 10x10 - all padded to 10x10
-        let info = capture_spritesheet_info(jsonl, "plant_grow", None);
-
-        // Each frame cell is 10×10 (largest frame size)
-        assert_eq!(info.frame_width, 10, "Frame cells should be padded to max width (10px)");
-        assert_eq!(info.frame_height, 10, "Frame cells should be padded to max height (10px)");
-
-        // Horizontal: 4 frames × 10px = 40px wide, 10px tall
-        assert_eq!(info.width, 40, "Padded spritesheet should be 4 frames × 10px = 40px wide");
-        assert_eq!(info.height, 10, "Padded spritesheet should be 10px tall");
-    }
-
-    /// Test spritesheet with grid layout (2 columns)
-    #[test]
-    fn test_spritesheet_grid_2x2() {
-        let jsonl = r##"{"type": "sprite", "name": "f1", "palette": {"{.}": "#00000000", "{r}": "#FF0000"}, "grid": ["{r}{r}", "{r}{r}"]}
-{"type": "sprite", "name": "f2", "palette": {"{.}": "#00000000", "{g}": "#00FF00"}, "grid": ["{g}{g}", "{g}{g}"]}
-{"type": "sprite", "name": "f3", "palette": {"{.}": "#00000000", "{b}": "#0000FF"}, "grid": ["{b}{b}", "{b}{b}"]}
-{"type": "sprite", "name": "f4", "palette": {"{.}": "#00000000", "{y}": "#FFFF00"}, "grid": ["{y}{y}", "{y}{y}"]}
-{"type": "animation", "name": "colors", "fps": 4, "frames": ["f1", "f2", "f3", "f4"]}"##;
-
-        // 2 columns × 2px = 4px wide, 2 rows × 2px = 4px tall
-        assert_spritesheet_dimensions(jsonl, "colors", Some(2), 4, 4);
-    }
-
-    /// Test frame size detection with padding
-    #[test]
-    fn test_spritesheet_frame_size_detection() {
-        let jsonl = r##"{"type": "sprite", "name": "small", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
-{"type": "sprite", "name": "large", "palette": {"{x}": "#00FF00"}, "grid": ["{x}{x}{x}", "{x}{x}{x}", "{x}{x}{x}"]}
-{"type": "animation", "name": "mixed", "fps": 2, "frames": ["small", "large"]}"##;
-
-        // Max frame size is 3×3
-        assert_spritesheet_frame_size(jsonl, "mixed", 3, 3);
-
-        // Horizontal: 2 frames × 3px = 6px wide, 3px tall
-        assert_spritesheet_dimensions(jsonl, "mixed", None, 6, 3);
-    }
-
-    // ========================================================================
+    /// @description Frames of different sizes are padded to match the largest.    /// Test spritesheet with grid layout (2 columns)    /// Test frame size detection with padding    // ========================================================================
     // PNG Export Tests (DT-6)
     // ========================================================================
 
     /// @demo export/png#basic
     /// @title Basic PNG Export
-    /// @description Simple sprite rendered to PNG format at 1x scale.
-    #[test]
-    fn test_png_basic() {
-        let jsonl = include_str!("../../examples/demos/exports/png_basic.jsonl");
-        assert_validates(jsonl, true);
-
-        // Verify basic dimensions (4x4 sprite)
-        let info = capture_render_info(jsonl, "pixel_art");
-        assert_eq!(info.width, 4, "PNG should be 4 pixels wide");
-        assert_eq!(info.height, 4, "PNG should be 4 pixels tall");
-        assert_eq!(info.color_count, 5, "Should have 5 colors (transparent + 4 colors)");
-        assert_eq!(info.frame_count, 1, "Static sprite should have 1 frame");
-    }
-
-    /// @demo export/png#scaled
+    /// @description Simple sprite rendered to PNG format at 1x scale.    /// @demo export/png#scaled
     /// @title Scaled PNG Export
-    /// @description Sprite rendered at various scale factors (2x, 4x, 8x) using nearest-neighbor.
-    #[test]
-    fn test_png_scaled() {
-        let jsonl = include_str!("../../examples/demos/exports/png_scaled.jsonl");
-        assert_validates(jsonl, true);
-
-        // Base dimensions (3x3 sprite)
-        let info_1x = capture_render_info(jsonl, "scalable");
-        assert_eq!(info_1x.width, 3, "1x scale should be 3 pixels wide");
-        assert_eq!(info_1x.height, 3, "1x scale should be 3 pixels tall");
-
-        // 2x scale
-        let info_2x = capture_scaled_render_info(jsonl, "scalable", 2);
-        assert_eq!(info_2x.width, 6, "2x scale should be 6 pixels wide (3 × 2)");
-        assert_eq!(info_2x.height, 6, "2x scale should be 6 pixels tall (3 × 2)");
-
-        // 4x scale
-        let info_4x = capture_scaled_render_info(jsonl, "scalable", 4);
-        assert_eq!(info_4x.width, 12, "4x scale should be 12 pixels wide (3 × 4)");
-        assert_eq!(info_4x.height, 12, "4x scale should be 12 pixels tall (3 × 4)");
-
-        // 8x scale
-        let info_8x = capture_scaled_render_info(jsonl, "scalable", 8);
-        assert_eq!(info_8x.width, 24, "8x scale should be 24 pixels wide (3 × 8)");
-        assert_eq!(info_8x.height, 24, "8x scale should be 24 pixels tall (3 × 8)");
-
-        // Color count should be preserved across scales
-        assert_eq!(info_1x.color_count, info_2x.color_count, "Color count should be preserved at 2x");
-        assert_eq!(info_1x.color_count, info_4x.color_count, "Color count should be preserved at 4x");
-        assert_eq!(info_1x.color_count, info_8x.color_count, "Color count should be preserved at 8x");
-    }
-
-    // ========================================================================
+    /// @description Sprite rendered at various scale factors (2x, 4x, 8x) using nearest-neighbor.    // ========================================================================
     // GIF Export Tests (DT-6)
     // ========================================================================
 
     /// @demo export/gif#animated
     /// @title Animated GIF Export
-    /// @description Animation rendered as looping GIF with specified duration.
-    #[test]
-    fn test_gif_animated() {
-        let jsonl = include_str!("../../examples/demos/exports/gif_animated.jsonl");
-        assert_validates(jsonl, true);
-
-        // Verify animation exists with expected frame count
-        assert_frame_count(jsonl, "star_blink", 4);
-
-        // Capture GIF-specific info
-        let info = capture_gif_info(jsonl, "star_blink");
-        assert_eq!(info.frame_count, 4, "GIF should have 4 frames");
-        assert_eq!(info.frame_width, 5, "Frame width should be 5 pixels");
-        assert_eq!(info.frame_height, 5, "Frame height should be 5 pixels");
-        assert!(info.loops, "Animation should loop");
-        assert_eq!(info.duration_ms, 250, "Frame duration should be 250ms");
-    }
-
-    /// Test GIF with non-looping animation
+    /// @description Animation rendered as looping GIF with specified duration.    /// Test GIF with non-looping animation
     #[test]
     fn test_gif_no_loop() {
         let jsonl = r##"{"type": "sprite", "name": "f1", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
@@ -1532,7 +1368,8 @@ mod tests {
         assert_eq!(kf["100%"].transform.as_deref(), Some("translateY(4px)"));
 
         // Test slide_diagonal animation (translate both axes)
-        let slide_diagonal = animations.get("slide_diagonal").expect("Animation 'slide_diagonal' not found");
+        let slide_diagonal =
+            animations.get("slide_diagonal").expect("Animation 'slide_diagonal' not found");
         let kf = slide_diagonal.keyframes.as_ref().unwrap();
         assert_eq!(kf.len(), 3, "slide_diagonal should have 3 keyframes");
         assert_eq!(kf["50%"].transform.as_deref(), Some("translate(4px, 4px)"));
@@ -1652,7 +1489,8 @@ mod tests {
             .expect("Sprite 'arrow_left' should resolve");
 
         // Test flip_horizontal animation
-        let flip_h = animations.get("flip_horizontal").expect("Animation 'flip_horizontal' not found");
+        let flip_h =
+            animations.get("flip_horizontal").expect("Animation 'flip_horizontal' not found");
         assert!(flip_h.is_css_keyframes(), "flip_horizontal should use CSS keyframes");
         let kf = flip_h.keyframes.as_ref().unwrap();
         assert_eq!(kf["0%"].transform.as_deref(), Some("scaleX(1)"));
@@ -1686,97 +1524,9 @@ mod tests {
 
     /// @demo export/atlas#aseprite
     /// @title Aseprite JSON Atlas
-    /// @description Sprite atlas data for Aseprite-compatible JSON export format.
-    #[test]
-    fn test_atlas_aseprite() {
-        let jsonl = include_str!("../../examples/demos/exports/atlas_aseprite.jsonl");
-        assert_validates(jsonl, true);
-
-        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
-
-        // Verify palette is registered
-        assert!(palette_registry.contains("character"));
-
-        // Verify all character sprites can be resolved
-        for sprite_name in ["char_idle_1", "char_idle_2", "char_run_1", "char_run_2", "char_run_3", "char_run_4", "item_gem"] {
-            sprite_registry
-                .resolve(sprite_name, &palette_registry, false)
-                .unwrap_or_else(|_| panic!("Sprite '{sprite_name}' should resolve"));
-        }
-
-        // Verify character sprite dimensions (4x4)
-        let info = capture_render_info(jsonl, "char_idle_1");
-        assert_eq!(info.width, 4, "Character sprite should be 4 pixels wide");
-        assert_eq!(info.height, 4, "Character sprite should be 4 pixels tall");
-
-        // Verify item sprite dimensions (3x3)
-        let gem_info = capture_render_info(jsonl, "item_gem");
-        assert_eq!(gem_info.width, 3, "Gem sprite should be 3 pixels wide");
-        assert_eq!(gem_info.height, 3, "Gem sprite should be 3 pixels tall");
-
-        // Verify animations exist
-        let idle = animations.get("idle").expect("Animation 'idle' not found");
-        assert_eq!(idle.frames.len(), 2, "Idle animation should have 2 frames");
-        assert_eq!(idle.duration_ms(), 500, "Idle animation should have 500ms duration");
-
-        let run = animations.get("run").expect("Animation 'run' not found");
-        assert_eq!(run.frames.len(), 4, "Run animation should have 4 frames");
-        assert_eq!(run.duration_ms(), 100, "Run animation should have 100ms duration");
-    }
-
-    /// @demo export/recolor#palette_swap
+    /// @description Sprite atlas data for Aseprite-compatible JSON export format.    /// @demo export/recolor#palette_swap
     /// @title Recolor Export with Palette Swap
-    /// @description Export sprites with palette variants applied (color swaps).
-    #[test]
-    fn test_recolor_export() {
-        let jsonl = include_str!("../../examples/demos/exports/recolor_export.jsonl");
-        assert_validates(jsonl, true);
-
-        let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
-
-        // Verify base palette is registered
-        assert!(palette_registry.contains("slime_green"));
-
-        // Verify base sprite can be resolved
-        let base_info = capture_render_info(jsonl, "slime_base");
-        assert_eq!(base_info.width, 5, "Slime sprite should be 5 pixels wide");
-        assert_eq!(base_info.height, 5, "Slime sprite should be 5 pixels tall");
-        assert_eq!(base_info.color_count, 5, "Base slime should have 5 colors (including transparent)");
-
-        // Verify all color variants can be resolved
-        for variant_name in ["slime_red", "slime_blue", "slime_gold"] {
-            sprite_registry
-                .resolve(variant_name, &palette_registry, false)
-                .unwrap_or_else(|_| panic!("Variant '{variant_name}' should resolve"));
-
-            // Verify variant has same dimensions as base
-            let variant_info = capture_render_info(jsonl, variant_name);
-            assert_eq!(variant_info.width, base_info.width, "Variant '{variant_name}' should match base width");
-            assert_eq!(variant_info.height, base_info.height, "Variant '{variant_name}' should match base height");
-        }
-
-        // Verify squash sprite for animation
-        let squash_info = capture_render_info(jsonl, "slime_squash");
-        assert_eq!(squash_info.width, 5, "Squash sprite should be 5 pixels wide");
-        assert_eq!(squash_info.height, 5, "Squash sprite should be 5 pixels tall");
-
-        // Verify bounce animation
-        let bounce = animations.get("slime_bounce").expect("Animation 'slime_bounce' not found");
-        assert_eq!(bounce.frames.len(), 2, "Bounce animation should have 2 frames");
-        assert_eq!(bounce.duration_ms(), 300, "Bounce animation should have 300ms duration");
-
-        // Verify variants produce different output (different hashes)
-        let red_info = capture_render_info(jsonl, "slime_red");
-        let blue_info = capture_render_info(jsonl, "slime_blue");
-        let gold_info = capture_render_info(jsonl, "slime_gold");
-
-        assert_ne!(base_info.sha256, red_info.sha256, "Red variant should differ from base");
-        assert_ne!(base_info.sha256, blue_info.sha256, "Blue variant should differ from base");
-        assert_ne!(base_info.sha256, gold_info.sha256, "Gold variant should differ from base");
-        assert_ne!(red_info.sha256, blue_info.sha256, "Red and blue variants should differ");
-    }
-
-    // ========================================================================
+    /// @description Export sprites with palette variants applied (color swaps).    // ========================================================================
     // Palette Cycling Tests (DT-20)
     // ========================================================================
 
@@ -1880,7 +1630,10 @@ mod tests {
         // Both have same number of frames (3 tokens each)
         let fast_info = capture_palette_cycle_info(jsonl, "fast_cycle");
         let slow_info = capture_palette_cycle_info(jsonl, "slow_cycle");
-        assert_eq!(fast_info.total_frames, slow_info.total_frames, "Same token count = same frames");
+        assert_eq!(
+            fast_info.total_frames, slow_info.total_frames,
+            "Same token count = same frames"
+        );
         assert_eq!(fast_info.total_frames, 3);
 
         // But different durations

@@ -1,23 +1,70 @@
-{"type": "palette", "name": "heart", "colors": {
-  "--red": "#FF0000",
-  "--pink": "#FF6B6B",
-  "{_}": "transparent",
-  "{r}": "var(--red)",
-  "{p}": "var(--pink)",
-  "{dark}": "color-mix(in oklch, var(--red) 70%, black)"
-}}
-{"type": "sprite", "name": "heart", "size": [7, 6], "palette": "heart", "grid": [
-  "{_}{r}{r}{_}{r}{r}{_}",
-  "{r}{p}{r}{r}{p}{r}{r}",
-  "{r}{r}{r}{r}{r}{r}{r}",
-  "{_}{r}{r}{r}{r}{r}{_}",
-  "{_}{_}{r}{r}{r}{_}{_}",
-  "{_}{_}{_}{dark}{_}{_}{_}"
-]}
-{"type": "animation", "name": "heart_beat", "keyframes": {
-  "0%": {"sprite": "heart", "transform": "scale(1)"},
-  "15%": {"sprite": "heart", "transform": "scale(1.1)"},
-  "30%": {"sprite": "heart", "transform": "scale(1)"},
-  "45%": {"sprite": "heart", "transform": "scale(1.05)"},
-  "60%": {"sprite": "heart", "transform": "scale(1)"}
-}, "duration": "1s", "timing_function": "ease-out", "loop": true}
+// heart.pxl - A beating heart animation
+// Demonstrates structured regions with animation
+
+{
+  type: "palette",
+  name: "heart",
+  colors: {
+    _: "transparent",
+    r: "#FF0000",        // Main red
+    p: "#FF6B6B",        // Pink highlight
+    dark: "#B80000",     // Shadow
+  },
+  roles: {
+    r: "fill",
+    p: "highlight",
+    dark: "shadow",
+  },
+}
+
+{
+  type: "sprite",
+  name: "heart",
+  size: [7, 6],
+  palette: "heart",
+  regions: {
+    // Main heart shape - two lobes at top, tapering to point
+    r: {
+      union: [
+        // Top lobes
+        { rect: [1, 0, 2, 1] },      // Left lobe top
+        { rect: [4, 0, 2, 1] },      // Right lobe top
+        // Second row (wider)
+        { points: [[0, 1], [2, 1], [3, 1], [5, 1], [6, 1]] },
+        // Full middle row
+        { rect: [0, 2, 7, 1] },
+        // Tapering rows
+        { rect: [1, 3, 5, 1] },
+        { rect: [2, 4, 3, 1] },
+      ],
+      z: 0,
+    },
+
+    // Pink highlights inside the lobes
+    p: {
+      points: [[1, 1], [4, 1]],
+      z: 1,
+    },
+
+    // Dark shadow at bottom tip
+    dark: {
+      points: [[3, 5]],
+      z: 2,
+    },
+  },
+}
+
+{
+  type: "animation",
+  name: "heart_beat",
+  keyframes: {
+    "0%": { sprite: "heart", transform: "scale(1)" },
+    "15%": { sprite: "heart", transform: "scale(1.1)" },
+    "30%": { sprite: "heart", transform: "scale(1)" },
+    "45%": { sprite: "heart", transform: "scale(1.05)" },
+    "60%": { sprite: "heart", transform: "scale(1)" },
+  },
+  duration: "1s",
+  timing_function: "ease-out",
+  loop: true,
+}

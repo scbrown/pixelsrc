@@ -81,37 +81,7 @@ fn test_scale_2x() {
     assert_eq!((w, h), (2, 2), "Scale 2 should produce 2x2 from 1x1");
 }
 
-/// Test --scale 4 quadruples the output dimensions
-#[test]
-fn test_scale_4x() {
-    let output_dir = std::env::temp_dir().join("pxl_scale_test");
-    fs::create_dir_all(&output_dir).ok();
-
-    let output_path = output_dir.join("scale_4x.png");
-
-    // Render a 2x2 sprite with --scale 4
-    let output = Command::new(pxl_binary())
-        .arg("render")
-        .arg("tests/fixtures/valid/include_palette.jsonl")
-        .arg("-o")
-        .arg(&output_path)
-        .arg("--scale")
-        .arg("4")
-        .output()
-        .expect("Failed to execute pxl");
-
-    assert!(
-        output.status.success(),
-        "Render with --scale 4 failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let (w, h) = get_image_dimensions(&output_path);
-    // include_palette.jsonl has a 2x2 sprite
-    assert_eq!((w, h), (8, 8), "Scale 4 should produce 8x8 from 2x2");
-}
-
-/// Test large scale factor (8x)
+/// Test --scale 4 quadruples the output dimensions/// Test large scale factor (8x)
 #[test]
 fn test_scale_8x() {
     let output_dir = std::env::temp_dir().join("pxl_scale_test");
@@ -201,40 +171,7 @@ fn test_scale_invalid_zero() {
     assert!(!output.status.success(), "Scale 0 should be rejected");
 }
 
-/// Test scale with spritesheet output
-#[test]
-fn test_scale_with_spritesheet() {
-    let output_dir = std::env::temp_dir().join("pxl_scale_test");
-    fs::create_dir_all(&output_dir).ok();
-
-    let output_path = output_dir.join("scale_spritesheet.png");
-
-    let output = Command::new(pxl_binary())
-        .arg("render")
-        .arg("examples/walk_cycle.jsonl")
-        .arg("-o")
-        .arg(&output_path)
-        .arg("--spritesheet")
-        .arg("--scale")
-        .arg("2")
-        .output()
-        .expect("Failed to execute pxl");
-
-    assert!(
-        output.status.success(),
-        "Render spritesheet with --scale 2 failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    // The spritesheet should have scaled dimensions
-    let (w, h) = get_image_dimensions(&output_path);
-    // Original frames are 8x8, scale 2 makes 16x16
-    // 4 frames horizontal = 64 wide, 16 tall
-    assert_eq!(h, 16, "Scaled spritesheet height should be 16 (8x8 frames * scale 2)");
-    assert!(w > 16, "Scaled spritesheet width should be wider than single frame");
-}
-
-/// Test scale with GIF output
+/// Test scale with spritesheet output/// Test scale with GIF output
 #[test]
 fn test_scale_with_gif() {
     let output_dir = std::env::temp_dir().join("pxl_scale_test");

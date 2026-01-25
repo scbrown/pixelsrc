@@ -3,8 +3,8 @@
 //! Provides functions to find, load, and merge configuration.
 
 use super::schema::{
-    AnimationsConfig, DefaultsConfig, ExportsConfig, ProjectConfig, PxlConfig, ValidateConfig,
-    WatchConfig,
+    AnimationsConfig, DefaultsConfig, ExportsConfig, FormatConfig, ImportConfig, ProjectConfig,
+    PxlConfig, TelemetryConfig, ValidateConfig, WatchConfig,
 };
 use std::collections::HashMap;
 use std::env;
@@ -43,14 +43,23 @@ pub struct CliOverrides {
     pub export: Option<String>,
     /// Enable strict validation
     pub strict: Option<bool>,
+    /// Allow region overflow
+    pub allow_overflow: Option<bool>,
+    /// Allow orphan tokens
+    pub allow_orphans: Option<bool>,
+    /// Allow circular dependencies
+    pub allow_cycles: Option<bool>,
+    /// Enable error collection
+    pub collect_errors: Option<bool>,
     /// Number of parallel jobs
     pub jobs: Option<usize>,
 }
 
 /// Find pxl.toml by walking up from the current working directory.
 ///
-/// Starts from the current directory and walks up parent directories
-/// until a `pxl.toml` file is found or the filesystem root is reached.
+/// Search order:
+/// 1. Walk up from current directory looking for pxl.toml
+/// 2. Check XDG_CONFIG_HOME/pixelsrc/pxl.toml (or ~/.config/pixelsrc/pxl.toml)
 ///
 /// # Returns
 /// - `Some(path)` if a pxl.toml file is found
@@ -63,7 +72,32 @@ pub struct CliOverrides {
 /// }
 /// ```
 pub fn find_config() -> Option<PathBuf> {
-    find_config_from(env::current_dir().ok()?)
+    // First try walking up from current directory
+    if let Some(cwd) = env::current_dir().ok() {
+        if let Some(path) = find_config_from(cwd) {
+            return Some(path);
+        }
+    }
+
+    // Fall back to XDG config
+    find_xdg_config()
+}
+
+/// Find pxl.toml in XDG config directory.
+///
+/// Checks XDG_CONFIG_HOME/pixelsrc/pxl.toml or ~/.config/pixelsrc/pxl.toml
+pub fn find_xdg_config() -> Option<PathBuf> {
+    let xdg_config = env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|_| env::var("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .ok()?;
+
+    let config_path = xdg_config.join("pixelsrc").join("pxl.toml");
+    if config_path.exists() {
+        Some(config_path)
+    } else {
+        None
+    }
 }
 
 /// Find pxl.toml by walking up from a specific directory.
@@ -151,6 +185,9 @@ pub fn default_config() -> PxlConfig {
             src: PathBuf::from("src/pxl"),
             out: PathBuf::from("build"),
         },
+        format: FormatConfig::default(),
+        import_config: ImportConfig::default(),
+        telemetry: TelemetryConfig::default(),
         defaults: DefaultsConfig::default(),
         atlases: HashMap::new(),
         animations: AnimationsConfig::default(),
@@ -202,6 +239,22 @@ pub fn merge_cli_overrides(config: &mut PxlConfig, overrides: &CliOverrides) {
     // Override strict mode
     if let Some(strict) = overrides.strict {
         config.validate.strict = strict;
+    }
+
+    // Override allow flags (these override strict mode for specific checks)
+    if let Some(allow_overflow) = overrides.allow_overflow {
+        config.validate.allow_overflow = allow_overflow;
+    }
+    if let Some(allow_orphans) = overrides.allow_orphans {
+        config.validate.allow_orphans = allow_orphans;
+    }
+    if let Some(allow_cycles) = overrides.allow_cycles {
+        config.validate.allow_cycles = allow_cycles;
+    }
+
+    // Override error collection
+    if let Some(collect_errors) = overrides.collect_errors {
+        config.telemetry.collect_errors = collect_errors;
     }
 }
 

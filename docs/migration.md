@@ -1,203 +1,323 @@
-# Migrating from .jsonl to .pxl
+# Migrating from v1 to v2
 
-This guide covers migrating existing pixelsrc files to the new `.pxl` format.
+This guide covers migrating from the v1 grid-based format to the v2 structured region format.
+
+---
+
+## Overview
+
+Pixelsrc v2 replaces pixel grids with geometric regions:
+
+| Aspect | v1 | v2 |
+|--------|----|----|
+| Sprite definition | `grid: ["{a}{b}{c}", ...]` | `regions: { token: shape }` |
+| Token syntax | `{token}` with braces | `token` without braces |
+| File format | Strict JSON | JSON5 |
+| Semantic metadata | None | Roles, relationships |
+| Size scaling | Scales with pixels | Scales with complexity |
 
 ---
 
 ## Quick Migration
 
-```bash
-# 1. Rename files (optional - both extensions work)
-for f in *.jsonl; do mv "$f" "${f%.jsonl}.pxl"; done
+The `pxl import` command can convert existing PNGs to the new format:
 
-# 2. Format for readability
-pxl fmt *.pxl
+```bash
+# Render old format to PNG
+pxl render old_sprite.jsonl -o temp.png
+
+# Import PNG to new format
+pxl import temp.png --analyze -o new_sprite.pxl
 ```
 
-That's it. Your files are migrated.
+For manual migration, follow the patterns below.
 
 ---
 
-## What Changes
+## Format Changes
 
 ### File Extension
 
 | Before | After |
 |--------|-------|
 | `hero.jsonl` | `hero.pxl` |
-| `sprites/*.jsonl` | `sprites/*.pxl` |
 
-The extension change is **optional**—both `.jsonl` and `.pxl` work identically. The `.pxl` extension signals that the file may contain multi-line JSON.
+The `.pxl` extension signals JSON5 format support.
 
-### Content Format
+### JSON5 Syntax
 
-| Before (single-line) | After (multi-line) |
-|---------------------|-------------------|
-| Compact, hard to read | Visual, easy to edit |
-| One object per line | Objects span multiple lines |
-| Git diffs show entire lines | Git diffs show specific changes |
+v2 uses JSON5, enabling cleaner syntax:
 
-**Before:**
-```jsonl
-{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "colors", "grid": ["{_}{_}{hair}{hair}{hair}{hair}{_}{_}", "{_}{hair}{hair}{hair}{hair}{hair}{hair}{_}", "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}", "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}", "{_}{_}{shirt}{shirt}{shirt}{shirt}{_}{_}", "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{_}", "{_}{_}{skin}{_}{_}{skin}{_}{_}", "{_}{_}{skin}{_}{_}{skin}{_}{_}"]}
+```json5
+// v2: Comments allowed
+{
+  type: "palette",  // Unquoted keys
+  name: "hero",
+  colors: {
+    _: "transparent",
+    skin: "#FFD5B4",  // Trailing commas OK
+  },
+}
 ```
 
-**After:**
+### Token Names
+
+Tokens no longer use braces:
+
+**v1:**
 ```json
-{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "colors", "grid": [
-  "{_}{_}{hair}{hair}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{hair}{hair}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{_}{shirt}{shirt}{shirt}{shirt}{_}{_}",
-  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
-  "{_}{_}{skin}{_}{_}{skin}{_}{_}",
-  "{_}{_}{skin}{_}{_}{skin}{_}{_}"
+{"colors": {"{_}": "#0000", "{skin}": "#FFD5B4"}}
+```
+
+**v2:**
+```json5
+{colors: {_: "transparent", skin: "#FFD5B4"}}
+```
+
+### Sprite Definition
+
+The biggest change: `grid` is replaced by `regions`.
+
+**v1 (grid-based):**
+```json
+{"type": "sprite", "name": "dot", "size": [3, 3], "palette": "mono", "grid": [
+  "{_}{x}{_}",
+  "{x}{x}{x}",
+  "{_}{x}{_}"
 ]}
 ```
 
----
-
-## Backward Compatibility
-
-The migration is fully backward compatible:
-
-| Scenario | Works? |
-|----------|--------|
-| Existing `.jsonl` files | ✓ No changes required |
-| Single-line JSON in `.pxl` files | ✓ Parses correctly |
-| Multi-line JSON in `.jsonl` files | ✓ Parses correctly |
-| Mixed single/multi-line in one file | ✓ Parses correctly |
-| `@include:*.jsonl` paths | ✓ Works |
-| `@include:*.pxl` paths | ✓ Works |
-
-**No breaking changes.** The parser handles all variations.
-
----
-
-## Using `pxl fmt`
-
-The formatter converts files to the canonical multi-line format.
-
-### Basic Usage
-
-```bash
-# Format a single file in-place
-pxl fmt sprites.pxl
-
-# Format multiple files
-pxl fmt *.pxl
-
-# Preview without changing (check mode)
-pxl fmt sprites.pxl --check
-
-# Output to stdout
-pxl fmt sprites.pxl --stdout
+**v2 (region-based):**
+```json5
+{
+  type: "sprite",
+  name: "dot",
+  size: [3, 3],
+  palette: "mono",
+  regions: {
+    _: "background",
+    x: { points: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]] }
+  }
+}
 ```
 
-### CI Integration
-
-Add format checking to your CI pipeline:
-
-```yaml
-# GitHub Actions example
-- name: Check formatting
-  run: pxl fmt --check *.pxl
+Or using shapes:
+```json5
+{
+  type: "sprite",
+  name: "dot",
+  size: [3, 3],
+  palette: "mono",
+  regions: {
+    _: "background",
+    x: { circle: [1, 1, 1] }  // cx=1, cy=1, r=1
+  }
+}
 ```
-
-Exit code 1 means files need formatting.
-
-### Formatting Rules
-
-The formatter applies these conventions:
-
-- **Sprites**: Grid arrays expanded (one row per line)
-- **Compositions**: Layer maps expanded
-- **Palettes**: Single line (compact)
-- **Animations**: Single line (compact)
-- **Blank line**: Between each object
 
 ---
 
-## Updating Includes
+## Common Patterns
 
-If you use `@include:` paths, you can update them to `.pxl`:
+### Outlined Character
 
-**Before:**
+**v1:**
 ```json
-{"type": "sprite", "palette": "@include:shared/colors.jsonl", ...}
+{"type": "sprite", "name": "hero", "size": [8, 8], "palette": "hero", "grid": [
+  "{_}{_}{o}{o}{o}{o}{_}{_}",
+  "{_}{o}{s}{s}{s}{s}{o}{_}",
+  "{o}{s}{s}{s}{s}{s}{s}{o}",
+  "{o}{s}{e}{s}{s}{e}{s}{o}",
+  "{o}{s}{s}{s}{s}{s}{s}{o}",
+  "{_}{o}{s}{s}{s}{s}{o}{_}",
+  "{_}{_}{o}{o}{o}{o}{_}{_}",
+  "{_}{_}{_}{_}{_}{_}{_}{_}"
+]}
 ```
 
-**After:**
-```json
-{"type": "sprite", "palette": "@include:shared/colors.pxl", ...}
+**v2:**
+```json5
+{
+  type: "sprite",
+  name: "hero",
+  size: [8, 8],
+  palette: "hero",
+  regions: {
+    _: "background",
+    o: { stroke: [2, 0, 4, 6], round: 1 },
+    s: { fill: "inside(o)" },
+    e: { points: [[2, 3]], symmetric: "x" }
+  }
+}
 ```
 
-Or use extension-less paths (auto-detected):
+### Symmetric Features
+
+**v1:** Manually place mirrored pixels
 ```json
-{"type": "sprite", "palette": "@include:shared/colors", ...}
+"grid": ["{_}{e}{_}{_}{e}{_}"]  // eyes at x=1 and x=4
+```
+
+**v2:** Use `symmetric` modifier
+```json5
+regions: {
+  e: { points: [[1, 3]], symmetric: "x" }  // auto-mirrors
+}
+```
+
+### Fill with Exceptions
+
+**v1:** Manually omit pixels in grid
+```json
+"grid": ["{s}{s}{e}{s}{s}"]  // eye hole in skin
+```
+
+**v2:** Use `except` modifier
+```json5
+regions: {
+  outline: { stroke: [0, 0, 5, 1] },
+  e: { points: [[2, 0]] },
+  s: { fill: "inside(outline)", except: ["e"] }
+}
+```
+
+### Row Constraints
+
+**v1:** Different tokens per row
+```json
+"grid": [
+  "{hair}{hair}{hair}",
+  "{skin}{skin}{skin}",
+  "{shirt}{shirt}{shirt}"
+]
+```
+
+**v2:** Use `y` range constraint
+```json5
+regions: {
+  outline: { stroke: [0, 0, 3, 3] },
+  hair: { fill: "inside(outline)", y: [0, 0] },
+  skin: { fill: "inside(outline)", y: [1, 1] },
+  shirt: { fill: "inside(outline)", y: [2, 2] }
+}
 ```
 
 ---
 
-## Benefits of Migration
+## Semantic Metadata (New in v2)
 
-1. **Readability** - Sprite grids look like actual pixel art
-2. **Editability** - Modify specific rows without parsing the whole line
-3. **Debugging** - Visual alignment errors are obvious
-4. **Git diffs** - See exactly which pixels changed
-5. **AI generation** - LLMs can reason about spatial relationships in grid rows
+v2 adds optional semantic metadata:
+
+```json5
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    outline: "#000000",
+    skin: "#FFD5B4",
+    "skin-shadow": "#D4A574",
+    eye: "#4169E1"
+  },
+  roles: {
+    outline: "boundary",
+    skin: "fill",
+    eye: "anchor",
+    "skin-shadow": "shadow"
+  },
+  relationships: {
+    "skin-shadow": { type: "derives-from", target: "skin" }
+  }
+}
+```
+
+This metadata enables:
+- Smarter scaling (anchors preserved, fill can shrink)
+- Validation (contained-within, adjacent-to)
+- Better import analysis
 
 ---
 
-## Example Workflow
+## Removed Features
 
-```bash
-# Start with existing project
-ls sprites/
-# coin.jsonl  hero.jsonl  items.jsonl
+| Feature | v1 | v2 Alternative |
+|---------|----|----|
+| `grid` field | Yes | `regions` |
+| `{braces}` in tokens | Yes | Bare token names |
+| RLE compression | Yes | Not needed (regions are compact) |
+| `pxl alias` command | Yes | Removed |
+| `pxl inline` command | Yes | Removed |
+| `pxl sketch` command | Yes | Removed |
+| `pxl grid` command | Yes | Removed |
 
-# Rename to .pxl
-for f in sprites/*.jsonl; do mv "$f" "${f%.jsonl}.pxl"; done
+---
 
-# Format for readability
-pxl fmt sprites/*.pxl
+## Workflow
 
-# Verify output is unchanged
-pxl render sprites/hero.pxl -o /tmp/after.png
-# Compare with original - should be identical
+1. **Export v1 sprites to PNG** (if not already)
+   ```bash
+   pxl render old.jsonl -o sprites/
+   ```
 
-# Commit the migration
-git add sprites/
-git commit -m "Migrate sprites to .pxl format"
-```
+2. **Import PNGs to v2 format**
+   ```bash
+   for png in sprites/*.png; do
+     pxl import "$png" --analyze -o "${png%.png}.pxl"
+   done
+   ```
+
+3. **Review and refine** - The import produces valid v2 files, but you may want to:
+   - Add semantic roles
+   - Simplify complex regions into shapes
+   - Add symmetry where applicable
+
+4. **Validate**
+   ```bash
+   pxl validate *.pxl --strict
+   ```
 
 ---
 
 ## Troubleshooting
 
-### Format check fails in CI
+### "Unknown field: grid"
 
-```bash
-pxl fmt --check sprites.pxl
-# Error: File needs formatting
+Your file still uses v1 format. Migrate using the patterns above or use `pxl import` on a rendered PNG.
+
+### "Forward reference in fill"
+
+In v2, regions must define dependencies before dependents:
+
+**Wrong:**
+```json5
+regions: {
+  skin: { fill: "inside(outline)" },  // ERROR
+  outline: { stroke: [0, 0, 8, 8] }
+}
 ```
 
-**Fix:** Run `pxl fmt sprites.pxl` locally and commit the changes.
-
-### Include paths not found
-
+**Right:**
+```json5
+regions: {
+  outline: { stroke: [0, 0, 8, 8] },  // Define first
+  skin: { fill: "inside(outline)" }   // Then reference
+}
 ```
-Error: File not found: shared/colors.jsonl
-```
 
-**Fix:** Either:
-1. Rename the included file to `.pxl`
-2. Update the include path: `@include:shared/colors.pxl`
-3. Use extension-less path: `@include:shared/colors`
+### "Invalid JSON5"
 
-### Multi-line format causes issues with other tools
+Check for:
+- Missing commas between object entries
+- Unmatched braces
+- Invalid escape sequences
 
-Some tools expect strict JSONL (one object per line). If needed:
-- Keep `.jsonl` extension for those files
-- Or use `pxl fmt --stdout | jq -c` to compact back to single-line
+JSON5 is more lenient than JSON but still has rules.
+
+---
+
+## Benefits of v2
+
+1. **Context efficiency** - 64x64 sprite takes same space as 8x8 with similar structure
+2. **Edit friendly** - Change `rect: [2, 4, 12, 8]` instead of rewriting 96 tokens
+3. **Semantic meaning** - Roles and relationships are explicit
+4. **AI optimized** - Describe intent, compiler resolves pixels
+5. **Better diffs** - Git shows "changed outline width" not "changed 50 tokens"

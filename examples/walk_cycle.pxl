@@ -1,45 +1,129 @@
-{"type": "palette", "name": "walker", "colors": {
-  "--body-color": "#4A90D9",
-  "--foot-color": "#2C3E50",
-  "{_}": "transparent",
-  "{body}": "var(--body-color)",
-  "{body_light}": "color-mix(in oklch, var(--body-color) 70%, white)",
-  "{foot}": "var(--foot-color)",
-  "{shadow}": "color-mix(in oklch, var(--body-color) 60%, black)"
-}}
-{"type": "sprite", "name": "walk_1", "size": [8, 8], "palette": "walker", "grid": [
-  "{_}{_}{body_light}{body}{body}{body_light}{_}{_}",
-  "{_}{body}{body}{body}{body}{body}{body}{_}",
-  "{_}{body}{body}{body}{body}{body}{body}{_}",
-  "{_}{_}{body}{body}{body}{body}{_}{_}",
-  "{_}{_}{shadow}{body}{body}{shadow}{_}{_}",
-  "{_}{_}{foot}{_}{_}{foot}{_}{_}",
-  "{_}{foot}{_}{_}{_}{_}{foot}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}"
-]}
-{"type": "sprite", "name": "walk_2", "size": [8, 8], "palette": "walker", "grid": [
-  "{_}{_}{body_light}{body}{body}{body_light}{_}{_}",
-  "{_}{body}{body}{body}{body}{body}{body}{_}",
-  "{_}{body}{body}{body}{body}{body}{body}{_}",
-  "{_}{_}{body}{body}{body}{body}{_}{_}",
-  "{_}{_}{shadow}{body}{body}{shadow}{_}{_}",
-  "{_}{_}{_}{foot}{foot}{_}{_}{_}",
-  "{_}{_}{_}{foot}{foot}{_}{_}{_}",
-  "{_}{_}{_}{_}{_}{_}{_}{_}"
-]}
-{"type": "animation", "name": "walk", "keyframes": {
-  "0%": {"sprite": "walk_1"},
-  "25%": {"sprite": "walk_2"},
-  "50%": {"sprite": "walk_1", "transform": "flip(x)"},
-  "75%": {"sprite": "walk_2", "transform": "flip(x)"}
-}, "duration": "600ms", "timing_function": "steps(4)", "loop": true}
-{"type": "animation", "name": "walk_bounce", "keyframes": {
-  "0%": {"sprite": "walk_1", "transform": "translate(0, 0)"},
-  "12.5%": {"sprite": "walk_1", "transform": "translate(0, -1)"},
-  "25%": {"sprite": "walk_2", "transform": "translate(0, 0)"},
-  "37.5%": {"sprite": "walk_2", "transform": "translate(0, -1)"},
-  "50%": {"sprite": "walk_1", "transform": "translate(0, 0) flip(x)"},
-  "62.5%": {"sprite": "walk_1", "transform": "translate(0, -1) flip(x)"},
-  "75%": {"sprite": "walk_2", "transform": "translate(0, 0) flip(x)"},
-  "87.5%": {"sprite": "walk_2", "transform": "translate(0, -1) flip(x)"}
-}, "duration": "800ms", "timing_function": "linear", "loop": true}
+// walk_cycle.pxl - A simple walk animation cycle
+// Demonstrates multiple sprites with animation
+
+{
+  type: "palette",
+  name: "walker",
+  colors: {
+    _: "transparent",
+    body: "#4A90D9",
+    body_light: "#6BABEB",
+    foot: "#2C3E50",
+    shadow: "#2A5A8F",
+  },
+  roles: {
+    body: "fill",
+    body_light: "highlight",
+    shadow: "shadow",
+    foot: "anchor",
+  },
+}
+
+// Walk frame 1 - legs apart
+{
+  type: "sprite",
+  name: "walk_1",
+  size: [8, 8],
+  palette: "walker",
+  regions: {
+    // Main body (circular blob shape)
+    body: {
+      union: [
+        { rect: [2, 0, 4, 1] },       // Top row
+        { rect: [1, 1, 6, 3] },       // Main body
+        { rect: [2, 4, 4, 1] },       // Lower body
+      ],
+      z: 0,
+    },
+
+    // Highlights on top
+    body_light: {
+      points: [[2, 0], [5, 0]],
+      z: 1,
+    },
+
+    // Shadow on sides
+    shadow: {
+      points: [[2, 4], [5, 4]],
+      z: 1,
+    },
+
+    // Feet (spread apart)
+    foot: {
+      union: [
+        { points: [[2, 5], [1, 6]] },   // Left foot
+        { points: [[5, 5], [6, 6]] },   // Right foot
+      ],
+      z: 2,
+    },
+  },
+}
+
+// Walk frame 2 - legs together
+{
+  type: "sprite",
+  name: "walk_2",
+  size: [8, 8],
+  palette: "walker",
+  regions: {
+    // Main body (same as walk_1)
+    body: {
+      union: [
+        { rect: [2, 0, 4, 1] },
+        { rect: [1, 1, 6, 3] },
+        { rect: [2, 4, 4, 1] },
+      ],
+      z: 0,
+    },
+
+    body_light: {
+      points: [[2, 0], [5, 0]],
+      z: 1,
+    },
+
+    shadow: {
+      points: [[2, 4], [5, 4]],
+      z: 1,
+    },
+
+    // Feet (together)
+    foot: {
+      rect: [3, 5, 2, 2],
+      z: 2,
+    },
+  },
+}
+
+// Basic walk animation
+{
+  type: "animation",
+  name: "walk",
+  keyframes: {
+    "0%": { sprite: "walk_1" },
+    "25%": { sprite: "walk_2" },
+    "50%": { sprite: "walk_1", transform: "flip(x)" },
+    "75%": { sprite: "walk_2", transform: "flip(x)" },
+  },
+  duration: "600ms",
+  timing_function: "steps(4)",
+  loop: true,
+}
+
+// Walk with vertical bounce
+{
+  type: "animation",
+  name: "walk_bounce",
+  keyframes: {
+    "0%": { sprite: "walk_1", transform: "translate(0, 0)" },
+    "12.5%": { sprite: "walk_1", transform: "translate(0, -1)" },
+    "25%": { sprite: "walk_2", transform: "translate(0, 0)" },
+    "37.5%": { sprite: "walk_2", transform: "translate(0, -1)" },
+    "50%": { sprite: "walk_1", transform: "translate(0, 0) flip(x)" },
+    "62.5%": { sprite: "walk_1", transform: "translate(0, -1) flip(x)" },
+    "75%": { sprite: "walk_2", transform: "translate(0, 0) flip(x)" },
+    "87.5%": { sprite: "walk_2", transform: "translate(0, -1) flip(x)" },
+  },
+  duration: "800ms",
+  timing_function: "linear",
+  loop: true,
+}

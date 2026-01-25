@@ -8,6 +8,8 @@ on:
       - 'Cargo.toml'
       - 'wasm/**'
       - '.github/workflows/wasm.yml'
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
     paths:
@@ -36,12 +38,12 @@ jobs:
 
       - name: Build WASM
         run: |
-          wasm-pack build --target web --features wasm
+          wasm-pack build --target web -- --no-default-features --features wasm
           rm -rf wasm/pkg
           mv pkg wasm/
 
       - name: Run WASM tests (Node)
-        run: wasm-pack test --node --features wasm
+        run: wasm-pack test --node -- --no-default-features --features wasm
 
       - name: Run npm tests
         run: |
@@ -57,7 +59,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
 
@@ -68,10 +70,21 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '22'
+          # No registry-url: OIDC trusted publishing only works when no token is present
+
+      - name: Update npm for OIDC support
+        run: npm install -g npm@latest
+
+      - name: Sync version from Cargo.toml
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Syncing npm package version to $VERSION"
+          cd wasm
+          npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Publish to npm
         run: |
           cd wasm
-          npm publish --access public --provenance || echo "Version already published or publish failed"
+          npm publish --provenance --access public
+        # No token needed - using OIDC trusted publishing

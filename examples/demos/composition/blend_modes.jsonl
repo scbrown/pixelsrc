@@ -1,7 +1,0 @@
-{"type": "sprite", "name": "white_square", "size": [4, 4], "palette": {"w": "#FFFFFF"}, "grid": ["wwww", "wwww", "wwww", "wwww"]}
-{"type": "sprite", "name": "red_circle", "size": [4, 4], "palette": {".": "#00000000", "r": "#FF0000"}, "grid": [".rr.", "rrrr", "rrrr", ".rr."]}
-{"type": "sprite", "name": "blue_circle", "size": [4, 4], "palette": {".": "#00000000", "b": "#0000FF"}, "grid": [".bb.", "bbbb", "bbbb", ".bb."]}
-{"type": "composition", "name": "blend_normal", "size": [4, 4], "sprites": {"W": "white_square", "R": "red_circle"}, "layers": [{"map": ["W"]}, {"map": ["R"], "blend": "normal"}]}
-{"type": "composition", "name": "blend_multiply", "size": [4, 4], "sprites": {"W": "white_square", "R": "red_circle"}, "layers": [{"map": ["W"]}, {"map": ["R"], "blend": "multiply"}]}
-{"type": "composition", "name": "blend_screen", "size": [4, 4], "sprites": {"W": "white_square", "B": "blue_circle"}, "layers": [{"map": ["W"]}, {"map": ["B"], "blend": "screen"}]}
-{"type": "composition", "name": "blend_overlay", "size": [4, 4], "sprites": {"R": "red_circle", "B": "blue_circle"}, "layers": [{"map": ["R"]}, {"map": ["B"], "blend": "overlay"}]}

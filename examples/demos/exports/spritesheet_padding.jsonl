@@ -1,5 +1,0 @@
-{"type": "sprite", "name": "grow1", "size": [4, 4], "palette": {".": "#00000000", "g": "#228B22"}, "grid": ["....", ".gg.", ".gg.", "...."]}
-{"type": "sprite", "name": "grow2", "size": [6, 6], "palette": {".": "#00000000", "g": "#228B22", "G": "#32CD32"}, "grid": ["......", ".gGGg.", ".GGGG.", ".GGGG.", ".gGGg.", "......"]}
-{"type": "sprite", "name": "grow3", "size": [8, 8], "palette": {".": "#00000000", "g": "#228B22", "G": "#32CD32", "L": "#7CFC00"}, "grid": ["........", ".gGLLGg.", ".GLLLLg.", ".LLLLLL.", ".LLLLLL.", ".GLLLLg.", ".gGLLGg.", "........"]}
-{"type": "sprite", "name": "grow4", "size": [10, 10], "palette": {".": "#00000000", "g": "#228B22", "G": "#32CD32", "L": "#7CFC00", "Y": "#ADFF2F"}, "grid": ["..........", ".gGLYYLGg.", ".GLYYYYLg.", ".LYYYYYLL.", ".YYYYYYYY.", ".YYYYYYYY.", ".LYYYYYLL.", ".GLYYYYLg.", ".gGLYYLGg.", ".........."]}
-{"type": "animation", "name": "plant_grow", "fps": 4, "frames": ["grow1", "grow2", "grow3", "grow4"]}

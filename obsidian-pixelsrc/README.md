@@ -16,7 +16,7 @@ Create a code block with language `pixelsrc` or `pxl`:
 
 ~~~markdown
 ```pixelsrc
-{"type":"sprite","name":"heart","palette":{"{_}":"#00000000","{r}":"#FF0000"},"grid":["{_}{r}{r}{_}{r}{r}{_}","{r}{r}{r}{r}{r}{r}{r}","{_}{r}{r}{r}{r}{r}{_}","{_}{_}{r}{r}{r}{_}{_}","{_}{_}{_}{r}{_}{_}{_}"]}
+{"type":"sprite","name":"heart","size":[7,5],"palette":{"_":"#00000000","r":"#FF0000"},"regions":{"r":{"union":[{"rect":[1,0,2,1]},{"rect":[4,0,2,1]},{"rect":[0,1,7,1]},{"rect":[1,2,5,1]},{"rect":[2,3,3,1]},{"points":[[3,4]]}],"z":0}}}
 ```
 ~~~
 
@@ -28,8 +28,8 @@ For more complex sprites, you can use multiple JSONL lines:
 
 ~~~markdown
 ```pxl
-{"type":"palette","name":"skin","colors":{"{_}":"#00000000","{s}":"#FFD5B8","{h}":"#8B4513","{e}":"#000000"}}
-{"type":"sprite","name":"face","palette":"skin","size":[8,8],"grid":["{_}{h}{h}{h}{h}{h}{h}{_}","{h}{s}{s}{s}{s}{s}{s}{h}","{h}{s}{e}{s}{s}{e}{s}{h}","{h}{s}{s}{s}{s}{s}{s}{h}","{h}{s}{s}{_}{_}{s}{s}{h}","{h}{s}{s}{s}{s}{s}{s}{h}","{_}{h}{s}{s}{s}{s}{h}{_}","{_}{_}{h}{h}{h}{h}{_}{_}"]}
+{"type":"palette","name":"skin","colors":{"_":"#00000000","s":"#FFD5B8","h":"#8B4513","e":"#000000"}}
+{"type":"sprite","name":"face","size":[8,8],"palette":"skin","regions":{"h":{"union":[{"rect":[1,0,6,1]},{"points":[[0,1],[7,1],[0,2],[7,2],[0,3],[7,3],[0,4],[7,4],[0,5],[7,5]]},{"points":[[1,6],[6,6]]},{"rect":[2,7,4,1]}],"z":0},"s":{"union":[{"rect":[1,1,6,5]},{"rect":[2,6,4,1]}],"z":1},"e":{"points":[[2,2],[5,2]],"z":2}}}
 ```
 ~~~
 
@@ -76,13 +76,13 @@ Copy `main.js`, `manifest.json`, and `styles.css` to your vault's plugin directo
 PixelSrc uses a JSONL (JSON Lines) format to define pixel art:
 
 ```json
-{"type":"sprite","name":"dot","palette":{"{x}":"#FF0000"},"grid":["{x}"]}
+{"type":"sprite","name":"dot","size":[1,1],"palette":{"x":"#FF0000"},"regions":{"x":{"rect":[0,0,1,1],"z":0}}}
 ```
 
 Key concepts:
-- **Sprites** define the pixel grid using character tokens
+- **Sprites** define pixel regions using shapes (rect, points, union)
 - **Palettes** map tokens to colors (can be inline or referenced)
-- **Tokens** are wrapped in curly braces like `{r}`, `{_}`, etc.
+- **Regions** map token names to shape definitions with z-order
 - **Transparency** uses `#00000000` or similar RGBA with alpha=0
 
 For complete documentation on the pixelsrc format, see the [PixelSrc Specification](https://github.com/pixelsrc/pixelsrc).

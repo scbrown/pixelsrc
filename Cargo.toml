@@ -1,8 +1,14 @@
 [package]
 name = "pixelsrc"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Pixelsrc - GenAI-native pixel art format and compiler"
+license = "MIT"
+repository = "https://github.com/scbrown/pixelsrc"
+homepage = "https://github.com/scbrown/pixelsrc"
+keywords = ["pixel-art", "sprite", "gamedev", "genai", "wasm"]
+categories = ["graphics", "game-development", "wasm"]
+readme = "README.md"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -12,12 +18,14 @@ name = "pxl"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["lsp"]
+lsp = ["tower-lsp", "tokio"]
 wasm = ["wasm-bindgen", "console_error_panic_hook"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+json5 = "0.4"
 toml = "0.8"
 image = "0.24"
 clap = { version = "4.0", features = ["derive"] }
@@ -33,14 +41,17 @@ lightningcss = { version = "1.0.0-alpha.68", default-features = false, features 
 notify-debouncer-mini = "0.4"
 rayon = "1.10"
 thiserror = "1.0"
-tower-lsp = "0.20"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"] }
+tower-lsp = { version = "0.20", optional = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
 wasm-bindgen-test = "0.3"
 serial_test = "3.0"
 sha2 = "0.10"
+
+# Criterion uses rayon which doesn't work on WASM
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]

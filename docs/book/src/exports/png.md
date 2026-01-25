@@ -106,21 +106,51 @@ PNG files are saved with:
 
 ### Basic Sprite Export
 
-```bash
-# Input: characters.pxl with sprites "hero", "villain"
-pxl render characters.pxl -o sprites/
+<!-- DEMOS exports/png#basic -->
+**Basic PNG Export**
 
-# Output:
-# sprites/hero.png
-# sprites/villain.png
+Render a simple sprite to PNG with transparency.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "coin", "colors": {"_": "#00000000", "y": "#ffd700", "o": "#daa520"}}
+{"type": "sprite", "name": "coin", "size": [4, 4], "palette": "coin", "regions": {"y": {"union": [{"rect": [1, 0, 2, 1]}, {"points": [[0, 1], [3, 1], [0, 2], [3, 2]]}, {"rect": [1, 3, 2, 1]}], "z": 0}, "o": {"rect": [1, 1, 2, 2], "z": 1}}}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="basic">
+</div>
+
+```bash
+pxl render coin.pxl -o coin.png
+```
+<!-- /DEMOS -->
 
 ### High-Resolution Preview
 
-```bash
-# Generate 8x scaled preview for documentation
-pxl render icon.pxl --scale 8 -o docs/icon_preview.png
+<!-- DEMOS exports/png#scaled -->
+**Scaled PNG Export**
+
+Scale output for high-resolution previews while preserving pixel art crispness.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "gem", "colors": {"_": "#00000000", "b": "#4169e1", "l": "#87ceeb", "d": "#191970"}}
+{"type": "sprite", "name": "gem", "size": [4, 4], "palette": "gem", "regions": {"l": {"rect": [1, 0, 2, 2], "z": 0}, "b": {"union": [{"points": [[0, 1], [3, 1]]}, {"rect": [0, 2, 4, 1]}], "z": 0}, "d": {"rect": [1, 3, 2, 1], "z": 0}}}
 ```
+
+</div>
+
+<div class="demo-container" data-demo="scaled">
+</div>
+
+```bash
+pxl render gem.pxl --scale 4 -o gem_4x.png
+```
+<!-- /DEMOS -->
 
 ### Batch Processing
 

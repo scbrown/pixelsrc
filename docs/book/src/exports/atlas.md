@@ -90,9 +90,22 @@ Sprites with `metadata` in the source file include:
 - `origin` - Pivot point `[x, y]`
 - `boxes` - Collision boxes (hit, hurt, collide, trigger)
 
-```json
-{"type": "sprite", "name": "hero", "palette": "colors", "grid": [...],
- "metadata": {"origin": [16, 32], "boxes": {"hit": {"x": 4, "y": 0, "w": 24, "h": 32}}}}
+```json5
+{
+  type: "sprite",
+  name: "hero",
+  size: [32, 32],
+  palette: "colors",
+  regions: {
+    body: { rect: [8, 0, 16, 32], z: 0 },
+  },
+  metadata: {
+    origin: [16, 32],
+    boxes: {
+      hit: { x: 4, y: 0, w: 24, h: 32 },
+    },
+  },
+}
 ```
 
 ## Godot Format
@@ -193,13 +206,18 @@ Animation<TextureRegion> walk = new Animation<>(0.1f, atlas.findRegions("hero_wa
 
 Define named sub-ranges within animations for game logic:
 
-```json
-{"type": "animation", "name": "attack", "frames": [...], "duration": 100,
- "tags": {
-   "windup": {"start": 0, "end": 2},
-   "active": {"start": 3, "end": 5, "loop": false},
-   "recovery": {"start": 6, "end": 8}
- }}
+```json5
+{
+  type: "animation",
+  name: "attack",
+  frames: ["attack_1", "attack_2", "attack_3", "attack_4", "attack_5"],
+  duration: 100,
+  tags: {
+    windup: { start: 0, end: 1 },
+    active: { start: 2, end: 3, loop: false },
+    recovery: { start: 4, end: 4 },
+  },
+}
 ```
 
 Tags are included in atlas metadata for runtime use.
@@ -221,6 +239,144 @@ Pixelsrc uses shelf bin packing for efficient atlas layout:
 Sprites are sorted by height and packed into horizontal shelves for efficient space usage.
 
 ## Examples
+
+### Basic Atlas Export
+
+**JSON Atlas Export**
+
+Pack multiple sprites into a single atlas with JSON metadata.
+
+```json5
+{
+  type: "palette",
+  name: "items",
+  colors: {
+    _: "transparent",
+    g: "#FFD700",
+    s: "#C0C0C0",
+    r: "#FF4444",
+  },
+}
+
+{
+  type: "sprite",
+  name: "coin",
+  size: [3, 3],
+  palette: "items",
+  regions: {
+    g: {
+      union: [
+        { points: [[1, 0]] },
+        { rect: [0, 1, 3, 1] },
+        { points: [[1, 2]] },
+      ],
+      z: 0,
+    },
+  },
+}
+
+{
+  type: "sprite",
+  name: "key",
+  size: [3, 3],
+  palette: "items",
+  regions: {
+    s: {
+      union: [
+        { rect: [0, 0, 2, 1] },
+        { rect: [1, 1, 1, 2] },
+        { points: [[2, 2]] },
+      ],
+      z: 0,
+    },
+  },
+}
+
+{
+  type: "sprite",
+  name: "heart",
+  size: [3, 3],
+  palette: "items",
+  regions: {
+    r: {
+      union: [
+        { points: [[0, 0], [2, 0]] },
+        { rect: [0, 1, 3, 1] },
+        { points: [[1, 2]] },
+      ],
+      z: 0,
+    },
+  },
+}
+```
+
+```bash
+pxl render items.pxl --format atlas -o items
+```
+
+### Godot Export
+
+**Godot Atlas Export**
+
+Generate Godot-compatible atlas resources.
+
+```json5
+{
+  type: "palette",
+  name: "ui",
+  colors: {
+    _: "transparent",
+    w: "#FFFFFF",
+    g: "#888888",
+    b: "#333333",
+  },
+}
+
+{
+  type: "sprite",
+  name: "btn_normal",
+  size: [4, 3],
+  palette: "ui",
+  regions: {
+    b: { points: [[0, 0], [3, 0], [0, 2], [3, 2]], z: 0 },
+    g: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { points: [[0, 1], [3, 1]] },
+        { rect: [1, 2, 2, 1] },
+      ],
+      z: 0,
+    },
+    w: { rect: [1, 1, 2, 1], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "btn_hover",
+  size: [4, 3],
+  palette: "ui",
+  regions: {
+    g: { points: [[0, 0], [3, 0], [0, 2], [3, 2]], z: 0 },
+    w: { rect: [0, 0, 4, 3], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "btn_pressed",
+  size: [4, 3],
+  palette: "ui",
+  regions: {
+    b: { rect: [0, 0, 4, 3], z: 0 },
+    g: { rect: [1, 1, 2, 1], z: 1 },
+  },
+}
+```
+
+```bash
+pxl render ui.pxl --format atlas-godot --padding 1 -o ui_atlas
+```
 
 ### Production Game Assets
 

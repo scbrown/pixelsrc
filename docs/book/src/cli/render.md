@@ -31,6 +31,7 @@ pxl render [OPTIONS] <INPUT>
 | `--max-size <MAX_SIZE>` | Maximum atlas size (e.g., "512x512") |
 | `--padding <PADDING>` | Padding between sprites in atlas (pixels, default: 0) |
 | `--power-of-two` | Force power-of-two dimensions for atlas |
+| `--nine-slice <WxH>` | Render nine-slice sprite to target size (e.g., "64x32") |
 
 ## Output Naming
 
@@ -67,8 +68,8 @@ Render a simple sprite to PNG output.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "simple", "colors": {"{_}": "#00000000", "{b}": "#4a90d9", "{w}": "#ffffff"}}
-{"type": "sprite", "name": "icon", "palette": "simple", "grid": ["{_}{b}{_}", "{b}{w}{b}", "{_}{b}{_}"]}
+{"type": "palette", "name": "simple", "colors": {"_": "#00000000", "b": "#4a90d9", "w": "#ffffff"}}
+{"type": "sprite", "name": "icon", "size": [3, 3], "palette": "simple", "regions": {"b": {"union": [{"points": [[1, 0]]}, {"points": [[0, 1], [2, 1]]}, {"points": [[1, 2]]}], "z": 0}, "w": {"points": [[1, 1]], "z": 1}}}
 ```
 
 </div>
@@ -104,8 +105,8 @@ Render sprites at larger sizes with integer scaling.
 <div class="demo-source">
 
 ```jsonl
-{"type": "palette", "name": "pixel", "colors": {"{_}": "#00000000", "{p}": "#e43b44", "{d}": "#a82b3a"}}
-{"type": "sprite", "name": "heart", "palette": "pixel", "grid": ["{_}{p}{_}{p}{_}", "{p}{d}{p}{d}{p}", "{p}{d}{d}{d}{p}", "{_}{p}{d}{p}{_}", "{_}{_}{p}{_}{_}"]}
+{"type": "palette", "name": "pixel", "colors": {"_": "#00000000", "p": "#e43b44", "d": "#a82b3a"}}
+{"type": "sprite", "name": "heart", "size": [5, 5], "palette": "pixel", "regions": {"p": {"union": [{"points": [[1, 0], [3, 0]]}, {"points": [[0, 1], [2, 1], [4, 1]]}, {"points": [[0, 2], [4, 2]]}, {"points": [[1, 3]]}, {"points": [[2, 4]]}], "z": 0}, "d": {"union": [{"points": [[1, 1], [3, 1]]}, {"rect": [1, 2, 3, 1]}, {"points": [[2, 3]]}], "z": 1}}}
 ```
 
 </div>
@@ -168,6 +169,26 @@ pxl render sprites.pxl --format atlas --max-size 512x512 -o atlas.png
 # Fail on any warnings
 pxl render character.pxl --strict
 ```
+
+### Nine-slice rendering
+
+Nine-slice (9-patch) sprites are scalable UI elements where corners stay fixed while
+edges and center stretch. The sprite must have a `nine_slice` attribute defined.
+
+```bash
+# Render a button sprite stretched to 64x32 pixels
+pxl render button.pxl --nine-slice 64x32 -o button_wide.png
+
+# Render at 128x48 for a dialog box
+pxl render panel.pxl --nine-slice 128x48 -o panel_large.png
+```
+
+The `nine_slice` attribute on the sprite defines the border widths:
+```json
+{"nine_slice": {"left": 4, "right": 4, "top": 4, "bottom": 4}}
+```
+
+See the [format specification](../../spec/format.md) for complete details on the nine-slice format.
 
 ## See Also
 

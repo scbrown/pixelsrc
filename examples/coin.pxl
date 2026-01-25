@@ -1,30 +1,85 @@
-{"type": "palette", "name": "coin", "colors": {
-  "--gold": "#FFD700",
-  "{_}": "transparent",
-  "{gold}": "var(--gold)",
-  "{shine}": "color-mix(in oklch, var(--gold) 60%, white)",
-  "{shadow}": "color-mix(in oklch, var(--gold) 70%, black)",
-  "{dark}": "color-mix(in oklch, var(--gold) 50%, black)"
-}}
-{"type": "sprite", "name": "coin", "size": [8, 8], "palette": "coin", "grid": [
-  "{_}{_}{gold}{gold}{gold}{gold}{_}{_}",
-  "{_}{gold}{shine}{shine}{gold}{gold}{gold}{_}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{shine}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{gold}{shadow}{gold}",
-  "{gold}{gold}{gold}{gold}{gold}{shadow}{shadow}{gold}",
-  "{_}{gold}{gold}{gold}{gold}{gold}{gold}{_}",
-  "{_}{_}{dark}{dark}{dark}{dark}{_}{_}"
-]}
-{"type": "animation", "name": "coin_spin", "keyframes": {
-  "0%": {"sprite": "coin", "transform": "scale(1, 1)"},
-  "25%": {"sprite": "coin", "transform": "scale(0.3, 1)"},
-  "50%": {"sprite": "coin", "transform": "scale(1, 1) flip(x)"},
-  "75%": {"sprite": "coin", "transform": "scale(0.3, 1)"},
-  "100%": {"sprite": "coin", "transform": "scale(1, 1)"}
-}, "duration": "600ms", "timing_function": "ease-in-out", "loop": true}
-{"type": "animation", "name": "coin_bounce", "keyframes": {
-  "0%": {"sprite": "coin", "transform": "translate(0, 0)"},
-  "50%": {"sprite": "coin", "transform": "translate(0, -4)"},
-  "100%": {"sprite": "coin", "transform": "translate(0, 0)"}
-}, "duration": "400ms", "timing_function": "ease-out", "loop": true}
+// coin.pxl - A shiny gold coin with spin animation
+// Demonstrates structured regions
+
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    gold: "#FFD700",
+    shine: "#FFE766",      // Lighter gold highlight
+    shadow: "#B8960B",     // Darker gold shadow
+    dark: "#806B00",       // Bottom edge shadow
+  },
+  roles: {
+    gold: "fill",
+    shine: "highlight",
+    shadow: "shadow",
+    dark: "shadow",
+  },
+}
+
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    // Main coin body - circular shape with cut corners
+    gold: {
+      union: [
+        { rect: [2, 0, 4, 1] },     // Top edge
+        { rect: [1, 1, 6, 1] },     // Second row
+        { rect: [0, 2, 8, 4] },     // Middle rows (full width)
+        { rect: [1, 6, 6, 1] },     // Second to last row
+      ],
+      z: 0,
+    },
+
+    // Highlight on top-left
+    shine: {
+      points: [[2, 1], [3, 1], [1, 2], [1, 3], [1, 4]],
+      z: 1,
+    },
+
+    // Shadow on right side
+    shadow: {
+      points: [[6, 2], [6, 3], [6, 4], [5, 5], [6, 5]],
+      z: 1,
+    },
+
+    // Dark bottom edge
+    dark: {
+      rect: [2, 7, 4, 1],
+      z: 2,
+    },
+  },
+}
+
+{
+  type: "animation",
+  name: "coin_spin",
+  keyframes: {
+    "0%": { sprite: "coin", transform: "scale(1, 1)" },
+    "25%": { sprite: "coin", transform: "scale(0.3, 1)" },
+    "50%": { sprite: "coin", transform: "scale(1, 1) flip(x)" },
+    "75%": { sprite: "coin", transform: "scale(0.3, 1)" },
+    "100%": { sprite: "coin", transform: "scale(1, 1)" },
+  },
+  duration: "600ms",
+  timing_function: "ease-in-out",
+  loop: true,
+}
+
+{
+  type: "animation",
+  name: "coin_bounce",
+  keyframes: {
+    "0%": { sprite: "coin", transform: "translate(0, 0)" },
+    "50%": { sprite: "coin", transform: "translate(0, -4)" },
+    "100%": { sprite: "coin", transform: "translate(0, 0)" },
+  },
+  duration: "400ms",
+  timing_function: "ease-out",
+  loop: true,
+}

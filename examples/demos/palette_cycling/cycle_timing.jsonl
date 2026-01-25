@@ -1,5 +1,0 @@
-{"type": "palette", "name": "timing_demo", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF"}}
-{"type": "sprite", "name": "fast_tile", "palette": "timing_demo", "grid": ["{a}{b}{c}", "{b}{c}{a}", "{c}{a}{b}"]}
-{"type": "sprite", "name": "slow_tile", "palette": "timing_demo", "grid": ["{a}{b}{c}", "{b}{c}{a}", "{c}{a}{b}"]}
-{"type": "animation", "name": "fast_cycle", "frames": ["fast_tile"], "duration": 50, "palette_cycle": [{"tokens": ["{a}", "{b}", "{c}"], "duration": 50}]}
-{"type": "animation", "name": "slow_cycle", "frames": ["slow_tile"], "duration": 500, "palette_cycle": [{"tokens": ["{a}", "{b}", "{c}"], "duration": 500}]}

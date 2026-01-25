@@ -70,12 +70,34 @@ pxl render sprites.pxl --spritesheet -o assets/walk_sheet.png
 
 The spritesheet is generated from an animation object:
 
-```json
-{"type": "sprite", "name": "walk_1", "palette": "hero", "grid": [...]}
-{"type": "sprite", "name": "walk_2", "palette": "hero", "grid": [...]}
-{"type": "sprite", "name": "walk_3", "palette": "hero", "grid": [...]}
-{"type": "sprite", "name": "walk_4", "palette": "hero", "grid": [...]}
-{"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"]}
+```json5
+{
+  type: "sprite",
+  name: "walk_1",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    body: { rect: [4, 0, 8, 12], z: 0 },
+    legs: { rect: [4, 12, 8, 4], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "walk_2",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    body: { rect: [4, 0, 8, 12], z: 0 },
+    legs: { rect: [2, 12, 12, 4], z: 0 },
+  },
+}
+
+{
+  type: "animation",
+  name: "walk",
+  frames: ["walk_1", "walk_2"],
+}
 ```
 
 ## Game Engine Integration
@@ -138,8 +160,140 @@ Use **atlas** for production game assets with multiple sprites and animations.
 
 ### Basic Export
 
+**Horizontal Spritesheet**
+
+Export animation frames as a horizontal strip.
+
+```json5
+{
+  type: "palette",
+  name: "flag",
+  colors: {
+    _: "transparent",
+    r: "#FF0000",
+    w: "#FFFFFF",
+    p: "#8B4513",
+  },
+}
+
+{
+  type: "sprite",
+  name: "flag_1",
+  size: [3, 3],
+  palette: "flag",
+  regions: {
+    r: { rect: [0, 0, 2, 1], z: 1 },
+    w: { rect: [0, 1, 2, 1], z: 1 },
+    p: { points: [[0, 2]], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "flag_2",
+  size: [3, 3],
+  palette: "flag",
+  regions: {
+    r: { rect: [1, 0, 2, 1], z: 1 },
+    w: { rect: [1, 1, 2, 1], z: 1 },
+    p: { points: [[0, 2]], z: 0 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "flag_3",
+  size: [3, 3],
+  palette: "flag",
+  regions: {
+    r: { rect: [0, 0, 2, 1], z: 1 },
+    w: { rect: [0, 1, 2, 1], z: 1 },
+    p: { points: [[0, 2]], z: 0 },
+  },
+}
+
+{
+  type: "animation",
+  name: "wave",
+  frames: ["flag_1", "flag_2", "flag_3"],
+  duration: 150,
+}
+```
+
 ```bash
-pxl render character.pxl --spritesheet -o character_walk.png
+pxl render flag.pxl --spritesheet -o flag_sheet.png
+```
+
+### Scaled for Preview
+
+**Scaled Spritesheet**
+
+Scale up spritesheets for better visibility.
+
+```json5
+{
+  type: "palette",
+  name: "bounce",
+  colors: {
+    _: "transparent",
+    b: "#3498DB",
+    s: "#2980B9",
+  },
+}
+
+{
+  type: "sprite",
+  name: "ball_1",
+  size: [3, 3],
+  palette: "bounce",
+  regions: {
+    b: {
+      union: [
+        { points: [[1, 0], [0, 1], [2, 1], [1, 2]] },
+      ],
+      z: 0,
+    },
+    s: { points: [[1, 1]], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "ball_2",
+  size: [3, 3],
+  palette: "bounce",
+  regions: {
+    b: { rect: [0, 0, 3, 3], z: 0 },
+    s: { points: [[1, 1]], z: 1 },
+  },
+}
+
+{
+  type: "sprite",
+  name: "ball_3",
+  size: [3, 3],
+  palette: "bounce",
+  regions: {
+    b: {
+      union: [
+        { points: [[1, 0], [0, 1], [2, 1], [1, 2]] },
+      ],
+      z: 0,
+    },
+    s: { points: [[1, 1]], z: 1 },
+  },
+}
+
+{
+  type: "animation",
+  name: "bounce",
+  frames: ["ball_1", "ball_2", "ball_3", "ball_2"],
+  duration: 100,
+}
+```
+
+```bash
+pxl render bounce.pxl --spritesheet --scale 4 -o bounce_4x.png
 ```
 
 ### Multiple Animations
@@ -149,13 +303,6 @@ pxl render character.pxl --spritesheet -o character_walk.png
 for anim in idle walk run attack; do
   pxl render character.pxl --spritesheet --animation "$anim" -o "sheets/${anim}.png"
 done
-```
-
-### Scaled for Preview
-
-```bash
-# 8x scale for documentation/preview
-pxl render character.pxl --spritesheet --scale 8 -o docs/walk_preview.png
 ```
 
 ## Related

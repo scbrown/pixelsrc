@@ -6,38 +6,65 @@ Let's create a simple blinking star animation.
 
 First, create a file called `blink.pxl` and add a palette:
 
-```json
-{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700", "{w}": "#FFFFFF"}}
+```json5
+{
+  type: "palette",
+  name: "star",
+  colors: {
+    _: "transparent",
+    y: "#FFD700",  // Yellow (gold)
+    w: "#FFFFFF",  // White (bright)
+  },
+}
 ```
-
-We have three colors:
-- `{_}` - transparent
-- `{y}` - yellow (gold)
-- `{w}` - white (for the bright frame)
 
 ## Step 2: Create Animation Frames
 
 Add two sprite frames - one normal, one bright:
 
-```json
-{"type": "sprite", "name": "star_normal", "palette": "star", "grid": [
-  "{_}{y}{_}",
-  "{y}{y}{y}",
-  "{_}{y}{_}"
-]}
-{"type": "sprite", "name": "star_bright", "palette": "star", "grid": [
-  "{_}{w}{_}",
-  "{w}{w}{w}",
-  "{_}{w}{_}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "star_normal",
+  size: [3, 3],
+  palette: "star",
+  regions: {
+    y: {
+      union: [
+        { points: [[1, 0], [1, 2]] },
+        { rect: [0, 1, 3, 1] },
+      ],
+    },
+  },
+}
+
+{
+  type: "sprite",
+  name: "star_bright",
+  size: [3, 3],
+  palette: "star",
+  regions: {
+    w: {
+      union: [
+        { points: [[1, 0], [1, 2]] },
+        { rect: [0, 1, 3, 1] },
+      ],
+    },
+  },
+}
 ```
 
 ## Step 3: Define the Animation
 
 Add the animation object that sequences the frames:
 
-```json
-{"type": "animation", "name": "blink", "frames": ["star_normal", "star_normal", "star_normal", "star_bright"], "duration": 150}
+```json5
+{
+  type: "animation",
+  name: "blink",
+  frames: ["star_normal", "star_normal", "star_normal", "star_bright"],
+  duration: 150,
+}
 ```
 
 This creates a blink effect:
@@ -49,25 +76,55 @@ This creates a blink effect:
 
 Your `blink.pxl` should look like:
 
-<!-- DEMOS getting-started/first-animation#blink -->
-**Blinking Star Animation**
+```json5
+// blink.pxl - A blinking star animation
+{
+  type: "palette",
+  name: "star",
+  colors: {
+    _: "transparent",
+    y: "#FFD700",
+    w: "#FFFFFF",
+  },
+}
 
-A simple 4-frame blink effect with timing control.
+{
+  type: "sprite",
+  name: "star_normal",
+  size: [3, 3],
+  palette: "star",
+  regions: {
+    y: {
+      union: [
+        { points: [[1, 0], [1, 2]] },
+        { rect: [0, 1, 3, 1] },
+      ],
+    },
+  },
+}
 
-<div class="demo-source">
+{
+  type: "sprite",
+  name: "star_bright",
+  size: [3, 3],
+  palette: "star",
+  regions: {
+    w: {
+      union: [
+        { points: [[1, 0], [1, 2]] },
+        { rect: [0, 1, 3, 1] },
+      ],
+    },
+  },
+}
 
-```jsonl
-{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700", "{w}": "#FFFFFF"}}
-{"type": "sprite", "name": "star_normal", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}
-{"type": "sprite", "name": "star_bright", "palette": "star", "grid": ["{_}{w}{_}", "{w}{w}{w}", "{_}{w}{_}"]}
-{"type": "animation", "name": "blink", "frames": ["star_normal", "star_normal", "star_normal", "star_bright"], "duration": 150}
+{
+  type: "animation",
+  name: "blink",
+  frames: ["star_normal", "star_normal", "star_normal", "star_bright"],
+  duration: 150,
+}
 ```
-
-</div>
-
-<div class="demo-container" data-demo="blink">
-</div>
-<!-- /DEMOS -->
 
 ## Step 4: Render as GIF
 

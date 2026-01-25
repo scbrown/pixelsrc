@@ -49,8 +49,8 @@ fn test_build_variants_release_override() {
     // Apply release overrides via CLI
     let release_overrides = CliOverrides {
         out: Some(PathBuf::from("dist")),
-        scale: Some(4),        // 4x scale for release
-        strict: Some(true),    // Strict validation for release
+        scale: Some(4),     // 4x scale for release
+        strict: Some(true), // Strict validation for release
         ..Default::default()
     };
 
@@ -75,11 +75,7 @@ fn test_build_variants_cli_precedence() {
     assert_eq!(config.defaults.padding, 1);
 
     // Apply partial overrides
-    let overrides = CliOverrides {
-        scale: Some(2),
-        padding: Some(4),
-        ..Default::default()
-    };
+    let overrides = CliOverrides { scale: Some(2), padding: Some(4), ..Default::default() };
 
     merge_cli_overrides(&mut config, &overrides);
 
@@ -124,6 +120,10 @@ fn test_build_variants_multiple_overrides() {
         scale: Some(4),
         padding: Some(2),
         strict: Some(true),
+        allow_overflow: None,
+        allow_orphans: None,
+        allow_cycles: None,
+        collect_errors: None,
         atlas: Some("main".to_string()),
         export: Some("godot".to_string()),
         jobs: Some(4),
@@ -173,10 +173,7 @@ fn test_build_variants_partial_overrides() {
     let original_src = config.project.src.clone();
 
     // Apply only scale override
-    let overrides = CliOverrides {
-        scale: Some(8),
-        ..Default::default()
-    };
+    let overrides = CliOverrides { scale: Some(8), ..Default::default() };
 
     merge_cli_overrides(&mut config, &overrides);
 
@@ -203,11 +200,7 @@ fn test_build_variants_validation() {
     let mut modified = config;
     merge_cli_overrides(
         &mut modified,
-        &CliOverrides {
-            scale: Some(4),
-            strict: Some(true),
-            ..Default::default()
-        },
+        &CliOverrides { scale: Some(4), strict: Some(true), ..Default::default() },
     );
 
     let errors = modified.validate();

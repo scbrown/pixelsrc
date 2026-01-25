@@ -6,8 +6,14 @@ The include system allows you to reference palettes from external files. This en
 
 Use the `@include:` prefix followed by a file path:
 
-```json
-{"type": "sprite", "name": "hero", "palette": "@include:shared/colors.pxl", "grid": [...]}
+```json5
+{
+  type: "sprite",
+  name: "hero",
+  size: [8, 8],
+  palette: "@include:shared/colors.pxl",
+  regions: { ... },
+}
 ```
 
 ## How It Works
@@ -39,7 +45,7 @@ If the specified file doesn't exist, Pixelsrc tries alternate extensions:
 2. Path with `.pxl` extension
 3. Path with `.jsonl` extension
 
-```json
+```json5
 // All of these work if "colors.pxl" exists:
 "palette": "@include:colors"
 "palette": "@include:colors.pxl"
@@ -48,23 +54,38 @@ If the specified file doesn't exist, Pixelsrc tries alternate extensions:
 ## Example
 
 **shared/palette.pxl**
-```json
-{"type": "palette", "name": "game_colors", "colors": {
-  "{_}": "#00000000",
-  "{skin}": "#FFCC99",
-  "{hair}": "#8B4513",
-  "{outline}": "#000000"
-}}
+```json5
+{
+  type: "palette",
+  name: "game_colors",
+  colors: {
+    _: "transparent",
+    skin: "#FFCC99",
+    hair: "#8B4513",
+    outline: "#000000",
+  },
+}
 ```
 
 **sprites/hero.pxl**
-```json
-{"type": "sprite", "name": "hero", "palette": "@include:../shared/palette.pxl", "grid": [
-  "{_}{_}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{_}",
-  "{outline}{skin}{skin}{skin}{skin}{outline}",
-  "{_}{outline}{outline}{outline}{outline}{_}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "hero",
+  size: [6, 4],
+  palette: "@include:../shared/palette.pxl",
+  regions: {
+    hair: { rect: [2, 0, 2, 2], z: 0 },
+    outline: {
+      union: [
+        { points: [[0, 2], [5, 2]] },
+        { rect: [1, 3, 4, 1] },
+      ],
+      z: 0,
+    },
+    skin: { rect: [1, 2, 4, 1], z: 1 },
+  },
+}
 ```
 
 ## Use Cases
@@ -89,20 +110,38 @@ assets/
 
 Create different color themes by swapping include paths:
 
-```json
+```json5
 // day_scene.pxl
-{"type": "sprite", "name": "tree", "palette": "@include:palettes/day.pxl", "grid": [...]}
+{
+  type: "sprite",
+  name: "tree",
+  size: [8, 12],
+  palette: "@include:palettes/day.pxl",
+  regions: { ... },
+}
 
 // night_scene.pxl
-{"type": "sprite", "name": "tree", "palette": "@include:palettes/night.pxl", "grid": [...]}
+{
+  type: "sprite",
+  name: "tree",
+  size: [8, 12],
+  palette: "@include:palettes/night.pxl",
+  regions: { ... },
+}
 ```
 
 ### Library Palettes
 
 Reference palettes from a central library:
 
-```json
-{"type": "sprite", "name": "character", "palette": "@include:../../lib/palettes/fantasy.pxl", "grid": [...]}
+```json5
+{
+  type: "sprite",
+  name: "character",
+  size: [16, 16],
+  palette: "@include:../../lib/palettes/fantasy.pxl",
+  regions: { ... },
+}
 ```
 
 ## Error Handling
@@ -144,34 +183,67 @@ c.pxl includes a.pxl  ← Circular include error
 ## Complete Example
 
 **palettes/retro.pxl**
-```json
-{"type": "palette", "name": "retro", "colors": {
-  "{_}": "#00000000",
-  "{bg}": "#0f380f",
-  "{light}": "#9bbc0f",
-  "{mid}": "#8bac0f",
-  "{dark}": "#306230"
-}}
+```json5
+{
+  type: "palette",
+  name: "retro",
+  colors: {
+    _: "transparent",
+    bg: "#0F380F",
+    light: "#9BBC0F",
+    mid: "#8BAC0F",
+    dark: "#306230",
+  },
+}
 ```
 
 **sprites/player.pxl**
-```json
-{"type": "sprite", "name": "player", "palette": "@include:../palettes/retro.pxl", "grid": [
-  "{_}{light}{light}{_}",
-  "{light}{mid}{mid}{light}",
-  "{mid}{dark}{dark}{mid}",
-  "{_}{dark}{dark}{_}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "player",
+  size: [4, 4],
+  palette: "@include:../palettes/retro.pxl",
+  regions: {
+    light: { rect: [1, 0, 2, 1], z: 0 },
+    mid: {
+      union: [
+        { points: [[0, 1], [3, 1]] },
+        { rect: [0, 2, 4, 1] },
+      ],
+      z: 0,
+    },
+    dark: {
+      union: [
+        { rect: [1, 1, 2, 1] },
+        { rect: [1, 3, 2, 1] },
+      ],
+      z: 1,
+    },
+  },
+}
 ```
 
 **sprites/enemy.pxl**
-```json
-{"type": "sprite", "name": "enemy", "palette": "@include:../palettes/retro.pxl", "grid": [
-  "{dark}{_}{_}{dark}",
-  "{_}{mid}{mid}{_}",
-  "{mid}{light}{light}{mid}",
-  "{_}{mid}{mid}{_}"
-]}
+```json5
+{
+  type: "sprite",
+  name: "enemy",
+  size: [4, 4],
+  palette: "@include:../palettes/retro.pxl",
+  regions: {
+    dark: { points: [[0, 0], [3, 0]], z: 0 },
+    mid: {
+      union: [
+        { rect: [1, 1, 2, 1] },
+        { rect: [0, 2, 4, 1] },
+        { rect: [1, 3, 2, 1] },
+      ],
+      z: 0,
+    },
+    light: { rect: [1, 2, 2, 1], z: 1 },
+  },
+}
 ```
 
 Both sprites share the same palette, and changing `retro.pxl` updates all sprites that include it.

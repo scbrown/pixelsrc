@@ -1,18 +1,42 @@
 # Format Overview
 
-Pixelsrc uses a text-based format for defining pixel art. This section provides complete documentation of the format specification.
+Pixelsrc uses a structured format for defining pixel art. Sprites are described using geometric regions rather than pixel grids, making them context-efficient and edit-friendly.
 
 ## File Format
 
-Pixelsrc files contain JSON objects, one per line (JSONL format). Each object has a `type` field that identifies what kind of element it defines.
+Pixelsrc files use JSON5 syntax with one or more objects per file. Each object has a `type` field that identifies what kind of element it defines.
 
-**File Extensions:**
-- `.pxl` - Preferred extension (supports multi-line JSON)
-- `.jsonl` - Legacy extension (supported for backward compatibility)
+**File Extension:** `.pxl`
 
-**Format Support:**
-- **Single-line JSONL**: Traditional one-object-per-line format
-- **Multi-line JSON**: Objects can span multiple lines for readability
+**Format Features:**
+- Comments (`// ...` and `/* ... */`)
+- Trailing commas
+- Unquoted keys
+- Multi-line strings
+
+```json5
+// hero.pxl - A complete character definition
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#000000",
+    skin: "#FFD5B4",
+  },
+}
+
+{
+  type: "sprite",
+  name: "hero",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    outline: { stroke: [0, 0, 16, 16] },
+    skin: { fill: "inside(outline)" },
+  },
+}
+```
 
 ## Object Types
 
@@ -20,36 +44,58 @@ Every Pixelsrc object requires a `type` field. The supported types are:
 
 | Type | Purpose | Learn More |
 |------|---------|------------|
-| `palette` | Define named color tokens | [Palette](palette.md) |
-| `sprite` | Define a pixel grid | [Sprite](sprite.md) |
+| `palette` | Define named color tokens with roles and relationships | [Palette](palette.md) |
+| `sprite` | Define a pixel image using regions | [Sprite](sprite.md) |
+| `state_rules` | Define visual states and effects | [State Rules](state-rules.md) |
 | `animation` | Sequence sprites over time | [Animation](animation.md) |
 | `variant` | Create color variations | [Variant](variant.md) |
 | `composition` | Layer sprites together | [Composition](composition.md) |
 
-## Stream Processing
+## Structured Format
 
-Pixelsrc files use streaming JSON parsing:
+The core innovation of Pixelsrc is the **region-based** approach:
 
-1. Objects are parsed as complete JSON values (may span multiple lines)
-2. Objects are processed in order of appearance
-3. Palettes must be defined before sprites that reference them (by name)
-4. Forward references produce errors (lenient: magenta placeholder, strict: fail)
+```json5
+// Instead of pixel grids like this:
+// grid: ["{o}{o}{o}", "{o}{s}{o}", "{o}{o}{o}"]
+
+// We define semantic regions:
+regions: {
+  outline: { stroke: [0, 0, 3, 3] },
+  skin: { fill: "inside(outline)" }
+}
+```
+
+**Advantages:**
+- Scales with semantic complexity, not pixel count
+- Easy to edit (change a number, not rewrite rows)
+- Semantic meaning is explicit (roles, relationships)
+- AI-optimized (describe intent, compiler resolves pixels)
 
 ## Token System
 
-Tokens are named color identifiers wrapped in curly braces: `{name}`. They're the core of Pixelsrc's design.
+Tokens are named color identifiers defined in palettes:
 
-```
-{_}         → transparent (conventional)
-{skin}      → semantic color name
-{dark_hair} → underscores for multi-word names
+```json5
+{
+  type: "palette",
+  name: "example",
+  colors: {
+    _: "transparent",        // conventional transparent
+    skin: "#FFD5B4",         // semantic color name
+    dark_hair: "#4A3728"     // underscores for multi-word
+  }
+}
 ```
 
-**Parsing Rules:**
-- Tokens match the pattern `\{[^}]+\}`
-- Case sensitive: `{Skin}` ≠ `{skin}`
-- Whitespace preserved: `{ skin }` is valid (but discouraged)
-- Recommended style: lowercase with underscores
+Token names are referenced directly in regions (no braces):
+
+```json5
+regions: {
+  skin: { fill: "inside(outline)" },  // token name = region name
+  dark_hair: { rect: [2, 0, 12, 4] }
+}
+```
 
 ## Design Philosophy
 
@@ -61,12 +107,11 @@ When AI makes small mistakes, Pixelsrc fills the gaps and continues. This design
 
 | Error | Behavior |
 |-------|----------|
-| Row too short | Pad with transparent pixels |
-| Row too long | Truncate with warning |
 | Unknown token | Render as magenta `#FF00FF` |
+| Region outside canvas | Clipped with warning |
 | Duplicate name | Last definition wins |
 | Invalid color | Use magenta placeholder |
-| Empty grid | Create 1x1 transparent sprite |
+| Missing palette | All regions render white with warning |
 
 ### Strict Mode (`--strict`)
 
@@ -74,30 +119,61 @@ All warnings become errors. Processing stops at first error with non-zero exit c
 
 ## Example File
 
-A complete Pixelsrc file with multiple object types:
+A complete Pixelsrc file demonstrating the structured format:
 
-```json
-{"type": "palette", "name": "hero", "colors": {"{_}": "#0000", "{skin}": "#FFCC99", "{hair}": "#8B4513", "{shirt}": "#4169E1"}}
+```json5
+// character.pxl
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#000000",
+    skin: "#FFD5B4",
+    "skin-shadow": "#D4A574",
+    hair: "#8B4513",
+    eye: "#4169E1",
+  },
+  roles: {
+    outline: "boundary",
+    skin: "fill",
+    eye: "anchor",
+    "skin-shadow": "shadow",
+  },
+  relationships: {
+    "skin-shadow": { type: "derives-from", target: "skin" },
+  },
+}
 
-{"type": "sprite", "name": "hero_stand", "palette": "hero", "grid": [
-  "{_}{_}{hair}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{hair}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{_}{shirt}{shirt}{shirt}{_}{_}",
-  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
-  "{_}{_}{skin}{_}{skin}{_}{_}"
-]}
+{
+  type: "sprite",
+  name: "hero",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    // Background
+    _: "background",
 
-{"type": "sprite", "name": "hero_walk", "palette": "hero", "grid": [
-  "{_}{_}{hair}{hair}{hair}{_}{_}",
-  "{_}{hair}{hair}{hair}{hair}{hair}{_}",
-  "{_}{skin}{skin}{skin}{skin}{skin}{_}",
-  "{_}{_}{shirt}{shirt}{shirt}{_}{_}",
-  "{_}{shirt}{shirt}{shirt}{shirt}{shirt}{_}",
-  "{_}{skin}{_}{_}{_}{skin}{_}"
-]}
+    // Head outline
+    "head-outline": { stroke: [4, 0, 8, 10], round: 2 },
 
-{"type": "animation", "name": "hero_walk_cycle", "frames": ["hero_stand", "hero_walk"], "duration": 200}
+    // Hair at top
+    hair: { fill: "inside(head-outline)", y: [0, 4] },
+
+    // Face below hair
+    skin: {
+      fill: "inside(head-outline)",
+      y: [4, 10],
+      except: ["eye"],
+    },
+
+    // Eyes (symmetric)
+    eye: {
+      rect: [5, 5, 2, 2],
+      symmetric: "x",
+    },
+  },
+}
 ```
 
 ## Color Formats
@@ -122,30 +198,29 @@ See [Color Formats Reference](../reference/colors.md) for full documentation inc
 
 Palettes support CSS custom properties for dynamic theming:
 
-```json
-{"type": "palette", "name": "themed", "colors": {
-  "--primary": "#4169E1",
-  "{_}": "transparent",
-  "{main}": "var(--primary)",
-  "{shadow}": "color-mix(in oklch, var(--primary) 70%, black)"
-}}
+```json5
+{
+  type: "palette",
+  name: "themed",
+  colors: {
+    "--primary": "#4169E1",
+    _: "transparent",
+    main: "var(--primary)",
+    shadow: "color-mix(in oklch, var(--primary) 70%, black)",
+  },
+}
 ```
-
-- **Define variables**: `"--name": "value"`
-- **Reference variables**: `var(--name)` or `var(--name, fallback)`
-- **Generate variants**: `color-mix(in oklch, color 70%, black)` for shadows
 
 See [CSS Variables](css-variables.md) for full documentation.
 
-## Size Inference
+## Stream Processing
 
-When `size` is omitted from a sprite:
-- Width = maximum tokens in any row
-- Height = number of rows
+Pixelsrc files use streaming JSON5 parsing:
 
-When `size` is provided:
-- Rows are padded or truncated to match width
-- Grid is padded or truncated to match height
+1. Objects are parsed as complete JSON5 values
+2. Objects are processed in order of appearance
+3. Palettes must be defined before sprites that reference them
+4. Regions within a sprite must define dependencies before dependents
 
 ## Exit Codes
 

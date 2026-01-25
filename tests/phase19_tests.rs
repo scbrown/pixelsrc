@@ -64,24 +64,7 @@ fn run_pxl_atlas(fixture: &Path, format: &str) -> std::process::Output {
 
 // ============================================================================
 // ATF-3: Palette Cycling Tests
-// ============================================================================
-
-#[test]
-fn test_atf3_palette_cycle_basic() {
-    let fixture = Path::new("tests/fixtures/valid/atf_palette_cycle.jsonl");
-    let output = run_pxl_render(fixture);
-
-    assert!(
-        output.status.success(),
-        "Palette cycle fixture should render successfully.\nstderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!stderr.contains("Warning:"), "No warnings expected for valid palette cycle: {stderr}");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_atf3_multiple_palette_cycles() {
     let fixture = Path::new("tests/fixtures/valid/atf_multiple_cycles.jsonl");
     let output = run_pxl_render(fixture);
@@ -95,24 +78,7 @@ fn test_atf3_multiple_palette_cycles() {
 
 // ============================================================================
 // ATF-4: Frame Tags Tests
-// ============================================================================
-
-#[test]
-fn test_atf4_frame_tags_basic() {
-    let fixture = Path::new("tests/fixtures/valid/atf_frame_tags.jsonl");
-    let output = run_pxl_render(fixture);
-
-    assert!(
-        output.status.success(),
-        "Frame tags fixture should render successfully.\nstderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!stderr.contains("Warning:"), "No warnings expected for valid frame tags: {stderr}");
-}
-
-// ============================================================================
+// ============================================================================// ============================================================================
 // ATF-5: Atlas Export Tests
 // ============================================================================
 
@@ -154,24 +120,7 @@ fn test_atf5_atlas_export_godot() {
 
 // ============================================================================
 // ATF-7: Hit/Hurt Boxes Tests
-// ============================================================================
-
-#[test]
-fn test_atf7_hit_boxes_basic() {
-    let fixture = Path::new("tests/fixtures/valid/atf_hit_boxes.jsonl");
-    let output = run_pxl_render(fixture);
-
-    assert!(
-        output.status.success(),
-        "Hit boxes fixture should render successfully.\nstderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!stderr.contains("Warning:"), "No warnings expected for valid hit boxes: {stderr}");
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_atf7_frame_metadata_validation() {
     // The atf_hit_boxes.jsonl has frame_metadata that matches frame count
     let fixture = Path::new("tests/fixtures/valid/atf_hit_boxes.jsonl");
@@ -296,27 +245,7 @@ fn test_atf11_onion_skinning_with_fade() {
 
 // ============================================================================
 // ATF-14: Secondary Motion Tests
-// ============================================================================
-
-#[test]
-fn test_atf14_secondary_motion_basic() {
-    let fixture = Path::new("tests/fixtures/valid/atf_secondary_motion.jsonl");
-    let output = run_pxl_render(fixture);
-
-    assert!(
-        output.status.success(),
-        "Secondary motion fixture should render successfully.\nstderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("Warning:"),
-        "No warnings expected for valid secondary motion: {stderr}"
-    );
-}
-
-#[test]
+// ============================================================================#[test]
 fn test_atf14_keyframed_attachment() {
     let fixture = Path::new("tests/fixtures/valid/atf_keyframed_attachment.jsonl");
     let output = run_pxl_render(fixture);

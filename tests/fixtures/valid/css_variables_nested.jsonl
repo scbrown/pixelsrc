@@ -1,2 +1,2 @@
-{"type": "palette", "name": "nested", "colors": {"--base": "#FF0000", "--level1": "var(--base)", "--level2": "var(--level1)", "{_}": "transparent", "{color}": "var(--level2)"}}
-{"type": "sprite", "name": "nested_test", "palette": "nested", "grid": ["{color}"]}
+{"type": "palette", "name": "nested", "colors": {"--base": "#FF0000", "--level1": "var(--base)", "--level2": "var(--level1)", "_": "transparent", "color": "var(--level2)"}}
+{"type": "sprite", "name": "nested_test", "size": [1, 1], "palette": "nested", "regions": {"color": {"points": [[0, 0]], "z": 0}}}

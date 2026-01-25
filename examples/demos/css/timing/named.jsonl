@@ -1,9 +1,0 @@
-{"type": "palette", "name": "timing_demo", "colors": {".": "#00000000", "{bg}": "#1a1a2e", "{box}": "#4ecdc4"}}
-{"type": "sprite", "name": "box_left", "palette": "timing_demo", "grid": ["{box}{box}....", "{box}{box}...."]}
-{"type": "sprite", "name": "box_center", "palette": "timing_demo", "grid": ["..{box}{box}..", "..{box}{box}.."]}
-{"type": "sprite", "name": "box_right", "palette": "timing_demo", "grid": ["....{box}{box}", "....{box}{box}"]}
-{"type": "animation", "name": "linear_slide", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}, "duration": "500ms", "timing_function": "linear"}
-{"type": "animation", "name": "ease_slide", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}, "duration": "500ms", "timing_function": "ease"}
-{"type": "animation", "name": "ease_in_slide", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}, "duration": "500ms", "timing_function": "ease-in"}
-{"type": "animation", "name": "ease_out_slide", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}, "duration": "500ms", "timing_function": "ease-out"}
-{"type": "animation", "name": "ease_in_out_slide", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}, "duration": "500ms", "timing_function": "ease-in-out"}

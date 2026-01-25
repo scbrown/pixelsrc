@@ -13,12 +13,42 @@ You're building a game and need **production-ready assets**. Spritesheets, atlas
 
 Before exporting, verify your sprites render correctly:
 
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="gamedev-demo">{"type": "palette", "name": "hero", "colors": {"{_}": "#0000", "{outline}": "#1a1a2e", "{body}": "#4169E1", "{skin}": "#FFCC99"}}
-{"type": "sprite", "name": "hero_idle", "palette": "hero", "grid": ["{_}{outline}{outline}{outline}{_}", "{outline}{skin}{skin}{skin}{outline}", "{_}{body}{body}{body}{_}", "{_}{body}{_}{body}{_}"]}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('gamedev-demo', 'gamedev-demo-preview')">Try it</button>
-  <div class="preview" id="gamedev-demo-preview"></div>
-</div>
+```json5
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#1A1A2E",
+    body: "#4169E1",
+    skin: "#FFCC99",
+  },
+}
+
+{
+  type: "sprite",
+  name: "hero_idle",
+  size: [5, 4],
+  palette: "hero",
+  regions: {
+    outline: {
+      union: [
+        { rect: [1, 0, 3, 1] },
+        { points: [[0, 1], [4, 1]] },
+      ],
+      z: 0,
+    },
+    skin: { rect: [1, 1, 3, 1], z: 1 },
+    body: {
+      union: [
+        { rect: [1, 2, 3, 1] },
+        { points: [[1, 3], [3, 3]] },
+      ],
+      z: 0,
+    },
+  },
+}
+```
 
 ## Spritesheet Export
 

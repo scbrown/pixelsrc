@@ -197,11 +197,150 @@ pub struct CssKeyframe {
     pub offset: Option<[i32; 2]>,
 }
 
-/// A named palette defining color tokens.
+/// Per-step color shift for ramp generation.
+///
+/// All values are deltas applied per step. For example, `lightness: -15` means
+/// each shadow step is 15% darker than the previous.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ColorShift {
+    /// Lightness delta per step (-100 to 100)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub lightness: Option<f64>,
+    /// Hue rotation in degrees per step (-180 to 180)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub hue: Option<f64>,
+    /// Saturation delta per step (-100 to 100)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub saturation: Option<f64>,
+}
+
+impl ColorShift {
+    /// Default shadow shift: darker, warmer (hue shifts toward red/orange)
+    pub fn default_shadow() -> Self {
+        Self { lightness: Some(-15.0), hue: Some(10.0), saturation: Some(5.0) }
+    }
+
+    /// Default highlight shift: lighter, cooler (hue shifts toward blue)
+    pub fn default_highlight() -> Self {
+        Self { lightness: Some(12.0), hue: Some(-5.0), saturation: Some(-10.0) }
+    }
+}
+
+/// A color ramp definition for automatic color generation.
+///
+/// Generates a series of colors from shadow to highlight based on a base color
+/// with configurable hue/saturation/lightness shifts per step.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ColorRamp {
+    /// Base color in CSS format (e.g., "#E8B89D", "rgb(232, 184, 157)")
+    pub base: String,
+    /// Total number of steps (odd numbers center on base). Default: 3
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub steps: Option<u32>,
+    /// Per-step shift toward shadows (applied to steps below base)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub shadow_shift: Option<ColorShift>,
+    /// Per-step shift toward highlights (applied to steps above base)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub highlight_shift: Option<ColorShift>,
+}
+
+impl ColorRamp {
+    /// Default number of steps in a ramp
+    pub const DEFAULT_STEPS: u32 = 3;
+
+    /// Returns the number of steps in this ramp
+    pub fn steps(&self) -> u32 {
+        self.steps.unwrap_or(Self::DEFAULT_STEPS)
+    }
+
+    /// Returns the shadow shift, using defaults if not specified
+    pub fn shadow_shift(&self) -> ColorShift {
+        self.shadow_shift.clone().unwrap_or_else(ColorShift::default_shadow)
+    }
+
+    /// Returns the highlight shift, using defaults if not specified
+    pub fn highlight_shift(&self) -> ColorShift {
+        self.highlight_shift.clone().unwrap_or_else(ColorShift::default_highlight)
+    }
+}
+
+/// Semantic role for a color token in a palette.
+///
+/// Roles provide semantic meaning to tokens, enabling tools to understand
+/// the purpose of each color in the palette.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    /// Boundary/outline color (edges, borders)
+    Boundary,
+    /// Anchor/key color (main identifying color)
+    Anchor,
+    /// Fill color (interior regions)
+    Fill,
+    /// Shadow color (darker variants for depth)
+    Shadow,
+    /// Highlight color (lighter variants for emphasis)
+    Highlight,
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Role::Boundary => write!(f, "boundary"),
+            Role::Anchor => write!(f, "anchor"),
+            Role::Fill => write!(f, "fill"),
+            Role::Shadow => write!(f, "shadow"),
+            Role::Highlight => write!(f, "highlight"),
+        }
+    }
+}
+
+/// Type of relationship between palette tokens.
+///
+/// Defines semantic relationships between color tokens for tooling and validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RelationshipType {
+    /// Token color is derived from another token (e.g., shadow from base)
+    DerivesFrom,
+    /// Token is visually contained within another region
+    ContainedWithin,
+    /// Token is adjacent to another (e.g., outline next to fill)
+    AdjacentTo,
+    /// Token is semantically paired with another (e.g., left/right eyes)
+    PairedWith,
+}
+
+/// A relationship definition for a palette token.
+///
+/// Defines how one token relates to another for semantic analysis,
+/// tooling hints, and validation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Relationship {
+    /// The type of relationship
+    #[serde(rename = "type")]
+    pub relationship_type: RelationshipType,
+    /// The target token this relationship points to
+    pub target: String,
+}
+
+/// A named palette defining color tokens.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Palette {
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub colors: HashMap<String, String>,
+    /// Color ramps for automatic generation of shadow/highlight variants
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ramps: Option<HashMap<String, ColorRamp>>,
+    /// Semantic roles for tokens (maps token to its role)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub roles: Option<HashMap<String, Role>>,
+    /// Semantic relationships between tokens
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub relationships: Option<HashMap<String, Relationship>>,
 }
 
 /// Reference to a palette - either a named reference or inline definition.
@@ -235,28 +374,48 @@ pub enum TransformSpec {
     },
 }
 
+/// Nine-slice region definition for scalable sprites.
+///
+/// Nine-slice (or 9-patch) sprites have fixed corners and stretchable edges/center,
+/// allowing them to be scaled without distorting the corners. Common for UI elements
+/// like buttons, panels, and dialog boxes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NineSlice {
+    /// Left border width in pixels
+    pub left: u32,
+    /// Right border width in pixels
+    pub right: u32,
+    /// Top border height in pixels
+    pub top: u32,
+    /// Bottom border height in pixels
+    pub bottom: u32,
+}
+
 /// A sprite definition.
 ///
-/// A sprite can either have a `grid` directly, or reference another sprite via `source`
-/// with optional transforms applied. The `grid` and `source` fields are mutually exclusive.
+/// A sprite uses `regions` for structured rendering, or can reference another sprite via `source`
+/// with optional transforms applied. The `regions` and `source` fields are mutually exclusive.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Sprite {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
     pub palette: PaletteRef,
-    /// The grid data (mutually exclusive with `source`)
-    #[serde(default)]
-    pub grid: Vec<String>,
-    /// Reference to another sprite by name (mutually exclusive with `grid`)
+    /// Reference to another sprite by name (mutually exclusive with `regions`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
+    /// Structured regions for rendering
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub regions: Option<HashMap<String, RegionDef>>,
     /// Transforms to apply when resolving this sprite
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub transform: Option<Vec<TransformSpec>>,
     /// Sprite metadata for game engine integration (origin, collision boxes)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub metadata: Option<SpriteMetadata>,
+    /// Nine-slice region definition for scalable UI sprites
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub nine_slice: Option<NineSlice>,
 }
 
 /// A palette cycle definition for animating colors without changing frames.
@@ -491,7 +650,7 @@ pub struct Animation {
 /// A variant is a palette-only modification of a base sprite.
 ///
 /// Variants allow creating color variations of sprites without duplicating
-/// the grid data. The variant copies the base sprite's grid and applies
+/// the region data. The variant copies the base sprite's regions and applies
 /// palette overrides.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Variant {
@@ -854,6 +1013,171 @@ pub enum KeyframeSpec {
     /// Per-property keyframe definitions with expressions or explicit values
     Properties(HashMap<String, PropertyKeyframes>),
 }
+/// Region definition for structured sprites (Format v2).
+///
+/// Defines a single region (token) using shape primitives, compound operations,
+/// constraints, and modifiers.
+///
+/// Example:
+/// ```json5
+/// {
+///   "eye": {
+///     "rect": [5, 6, 2, 2],
+///     "symmetric": "x",
+///     "within": "face"
+///   }
+/// }
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct RegionDef {
+    // Shape primitives (exactly one, or compound)
+    /// Individual pixels at specific coordinates: [[x, y], ...]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub points: Option<Vec<[u32; 2]>>,
+
+    /// Bresenham line between points: [[x1, y1], [x2, y2], ...]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub line: Option<Vec<[u32; 2]>>,
+
+    /// Filled rectangle: [x, y, width, height]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub rect: Option<[u32; 4]>,
+
+    /// Rectangle outline (unfilled): [x, y, width, height]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub stroke: Option<[u32; 4]>,
+
+    /// Filled ellipse: [cx, cy, rx, ry]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ellipse: Option<[u32; 4]>,
+
+    /// Shorthand for equal-radius ellipse: [cx, cy, r]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub circle: Option<[u32; 3]>,
+
+    /// Filled polygon from vertices: [[x, y], ...]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub polygon: Option<Vec<[u32; 2]>>,
+
+    /// SVG-lite path syntax (M, L, H, V, Z commands only)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub path: Option<String>,
+
+    /// Flood fill inside a boundary: "inside(token_name)"
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub fill: Option<String>,
+
+    // Compound operations
+    /// Combine multiple shapes
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub union: Option<Vec<RegionDef>>,
+
+    /// Base shape for subtraction operations
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub base: Option<Box<RegionDef>>,
+
+    /// Remove shapes from base
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub subtract: Option<Vec<RegionDef>>,
+
+    /// Keep only overlapping area
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub intersect: Option<Vec<RegionDef>>,
+
+    // Pixel-affecting modifiers (require forward definition)
+    /// Subtract these tokens' pixels
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub except: Option<Vec<String>>,
+
+    /// Generate outline around token
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "auto-outline")]
+    pub auto_outline: Option<String>,
+
+    /// Generate shadow from token
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "auto-shadow")]
+    pub auto_shadow: Option<String>,
+
+    /// Offset for auto-shadow: [x, y]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub offset: Option<[i32; 2]>,
+
+    // Validation constraints (checked after all regions resolved)
+    /// Must be inside token's bounds
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub within: Option<String>,
+
+    /// Must touch token
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "adjacent-to")]
+    pub adjacent_to: Option<String>,
+
+    // Range constraints
+    /// Limit region to specific columns: [min, max]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub x: Option<[u32; 2]>,
+
+    /// Limit region to specific rows: [min, max]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub y: Option<[u32; 2]>,
+
+    // Modifiers
+    /// Auto-mirror across axis: "x", "y", "xy", or specific coordinate
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub symmetric: Option<String>,
+
+    /// Explicit render order (default: definition order)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub z: Option<i32>,
+
+    /// Corner radius for rect/stroke
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub round: Option<u32>,
+
+    /// Line thickness for stroke/line
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub thickness: Option<u32>,
+
+    // Transform modifiers
+    /// Tile a shape: [count_x, count_y]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub repeat: Option<[u32; 2]>,
+
+    /// Spacing between repeated tiles: [x, y]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub spacing: Option<[u32; 2]>,
+
+    /// Offset alternating rows in repeat
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "offset-alternate")]
+    pub offset_alternate: Option<bool>,
+
+    /// Geometric transform: rotate/translate/scale
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transform: Option<String>,
+
+    /// Controlled randomness for jitter
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub jitter: Option<JitterSpec>,
+
+    /// Random seed for jitter
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub seed: Option<u32>,
+
+    // Semantic metadata
+    /// Semantic role of this region (boundary, fill, shadow, etc.)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub role: Option<Role>,
+}
+
+/// Jitter specification for controlled randomness.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct JitterSpec {
+    /// Horizontal jitter range: [min, max]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub x: Option<[i32; 2]>,
+
+    /// Vertical jitter range: [min, max]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub y: Option<[i32; 2]>,
+}
 
 /// A user-defined transform.
 ///
@@ -949,9 +1273,9 @@ impl TransformDef {
     }
 }
 
-/// A Pixelsrc object - Palette, Sprite, Variant, Composition, Animation, Particle, or Transform.
+/// A Pixelsrc object - Palette, Sprite, Variant, Composition, Animation, Particle, Transform, or StateRules.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "kebab-case")]
 pub enum TtpObject {
     Palette(Palette),
     Sprite(Sprite),
@@ -960,6 +1284,7 @@ pub enum TtpObject {
     Animation(Animation),
     Particle(Particle),
     Transform(TransformDef),
+    StateRules(crate::state::StateRules),
 }
 
 /// A warning message from parsing/rendering.
@@ -981,10 +1306,127 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{on}".to_string(), "#FFFFFF".to_string()),
             ]),
+            ..Default::default()
         };
         let json = serde_json::to_string(&palette).unwrap();
         let parsed: Palette = serde_json::from_str(&json).unwrap();
         assert_eq!(palette, parsed);
+    }
+
+    #[test]
+    fn test_role_enum_values() {
+        // Test all Role enum values
+        assert_eq!(Role::Boundary.to_string(), "boundary");
+        assert_eq!(Role::Anchor.to_string(), "anchor");
+        assert_eq!(Role::Fill.to_string(), "fill");
+        assert_eq!(Role::Shadow.to_string(), "shadow");
+        assert_eq!(Role::Highlight.to_string(), "highlight");
+    }
+
+    #[test]
+    fn test_role_serialization() {
+        // Test that Role serializes to lowercase
+        let role = Role::Boundary;
+        let json = serde_json::to_string(&role).unwrap();
+        assert_eq!(json, "\"boundary\"");
+
+        let role = Role::Highlight;
+        let json = serde_json::to_string(&role).unwrap();
+        assert_eq!(json, "\"highlight\"");
+    }
+
+    #[test]
+    fn test_role_deserialization() {
+        // Test that Role deserializes from lowercase
+        let role: Role = serde_json::from_str("\"boundary\"").unwrap();
+        assert_eq!(role, Role::Boundary);
+
+        let role: Role = serde_json::from_str("\"anchor\"").unwrap();
+        assert_eq!(role, Role::Anchor);
+
+        let role: Role = serde_json::from_str("\"fill\"").unwrap();
+        assert_eq!(role, Role::Fill);
+
+        let role: Role = serde_json::from_str("\"shadow\"").unwrap();
+        assert_eq!(role, Role::Shadow);
+
+        let role: Role = serde_json::from_str("\"highlight\"").unwrap();
+        assert_eq!(role, Role::Highlight);
+    }
+
+    #[test]
+    fn test_invalid_role_deserialization() {
+        // Test that invalid role values fail to deserialize
+        let result: Result<Role, _> = serde_json::from_str("\"invalid\"");
+        assert!(result.is_err());
+
+        let result: Result<Role, _> = serde_json::from_str("\"BOUNDARY\"");
+        assert!(result.is_err(), "Role should be case-sensitive (lowercase only)");
+    }
+
+    #[test]
+    fn test_palette_with_roles_roundtrip() {
+        let palette = Palette {
+            name: "character".to_string(),
+            colors: HashMap::from([
+                ("{outline}".to_string(), "#000000".to_string()),
+                ("{skin}".to_string(), "#E8B89D".to_string()),
+                ("{skin_shadow}".to_string(), "#C49A82".to_string()),
+                ("{skin_highlight}".to_string(), "#FFD4BB".to_string()),
+            ]),
+            roles: Some(HashMap::from([
+                ("{outline}".to_string(), Role::Boundary),
+                ("{skin}".to_string(), Role::Anchor),
+                ("{skin_shadow}".to_string(), Role::Shadow),
+                ("{skin_highlight}".to_string(), Role::Highlight),
+            ])),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&palette).unwrap();
+        let parsed: Palette = serde_json::from_str(&json).unwrap();
+        assert_eq!(palette, parsed);
+    }
+
+    #[test]
+    fn test_palette_roles_json_parsing() {
+        // Test parsing palette with roles from JSON
+        let json = r##"{
+            "name": "skin",
+            "colors": {
+                "{base}": "#E8B89D",
+                "{shadow}": "#C49A82",
+                "{highlight}": "#FFD4BB"
+            },
+            "roles": {
+                "{base}": "anchor",
+                "{shadow}": "shadow",
+                "{highlight}": "highlight"
+            }
+        }"##;
+        let palette: Palette = serde_json::from_str(json).unwrap();
+        assert_eq!(palette.name, "skin");
+        assert_eq!(palette.colors.len(), 3);
+
+        let roles = palette.roles.unwrap();
+        assert_eq!(roles.len(), 3);
+        assert_eq!(roles.get("{base}"), Some(&Role::Anchor));
+        assert_eq!(roles.get("{shadow}"), Some(&Role::Shadow));
+        assert_eq!(roles.get("{highlight}"), Some(&Role::Highlight));
+    }
+
+    #[test]
+    fn test_ttp_object_palette_with_roles() {
+        let json = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "boundary", "{b}": "fill"}}"##;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Palette(palette) => {
+                assert_eq!(palette.name, "test");
+                let roles = palette.roles.unwrap();
+                assert_eq!(roles.get("{a}"), Some(&Role::Boundary));
+                assert_eq!(roles.get("{b}"), Some(&Role::Fill));
+            }
+            _ => panic!("Expected palette"),
+        }
     }
 
     #[test]
@@ -996,7 +1438,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1011,7 +1453,7 @@ mod tests {
             name: "checker".to_string(),
             size: Some([4, 4]),
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -1025,6 +1467,7 @@ mod tests {
         let obj = TtpObject::Palette(Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{a}".to_string(), "#FF0000".to_string())]),
+            ..Default::default()
         });
         let json = serde_json::to_string(&obj).unwrap();
         assert!(json.contains(r#""type":"palette""#));
@@ -1038,7 +1481,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("colors".to_string()),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         });
@@ -1058,17 +1501,16 @@ mod tests {
 
     #[test]
     fn test_minimal_dot_fixture() {
-        // {"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}
-        let json = r##"{"type": "sprite", "name": "dot", "palette": {"{_}": "#00000000", "{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+        let json = r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]]}}}"##;
         let obj: TtpObject = serde_json::from_str(json).unwrap();
         match obj {
             TtpObject::Sprite(sprite) => {
                 assert_eq!(sprite.name, "dot");
-                assert!(sprite.size.is_none());
-                assert_eq!(sprite.grid, vec!["{x}"]);
+                assert_eq!(sprite.size, Some([1, 1]));
+                assert!(sprite.regions.is_some());
                 match sprite.palette {
                     PaletteRef::Inline(colors) => {
-                        assert_eq!(colors.get("{x}"), Some(&"#FF0000".to_string()));
+                        assert_eq!(colors.get("x"), Some(&"#FF0000".to_string()));
                     }
                     _ => panic!("Expected inline palette"),
                 }
@@ -1772,7 +2214,7 @@ mod tests {
             name: "simple".to_string(),
             size: None,
             palette: PaletteRef::Named("default".to_string()),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2428,5 +2870,144 @@ mod tests {
             }
             _ => panic!("Expected animation"),
         }
+    }
+
+    #[test]
+    fn test_region_def_simple_rect() {
+        let region = RegionDef {
+            rect: Some([5, 6, 2, 2]),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_def_with_modifiers() {
+        let region = RegionDef {
+            points: Some(vec![[4, 6]]),
+            symmetric: Some("x".to_string()),
+            z: Some(10),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_def_with_constraints() {
+        let region = RegionDef {
+            circle: Some([8, 8, 3]),
+            within: Some("face".to_string()),
+            x: Some([0, 10]),
+            y: Some([5, 15]),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_def_compound_union() {
+        let region = RegionDef {
+            union: Some(vec![
+                RegionDef {
+                    rect: Some([2, 0, 12, 2]),
+                    ..Default::default()
+                },
+                RegionDef {
+                    rect: Some([0, 2, 16, 2]),
+                    ..Default::default()
+                },
+            ]),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_def_with_subtraction() {
+        let region = RegionDef {
+            base: Some(Box::new(RegionDef {
+                rect: Some([2, 4, 12, 8]),
+                ..Default::default()
+            })),
+            subtract: Some(vec![RegionDef {
+                points: Some(vec![[5, 6], [10, 6]]),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_def_renamed_fields() {
+        // Test that hyphenated fields serialize/deserialize correctly
+        let json = r#"{"auto-outline":"body","adjacent-to":"skin","offset-alternate":true}"#;
+        let region: RegionDef = serde_json::from_str(json).unwrap();
+        assert_eq!(region.auto_outline, Some("body".to_string()));
+        assert_eq!(region.adjacent_to, Some("skin".to_string()));
+        assert_eq!(region.offset_alternate, Some(true));
+
+        let serialized = serde_json::to_string(&region).unwrap();
+        assert!(serialized.contains("auto-outline"));
+        assert!(serialized.contains("adjacent-to"));
+        assert!(serialized.contains("offset-alternate"));
+    }
+
+    #[test]
+    fn test_region_def_all_shapes() {
+        // Test deserialization of each shape type
+        let test_cases = vec![
+            (r#"{"points":[[1,2],[3,4]]}"#, "points"),
+            (r#"{"line":[[0,0],[10,10]]}"#, "line"),
+            (r#"{"rect":[1,2,3,4]}"#, "rect"),
+            (r#"{"stroke":[0,0,16,16]}"#, "stroke"),
+            (r#"{"ellipse":[8,8,4,6]}"#, "ellipse"),
+            (r#"{"circle":[8,8,4]}"#, "circle"),
+            (r#"{"polygon":[[0,0],[4,0],[4,4]]}"#, "polygon"),
+            (r#"{"path":"M0,0 L10,10 Z"}"#, "path"),
+            (r#"{"fill":"inside(outline)"}"#, "fill"),
+        ];
+
+        for (json, shape_type) in test_cases {
+            let region: Result<RegionDef, _> = serde_json::from_str(json);
+            assert!(region.is_ok(), "Failed to parse {} shape: {}", shape_type, json);
+        }
+    }
+
+    #[test]
+    fn test_jitter_spec() {
+        let jitter = JitterSpec {
+            x: Some([-2, 2]),
+            y: Some([-1, 1]),
+        };
+        let json = serde_json::to_string(&jitter).unwrap();
+        let parsed: JitterSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(jitter, parsed);
+    }
+
+    #[test]
+    fn test_region_def_with_jitter() {
+        let region = RegionDef {
+            points: Some(vec![[0, 15], [4, 15], [8, 15]]),
+            jitter: Some(JitterSpec {
+                x: None,
+                y: Some([-2, 0]),
+            }),
+            seed: Some(42),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
     }
 }

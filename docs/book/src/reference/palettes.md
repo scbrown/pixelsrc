@@ -10,7 +10,7 @@ Pixelsrc includes several built-in palettes that can be referenced by name using
 Reference a built-in palette with the `@` prefix:
 
 ```json
-{"type": "sprite", "name": "retro_heart", "palette": "@gameboy", "grid": ["{_}{dark}{_}", "{dark}{light}{dark}", "{_}{dark}{_}"]}
+{"type": "sprite", "name": "retro_heart", "size": [3, 3], "palette": "@gameboy", "regions": {"dark": {"union": [{"points": [[1, 0]]}, {"points": [[0, 1], [2, 1]]}, {"points": [[1, 2]]}], "z": 0}, "light": {"points": [[1, 1]], "z": 1}}}
 ```
 
 List available palettes:

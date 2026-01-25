@@ -26,8 +26,8 @@ fn build_atlas_metadata(jsonl: &str) -> AtlasMetadata {
         match obj {
             TtpObject::Sprite(s) => {
                 // Simulate atlas placement (sequential horizontal layout)
-                let w = s.grid[0].len() as u32;
-                let h = s.grid.len() as u32;
+                let w = s.size.map(|[w, _]| w).unwrap_or(0);
+                let h = s.size.map(|[_, h]| h).unwrap_or(0);
                 let origin = s.metadata.as_ref().and_then(|m| m.origin);
 
                 frames.insert(
@@ -150,7 +150,10 @@ fn test_atlas_godot_content() {
         "Should be AnimationLibrary resource"
     );
     assert!(anims_content.contains("Animation_walk"), "Should contain walk animation");
-    assert!(anims_content.contains("tracks/0/path = NodePath(\".:texture\")"), "Should animate texture property");
+    assert!(
+        anims_content.contains("tracks/0/path = NodePath(\".:texture\")"),
+        "Should animate texture property"
+    );
 }
 
 /// @demo export/atlas#godot_origin

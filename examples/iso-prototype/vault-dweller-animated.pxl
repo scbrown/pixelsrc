@@ -1,0 +1,126 @@
+// Vault Dweller - Layered Animation Prototype
+// Separate layers for body, arm, eyelids, mouth to enable CSS keyframe animations
+
+// Shared palette
+{"type": "palette", "name": "vd", "colors": {
+  "_": "#00000000",
+  "skin": "#d8b088", "skin_lit": "#f0d0a8", "skin_shd": "#b08860", "neck": "#d8b088",
+  "hair": "#483020", "hair_lit": "#5a4030",
+  "eye_w": "#e8e8e0", "eye": "#181818",
+  "eyelid": "#d8b088",
+  "mouth": "#a07060", "mouth_open": "#402020",
+  "suit": "#3070a8", "suit_lit": "#4888c0", "suit_shd": "#205080",
+  "leg_l": "#3070a8", "leg_l_shd": "#205080",
+  "leg_r": "#3070a8", "leg_r_lit": "#4888c0",
+  "belt": "#d0a040", "buckle": "#e8c060",
+  "boot_l": "#403830", "boot_l_shd": "#302820",
+  "boot_r": "#403830", "boot_r_lit": "#504840",
+  "arm": "#3070a8", "arm_lit": "#4888c0", "hand": "#d8b088"
+}}
+
+// Layer 1: Body (no arm, eyes are just sockets)
+{"type": "sprite", "name": "vd_body", "size": [32, 48], "palette": "vd", "regions": {
+  "skin": { "ellipse": [16, 9, 6, 7], "z": 10 },
+  "skin_lit": { "polygon": [[17, 4], [20, 6], [21, 9], [20, 12], [17, 14]], "z": 11 },
+  "skin_shd": { "polygon": [[15, 4], [12, 6], [11, 9], [12, 12], [15, 14]], "z": 11 },
+  "hair": { "ellipse": [16, 4, 6, 3], "z": 12 },
+  "hair_lit": { "polygon": [[18, 2], [21, 3], [20, 6], [17, 5]], "z": 13 },
+  "neck": { "rect": [14, 15, 4, 3], "z": 5 },
+  "suit": { "polygon": [[10, 18], [22, 18], [23, 20], [23, 30], [21, 32], [11, 32], [9, 30], [9, 20]], "z": 0 },
+  "suit_lit": { "polygon": [[19, 18], [22, 18], [23, 20], [23, 30], [21, 32], [19, 32]], "z": 1 },
+  "suit_shd": { "polygon": [[10, 18], [13, 18], [13, 32], [11, 32], [9, 30], [9, 20]], "z": 1 },
+  "belt": { "rect": [10, 27, 12, 2], "z": 3 },
+  "buckle": { "rect": [14, 27, 4, 2], "z": 4 },
+  "leg_l": { "polygon": [[11, 32], [15, 32], [14, 41], [10, 41]], "z": 0 },
+  "leg_l_shd": { "polygon": [[11, 32], [13, 32], [12, 41], [10, 41]], "z": 1 },
+  "leg_r": { "polygon": [[17, 32], [21, 32], [22, 41], [18, 41]], "z": 0 },
+  "leg_r_lit": { "polygon": [[19, 32], [21, 32], [22, 41], [20, 41]], "z": 1 },
+  "boot_l": { "rect": [9, 41, 6, 5], "z": 2 },
+  "boot_l_shd": { "rect": [9, 41, 2, 5], "z": 3 },
+  "boot_r": { "rect": [17, 41, 6, 5], "z": 2 },
+  "boot_r_lit": { "rect": [21, 41, 2, 5], "z": 3 }
+}}
+
+// Layer 2: Eyes (rendered on top of body)
+{"type": "sprite", "name": "vd_eyes", "size": [32, 48], "palette": "vd", "regions": {
+  "eye_w": { "points": [[12, 9], [13, 9], [14, 9], [18, 9], [19, 9], [20, 9]], "z": 0 },
+  "eye": { "points": [[13, 9], [19, 9]], "z": 1 }
+}}
+
+// Layer 3: Eyelid (skin-colored bar that covers eyes when moved down)
+{"type": "sprite", "name": "vd_eyelid", "size": [32, 48], "palette": "vd", "regions": {
+  "eyelid": { "rect": [11, 8, 10, 2], "z": 0 }
+}}
+
+// Layer 4: Mouth closed
+{"type": "sprite", "name": "vd_mouth_closed", "size": [32, 48], "palette": "vd", "regions": {
+  "mouth": { "rect": [14, 12, 4, 1], "z": 0 }
+}}
+
+// Layer 5: Mouth open
+{"type": "sprite", "name": "vd_mouth_open", "size": [32, 48], "palette": "vd", "regions": {
+  "mouth_open": { "ellipse": [16, 13, 2, 2], "z": 0 }
+}}
+
+// Layer 6: Arm at rest (down by side)
+{"type": "sprite", "name": "vd_arm_down", "size": [32, 48], "palette": "vd", "regions": {
+  "arm": { "polygon": [[22, 20], [25, 20], [25, 30], [23, 30]], "z": 0 },
+  "arm_lit": { "polygon": [[24, 20], [25, 20], [25, 30], [24, 30]], "z": 1 },
+  "hand": { "ellipse": [24, 31, 2, 2], "z": 2 }
+}}
+
+// Layer 7: Arm raised (waving position 1)
+{"type": "sprite", "name": "vd_arm_wave1", "size": [32, 48], "palette": "vd", "regions": {
+  "arm": { "polygon": [[22, 18], [25, 16], [28, 14], [29, 16], [26, 18], [23, 20]], "z": 0 },
+  "arm_lit": { "polygon": [[25, 16], [28, 14], [29, 16], [26, 17]], "z": 1 },
+  "hand": { "ellipse": [29, 13, 2, 2], "z": 2 }
+}}
+
+// Layer 8: Arm raised higher (waving position 2)
+{"type": "sprite", "name": "vd_arm_wave2", "size": [32, 48], "palette": "vd", "regions": {
+  "arm": { "polygon": [[22, 18], [25, 14], [28, 10], [29, 12], [26, 16], [23, 20]], "z": 0 },
+  "arm_lit": { "polygon": [[25, 14], [28, 10], [29, 12], [26, 15]], "z": 1 },
+  "hand": { "ellipse": [29, 9, 2, 2], "z": 2 }
+}}
+
+// Animation: Wave - cycles through arm positions (legacy frames format)
+{"type": "animation", "name": "vd_wave", "frames": ["vd_arm_down", "vd_arm_wave1", "vd_arm_wave2", "vd_arm_wave1"], "duration": 200, "loop": true}
+
+// Animation: Speak - alternates mouth shapes
+{"type": "animation", "name": "vd_speak", "frames": ["vd_mouth_closed", "vd_mouth_open"], "duration": 150, "loop": true}
+
+// Composition: Full character with arm down
+{"type": "composition", "name": "vd_full_down", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "vd_body", "E": "vd_eyes", "M": "vd_mouth_closed", "A": "vd_arm_down"},
+  "layers": [
+    {"map": ["B"]},
+    {"map": ["E"]},
+    {"map": ["M"]},
+    {"map": ["A"]}
+  ]
+}
+
+// Composition: Full character with arm wave1
+{"type": "composition", "name": "vd_full_wave1", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "vd_body", "E": "vd_eyes", "M": "vd_mouth_closed", "A": "vd_arm_wave1"},
+  "layers": [
+    {"map": ["B"]},
+    {"map": ["E"]},
+    {"map": ["M"]},
+    {"map": ["A"]}
+  ]
+}
+
+// Composition: Full character with arm wave2
+{"type": "composition", "name": "vd_full_wave2", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "vd_body", "E": "vd_eyes", "M": "vd_mouth_closed", "A": "vd_arm_wave2"},
+  "layers": [
+    {"map": ["B"]},
+    {"map": ["E"]},
+    {"map": ["M"]},
+    {"map": ["A"]}
+  ]
+}
+
+// Animation: Full wave - uses compositions as frames
+{"type": "animation", "name": "vd_full_wave", "frames": ["vd_full_down", "vd_full_wave1", "vd_full_wave2", "vd_full_wave1"], "duration": 200, "loop": true}

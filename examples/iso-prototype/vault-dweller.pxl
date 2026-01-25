@@ -1,0 +1,84 @@
+// Vault Dweller - Fallout 2 style character sprite
+// Key: clean silhouette, 3-surface shading, proper z-order
+{
+  "type": "sprite",
+  "name": "vault-dweller",
+  "size": [32, 48],
+  "palette": {
+    "_": "#00000000",
+    // Skin tones
+    "skin": "#d8b088",
+    "skin_lit": "#f0d0a8",
+    "skin_shd": "#b08860",
+    "neck": "#d8b088",
+    // Hair
+    "hair": "#483020",
+    "hair_lit": "#5a4030",
+    // Eyes
+    "eye_w": "#e8e8e0",
+    "eye": "#181818",
+    // Vault suit - blue tones
+    "suit": "#3070a8",
+    "suit_lit": "#4888c0",
+    "suit_shd": "#205080",
+    // Legs (separate for gap)
+    "leg_l": "#3070a8",
+    "leg_l_shd": "#205080",
+    "leg_r": "#3070a8",
+    "leg_r_lit": "#4888c0",
+    // Belt
+    "belt": "#d0a040",
+    "buckle": "#e8c060",
+    // Boots
+    "boot_l": "#403830",
+    "boot_l_shd": "#302820",
+    "boot_r": "#403830",
+    "boot_r_lit": "#504840"
+  },
+  "regions": {
+    // === HEAD (z: 10-15) ===
+    // Base skin ellipse
+    "skin": { "ellipse": [16, 9, 6, 7], "z": 10 },
+    // Lit side - right facing light (within ellipse bounds)
+    "skin_lit": { "polygon": [[17, 4], [20, 6], [21, 9], [20, 12], [17, 14]], "z": 11 },
+    // Shadow side - left (within ellipse bounds)
+    "skin_shd": { "polygon": [[15, 4], [12, 6], [11, 9], [12, 12], [15, 14]], "z": 11 },
+
+    // Hair - sits on top of head
+    "hair": { "ellipse": [16, 4, 6, 3], "z": 12 },
+    "hair_lit": { "polygon": [[18, 2], [21, 3], [20, 6], [17, 5]], "z": 13 },
+
+    // Eyes - white surround + dark pupil
+    "eye_w": { "points": [[12, 9], [13, 9], [14, 9], [18, 9], [19, 9], [20, 9]], "z": 14 },
+    "eye": { "points": [[13, 9], [19, 9]], "z": 15 },
+
+    // === NECK (z: 5) - connects head to body ===
+    "neck": { "rect": [14, 15, 4, 3], "z": 5 },
+
+    // === TORSO (z: 0-2) ===
+    // Base suit shape - tapered polygon
+    "suit": { "polygon": [[10, 18], [22, 18], [23, 20], [23, 30], [21, 32], [11, 32], [9, 30], [9, 20]], "z": 0 },
+    // Lit side
+    "suit_lit": { "polygon": [[19, 18], [22, 18], [23, 20], [23, 30], [21, 32], [19, 32]], "z": 1 },
+    // Shadow side
+    "suit_shd": { "polygon": [[10, 18], [13, 18], [13, 32], [11, 32], [9, 30], [9, 20]], "z": 1 },
+
+    // Belt - breaks up torso
+    "belt": { "rect": [10, 27, 12, 2], "z": 3 },
+    "buckle": { "rect": [14, 27, 4, 2], "z": 4 },
+
+    // === LEGS (z: 0-1) - gap between them ===
+    // Left leg
+    "leg_l": { "polygon": [[11, 32], [15, 32], [14, 41], [10, 41]], "z": 0 },
+    "leg_l_shd": { "polygon": [[11, 32], [13, 32], [12, 41], [10, 41]], "z": 1 },
+    // Right leg
+    "leg_r": { "polygon": [[17, 32], [21, 32], [22, 41], [18, 41]], "z": 0 },
+    "leg_r_lit": { "polygon": [[19, 32], [21, 32], [22, 41], [20, 41]], "z": 1 },
+
+    // === BOOTS (z: 2-3) ===
+    "boot_l": { "rect": [9, 41, 6, 5], "z": 2 },
+    "boot_l_shd": { "rect": [9, 41, 2, 5], "z": 3 },
+    "boot_r": { "rect": [17, 41, 6, 5], "z": 2 },
+    "boot_r_lit": { "rect": [21, 41, 2, 5], "z": 3 }
+  }
+}

@@ -14,7 +14,7 @@ All personas benefit from AI assistance. Pixelsrc is designed to be AI-friendly 
 | **Motion Designer** | AI writes keyframe expressions, suggests easing, designs transform sequences |
 | **Game Developer** | AI generates atlas configs, hitbox suggestions, tag structures |
 
-The format's design choices (token-based grids, JSON structure, semantic naming) make it readable and writable by both humans and AI at every complexity level. AI isn't just for beginners—it's a creative partner for experts too.
+The format's design choices (semantic regions, JSON5 structure, shape primitives) make it readable and writable by both humans and AI at every complexity level. AI isn't just for beginners—it's a creative partner for experts too.
 
 ## File Extension
 
@@ -59,11 +59,7 @@ The `.jsonl` extension is deprecated. While still supported for backwards compat
 
 **Example workflow:**
 ```json
-{"type": "sprite", "name": "star", "palette": {"{_}": "#0000", "{y}": "#FFD700"}, "grid": [
-  "{_}{y}{_}",
-  "{y}{y}{y}",
-  "{_}{y}{_}"
-]}
+{"type": "sprite", "name": "star", "size": [3, 3], "palette": {"_": "#0000", "y": "#FFD700"}, "regions": {"y": {"union": [{"points": [[1, 0]]}, {"rect": [0, 1, 3, 1]}, {"points": [[1, 2]]}], "z": 0}}}
 ```
 ```bash
 pxl render star.pxl -o star.png
@@ -103,9 +99,9 @@ pxl render star.pxl -o star.png
 
 **Example workflow:**
 ```json
-{"type": "palette", "name": "forest", "colors": {"{_}": "#0000", "{trunk}": "#4A3728", "{leaf}": "#228B22", "{leaf_light}": "#32CD32"}}
-{"type": "sprite", "name": "tree", "palette": "forest", "grid": ["..."]}
-{"type": "variant", "name": "tree_autumn", "source": "tree", "palette": {"{leaf}": "#FF8C00", "{leaf_light}": "#FFD700"}}
+{"type": "palette", "name": "forest", "colors": {"_": "#0000", "trunk": "#4A3728", "leaf": "#228B22", "leaf_light": "#32CD32"}}
+{"type": "sprite", "name": "tree", "size": [16, 24], "palette": "forest", "regions": {"trunk": {"rect": [6, 16, 4, 8], "z": 0}, "leaf": {"ellipse": [8, 8, 7, 8], "z": 1}}}
+{"type": "variant", "name": "tree_autumn", "source": "tree", "palette": {"leaf": "#FF8C00", "leaf_light": "#FFD700"}}
 {"type": "composition", "name": "forest_scene", "size": [64, 32], "layers": [
   {"sprite": "tree", "position": [0, 0]},
   {"sprite": "tree_autumn", "position": [24, 0]},
@@ -153,9 +149,9 @@ pxl render star.pxl -o star.png
 
 **Example workflow:**
 ```json
-{"type": "sprite", "name": "walk_1", "palette": "player", "grid": ["..."]}
-{"type": "sprite", "name": "walk_2", "palette": "player", "grid": ["..."]}
-{"type": "sprite", "name": "walk_3", "palette": "player", "grid": ["..."]}
+{"type": "sprite", "name": "walk_1", "size": [16, 16], "palette": "player", "regions": {...}}
+{"type": "sprite", "name": "walk_2", "size": [16, 16], "palette": "player", "regions": {...}}
+{"type": "sprite", "name": "walk_3", "size": [16, 16], "palette": "player", "regions": {...}}
 {"type": "animation", "name": "walk_right", "frames": ["walk_1", "walk_2", "walk_3", "walk_2"], "fps": 8}
 {"type": "animation", "name": "walk_left", "source": "walk_right", "transform": ["mirror-h"]}
 ```
@@ -261,7 +257,7 @@ pxl render star.pxl -o star.png
 
 **Example workflow:**
 ```json
-{"type": "sprite", "name": "button", "palette": "ui", "nine_slice": {"left": 4, "right": 4, "top": 4, "bottom": 4}, "grid": ["..."]}
+{"type": "sprite", "name": "button", "size": [16, 12], "palette": "ui", "nine_slice": {"left": 4, "right": 4, "top": 4, "bottom": 4}, "regions": {...}}
 
 {"type": "animation", "name": "player", "frames": ["idle_1", "idle_2", "run_1", "run_2", "run_3", "jump"], "fps": 10, "tags": {
   "idle": {"start": 0, "end": 1, "loop": true},
@@ -358,7 +354,7 @@ Single command, single file, immediate result.
 
 ```bash
 # AI generates sprite, render immediately
-echo '{"type":"sprite","name":"star","palette":{"{_}":"#0000","{y}":"#FFD700"},"grid":["{_}{y}{_}","{y}{y}{y}","{_}{y}{_}"]}' | pxl render --stdin -o star.png
+echo '{"type":"sprite","name":"star","size":[3,3],"palette":{"_":"#0000","y":"#FFD700"},"regions":{"y":{"union":[{"points":[[1,0]]},{"rect":[0,1,3,1]},{"points":[[1,2]]}],"z":0}}}' | pxl render --stdin -o star.png
 ```
 
 **Characteristics:**

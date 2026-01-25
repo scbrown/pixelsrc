@@ -6,49 +6,37 @@ Let's create your first sprite in under 5 minutes.
 
 Create a file called `star.pxl` with this content:
 
-```json
-{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700"}}
-{"type": "sprite", "name": "star", "palette": "star", "grid": [
-  "{_}{y}{_}",
-  "{y}{y}{y}",
-  "{_}{y}{_}"
-]}
+```json5
+// star.pxl - A simple 3x3 star
+{
+  type: "palette",
+  name: "star",
+  colors: {
+    _: "transparent",
+    y: "#FFD700",
+  },
+}
+
+{
+  type: "sprite",
+  name: "star",
+  size: [3, 3],
+  palette: "star",
+  regions: {
+    y: {
+      union: [
+        { points: [[1, 0]] },           // Top
+        { rect: [0, 1, 3, 1] },         // Middle row
+        { points: [[1, 2]] },           // Bottom
+      ],
+    },
+  },
+}
 ```
 
 This defines:
-- A **palette** named "star" with two colors: transparent (`{_}`) and yellow (`{y}`)
-- A **sprite** named "star" that uses that palette to draw a 3x3 star shape
-
-<!-- DEMOS getting-started/quick-start#star -->
-**Your First Sprite**
-
-A simple 3x3 star using semantic color tokens.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700"}}
-{"type": "sprite", "name": "star", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="star">
-</div>
-<!-- /DEMOS -->
-
-### Try It
-
-Edit the colors below and click "Try it" to see your sprite:
-
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="quickstart-star">{"type": "palette", "name": "star", "colors": {"{_}": "#0000", "{y}": "#FFD700"}}
-{"type": "sprite", "name": "star", "palette": "star", "grid": ["{_}{y}{_}", "{y}{y}{y}", "{_}{y}{_}"]}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('quickstart-star', 'quickstart-star-preview')">Try it</button>
-  <div class="preview" id="quickstart-star-preview"></div>
-</div>
-
-Try changing `{y}` to use `#FF0000` (red) or `#00FF00` (green) to see how palette colors work.
+- A **palette** named "star" with two colors: transparent (`_`) and yellow (`y`)
+- A **sprite** named "star" that uses regions to draw a 3x3 star shape
 
 ## Step 2: Render to PNG
 
@@ -92,13 +80,13 @@ If everything is correct, you'll see no output (success). If there are issues, y
 
 ## What's Next?
 
-- Learn about [Core Concepts](concepts.md) like palettes, sprites, and tokens
+- Learn about [Core Concepts](concepts.md) like palettes, sprites, and regions
 - Create [Your First Animation](first-animation.md)
 - Explore the [Format Specification](../format/overview.md) for all available features
 
 ## Tips
 
-- Use **semantic token names** like `{skin}`, `{outline}`, `{shadow}` instead of generic names
-- The `{_}` token is the conventional name for transparent pixels
-- Grid rows are defined top-to-bottom
-- Each token in a row represents one pixel from left to right
+- Use **semantic token names** like `skin`, `outline`, `shadow` instead of generic names
+- The `_` token is the conventional name for transparent pixels
+- Use shapes (`rect`, `circle`, `ellipse`) for efficiency over individual points
+- Higher `z` values draw on top of lower ones

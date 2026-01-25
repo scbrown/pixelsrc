@@ -130,12 +130,11 @@ mod tests {
     fn make_sprite(name: &str) -> Sprite {
         Sprite {
             name: name.to_string(),
-            size: None,
+            size: Some([1, 1]),
             palette: PaletteRef::Inline(HashMap::from([(
                 "{_}".to_string(),
                 "#00000000".to_string(),
             )])),
-            grid: vec!["{_}".to_string()],
             metadata: None,
             ..Default::default()
         }

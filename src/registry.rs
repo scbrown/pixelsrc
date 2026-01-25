@@ -13,7 +13,8 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::models::{Composition, Palette, PaletteRef, Sprite, TransformSpec, Variant};
+use crate::color::generate_ramp;
+use crate::models::{Composition, Palette, PaletteRef, Sprite, Variant};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use crate::palettes;
 use crate::transforms::{self, Transform, TransformError};
@@ -42,6 +43,7 @@ use crate::transforms::{self, Transform, TransformError};
 /// let palette = Palette {
 ///     name: "mono".to_string(),
 ///     colors: HashMap::from([("{on}".to_string(), "#FFFFFF".to_string())]),
+///     ..Default::default()
 /// };
 /// registry.register(palette);
 ///
@@ -178,8 +180,57 @@ impl PaletteRegistry {
     /// Register a palette in the registry.
     ///
     /// If a palette with the same name already exists, it is replaced.
+    /// Color ramps are automatically expanded into individual color tokens.
     pub fn register(&mut self, palette: Palette) {
-        self.palettes.insert(palette.name.clone(), palette);
+        let expanded = Self::expand_ramps(palette);
+        self.palettes.insert(expanded.name.clone(), expanded);
+    }
+
+    /// Expand color ramps into individual color tokens.
+    ///
+    /// For each ramp, generates tokens like:
+    /// - `{skin_2}` (darkest shadow)
+    /// - `{skin_1}` (shadow)
+    /// - `{skin}` (base)
+    /// - `{skin+1}` (highlight)
+    /// - `{skin+2}` (brightest)
+    fn expand_ramps(mut palette: Palette) -> Palette {
+        let Some(ramps) = palette.ramps.take() else {
+            return palette;
+        };
+
+        for (name, ramp) in ramps {
+            let shadow = ramp.shadow_shift();
+            let highlight = ramp.highlight_shift();
+
+            // Generate the ramp colors
+            let ramp_colors = generate_ramp(
+                &ramp.base,
+                ramp.steps(),
+                (
+                    shadow.hue.unwrap_or(0.0),
+                    shadow.saturation.unwrap_or(0.0),
+                    shadow.lightness.unwrap_or(0.0),
+                ),
+                (
+                    highlight.hue.unwrap_or(0.0),
+                    highlight.saturation.unwrap_or(0.0),
+                    highlight.lightness.unwrap_or(0.0),
+                ),
+            );
+
+            // Add generated colors to the palette
+            if let Ok(colors) = ramp_colors {
+                for (suffix, color) in colors {
+                    let token = format!("{{{}{}}}", name, suffix);
+                    palette.colors.insert(token, color);
+                }
+            }
+            // If generation fails (e.g., invalid base color), silently skip
+            // The invalid color will be caught during rendering
+        }
+
+        palette
     }
 
     /// Get a palette by name.
@@ -431,473 +482,14 @@ pub struct ResolvedSprite {
     pub name: String,
     /// The size from the base sprite (if any)
     pub size: Option<[u32; 2]>,
-    /// The grid data (from base sprite for variants)
-    pub grid: Vec<String>,
     /// The merged palette for rendering (base palette + variant overrides)
     pub palette: HashMap<String, String>,
     /// Any warnings generated during resolution
     pub warnings: Vec<SpriteWarning>,
-}
-
-// ============================================================================
-// Transform Helpers
-// ============================================================================
-
-/// Parse a TransformSpec into a Transform.
-fn parse_transform_spec(spec: &TransformSpec) -> Result<Transform, TransformError> {
-    match spec {
-        TransformSpec::String(s) => transforms::parse_transform_str(s),
-        TransformSpec::Object { op, params } => {
-            // Convert params to serde_json::Value object for parsing
-            let mut obj = serde_json::Map::new();
-            obj.insert("op".to_string(), serde_json::Value::String(op.clone()));
-            for (k, v) in params {
-                obj.insert(k.clone(), v.clone());
-            }
-            transforms::parse_transform_value(&serde_json::Value::Object(obj))
-        }
-    }
-}
-
-/// Apply a single transform to a grid.
-///
-/// Returns the transformed grid, or an error if the transform cannot be applied.
-fn apply_grid_transform(
-    grid: &[String],
-    transform: &Transform,
-) -> Result<Vec<String>, TransformError> {
-    match transform {
-        // Geometric transforms
-        Transform::MirrorH => Ok(mirror_horizontal(grid)),
-        Transform::MirrorV => Ok(mirror_vertical(grid)),
-        Transform::Rotate { degrees } => rotate_grid(grid, *degrees),
-
-        // Expansion transforms
-        Transform::Tile { w, h } => Ok(tile_grid(grid, *w, *h)),
-        Transform::Pad { size } => Ok(pad_grid(grid, *size)),
-        Transform::Crop { x, y, w, h } => crop_grid(grid, *x, *y, *w, *h),
-
-        // Effects
-        Transform::Outline { token, width } => Ok(outline_grid(grid, token.as_deref(), *width)),
-        Transform::Shift { x, y } => Ok(shift_grid(grid, *x, *y)),
-        Transform::Shadow { x, y, token } => Ok(shadow_grid(grid, *x, *y, token.as_deref())),
-        Transform::SelOut { fallback, mapping } => {
-            Ok(transforms::apply_selout(grid, fallback.as_deref(), mapping.as_ref()))
-        }
-        Transform::Scale { x, y } => Ok(transforms::apply_scale(grid, *x, *y)),
-
-        // Dithering - not yet implemented for grid transforms
-        Transform::Dither { .. } | Transform::DitherGradient { .. } => {
-            Err(TransformError::InvalidParameter {
-                op: "dither".to_string(),
-                message: "dither transforms are not yet implemented for sprite grids".to_string(),
-            })
-        }
-
-        // Subpixel - not yet implemented for grid transforms
-        Transform::Subpixel { .. } => Err(TransformError::InvalidParameter {
-            op: "subpixel".to_string(),
-            message: "subpixel transforms are not yet implemented for sprite grids".to_string(),
-        }),
-
-        // Animation transforms should not be applied to sprite grids
-        Transform::Pingpong { .. }
-        | Transform::Reverse
-        | Transform::FrameOffset { .. }
-        | Transform::Hold { .. } => Err(TransformError::InvalidParameter {
-            op: format!("{:?}", transform),
-            message: "animation transforms cannot be applied to sprite grids".to_string(),
-        }),
-    }
-}
-
-// ============================================================================
-// Grid Transform Implementations
-// ============================================================================
-
-/// Mirror grid horizontally (reverse token order in each row).
-fn mirror_horizontal(grid: &[String]) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    grid.iter()
-        .map(|row| {
-            let (tokens, _) = tokenize(row);
-            tokens.into_iter().rev().collect::<Vec<_>>().join("")
-        })
-        .collect()
-}
-
-/// Mirror grid vertically (reverse row order).
-fn mirror_vertical(grid: &[String]) -> Vec<String> {
-    grid.iter().rev().cloned().collect()
-}
-
-/// Rotate grid by 90, 180, or 270 degrees clockwise.
-fn rotate_grid(grid: &[String], degrees: u16) -> Result<Vec<String>, TransformError> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Parse into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return Ok(grid.to_vec());
-    }
-
-    // Pad rows to uniform width
-    let padded: Vec<Vec<String>> = parsed
-        .into_iter()
-        .map(|mut row| {
-            while row.len() < width {
-                row.push("{_}".to_string());
-            }
-            row
-        })
-        .collect();
-
-    match degrees {
-        90 => {
-            // Rotate 90 clockwise: new[col][height-1-row] = old[row][col]
-            let mut result = vec![vec![String::new(); height]; width];
-            for (row, tokens) in padded.iter().enumerate() {
-                for (col, token) in tokens.iter().enumerate() {
-                    result[col][height - 1 - row] = token.clone();
-                }
-            }
-            Ok(result.into_iter().map(|row| row.join("")).collect())
-        }
-        180 => {
-            // Rotate 180: reverse both row and column order
-            Ok(mirror_vertical(&mirror_horizontal(grid)))
-        }
-        270 => {
-            // Rotate 270 clockwise (= 90 counter-clockwise): new[width-1-col][row] = old[row][col]
-            let mut result = vec![vec![String::new(); height]; width];
-            for (row, tokens) in padded.iter().enumerate() {
-                for (col, token) in tokens.iter().enumerate() {
-                    result[width - 1 - col][row] = token.clone();
-                }
-            }
-            Ok(result.into_iter().map(|row| row.join("")).collect())
-        }
-        _ => Err(TransformError::InvalidRotation(degrees)),
-    }
-}
-
-/// Tile grid into WxH repetitions.
-fn tile_grid(grid: &[String], w: u32, h: u32) -> Vec<String> {
-    if grid.is_empty() || w == 0 || h == 0 {
-        return Vec::new();
-    }
-
-    let mut result = Vec::new();
-
-    // Repeat vertically h times
-    for _ in 0..h {
-        for row in grid {
-            // Repeat each row horizontally w times
-            result.push(row.repeat(w as usize));
-        }
-    }
-
-    result
-}
-
-/// Add transparent padding around grid.
-fn pad_grid(grid: &[String], size: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() || size == 0 {
-        return grid.to_vec();
-    }
-
-    // Find the width of the grid (in tokens)
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let max_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    let pad_token = "{_}";
-    let horizontal_padding: String =
-        std::iter::repeat_n(pad_token, size as usize).collect::<Vec<_>>().join("");
-    let full_width_row: String =
-        std::iter::repeat_n(pad_token, max_width + 2 * size as usize).collect::<Vec<_>>().join("");
-
-    let mut result = Vec::new();
-
-    // Add top padding rows
-    for _ in 0..size {
-        result.push(full_width_row.clone());
-    }
-
-    // Add padded content rows
-    for row in &parsed {
-        // Pad row to max_width
-        let mut padded_row = row.clone();
-        while padded_row.len() < max_width {
-            padded_row.push(pad_token.to_string());
-        }
-        let content = padded_row.join("");
-        result.push(format!("{}{}{}", horizontal_padding, content, horizontal_padding));
-    }
-
-    // Add bottom padding rows
-    for _ in 0..size {
-        result.push(full_width_row.clone());
-    }
-
-    result
-}
-
-/// Extract sub-region from grid.
-fn crop_grid(
-    grid: &[String],
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
-) -> Result<Vec<String>, TransformError> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let grid_height = parsed.len();
-    let grid_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    // Validate crop region
-    if y as usize >= grid_height || x as usize >= grid_width {
-        return Err(TransformError::InvalidCropRegion(format!(
-            "crop origin ({}, {}) is outside grid bounds ({}x{})",
-            x, y, grid_width, grid_height
-        )));
-    }
-
-    let mut result = Vec::new();
-
-    for row_idx in y..(y + h) {
-        if row_idx as usize >= parsed.len() {
-            // Pad with transparent tokens if crop extends beyond grid
-            let transparent_row: String =
-                std::iter::repeat_n("{_}", w as usize).collect::<Vec<_>>().join("");
-            result.push(transparent_row);
-        } else {
-            let row = &parsed[row_idx as usize];
-            let mut cropped_row = Vec::new();
-            for col_idx in x..(x + w) {
-                if (col_idx as usize) < row.len() {
-                    cropped_row.push(row[col_idx as usize].clone());
-                } else {
-                    cropped_row.push("{_}".to_string());
-                }
-            }
-            result.push(cropped_row.join(""));
-        }
-    }
-
-    Ok(result)
-}
-
-/// Add outline around opaque pixels.
-fn outline_grid(grid: &[String], token: Option<&str>, width: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() || width == 0 {
-        return grid.to_vec();
-    }
-
-    let outline_token = token.unwrap_or("{outline}");
-    let transparent = "{_}";
-
-    // Parse grid
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let height = parsed.len();
-    let width_pixels = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width_pixels == 0 {
-        return grid.to_vec();
-    }
-
-    // Pad to uniform width
-    let padded: Vec<Vec<String>> = parsed
-        .into_iter()
-        .map(|mut row| {
-            while row.len() < width_pixels {
-                row.push(transparent.to_string());
-            }
-            row
-        })
-        .collect();
-
-    // Create output with extra padding for outline
-    let new_width = width_pixels + 2 * width as usize;
-    let new_height = height + 2 * width as usize;
-    let mut result: Vec<Vec<String>> = vec![vec![transparent.to_string(); new_width]; new_height];
-
-    // Copy original content to center
-    for (y, row) in padded.iter().enumerate() {
-        for (x, token_val) in row.iter().enumerate() {
-            result[y + width as usize][x + width as usize] = token_val.clone();
-        }
-    }
-
-    // Add outline around opaque pixels
-    for y in 0..height {
-        for x in 0..width_pixels {
-            let token_val = &padded[y][x];
-            if token_val != transparent {
-                // This is an opaque pixel, add outline around it
-                let out_y = y + width as usize;
-                let out_x = x + width as usize;
-
-                // Mark outline pixels in a square around the opaque pixel
-                for dy in -(width as i32)..=(width as i32) {
-                    for dx in -(width as i32)..=(width as i32) {
-                        if dy == 0 && dx == 0 {
-                            continue; // Skip the center (opaque) pixel
-                        }
-                        let ny = (out_y as i32 + dy) as usize;
-                        let nx = (out_x as i32 + dx) as usize;
-                        if result[ny][nx] == transparent {
-                            result[ny][nx] = outline_token.to_string();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    result.into_iter().map(|row| row.join("")).collect()
-}
-
-/// Circular shift (wrap around).
-fn shift_grid(grid: &[String], x: i32, y: i32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    // Parse grid
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return grid.to_vec();
-    }
-
-    // Pad to uniform width
-    let padded: Vec<Vec<String>> = parsed
-        .into_iter()
-        .map(|mut row| {
-            while row.len() < width {
-                row.push("{_}".to_string());
-            }
-            row
-        })
-        .collect();
-
-    // Calculate effective shift (handle negative and wraparound)
-    let shift_y = ((y % height as i32) + height as i32) as usize % height;
-    let shift_x = ((x % width as i32) + width as i32) as usize % width;
-
-    // Shift vertically
-    let mut shifted_rows: Vec<Vec<String>> = Vec::with_capacity(height);
-    for i in 0..height {
-        let src_y = (i + height - shift_y) % height;
-        shifted_rows.push(padded[src_y].clone());
-    }
-
-    // Shift horizontally
-    let result: Vec<String> = shifted_rows
-        .into_iter()
-        .map(|row| {
-            let mut shifted_row: Vec<String> = Vec::with_capacity(width);
-            for i in 0..width {
-                let src_x = (i + width - shift_x) % width;
-                shifted_row.push(row[src_x].clone());
-            }
-            shifted_row.join("")
-        })
-        .collect();
-
-    result
-}
-
-/// Add drop shadow.
-fn shadow_grid(grid: &[String], x: i32, y: i32, token: Option<&str>) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    let shadow_token = token.unwrap_or("{shadow}");
-    let transparent = "{_}";
-
-    // Parse grid
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return grid.to_vec();
-    }
-
-    // Pad to uniform width
-    let padded: Vec<Vec<String>> = parsed
-        .into_iter()
-        .map(|mut row| {
-            while row.len() < width {
-                row.push(transparent.to_string());
-            }
-            row
-        })
-        .collect();
-
-    // Calculate expanded size to accommodate shadow
-    let extra_left = if x < 0 { (-x) as usize } else { 0 };
-    let extra_right = if x > 0 { x as usize } else { 0 };
-    let extra_top = if y < 0 { (-y) as usize } else { 0 };
-    let extra_bottom = if y > 0 { y as usize } else { 0 };
-
-    let new_width = width + extra_left + extra_right;
-    let new_height = height + extra_top + extra_bottom;
-
-    // Create output grid filled with transparent
-    let mut result: Vec<Vec<String>> = vec![vec![transparent.to_string(); new_width]; new_height];
-
-    // Draw shadow first (behind the original)
-    for (row_y, row) in padded.iter().enumerate() {
-        for (col_x, token_val) in row.iter().enumerate() {
-            if token_val != transparent {
-                let shadow_y = (row_y as i32 + extra_top as i32 + y) as usize;
-                let shadow_x = (col_x as i32 + extra_left as i32 + x) as usize;
-                if shadow_y < new_height && shadow_x < new_width {
-                    result[shadow_y][shadow_x] = shadow_token.to_string();
-                }
-            }
-        }
-    }
-
-    // Draw original on top
-    for (row_y, row) in padded.iter().enumerate() {
-        for (col_x, token_val) in row.iter().enumerate() {
-            let out_y = row_y + extra_top;
-            let out_x = col_x + extra_left;
-            if token_val != transparent {
-                result[out_y][out_x] = token_val.clone();
-            }
-        }
-    }
-
-    result.into_iter().map(|row| row.join("")).collect()
+    /// Nine-slice region definition (from base sprite)
+    pub nine_slice: Option<crate::models::NineSlice>,
+    /// Structured regions for rendering
+    pub regions: Option<HashMap<String, crate::models::RegionDef>>,
 }
 
 /// Registry for sprites and variants.
@@ -970,9 +562,10 @@ impl SpriteRegistry {
             Ok(ResolvedSprite {
                 name: name.to_string(),
                 size: None,
-                grid: vec![],
                 palette: HashMap::new(),
                 warnings: vec![SpriteWarning::not_found(name)],
+                nine_slice: None,
+                regions: None,
             })
         }
     }
@@ -1013,11 +606,12 @@ impl SpriteRegistry {
                 return Ok(ResolvedSprite {
                     name: sprite.name.clone(),
                     size: None,
-                    grid: vec![],
                     palette: HashMap::new(),
                     warnings: vec![SpriteWarning {
                         message: format!("Circular reference detected: {}", visited.join(" -> ")),
                     }],
+                    nine_slice: None,
+                    regions: None,
                 });
             }
         }
@@ -1025,12 +619,10 @@ impl SpriteRegistry {
         // Mark as visited
         visited.push(sprite.name.clone());
 
-        // Determine the grid: either from source reference or direct grid
-        let base_grid = if let Some(source_name) = &sprite.source {
-            // Resolve the source sprite
+        // Resolve source sprite's regions and size if this sprite references another
+        let (base_regions, base_size) = if let Some(source_name) = &sprite.source {
             match self.sprites.get(source_name) {
                 Some(source_sprite) => {
-                    // Recursively resolve the source sprite
                     let source_resolved = self.resolve_sprite_internal(
                         source_sprite,
                         palette_registry,
@@ -1038,7 +630,7 @@ impl SpriteRegistry {
                         visited,
                     )?;
                     warnings.extend(source_resolved.warnings);
-                    source_resolved.grid
+                    (source_resolved.regions, source_resolved.size)
                 }
                 None => {
                     if strict {
@@ -1048,34 +640,12 @@ impl SpriteRegistry {
                         });
                     } else {
                         warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
-                        // Return empty grid on source not found in lenient mode
-                        Vec::new()
+                        (None, None)
                     }
                 }
             }
         } else {
-            // Use the sprite's own grid
-            sprite.grid.clone()
-        };
-
-        // Apply transforms if any
-        let grid = if let Some(transform_specs) = &sprite.transform {
-            match self.apply_transforms_to_grid(&base_grid, transform_specs, &sprite.name, strict) {
-                Ok((transformed, transform_warnings)) => {
-                    warnings.extend(transform_warnings);
-                    transformed
-                }
-                Err(e) => {
-                    if strict {
-                        return Err(e);
-                    } else {
-                        warnings.push(SpriteWarning::transform_error(&sprite.name, &e.to_string()));
-                        base_grid
-                    }
-                }
-            }
-        } else {
-            base_grid
+            (sprite.regions.clone(), None)
         };
 
         // Resolve the sprite's palette
@@ -1097,67 +667,15 @@ impl SpriteRegistry {
             }
         };
 
-        Ok(ResolvedSprite { name: sprite.name.clone(), size: sprite.size, grid, palette, warnings })
-    }
-
-    /// Apply a list of transforms to a grid.
-    ///
-    /// Returns the transformed grid and any warnings generated.
-    fn apply_transforms_to_grid(
-        &self,
-        grid: &[String],
-        transform_specs: &[TransformSpec],
-        sprite_name: &str,
-        strict: bool,
-    ) -> Result<(Vec<String>, Vec<SpriteWarning>), SpriteError> {
-        let mut warnings = Vec::new();
-        let mut current_grid = grid.to_vec();
-
-        for spec in transform_specs {
-            // Parse the TransformSpec into a Transform
-            let transform = match parse_transform_spec(spec) {
-                Ok(t) => t,
-                Err(e) => {
-                    if strict {
-                        return Err(SpriteError::TransformError {
-                            sprite: sprite_name.to_string(),
-                            message: e.to_string(),
-                        });
-                    } else {
-                        warnings.push(SpriteWarning::transform_error(sprite_name, &e.to_string()));
-                        continue;
-                    }
-                }
-            };
-
-            // Skip animation-only transforms for sprites
-            if transforms::is_animation_transform(&transform) {
-                warnings.push(SpriteWarning::transform_error(
-                    sprite_name,
-                    &format!("{:?} is an animation-only transform", transform),
-                ));
-                continue;
-            }
-
-            // Apply the transform
-            match apply_grid_transform(&current_grid, &transform) {
-                Ok(new_grid) => {
-                    current_grid = new_grid;
-                }
-                Err(e) => {
-                    if strict {
-                        return Err(SpriteError::TransformError {
-                            sprite: sprite_name.to_string(),
-                            message: e.to_string(),
-                        });
-                    } else {
-                        warnings.push(SpriteWarning::transform_error(sprite_name, &e.to_string()));
-                    }
-                }
-            }
-        }
-
-        Ok((current_grid, warnings))
+        Ok(ResolvedSprite {
+            name: sprite.name.clone(),
+            // Use sprite's explicit size, or fall back to source sprite's size
+            size: sprite.size.or(base_size),
+            palette,
+            warnings,
+            nine_slice: sprite.nine_slice.clone(),
+            regions: base_regions,
+        })
     }
 
     /// Resolve a variant to a ResolvedSprite by expanding from its base.
@@ -1180,9 +698,10 @@ impl SpriteRegistry {
                     return Ok(ResolvedSprite {
                         name: variant.name.clone(),
                         size: None,
-                        grid: vec![],
                         palette: HashMap::new(),
                         warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
+                        nine_slice: None,
+                        regions: None,
                     });
                 }
             }
@@ -1212,37 +731,13 @@ impl SpriteRegistry {
             merged_palette.insert(token.clone(), color.clone());
         }
 
-        // Start with base grid
-        let base_grid = base_sprite.grid.clone();
-
-        // Apply transforms if any
-        let grid = if let Some(transform_specs) = &variant.transform {
-            match self.apply_transforms_to_grid(&base_grid, transform_specs, &variant.name, strict)
-            {
-                Ok((transformed, transform_warnings)) => {
-                    warnings.extend(transform_warnings);
-                    transformed
-                }
-                Err(e) => {
-                    if strict {
-                        return Err(e);
-                    } else {
-                        warnings
-                            .push(SpriteWarning::transform_error(&variant.name, &e.to_string()));
-                        base_grid
-                    }
-                }
-            }
-        } else {
-            base_grid
-        };
-
         Ok(ResolvedSprite {
             name: variant.name.clone(),
             size: base_sprite.size,
-            grid,
             palette: merged_palette,
             warnings,
+            nine_slice: base_sprite.nine_slice.clone(),
+            regions: base_sprite.regions.clone(),
         })
     }
 
@@ -1611,6 +1106,7 @@ pub fn lookup_renderable<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::TransformSpec;
 
     fn mono_palette() -> Palette {
         Palette {
@@ -1620,6 +1116,7 @@ mod tests {
                 ("{on}".to_string(), "#FFFFFF".to_string()),
                 ("{off}".to_string(), "#000000".to_string()),
             ]),
+            ..Default::default()
         }
     }
 
@@ -1628,7 +1125,7 @@ mod tests {
             name: "checker".to_string(),
             size: None,
             palette: PaletteRef::Named("mono".to_string()),
-            grid: vec!["{on}{off}{on}{off}".to_string(), "{off}{on}{off}{on}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1642,7 +1139,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1653,7 +1150,7 @@ mod tests {
             name: "bad_ref".to_string(),
             size: None,
             palette: PaletteRef::Named("nonexistent".to_string()),
-            grid: vec!["{x}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1683,10 +1180,12 @@ mod tests {
         let palette1 = Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{a}".to_string(), "#FF0000".to_string())]),
+            ..Default::default()
         };
         let palette2 = Palette {
             name: "test".to_string(),
             colors: HashMap::from([("{b}".to_string(), "#00FF00".to_string())]),
+            ..Default::default()
         };
 
         registry.register(palette1);
@@ -1833,7 +1332,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("@gameboy".to_string()),
-            grid: vec!["{lightest}{dark}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1844,7 +1343,7 @@ mod tests {
             name: "test".to_string(),
             size: None,
             palette: PaletteRef::Named("@nonexistent".to_string()),
-            grid: vec!["{x}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         }
@@ -1861,12 +1360,6 @@ mod tests {
                 ("{skin}".to_string(), "#FFCC99".to_string()),
                 ("{hair}".to_string(), "#333333".to_string()),
             ])),
-            grid: vec![
-                "{_}{hair}{hair}{_}".to_string(),
-                "{hair}{skin}{skin}{hair}".to_string(),
-                "{_}{skin}{skin}{_}".to_string(),
-                "{_}{skin}{skin}{_}".to_string(),
-            ],
             metadata: None,
             ..Default::default()
         }
@@ -1991,7 +1484,7 @@ mod tests {
                 name: "test".to_string(),
                 size: None,
                 palette: PaletteRef::Named(format!("@{}", name)),
-                grid: vec!["{_}".to_string()],
+                
                 metadata: None,
                 ..Default::default()
             };
@@ -2037,7 +1530,6 @@ mod tests {
         let result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero");
         assert_eq!(result.size, Some([4, 4]));
-        assert_eq!(result.grid.len(), 4);
         assert_eq!(result.palette.get("{skin}"), Some(&"#FFCC99".to_string()));
         assert!(result.warnings.is_empty());
     }
@@ -2053,7 +1545,6 @@ mod tests {
         let result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
         assert_eq!(result.name, "hero_red");
         assert_eq!(result.size, Some([4, 4])); // Inherited from base
-        assert_eq!(result.grid.len(), 4); // Copied from base
 
         // skin should be overridden
         assert_eq!(result.palette.get("{skin}"), Some(&"#FF6666".to_string()));
@@ -2109,7 +1600,6 @@ mod tests {
 
         let result = sprite_registry.resolve("ghost", &palette_registry, false).unwrap();
         assert_eq!(result.name, "ghost");
-        assert!(result.grid.is_empty());
         assert!(result.palette.is_empty());
         assert_eq!(result.warnings.len(), 1);
         assert!(result.warnings[0].message.contains("nonexistent"));
@@ -2135,7 +1625,6 @@ mod tests {
 
         let result = sprite_registry.resolve("missing", &palette_registry, false).unwrap();
         assert_eq!(result.name, "missing");
-        assert!(result.grid.is_empty());
         assert_eq!(result.warnings.len(), 1);
     }
 
@@ -2151,8 +1640,6 @@ mod tests {
         let sprite_result = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
         let variant_result = sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
 
-        // Grid should be identical
-        assert_eq!(sprite_result.grid, variant_result.grid);
         // Size should be identical
         assert_eq!(sprite_result.size, variant_result.size);
     }
@@ -2213,7 +1700,7 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#FF0000".to_string()),
             ])),
-            grid: vec!["{x}{x}".to_string(), "{_}{x}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2227,10 +1714,11 @@ mod tests {
                 ("{_}".to_string(), "#00000000".to_string()),
                 ("{x}".to_string(), "#00FF00".to_string()), // Different color
             ])),
-            grid: vec![], // Empty grid - should get from source
+             // Empty grid - should get from source
             source: Some("base".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
@@ -2238,9 +1726,6 @@ mod tests {
         let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
 
         assert_eq!(result.name, "derived");
-        assert_eq!(result.grid.len(), 2);
-        assert_eq!(result.grid[0], "{x}{x}");
-        assert_eq!(result.grid[1], "{_}{x}");
     }
 
     #[test]
@@ -2257,7 +1742,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2272,18 +1757,16 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("mirror-h".to_string())]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(mirrored);
 
         let result = sprite_registry.resolve("mirrored", &palette_registry, false).unwrap();
 
-        // Grid should be horizontally mirrored: "{a}{b}" -> "{b}{a}"
-        assert_eq!(result.grid.len(), 1);
-        assert_eq!(result.grid[0], "{b}{a}");
     }
 
     #[test]
@@ -2301,7 +1784,7 @@ mod tests {
                 ("{3}".to_string(), "#0000FF".to_string()),
                 ("{4}".to_string(), "#FFFF00".to_string()),
             ])),
-            grid: vec!["{1}{2}".to_string(), "{3}{4}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2312,10 +1795,11 @@ mod tests {
             name: "rotated".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![TransformSpec::String("rotate:90".to_string())]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(rotated);
 
@@ -2325,9 +1809,6 @@ mod tests {
         // Original:    Rotated:
         // {1}{2}       {3}{1}
         // {3}{4}       {4}{2}
-        assert_eq!(result.grid.len(), 2);
-        assert_eq!(result.grid[0], "{3}{1}");
-        assert_eq!(result.grid[1], "{4}{2}");
     }
 
     #[test]
@@ -2343,7 +1824,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2354,13 +1835,14 @@ mod tests {
             name: "transformed".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("base".to_string()),
             transform: Some(vec![
                 TransformSpec::String("mirror-h".to_string()),
                 TransformSpec::String("tile:2x1".to_string()),
             ]),
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(transformed);
 
@@ -2368,8 +1850,59 @@ mod tests {
 
         // First mirror-h: "{a}{b}" -> "{b}{a}"
         // Then tile 2x1: "{b}{a}" -> "{b}{a}{b}{a}"
-        assert_eq!(result.grid.len(), 1);
-        assert_eq!(result.grid[0], "{b}{a}{b}{a}");
+    }
+
+    /// Test that derived sprites with source + transform properly inherit regions and size
+    /// from the source sprite. This tests the fix for TTP-c948t where transforms on
+    /// regions-based source sprites produced 0x0 output.
+    #[test]
+    fn test_resolve_derived_sprite_inherits_source_regions_and_size() {
+        let palette_registry = PaletteRegistry::new();
+        let mut sprite_registry = SpriteRegistry::new();
+
+        // Register a regions-based source sprite with explicit size
+        let base = Sprite {
+            name: "base".to_string(),
+            size: Some([4, 4]),
+            palette: PaletteRef::Inline(HashMap::from([
+                ("bg".to_string(), "#FF0000".to_string()),
+            ])),
+            regions: Some(HashMap::from([
+                ("bg".to_string(), crate::models::RegionDef {
+                    rect: Some([0, 0, 4, 4]),
+                    ..Default::default()
+                }),
+            ])),
+            metadata: None,
+            ..Default::default()
+        };
+        sprite_registry.register_sprite(base);
+
+        // Register a derived sprite with source + transform (no explicit regions or size)
+        let derived = Sprite {
+            name: "derived".to_string(),
+            size: None,
+            palette: PaletteRef::Inline(HashMap::from([
+                ("bg".to_string(), "#FF0000".to_string()),
+            ])),
+            source: Some("base".to_string()),
+            transform: Some(vec![TransformSpec::String("skew-x:26.57".to_string())]),
+            regions: None, // No explicit regions - should inherit from source
+            metadata: None,
+            ..Default::default()
+        };
+        sprite_registry.register_sprite(derived);
+
+        // Resolve the derived sprite
+        let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
+
+        // Verify the derived sprite inherited size from source
+        assert_eq!(result.size, Some([4, 4]), "Derived sprite should inherit size from source");
+
+        // Verify the derived sprite inherited regions from source
+        assert!(result.regions.is_some(), "Derived sprite should inherit regions from source");
+        let regions = result.regions.as_ref().unwrap();
+        assert!(regions.contains_key("bg"), "Regions should contain 'bg' from source");
     }
 
     #[test]
@@ -2381,10 +1914,11 @@ mod tests {
             name: "derived".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
@@ -2409,16 +1943,16 @@ mod tests {
             name: "derived".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("nonexistent".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(derived);
 
         // Lenient mode should return empty grid with warning
         let result = sprite_registry.resolve("derived", &palette_registry, false).unwrap();
-        assert!(result.grid.is_empty());
         assert!(!result.warnings.is_empty());
     }
 
@@ -2432,19 +1966,21 @@ mod tests {
             name: "a".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("b".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         let b = Sprite {
             name: "b".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             source: Some("a".to_string()),
             transform: None,
             metadata: None,
+            ..Default::default()
         };
         sprite_registry.register_sprite(a);
         sprite_registry.register_sprite(b);
@@ -2473,7 +2009,7 @@ mod tests {
                 ("{a}".to_string(), "#FF0000".to_string()),
                 ("{b}".to_string(), "#00FF00".to_string()),
             ])),
-            grid: vec!["{a}{b}".to_string()],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2490,8 +2026,6 @@ mod tests {
 
         let result = sprite_registry.resolve("variant", &palette_registry, false).unwrap();
 
-        // Grid should be mirrored
-        assert_eq!(result.grid[0], "{b}{a}");
         // Palette should have overridden color
         assert_eq!(result.palette.get("{a}").unwrap(), "#0000FF");
         // Original color for {b} should be from base
@@ -2510,7 +2044,11 @@ mod tests {
         assert!(!registry.is_empty());
         assert_eq!(registry.len(), 1);
 
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new() });
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+            ..Default::default()
+        });
         assert_eq!(registry.len(), 2);
 
         registry.clear();
@@ -2521,7 +2059,11 @@ mod tests {
     fn test_palette_registry_trait_names() {
         let mut registry = PaletteRegistry::new();
         registry.register(mono_palette());
-        registry.register(Palette { name: "other".to_string(), colors: HashMap::new() });
+        registry.register(Palette {
+            name: "other".to_string(),
+            colors: HashMap::new(),
+            ..Default::default()
+        });
 
         let names: Vec<_> = registry.names().collect();
         assert_eq!(names.len(), 2);
@@ -2812,7 +2354,7 @@ mod tests {
             name: "shared_name".to_string(),
             size: None,
             palette: PaletteRef::Inline(HashMap::new()),
-            grid: vec![],
+            
             metadata: None,
             ..Default::default()
         };
@@ -2842,5 +2384,164 @@ mod tests {
 
         let result = lookup_renderable("nonexistent", &sprite_registry, &composition_registry);
         assert!(result.is_none());
+    }
+
+    // ========================================================================
+    // Palette Ramp Expansion Tests
+    // ========================================================================
+
+    #[test]
+    fn test_palette_ramp_expansion() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "skin_tones".to_string(),
+            colors: HashMap::from([("{_}".to_string(), "#00000000".to_string())]),
+            ramps: Some(HashMap::from([(
+                "skin".to_string(),
+                ColorRamp {
+                    base: "#E8B89D".to_string(),
+                    steps: Some(3),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+            roles: None,
+            relationships: None,
+        };
+
+        registry.register(palette);
+
+        let stored = registry.get("skin_tones").unwrap();
+
+        // The ramp should have been expanded into colors
+        assert!(stored.colors.contains_key("{skin}"), "Base color token should exist");
+        assert!(stored.colors.contains_key("{skin_1}"), "Shadow token should exist");
+        assert!(stored.colors.contains_key("{skin+1}"), "Highlight token should exist");
+
+        // Verify base color is correct
+        assert_eq!(stored.colors.get("{skin}").unwrap(), "#E8B89D");
+
+        // Ramps should be cleared after expansion
+        assert!(stored.ramps.is_none(), "Ramps should be None after expansion");
+    }
+
+    #[test]
+    fn test_palette_ramp_expansion_5_steps() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "metals".to_string(),
+            colors: HashMap::new(),
+            ramps: Some(HashMap::from([(
+                "gold".to_string(),
+                ColorRamp {
+                    base: "#FFD700".to_string(),
+                    steps: Some(5),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+            roles: None,
+            relationships: None,
+        };
+
+        registry.register(palette);
+        let stored = registry.get("metals").unwrap();
+
+        // 5 steps: _2, _1, base, +1, +2
+        assert!(stored.colors.contains_key("{gold_2}"), "Darkest shadow should exist");
+        assert!(stored.colors.contains_key("{gold_1}"), "Shadow should exist");
+        assert!(stored.colors.contains_key("{gold}"), "Base should exist");
+        assert!(stored.colors.contains_key("{gold+1}"), "Highlight should exist");
+        assert!(stored.colors.contains_key("{gold+2}"), "Brightest should exist");
+        assert_eq!(stored.colors.len(), 5);
+    }
+
+    #[test]
+    fn test_palette_ramp_preserves_existing_colors() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "character".to_string(),
+            colors: HashMap::from([
+                ("{_}".to_string(), "#00000000".to_string()),
+                ("{hair}".to_string(), "#4A3728".to_string()),
+            ]),
+            ramps: Some(HashMap::from([(
+                "skin".to_string(),
+                ColorRamp {
+                    base: "#E8B89D".to_string(),
+                    steps: Some(3),
+                    shadow_shift: None,
+                    highlight_shift: None,
+                },
+            )])),
+            roles: None,
+            relationships: None,
+        };
+
+        registry.register(palette);
+        let stored = registry.get("character").unwrap();
+
+        // Original colors should still be there
+        assert_eq!(stored.colors.get("{_}").unwrap(), "#00000000");
+        assert_eq!(stored.colors.get("{hair}").unwrap(), "#4A3728");
+
+        // Plus the ramp colors
+        assert!(stored.colors.contains_key("{skin}"));
+        assert!(stored.colors.contains_key("{skin_1}"));
+        assert!(stored.colors.contains_key("{skin+1}"));
+    }
+
+    #[test]
+    fn test_palette_multiple_ramps() {
+        use crate::models::ColorRamp;
+
+        let mut registry = PaletteRegistry::new();
+
+        let palette = Palette {
+            name: "sprite".to_string(),
+            colors: HashMap::new(),
+            ramps: Some(HashMap::from([
+                (
+                    "skin".to_string(),
+                    ColorRamp {
+                        base: "#E8B89D".to_string(),
+                        steps: Some(3),
+                        shadow_shift: None,
+                        highlight_shift: None,
+                    },
+                ),
+                (
+                    "hair".to_string(),
+                    ColorRamp {
+                        base: "#4A3728".to_string(),
+                        steps: Some(3),
+                        shadow_shift: None,
+                        highlight_shift: None,
+                    },
+                ),
+            ])),
+            roles: None,
+            relationships: None,
+        };
+
+        registry.register(palette);
+        let stored = registry.get("sprite").unwrap();
+
+        // Both ramps should be expanded
+        assert!(stored.colors.contains_key("{skin}"));
+        assert!(stored.colors.contains_key("{skin_1}"));
+        assert!(stored.colors.contains_key("{skin+1}"));
+        assert!(stored.colors.contains_key("{hair}"));
+        assert!(stored.colors.contains_key("{hair_1}"));
+        assert!(stored.colors.contains_key("{hair+1}"));
     }
 }

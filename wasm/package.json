@@ -1,6 +1,6 @@
 {
   "name": "@stiwi/pixelsrc-wasm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "WebAssembly build of pixelsrc pixel art renderer",
   "type": "module",
   "main": "./pkg/pixelsrc.js",
@@ -19,9 +19,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "cd .. && wasm-pack build --target web --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
-    "build:nodejs": "cd .. && wasm-pack build --target nodejs --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
-    "build:bundler": "cd .. && wasm-pack build --target bundler --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
+    "build": "cd .. && wasm-pack build --target web -- --no-default-features --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
+    "build:nodejs": "cd .. && wasm-pack build --target nodejs -- --no-default-features --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
+    "build:bundler": "cd .. && wasm-pack build --target bundler -- --no-default-features --features wasm && rm -rf wasm/pkg && mv pkg wasm/",
     "test": "node --experimental-vm-modules test.mjs"
   },
   "keywords": [
@@ -37,7 +37,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/scbrown/pixelsrc"
+    "url": "git+https://github.com/scbrown/pixelsrc.git"
   },
   "bugs": {
     "url": "https://github.com/scbrown/pixelsrc/issues"

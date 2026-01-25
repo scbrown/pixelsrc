@@ -1,11 +1,10 @@
 //! Validation logic for Pixelsrc files
 //!
 //! Provides semantic validation beyond basic JSON parsing, checking for
-//! common mistakes like undefined tokens, row mismatches, and invalid colors.
+//! common mistakes like undefined tokens and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{PaletteRef, Particle, TtpObject};
-use crate::tokenizer::tokenize;
+use crate::models::{Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -37,20 +36,34 @@ pub enum IssueType {
     MissingType,
     /// Line has a "type" field but value is not recognized
     UnknownType,
-    /// Token used in grid but not defined in palette
+    /// Token used in region but not defined in palette
     UndefinedToken,
-    /// Rows in a sprite have different token counts
-    RowLengthMismatch,
     /// Sprite references a palette that doesn't exist
     MissingPalette,
     /// Color value is not valid hex format
     InvalidColor,
-    /// Grid dimensions don't match declared size
-    SizeMismatch,
-    /// Sprite has no grid rows
-    EmptyGrid,
     /// Multiple objects with the same name
     DuplicateName,
+    /// Role references a token not defined in palette colors
+    InvalidRoleToken,
+    /// Relationship references a token that doesn't exist
+    InvalidRelationshipTarget,
+    /// Circular dependency in derives-from relationships
+    CircularDependency,
+    /// Region 'within' constraint references non-existent token
+    InvalidWithinReference,
+    /// Region 'adjacent-to' constraint references non-existent token
+    InvalidAdjacentReference,
+    /// Relationship references a non-existent token
+    InvalidRelationshipReference,
+    /// Circular relationship detected (e.g., A within B, B within A)
+    CircularRelationship,
+    /// Constraint validation is uncertain (e.g., overlapping regions)
+    UncertainConstraint,
+    /// Range validation (reused for constraint checking)
+    RangeValidation,
+    /// Sprite has no regions defined or state-rules has no rules
+    EmptyGrid,
 }
 
 impl std::fmt::Display for IssueType {
@@ -60,12 +73,19 @@ impl std::fmt::Display for IssueType {
             IssueType::MissingType => write!(f, "missing_type"),
             IssueType::UnknownType => write!(f, "unknown_type"),
             IssueType::UndefinedToken => write!(f, "undefined_token"),
-            IssueType::RowLengthMismatch => write!(f, "row_length"),
             IssueType::MissingPalette => write!(f, "missing_palette"),
             IssueType::InvalidColor => write!(f, "invalid_color"),
-            IssueType::SizeMismatch => write!(f, "size_mismatch"),
-            IssueType::EmptyGrid => write!(f, "empty_grid"),
             IssueType::DuplicateName => write!(f, "duplicate_name"),
+            IssueType::InvalidRoleToken => write!(f, "invalid_role_token"),
+            IssueType::InvalidRelationshipTarget => write!(f, "invalid_relationship_target"),
+            IssueType::CircularDependency => write!(f, "circular_dependency"),
+            IssueType::InvalidWithinReference => write!(f, "invalid_within_ref"),
+            IssueType::InvalidAdjacentReference => write!(f, "invalid_adjacent_ref"),
+            IssueType::InvalidRelationshipReference => write!(f, "invalid_relationship_ref"),
+            IssueType::CircularRelationship => write!(f, "circular_relationship"),
+            IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
+            IssueType::RangeValidation => write!(f, "range_validation"),
+            IssueType::EmptyGrid => write!(f, "empty_grid"),
         }
     }
 }
@@ -177,14 +197,14 @@ impl Validator {
             return;
         }
 
-        // Check 1: JSON syntax
-        let json_value: Value = match serde_json::from_str(content) {
+        // Check 1: JSON5 syntax
+        let json_value: Value = match json5::from_str(content) {
             Ok(v) => v,
             Err(e) => {
                 self.issues.push(ValidationIssue::error(
                     line_number,
                     IssueType::JsonSyntax,
-                    format!("Invalid JSON: {}", e),
+                    format!("Invalid JSON5: {}", e),
                 ));
                 return;
             }
@@ -242,7 +262,7 @@ impl Validator {
         }
 
         // Now parse as TtpObject for semantic validation
-        let ttp_obj: TtpObject = match serde_json::from_str(content) {
+        let ttp_obj: TtpObject = match json5::from_str(content) {
             Ok(obj) => obj,
             Err(e) => {
                 // This shouldn't happen if type is valid, but handle gracefully
@@ -258,7 +278,7 @@ impl Validator {
         // Validate based on object type
         match ttp_obj {
             TtpObject::Palette(palette) => {
-                self.validate_palette(line_number, &palette.name, &palette.colors);
+                self.validate_palette(line_number, &palette);
             }
             TtpObject::Sprite(sprite) => {
                 self.validate_sprite(line_number, &sprite);
@@ -277,6 +297,9 @@ impl Validator {
             }
             TtpObject::Transform(transform) => {
                 self.validate_transform(line_number, &transform);
+            }
+            TtpObject::StateRules(state_rules) => {
+                self.validate_state_rules(line_number, &state_rules);
             }
         }
     }
@@ -301,7 +324,7 @@ impl Validator {
                 self.issues.push(
                     ValidationIssue::warning(
                         line_number,
-                        IssueType::EmptyGrid,
+                        IssueType::RangeValidation,
                         "Transform has 0 frames".to_string(),
                     )
                     .with_context(format!("transform \"{}\"", transform.name)),
@@ -310,13 +333,41 @@ impl Validator {
         }
     }
 
-    /// Validate a palette definition
-    fn validate_palette(
+    /// Validate a state rules definition
+    fn validate_state_rules(
         &mut self,
         line_number: usize,
-        name: &str,
-        colors: &HashMap<String, String>,
+        state_rules: &crate::state::StateRules,
     ) {
+        // Check for duplicate name - state rules share namespace with other named objects
+        if !self.sprite_names.insert(state_rules.name.clone()) {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::DuplicateName,
+                    format!("Duplicate state-rules name \"{}\"", state_rules.name),
+                )
+                .with_context(format!("state-rules \"{}\"", state_rules.name)),
+            );
+        }
+
+        // Warn if no rules defined
+        if state_rules.rules.is_empty() {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::EmptyGrid,
+                    "State rules has no rules defined".to_string(),
+                )
+                .with_context(format!("state-rules \"{}\"", state_rules.name)),
+            );
+        }
+    }
+
+    /// Validate a palette definition
+    fn validate_palette(&mut self, line_number: usize, palette: &Palette) {
+        let name = &palette.name;
+        let colors = &palette.colors;
         // Check for duplicate name
         if !self.palette_names.insert(name.to_string()) {
             self.issues.push(
@@ -347,8 +398,106 @@ impl Validator {
             }
         }
 
+        // Validate role token references
+        if let Some(roles) = &palette.roles {
+            for (token, role) in roles {
+                if !defined_tokens.contains(token) {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::InvalidRoleToken,
+                            format!(
+                                "Role \"{}\" references undefined token {}",
+                                role, token
+                            ),
+                        )
+                        .with_context(format!("palette \"{}\"", name)),
+                    );
+                }
+            }
+        }
+
+        // Validate relationships
+        if let Some(rels) = palette.relationships.as_ref() {
+            self.validate_relationships(line_number, name, &defined_tokens, rels);
+        }
+
         // Register palette tokens
         self.palettes.insert(name.to_string(), defined_tokens);
+    }
+
+    /// Validate palette relationships
+    fn validate_relationships(
+        &mut self,
+        line_number: usize,
+        palette_name: &str,
+        defined_tokens: &HashSet<String>,
+        relationships: &HashMap<String, Relationship>,
+    ) {
+        // Build derives-from graph for cycle detection
+        let mut derives_from: HashMap<&str, &str> = HashMap::new();
+
+        for (source_token, relationship) in relationships {
+            // Check that source token exists
+            if !defined_tokens.contains(source_token) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipTarget,
+                        format!(
+                            "Relationship source token {} is not defined in palette",
+                            source_token
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Check that target token exists
+            if !defined_tokens.contains(&relationship.target) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidRelationshipTarget,
+                        format!(
+                            "Relationship target token {} is not defined in palette",
+                            relationship.target
+                        ),
+                    )
+                    .with_context(format!("palette \"{}\"", palette_name)),
+                );
+            }
+
+            // Collect derives-from edges for cycle detection
+            if relationship.relationship_type == RelationshipType::DerivesFrom {
+                derives_from.insert(source_token.as_str(), relationship.target.as_str());
+            }
+        }
+
+        // Check for circular dependencies in derives-from chains
+        for start_token in derives_from.keys() {
+            let mut visited = HashSet::new();
+            let mut current = *start_token;
+
+            while let Some(&next) = derives_from.get(current) {
+                if !visited.insert(current) {
+                    // We've seen this token before - cycle detected
+                    self.issues.push(
+                        ValidationIssue::error(
+                            line_number,
+                            IssueType::CircularDependency,
+                            format!(
+                                "Circular dependency in derives-from chain involving token {}",
+                                current
+                            ),
+                        )
+                        .with_context(format!("palette \"{}\"", palette_name)),
+                    );
+                    break;
+                }
+                current = next;
+            }
+        }
     }
 
     /// Validate a sprite definition
@@ -367,88 +516,27 @@ impl Validator {
             );
         }
 
-        // Check for empty grid
-        if sprite.grid.is_empty() {
+        // Get palette tokens for validation
+        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
+
+        // Validate sprites have regions defined
+        if sprite.regions.is_none() {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
                     IssueType::EmptyGrid,
-                    format!("Sprite \"{}\" has no grid rows", name),
+                    format!("Sprite \"{}\" has no regions defined", name),
                 )
-                .with_context(format!("sprite \"{}\"", name)),
+                .with_context(format!("sprite \"{}\"", name))
+                .with_suggestion("add structured regions format to the sprite".to_string()),
             );
-            return;
         }
 
-        // Get palette tokens
-        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
-
-        // Validate grid rows
-        let mut first_row_count: Option<usize> = None;
+        // Collect all tokens used in regions
         let mut all_tokens_used: HashSet<String> = HashSet::new();
-
-        for (row_idx, row) in sprite.grid.iter().enumerate() {
-            let (tokens, _warnings) = tokenize(row);
-
-            // Check row length consistency
-            match first_row_count {
-                None => first_row_count = Some(tokens.len()),
-                Some(expected) if tokens.len() != expected => {
-                    let actual = tokens.len();
-                    let message = format!(
-                        "Row {} length mismatch: expected {} tokens, found {}",
-                        row_idx + 1,
-                        expected,
-                        actual
-                    );
-
-                    let mut issue = ValidationIssue::warning(
-                        line_number,
-                        IssueType::RowLengthMismatch,
-                        message,
-                    )
-                    .with_context(format!("sprite \"{}\"", name));
-
-                    // Add padding suggestion for short rows
-                    if actual < expected {
-                        let padding_needed = expected - actual;
-                        let padding = "{_}".repeat(padding_needed);
-                        issue = issue.with_suggestion(format!(
-                            "add {} padding token{}: {}",
-                            padding_needed,
-                            if padding_needed == 1 { "" } else { "s" },
-                            padding
-                        ));
-                    }
-
-                    self.issues.push(issue);
-                }
-                _ => {}
-            }
-
-            // Collect all tokens used
-            for token in tokens {
-                all_tokens_used.insert(token);
-            }
-        }
-
-        // Check size mismatch
-        if let Some(declared_size) = sprite.size {
-            let actual_width = first_row_count.unwrap_or(0) as u32;
-            let actual_height = sprite.grid.len() as u32;
-
-            if declared_size[0] != actual_width || declared_size[1] != actual_height {
-                self.issues.push(
-                    ValidationIssue::warning(
-                        line_number,
-                        IssueType::SizeMismatch,
-                        format!(
-                            "Declared size [{}x{}] doesn't match grid [{}x{}]",
-                            declared_size[0], declared_size[1], actual_width, actual_height
-                        ),
-                    )
-                    .with_context(format!("sprite \"{}\"", name)),
-                );
+        if let Some(regions) = &sprite.regions {
+            for token in regions.keys() {
+                all_tokens_used.insert(token.clone());
             }
         }
 
@@ -630,7 +718,7 @@ impl Validator {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
-                    IssueType::SizeMismatch, // Reusing for range validation
+                    IssueType::RangeValidation,
                     format!(
                         "Particle lifetime min ({}) > max ({})",
                         particle.emitter.lifetime[0], particle.emitter.lifetime[1]
@@ -642,22 +730,132 @@ impl Validator {
     }
 
     /// Validate a file
+    ///
+    /// Supports both single-line JSONL and multi-line JSON5 formats.
     pub fn validate_file(&mut self, path: &Path) -> Result<(), std::io::Error> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
-        for (line_idx, line_result) in reader.lines().enumerate() {
-            let line_number = line_idx + 1;
-            match line_result {
-                Ok(line) => self.validate_line(line_number, &line),
+        let mut accumulator = String::new();
+        let mut start_line = 1;
+        let mut current_line = 0;
+        let mut brace_depth = 0;
+        let mut bracket_depth = 0;
+        let mut in_string = false;
+        let mut escape_next = false;
+        #[allow(unused_assignments)]
+        let mut in_single_line_comment = false;
+        let mut in_multi_line_comment = false;
+        let mut prev_char: Option<char> = None;
+
+        for line_result in reader.lines() {
+            current_line += 1;
+
+            let line = match line_result {
+                Ok(l) => l,
                 Err(e) => {
                     self.issues.push(ValidationIssue::error(
-                        line_number,
+                        current_line,
                         IssueType::JsonSyntax,
                         format!("IO error reading line: {}", e),
                     ));
+                    continue;
+                }
+            };
+
+            // Reset single-line comment flag at start of new line
+            in_single_line_comment = false;
+
+            // Skip empty lines when not accumulating
+            if accumulator.is_empty() && line.trim().is_empty() {
+                continue;
+            }
+
+            // Skip standalone comment lines when not accumulating
+            if accumulator.is_empty() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") || trimmed.starts_with("/*") {
+                    continue;
                 }
             }
+
+            // Start tracking from this line if accumulator was empty
+            if accumulator.is_empty() {
+                start_line = current_line;
+            }
+
+            // Add line to accumulator
+            if !accumulator.is_empty() {
+                accumulator.push('\n');
+            }
+            accumulator.push_str(&line);
+
+            // Track brace/bracket depth to detect complete objects
+            for ch in line.chars() {
+                // Handle multi-line comment end
+                if in_multi_line_comment {
+                    if prev_char == Some('*') && ch == '/' {
+                        in_multi_line_comment = false;
+                    }
+                    prev_char = Some(ch);
+                    continue;
+                }
+
+                // Check for comment starts
+                if !in_string && !in_single_line_comment {
+                    if prev_char == Some('/') && ch == '/' {
+                        in_single_line_comment = true;
+                        prev_char = Some(ch);
+                        continue;
+                    }
+                    if prev_char == Some('/') && ch == '*' {
+                        in_multi_line_comment = true;
+                        prev_char = Some(ch);
+                        continue;
+                    }
+                }
+
+                prev_char = Some(ch);
+
+                // Skip if in comment
+                if in_single_line_comment {
+                    continue;
+                }
+
+                if escape_next {
+                    escape_next = false;
+                    continue;
+                }
+
+                match ch {
+                    '\\' if in_string => escape_next = true,
+                    '"' if !in_string => in_string = true,
+                    '"' if in_string => in_string = false,
+                    '{' if !in_string => brace_depth += 1,
+                    '}' if !in_string => brace_depth -= 1,
+                    '[' if !in_string => bracket_depth += 1,
+                    ']' if !in_string => bracket_depth -= 1,
+                    _ => {}
+                }
+            }
+
+            // Reset prev_char at end of line (for comment detection across lines)
+            prev_char = None;
+
+            // Try to validate when braces are balanced
+            if brace_depth == 0 && bracket_depth == 0 && !accumulator.trim().is_empty() {
+                self.validate_line(start_line, &accumulator);
+
+                accumulator.clear();
+                in_string = false;
+                escape_next = false;
+                // in_single_line_comment is reset at line start (line 766)
+            }
+        }
+
+        // Handle any remaining accumulated content
+        if !accumulator.trim().is_empty() {
+            self.validate_line(start_line, &accumulator);
         }
 
         Ok(())
@@ -842,201 +1040,38 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_no_regions() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "test", "palette": "test"}"#,
+        );
+
+        let empty_issues: Vec<_> =
+            validator.issues().iter().filter(|i| i.issue_type == IssueType::EmptyGrid).collect();
+        assert_eq!(empty_issues.len(), 1);
+    }
+
+    #[test]
     fn test_validate_undefined_token() {
         let mut validator = Validator::new();
         // First define a palette
         validator.validate_line(
             1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
+            r##"{"type": "palette", "name": "test", "colors": {"a": "#FF0000"}}"##,
         );
-        // Then a sprite using undefined token
+        // Then a sprite using undefined token (b is not in palette)
         validator.validate_line(
             2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{b}"]}"#,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "test", "regions": {"b": {"rect": [0, 0, 4, 4]}}}"#,
         );
         assert_eq!(validator.issues().len(), 1);
         assert_eq!(validator.issues()[0].issue_type, IssueType::UndefinedToken);
         assert_eq!(validator.issues()[0].line, 2);
-    }
-
-    #[test]
-    fn test_validate_row_length_mismatch() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}{a}{a}"]}"#,
-        );
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert_eq!(row_mismatch_issues.len(), 1);
-    }
-
-    #[test]
-    fn test_row_length_message_format() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}{a}"]}"#,
-        );
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert_eq!(row_mismatch_issues.len(), 1);
-
-        let issue = row_mismatch_issues[0];
-        // Check message format: "Row X length mismatch: expected Y tokens, found Z"
-        assert!(
-            issue.message.contains("expected 4 tokens"),
-            "Message should contain 'expected 4 tokens': {}",
-            issue.message
-        );
-        assert!(
-            issue.message.contains("found 2"),
-            "Message should contain 'found 2': {}",
-            issue.message
-        );
-    }
-
-    #[test]
-    fn test_row_length_padding_suggestion() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}{a}", "{a}"]}"#,
-        );
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert_eq!(row_mismatch_issues.len(), 1);
-
-        let issue = row_mismatch_issues[0];
-        // Check padding suggestion for short row (1 token vs expected 4)
-        assert!(issue.suggestion.is_some(), "Short row should have padding suggestion");
-        let suggestion = issue.suggestion.as_ref().unwrap();
-        assert!(
-            suggestion.contains("{_}{_}{_}"),
-            "Should suggest 3 padding tokens: {}",
-            suggestion
-        );
-        assert!(
-            suggestion.contains("add 3 padding tokens"),
-            "Should mention adding 3 tokens: {}",
-            suggestion
-        );
-    }
-
-    #[test]
-    fn test_row_length_single_padding_suggestion() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}", "{a}"]}"#,
-        );
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert_eq!(row_mismatch_issues.len(), 1);
-
-        let issue = row_mismatch_issues[0];
-        let suggestion = issue.suggestion.as_ref().unwrap();
-        // Should say "token" (singular) not "tokens"
-        assert!(
-            suggestion.contains("add 1 padding token:"),
-            "Should use singular 'token': {}",
-            suggestion
-        );
-    }
-
-    #[test]
-    fn test_row_length_no_padding_for_long_rows() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        // Row 2 is LONGER than row 1 (5 tokens vs 3)
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": ["{a}{a}{a}", "{a}{a}{a}{a}{a}"]}"#,
-        );
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert_eq!(row_mismatch_issues.len(), 1);
-
-        let issue = row_mismatch_issues[0];
-        // Long rows should NOT have padding suggestion (can't "pad" to make shorter)
-        assert!(
-            issue.suggestion.is_none(),
-            "Long rows should not have padding suggestion, but got: {:?}",
-            issue.suggestion
-        );
-    }
-
-    #[test]
-    fn test_validate_size_mismatch() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "size": [10, 10], "palette": "test", "grid": ["{a}{a}"]}"#,
-        );
-
-        let size_mismatch_issues: Vec<_> =
-            validator.issues().iter().filter(|i| i.issue_type == IssueType::SizeMismatch).collect();
-        assert_eq!(size_mismatch_issues.len(), 1);
-    }
-
-    #[test]
-    fn test_validate_empty_grid() {
-        let mut validator = Validator::new();
-        validator.validate_line(
-            1,
-            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
-        );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test", "grid": []}"#,
-        );
-
-        let empty_grid_issues: Vec<_> =
-            validator.issues().iter().filter(|i| i.issue_type == IssueType::EmptyGrid).collect();
-        assert_eq!(empty_grid_issues.len(), 1);
     }
 
     #[test]
@@ -1064,7 +1099,7 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_line(
             1,
-            r#"{"type": "sprite", "name": "test", "palette": "nonexistent", "grid": ["{a}"]}"#,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "nonexistent", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
         );
 
         let missing_palette_issues: Vec<_> = validator
@@ -1080,7 +1115,7 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_line(
             1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{a}": "#FF0000"}, "grid": ["{a}"]}"##,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"a": "#FF0000"}, "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
         );
         assert!(validator.issues().is_empty());
     }
@@ -1090,7 +1125,7 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_line(
             1,
-            r##"{"type": "sprite", "name": "test", "palette": {"{a}": "#INVALID"}, "grid": ["{a}"]}"##,
+            r##"{"type": "sprite", "name": "test", "size": [4, 4], "palette": {"a": "#INVALID"}, "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
         );
         assert_eq!(validator.issues().len(), 1);
         assert_eq!(validator.issues()[0].issue_type, IssueType::InvalidColor);
@@ -1098,6 +1133,7 @@ mod tests {
 
     #[test]
     #[serial]
+    #[ignore = "Grid format deprecated"]
     fn test_validate_file_errors() {
         use std::path::Path;
 
@@ -1109,24 +1145,18 @@ mod tests {
         let mut validator = Validator::new();
         validator.validate_file(fixture_path).unwrap();
 
-        // Should have warnings for undefined token {b} and row length mismatch
+        // Should have warnings for undefined tokens
         let undefined_token_issues: Vec<_> = validator
             .issues()
             .iter()
             .filter(|i| i.issue_type == IssueType::UndefinedToken)
             .collect();
-        assert!(!undefined_token_issues.is_empty(), "Expected undefined token warning for {{b}}");
-
-        let row_mismatch_issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::RowLengthMismatch)
-            .collect();
-        assert!(!row_mismatch_issues.is_empty(), "Expected row length mismatch warning");
+        assert!(!undefined_token_issues.is_empty(), "Expected undefined token warning");
     }
 
     #[test]
     #[serial]
+    #[ignore = "Grid format deprecated"]
     fn test_validate_file_typos() {
         use std::path::Path;
 
@@ -1158,5 +1188,179 @@ mod tests {
 
         assert!(has_skin_suggestion, "Expected suggestion for {{skin}}");
         assert!(has_hair_suggestion, "Expected suggestion for {{hair}}");
+    }
+
+    #[test]
+    fn test_validate_palette_with_valid_roles() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "roles": {"{a}": "boundary", "{b}": "fill"}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Valid roles should not produce issues");
+    }
+
+    #[test]
+    fn test_validate_palette_with_invalid_role_token() {
+        let mut validator = Validator::new();
+        // Role references {c} which is not defined in colors
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "roles": {"{c}": "boundary"}}"##,
+        );
+
+        let invalid_role_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRoleToken)
+            .collect();
+        assert_eq!(invalid_role_issues.len(), 1);
+        assert!(invalid_role_issues[0].message.contains("{c}"));
+        assert!(invalid_role_issues[0].message.contains("boundary"));
+    }
+
+    #[test]
+    fn test_validate_palette_with_multiple_invalid_role_tokens() {
+        let mut validator = Validator::new();
+        // Roles reference {b} and {c} which are not defined in colors
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "roles": {"{b}": "shadow", "{c}": "highlight"}}"##,
+        );
+
+        let invalid_role_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRoleToken)
+            .collect();
+        assert_eq!(invalid_role_issues.len(), 2);
+    }
+
+    #[test]
+    fn test_validate_palette_with_all_role_types() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF", "{d}": "#FFFF00", "{e}": "#FF00FF"}, "roles": {"{a}": "boundary", "{b}": "anchor", "{c}": "fill", "{d}": "shadow", "{e}": "highlight"}}"##,
+        );
+        assert!(validator.issues().is_empty(), "All valid role types should be accepted");
+    }
+
+    #[test]
+    fn test_validate_relationship_valid() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{base}": "#FF0000", "{shadow}": "#AA0000"}, "relationships": {"{shadow}": {"type": "derives-from", "target": "{base}"}}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Expected no issues for valid relationship");
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_source() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{base}": "#FF0000"}, "relationships": {"{undefined}": {"type": "derives-from", "target": "{base}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipTarget)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected 1 invalid relationship target issue");
+        assert!(issues[0].message.contains("{undefined}"));
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_target() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{shadow}": "#AA0000"}, "relationships": {"{shadow}": {"type": "derives-from", "target": "{undefined}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::InvalidRelationshipTarget)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected 1 invalid relationship target issue");
+        assert!(issues[0].message.contains("{undefined}"));
+    }
+
+    #[test]
+    fn test_validate_relationship_circular_dependency() {
+        let mut validator = Validator::new();
+        // Create a cycle: a -> b -> c -> a
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "derives-from", "target": "{c}"}, "{c}": {"type": "derives-from", "target": "{a}"}}}"##,
+        );
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(!issues.is_empty(), "Expected circular dependency issue");
+    }
+
+    #[test]
+    fn test_validate_relationship_types() {
+        let mut validator = Validator::new();
+        // Test all relationship types
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF", "{d}": "#FFFF00", "{e}": "#FF00FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "contained-within", "target": "{c}"}, "{c}": {"type": "adjacent-to", "target": "{d}"}, "{d}": {"type": "paired-with", "target": "{e}"}}}"##,
+        );
+        assert!(validator.issues().is_empty(), "Expected no issues for valid relationship types");
+    }
+
+    #[test]
+    fn test_validate_relationship_invalid_type() {
+        let mut validator = Validator::new();
+        // Invalid relationship type should fail JSON parsing
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "relationships": {"{a}": {"type": "invalid-type", "target": "{b}"}}}"##,
+        );
+        // This should result in a JSON syntax error because the enum doesn't include "invalid-type"
+        let issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::JsonSyntax)
+            .collect();
+        assert_eq!(issues.len(), 1, "Expected JSON syntax error for invalid relationship type");
+    }
+
+    #[test]
+    fn test_validate_relationship_no_cycle_in_chain() {
+        let mut validator = Validator::new();
+        // Linear chain without cycle: a -> b -> c (no cycle)
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00", "{c}": "#0000FF"}, "relationships": {"{a}": {"type": "derives-from", "target": "{b}"}, "{b}": {"type": "derives-from", "target": "{c}"}}}"##,
+        );
+        let cycle_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(cycle_issues.is_empty(), "Expected no circular dependency issues for linear chain");
+    }
+
+    #[test]
+    fn test_validate_relationship_self_reference() {
+        let mut validator = Validator::new();
+        // Self-reference: a -> a (single node cycle)
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}, "relationships": {"{a}": {"type": "derives-from", "target": "{a}"}}}"##,
+        );
+        let cycle_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::CircularDependency)
+            .collect();
+        assert!(!cycle_issues.is_empty(), "Expected circular dependency issue for self-reference");
     }
 }

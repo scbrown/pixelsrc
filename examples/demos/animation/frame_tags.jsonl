@@ -1,7 +1,0 @@
-{"type": "sprite", "name": "idle1", "size": [3, 3], "palette": {".": "#00000000", "x": "#00FF00"}, "grid": [".x.", ".x.", ".x."]}
-{"type": "sprite", "name": "idle2", "size": [3, 3], "palette": {".": "#00000000", "x": "#00FF00"}, "grid": [".x.", "xx.", ".x."]}
-{"type": "sprite", "name": "windup", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["..x", ".xx", "..x"]}
-{"type": "sprite", "name": "attack1", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["x..", "xxx", "x.."]}
-{"type": "sprite", "name": "attack2", "size": [3, 3], "palette": {".": "#00000000", "x": "#FF0000"}, "grid": ["xx.", "xxx", "xx."]}
-{"type": "sprite", "name": "recover", "size": [3, 3], "palette": {".": "#00000000", "x": "#FFFF00"}, "grid": [".x.", ".xx", ".x."]}
-{"type": "animation", "name": "attack_combo", "frames": ["idle1", "idle2", "windup", "attack1", "attack2", "recover"], "tags": {"idle": {"start": 0, "end": 1, "loop": true}, "windup": {"start": 2, "end": 2}, "attack": {"start": 3, "end": 4, "fps": 12}, "recovery": {"start": 5, "end": 5}}}

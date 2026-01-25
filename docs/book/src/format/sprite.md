@@ -1,16 +1,19 @@
 # Sprite
 
-A sprite defines a pixel art image using a grid of color tokens. Sprites are the core building block of Pixelsrc.
+A sprite defines a pixel art image using named regions. Each region maps to a color token from the palette and describes its shape geometrically.
 
 ## Basic Syntax
 
-```json
+```json5
 {
-  "type": "sprite",
-  "name": "string (required)",
-  "size": [width, height],
-  "palette": "string | object (required)",
-  "grid": ["row1", "row2", ...]
+  type: "sprite",
+  name: "string (required)",
+  size: [width, height],
+  palette: "string (required)",
+  regions: {
+    token: { shape_definition },
+    token: { shape_definition },
+  },
 }
 ```
 
@@ -20,297 +23,277 @@ A sprite defines a pixel art image using a grid of color tokens. Sprites are the
 |-------|----------|-------------|
 | `type` | Yes | Must be `"sprite"` |
 | `name` | Yes | Unique identifier |
-| `size` | No | `[width, height]` - inferred from grid if omitted |
-| `palette` | Yes | Palette name (string) or inline colors (object) |
-| `grid` | Yes | Array of strings, each string is one row of tokens |
+| `size` | Yes | `[width, height]` in pixels |
+| `palette` | Yes | Palette name to use for colors |
+| `regions` | Yes | Map of token names to region definitions |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `background` | Token to fill empty pixels (default: `_`) |
+| `origin` | Anchor point `[x, y]` for transforms |
+| `metadata` | Custom data passthrough for game engines |
+| `state-rules` | Name of state rules to apply |
 
 ## Example
 
-<!-- DEMOS format/sprite#basic -->
-**Minimal Valid Sprite**
-
-A 3x3 sprite with an inline palette demonstrating the minimum required fields.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "sprite", "name": "square", "size": [3, 3], "palette": {"{_}": "#00000000", "{r}": "#FF0000"}, "grid": ["{r}{r}{r}", "{r}{_}{r}", "{r}{r}{r}"]}
+```json5
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "gold",
+  regions: {
+    _: "background",
+    outline: { stroke: [1, 1, 6, 6], round: 2 },
+    gold: { fill: "inside(outline)" },
+    shine: { points: [[3, 3], [4, 2]] },
+  },
+}
 ```
 
-</div>
+## Regions
 
-<div class="demo-container" data-demo="basic">
-</div>
-<!-- /DEMOS -->
+The `regions` field maps token names to shape definitions. Tokens must exist in the referenced palette.
 
-```json
-{"type": "sprite", "name": "coin", "palette": "gold", "grid": [
-  "{_}{g}{g}{_}",
-  "{g}{h}{g}{g}",
-  "{g}{g}{g}{g}",
-  "{_}{g}{g}{_}"
-]}
+### Simple Shapes
+
+```json5
+regions: {
+  // Individual pixels
+  eye: { points: [[5, 6], [10, 6]] },
+
+  // Filled rectangle
+  body: { rect: [2, 4, 12, 8] },
+
+  // Rectangle outline
+  outline: { stroke: [0, 0, 16, 16] },
+
+  // Filled circle
+  head: { circle: [8, 4, 3] },
+
+  // Line
+  mouth: { line: [[5, 10], [10, 10]] },
+}
 ```
 
-### Try It
+### Fill Operations
 
-Modify the grid pattern and colors to create different sprites:
+Fill inside a boundary:
 
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="sprite-demo">{"type": "palette", "name": "gold", "colors": {"{_}": "#0000", "{g}": "#FFD700", "{h}": "#FFFACD"}}
-{"type": "sprite", "name": "coin", "palette": "gold", "grid": ["{_}{g}{g}{_}", "{g}{h}{g}{g}", "{g}{g}{g}{g}", "{_}{g}{g}{_}"]}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('sprite-demo', 'sprite-demo-preview')">Try it</button>
-  <div class="preview" id="sprite-demo-preview"></div>
-</div>
-
-Try adding more rows to make the coin larger, or change `{h}` (highlight) to create different shine effects.
-
-## Grid Format
-
-The grid is an array of strings representing pixel rows:
-
-- Each string is one row of the sprite
-- Tokens are `{name}` format, concatenated: `"{a}{b}{c}"`
-- Rows are ordered top-to-bottom
-- Tokens within a row are left-to-right
-
-### Example Grid
-
-```json
-"grid": [
-  "{_}{_}{h}{h}{h}{_}{_}",
-  "{_}{h}{h}{h}{h}{h}{_}",
-  "{_}{s}{s}{s}{s}{s}{_}",
-  "{_}{_}{b}{b}{b}{_}{_}"
-]
+```json5
+regions: {
+  outline: { stroke: [0, 0, 16, 16] },
+  skin: { fill: "inside(outline)" },
+}
 ```
 
-This creates a 7x4 sprite with:
-- Row 0: transparent, transparent, hair, hair, hair, transparent, transparent
-- Row 1: transparent, hair across, transparent
-- Row 2: transparent, skin across, transparent
-- Row 3: transparent, body across, transparent
+Fill with exclusions:
+
+```json5
+regions: {
+  outline: { stroke: [0, 0, 16, 16] },
+  eye: { rect: [5, 5, 2, 2], symmetric: "x" },
+  skin: {
+    fill: "inside(outline)",
+    except: ["eye"],
+  },
+}
+```
+
+### Symmetry
+
+Auto-mirror regions across an axis:
+
+```json5
+regions: {
+  // Creates eyes at [5, 6] and [10, 6] for 16-wide sprite
+  eye: {
+    points: [[5, 6]],
+    symmetric: "x",
+  },
+}
+```
+
+### Background
+
+The special `"background"` value fills all unoccupied pixels:
+
+```json5
+regions: {
+  _: "background",
+  // ... other regions ...
+}
+```
+
+See [Regions & Shapes](regions.md) for complete documentation of all shape primitives and modifiers.
 
 ## Palette Options
 
 ### Named Palette
 
-<!-- DEMOS format/sprite#named_palette -->
-**Named Palette Reference**
-
-Sprite referencing a separately-defined palette by name.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "retro", "colors": {"{_}": "#00000000", "{bg}": "#1a1c2c", "{fg}": "#f4f4f4", "{accent}": "#ffcd75"}}
-{"type": "sprite", "name": "icon", "palette": "retro", "grid": ["{bg}{fg}{bg}", "{fg}{accent}{fg}", "{bg}{fg}{bg}"]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="named_palette">
-</div>
-<!-- /DEMOS -->
-
 Reference a palette defined earlier in the file:
 
-```json
-{"type": "sprite", "name": "hero", "palette": "hero_colors", "grid": [...]}
-```
+```json5
+{
+  type: "palette",
+  name: "hero_colors",
+  colors: { /* ... */ },
+}
 
-### Inline Palette
-
-<!-- DEMOS format/sprite#inline_palette -->
-**Inline Palette Definition**
-
-Sprite with colors defined inline rather than referencing a named palette.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "sprite", "name": "heart", "palette": {"{_}": "#00000000", "{r}": "#e43b44", "{p}": "#f77622"}, "grid": ["{_}{r}{_}{r}{_}", "{r}{p}{r}{p}{r}", "{r}{p}{p}{p}{r}", "{_}{r}{p}{r}{_}", "{_}{_}{r}{_}{_}"]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="inline_palette">
-</div>
-<!-- /DEMOS -->
-
-Define colors directly in the sprite:
-
-```json
-{"type": "sprite", "name": "dot", "palette": {
-  "{_}": "#00000000",
-  "{x}": "#FF0000"
-}, "grid": ["{x}"]}
+{
+  type: "sprite",
+  name: "hero",
+  palette: "hero_colors",
+  size: [16, 16],
+  regions: { /* ... */ },
+}
 ```
 
 ### Built-in Palette
 
 Reference a built-in palette with `@` prefix:
 
-```json
-{"type": "sprite", "name": "retro", "palette": "@gameboy", "grid": [...]}
-```
-
-## Size Inference
-
-If `size` is omitted:
-- Width = maximum tokens in any row
-- Height = number of rows
-
-If `size` is provided:
-- Rows shorter than width are padded with `{_}` (transparent)
-- Rows longer than width are truncated
-- Fewer rows than height: grid is padded
-- More rows than height: grid is truncated
-
-## Nine-Slice
-
-Create scalable sprites where corners stay fixed while edges and center stretch. Useful for buttons, panels, and other UI elements.
-
-```json
+```json5
 {
-  "type": "sprite",
-  "name": "button",
-  "palette": "ui",
-  "nine_slice": {
-    "left": 4,
-    "right": 4,
-    "top": 4,
-    "bottom": 4
-  },
-  "grid": [...]
+  type: "sprite",
+  name: "retro",
+  palette: "@gameboy",
+  size: [8, 8],
+  regions: { /* ... */ },
 }
 ```
 
-### Nine-Slice Fields
+## Metadata
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `nine_slice` | No | Nine-slice region definition |
-| `nine_slice.left` | Yes | Left border width in pixels |
-| `nine_slice.right` | Yes | Right border width in pixels |
-| `nine_slice.top` | Yes | Top border height in pixels |
-| `nine_slice.bottom` | Yes | Bottom border height in pixels |
+Attach additional data for game engine integration:
 
-### Rendering Nine-Slice
+```json5
+{
+  type: "sprite",
+  name: "player_attack",
+  size: [32, 32],
+  palette: "hero",
+  regions: { /* ... */ },
+  origin: [16, 32],
+  metadata: {
+    boxes: {
+      hurt: { x: 4, y: 0, w: 24, h: 32 },
+      hit: { x: 20, y: 8, w: 20, h: 16 },
+    },
+  },
+}
+```
+
+### Common Metadata Fields
+
+| Field | Purpose |
+|-------|---------|
+| `origin` | Sprite anchor point `[x, y]` |
+| `boxes.hurt` | Damage-receiving region |
+| `boxes.hit` | Damage-dealing region |
+| `boxes.collide` | Physics collision boundary |
+| `boxes.trigger` | Interaction trigger zone |
+
+## Nine-Slice
+
+Create scalable sprites where corners stay fixed while edges and center stretch:
+
+```json5
+{
+  type: "sprite",
+  name: "button",
+  size: [16, 16],
+  palette: "ui",
+  regions: { /* ... */ },
+  nine_slice: {
+    left: 4,
+    right: 4,
+    top: 4,
+    bottom: 4,
+  },
+}
+```
+
+Render at different sizes:
 
 ```bash
 pxl render button.pxl --nine-slice 64x32 -o button_wide.png
 ```
 
-This scales the button to 64x32 pixels while preserving the 4-pixel borders.
-
-## Metadata
-
-<!-- DEMOS format/sprite#metadata -->
-<!-- /DEMOS -->
-
-Attach additional data for game engine integration:
-
-```json
-{
-  "type": "sprite",
-  "name": "player_attack",
-  "palette": "hero",
-  "grid": [...],
-  "metadata": {
-    "origin": [16, 32],
-    "boxes": {
-      "hurt": {"x": 4, "y": 0, "w": 24, "h": 32},
-      "hit": {"x": 20, "y": 8, "w": 20, "h": 16}
-    }
-  }
-}
-```
-
-### Metadata Fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `metadata` | No | Sprite metadata object |
-| `metadata.origin` | No | Sprite origin point `[x, y]` |
-| `metadata.boxes` | No | Map of box name to rectangle |
-
-### Box Rectangle Format
-
-```json
-{"x": 0, "y": 0, "w": 16, "h": 16}
-```
-
-### Common Box Types
-
-| Name | Purpose |
-|------|---------|
-| `hurt` | Damage-receiving region |
-| `hit` | Damage-dealing region |
-| `collide` | Physics collision boundary |
-| `trigger` | Interaction trigger zone |
-
 ## Transforms
 
-Apply render-time modifications without changing the source:
+Apply render-time modifications:
 
-```json
+```json5
 {
-  "type": "sprite",
-  "name": "hero_outlined",
-  "source": "hero",
-  "transform": [
-    {"op": "sel-out", "fallback": "{outline}"}
-  ]
+  type: "sprite",
+  name: "hero_outlined",
+  source: "hero",
+  transform: [
+    { op: "sel-out", fallback: "outline" },
+  ],
 }
 ```
 
-See [Transforms](transforms.md) for all available operations.
+See [Transforms](transforms.md) for available operations.
 
 ## Complete Example
 
-```json
-{"type": "palette", "name": "coin", "colors": {
-  "{_}": "#00000000",
-  "{gold}": "#FFD700",
-  "{shine}": "#FFFACD",
-  "{shadow}": "#DAA520"
-}}
+```json5
+// hero.pxl
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#000000",
+    skin: "#FFD5B4",
+    hair: "#8B4513",
+    eye: "#4169E1",
+    shirt: "#E74C3C",
+  },
+  roles: {
+    outline: "boundary",
+    eye: "anchor",
+    skin: "fill",
+  },
+}
 
-{"type": "sprite", "name": "coin", "palette": "coin", "grid": [
-  "{_}{gold}{gold}{_}",
-  "{gold}{shine}{gold}{gold}",
-  "{gold}{gold}{gold}{shadow}",
-  "{_}{gold}{shadow}{_}"
-], "metadata": {
-  "origin": [2, 2],
-  "boxes": {
-    "collide": {"x": 0, "y": 0, "w": 4, "h": 4}
-  }
-}}
+{
+  type: "sprite",
+  name: "hero",
+  size: [16, 24],
+  palette: "hero",
+  regions: {
+    // Background
+    _: "background",
+
+    // Head
+    "head-outline": { stroke: [4, 0, 8, 10], round: 2 },
+    hair: { fill: "inside(head-outline)", y: [0, 4] },
+    skin: {
+      fill: "inside(head-outline)",
+      y: [4, 10],
+      except: ["eye"],
+    },
+
+    // Eyes (symmetric)
+    eye: { rect: [5, 5, 2, 2], symmetric: "x" },
+
+    // Body
+    "body-outline": { stroke: [3, 10, 10, 14] },
+    shirt: { fill: "inside(body-outline)" },
+  },
+  origin: [8, 24],
+  metadata: {
+    boxes: {
+      collide: { x: 4, y: 10, w: 8, h: 14 },
+    },
+  },
+}
 ```
-
-## Token Parsing
-
-Tokens in grid strings follow this pattern:
-
-```
-\{[^}]+\}
-```
-
-**Parsing Algorithm:**
-1. Scan string left-to-right
-2. On `{`, begin token capture
-3. On `}`, end token capture, emit token
-4. Characters outside `{...}` generate warnings in lenient mode, errors in strict mode
-
-**Token Examples:**
-
-| Grid String | Parsed Tokens |
-|-------------|---------------|
-| `"{a}{b}{c}"` | `["{a}", "{b}", "{c}"]` |
-| `"{_}{skin}{_}"` | `["{_}", "{skin}", "{_}"]` |
-| `"{long_name}{x}"` | `["{long_name}", "{x}"]` |
 
 ## Error Handling
 
@@ -318,10 +301,10 @@ Tokens in grid strings follow this pattern:
 
 | Error | Behavior |
 |-------|----------|
-| Row too short | Pad with `{_}` (transparent) |
-| Row too long | Truncate with warning |
 | Unknown token | Render as magenta `#FF00FF` |
-| Empty grid | Create 1x1 transparent sprite |
+| Region outside canvas | Clip to canvas with warning |
+| Forward reference in fill | Error (must define dependencies first) |
+| Missing palette | All regions render white with warning |
 
 ### Strict Mode
 

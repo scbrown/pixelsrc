@@ -1,2 +1,2 @@
-{"type": "palette", "name": "test", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
-{"type": "sprite", "name": "alias_test", "size": [4, 2], "palette": "test", "grid": ["{_}{a}{a}{_}", "{_}{b}{b}{_}"]}
+{"type": "palette", "name": "test", "colors": {"_": "#00000000", "a": "#FF0000", "b": "#00FF00"}}
+{"type": "sprite", "name": "alias_test", "size": [4, 2], "palette": "test", "regions": {"a": {"rect": [1, 0, 2, 1], "z": 0}, "b": {"rect": [1, 1, 2, 1], "z": 0}}}

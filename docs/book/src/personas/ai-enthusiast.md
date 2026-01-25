@@ -7,8 +7,8 @@ You want to **generate pixel art using AI**. Claude, GPT, or other LLMs—you're
 Pixelsrc was designed with AI generation in mind:
 
 - **Text-based**: LLMs excel at generating structured text
-- **Semantic tokens**: `{skin}` is more reliable than hex codes
-- **JSONL streaming**: Generate line-by-line, validate incrementally
+- **Semantic tokens**: `skin` is more reliable than hex codes
+- **JSON5 format**: Human-readable with comments and trailing commas
 - **Lenient parsing**: Small AI mistakes don't break everything
 - **Deterministic output**: Same input = same rendered image
 
@@ -57,11 +57,11 @@ AI tends to make sprites too large without constraints.
 
 ```
 Use only these colors:
-- {_}: transparent
-- {outline}: #1a1a2e (dark outline)
-- {wood}: #8b4513 (wood brown)
-- {metal}: #c0c0c0 (metal gray)
-- {gold}: #ffd700 (gold accents)
+- _: transparent
+- outline: #1a1a2e (dark outline)
+- wood: #8b4513 (wood brown)
+- metal: #c0c0c0 (metal gray)
+- gold: #ffd700 (gold accents)
 ```
 
 Limiting the palette improves consistency and reduces errors.
@@ -73,34 +73,40 @@ Include a working example in your prompt:
 ```
 Here's an example of the format:
 
-{"type": "palette", "name": "chest", "colors": {"{_}": "#0000", "{wood}": "#8b4513"}}
-{"type": "sprite", "name": "chest_closed", "palette": "chest", "grid": [
-  "{_}{wood}{wood}{_}",
-  "{wood}{wood}{wood}{wood}",
-  "{wood}{wood}{wood}{wood}",
-  "{_}{wood}{wood}{_}"
-]}
+{
+  type: "palette",
+  name: "chest",
+  colors: {
+    _: "transparent",
+    wood: "#8B4513",
+    metal: "#C0C0C0",
+  },
+}
+
+{
+  type: "sprite",
+  name: "chest_closed",
+  size: [6, 5],
+  palette: "chest",
+  regions: {
+    metal: { rect: [1, 0, 4, 1], z: 1 },
+    wood: {
+      union: [
+        { rect: [0, 1, 6, 3] },
+        { rect: [1, 4, 4, 1] },
+      ],
+      z: 0,
+    },
+  },
+}
 
 Now create a 12x10 sprite of a key using similar style.
 ```
 
-#### Try It
-
-See the example sprite rendered—modify it to experiment with AI output:
-
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="ai-demo">{"type": "palette", "name": "chest", "colors": {"{_}": "#0000", "{wood}": "#8b4513", "{metal}": "#c0c0c0", "{dark}": "#5c4033"}}
-{"type": "sprite", "name": "chest_closed", "palette": "chest", "grid": ["{_}{metal}{metal}{metal}{metal}{_}", "{wood}{dark}{wood}{wood}{dark}{wood}", "{wood}{wood}{wood}{wood}{wood}{wood}", "{wood}{dark}{wood}{wood}{dark}{wood}", "{_}{wood}{wood}{wood}{wood}{_}"]}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('ai-demo', 'ai-demo-preview')">Try it</button>
-  <div class="preview" id="ai-demo-preview"></div>
-</div>
-
-This is exactly the kind of output you want AI to generate—validate it works before moving on.
-
 ### Request Semantic Naming
 
 ```
-Use descriptive token names like {handle}, {blade}, {shine} rather than single letters.
+Use descriptive token names like handle, blade, shine rather than single letters.
 ```
 
 This makes AI output more maintainable.
@@ -120,13 +126,14 @@ This makes AI output more maintainable.
 If the AI makes mistakes, you can ask for corrections:
 
 ```
-The grid rows have inconsistent lengths. Each row should have exactly 16 tokens.
-Please regenerate with consistent row widths.
+The region coordinates are outside the sprite bounds. The sprite is 16x16,
+so all coordinates must be within [0,0] to [15,15].
+Please regenerate with valid region bounds.
 ```
 
 ```
-The sprite is using {green} but the palette doesn't define that token.
-Add {green} to the palette or use an existing color.
+The sprite is using "green" but the palette doesn't define that token.
+Add green to the palette or use an existing color.
 ```
 
 ### Lenient Mode for Prototyping
@@ -175,21 +182,44 @@ Use a consistent dark fantasy palette.
 Here's a template for reliable AI generation:
 
 ```
-You are a pixel art generator that outputs Pixelsrc format (JSONL).
+You are a pixel art generator that outputs Pixelsrc format (JSON5).
 
 Rules:
-1. Output valid JSON, one object per line
+1. Output valid JSON5, one object per line or formatted with newlines
 2. Define palettes before sprites that use them
-3. Use semantic token names wrapped in braces: {token_name}
-4. Grid rows must have equal width (same number of tokens)
-5. Token names can contain letters, numbers, underscores
-6. {_} is the conventional transparent color
+3. Use semantic token names: skin, hair, outline (not single letters)
+4. Sprites need size: [width, height] and regions with shapes
+5. Shapes: rect [x, y, w, h], points [[x,y],...], circle [cx, cy, r], ellipse [cx, cy, rx, ry]
+6. _ is the conventional transparent color token
 
 Format example:
-{"type": "palette", "name": "example", "colors": {"{_}": "#00000000", "{main}": "#FF0000"}}
-{"type": "sprite", "name": "example", "palette": "example", "grid": ["{_}{main}{_}", "{main}{main}{main}", "{_}{main}{_}"]}
+{
+  type: "palette",
+  name: "example",
+  colors: {
+    _: "transparent",
+    main: "#FF0000",
+  },
+}
 
-When I request a sprite, respond with ONLY valid Pixelsrc JSONL. No explanations or markdown code blocks.
+{
+  type: "sprite",
+  name: "example",
+  size: [3, 3],
+  palette: "example",
+  regions: {
+    main: {
+      union: [
+        { points: [[1, 0]] },
+        { rect: [0, 1, 3, 1] },
+        { points: [[1, 2]] },
+      ],
+      z: 0,
+    },
+  },
+}
+
+When I request a sprite, respond with ONLY valid Pixelsrc JSON5. No explanations.
 ```
 
 ## Validation in AI Pipelines

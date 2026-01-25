@@ -138,10 +138,7 @@ fn test_multi_target_size_hierarchy() {
     );
 
     // Effects atlas should be smallest (fewer sprites)
-    assert!(
-        effects.max_size[0] <= ui.max_size[0],
-        "Effects atlas should be smaller than UI"
-    );
+    assert!(effects.max_size[0] <= ui.max_size[0], "Effects atlas should be smaller than UI");
 
     // Verify all sizes are valid
     for (name, atlas) in &config.atlases {

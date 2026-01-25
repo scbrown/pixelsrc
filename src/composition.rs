@@ -46,10 +46,7 @@ pub struct RenderContext {
 impl RenderContext {
     /// Create a new empty render context.
     pub fn new() -> Self {
-        Self {
-            composition_cache: HashMap::new(),
-            render_stack: Vec::new(),
-        }
+        Self { composition_cache: HashMap::new(), render_stack: Vec::new() }
     }
 
     /// Get a cached rendered composition by name.
@@ -93,12 +90,8 @@ impl RenderContext {
     pub fn push(&mut self, name: impl Into<String>) -> Result<(), CompositionError> {
         let name = name.into();
         if self.render_stack.contains(&name) {
-            let mut cycle_path: Vec<String> = self
-                .render_stack
-                .iter()
-                .skip_while(|n| *n != &name)
-                .cloned()
-                .collect();
+            let mut cycle_path: Vec<String> =
+                self.render_stack.iter().skip_while(|n| *n != &name).cloned().collect();
             cycle_path.push(name);
             return Err(CompositionError::CycleDetected { cycle_path });
         }
@@ -616,7 +609,8 @@ pub fn render_composition_nested(
     // Push this composition onto the render stack for cycle detection
     ctx.push(&comp.name)?;
 
-    let result = render_composition_inner(comp, sprites, composition_registry, ctx, strict, variables);
+    let result =
+        render_composition_inner(comp, sprites, composition_registry, ctx, strict, variables);
 
     // Pop from render stack when done
     ctx.pop();
@@ -639,7 +633,8 @@ fn render_composition_inner(
     let cell_size = comp.cell_size.unwrap_or([1, 1]);
 
     // Look up base sprite/composition if specified (NC-4: supports nested compositions)
-    let base_image: Option<std::borrow::Cow<'_, RgbaImage>> = if let Some(ref base_name) = comp.base {
+    let base_image: Option<std::borrow::Cow<'_, RgbaImage>> = if let Some(ref base_name) = comp.base
+    {
         if let Some(img) = sprites.get(base_name) {
             Some(std::borrow::Cow::Borrowed(img))
         } else if let Some(reg) = composition_registry {
@@ -648,7 +643,12 @@ fn render_composition_inner(
                     Some(std::borrow::Cow::Owned(cached.clone()))
                 } else {
                     let (rendered, nested_warnings) = render_composition_nested(
-                        nested_comp, sprites, composition_registry, ctx, strict, variables
+                        nested_comp,
+                        sprites,
+                        composition_registry,
+                        ctx,
+                        strict,
+                        variables,
                     )?;
                     warnings.extend(nested_warnings);
                     ctx.cache(base_name.to_string(), rendered.clone());
@@ -656,13 +656,15 @@ fn render_composition_inner(
                 }
             } else {
                 warnings.push(Warning::new(format!(
-                    "Base '{}' not found for composition '{}'", base_name, comp.name
+                    "Base '{}' not found for composition '{}'",
+                    base_name, comp.name
                 )));
                 None
             }
         } else {
             warnings.push(Warning::new(format!(
-                "Base sprite '{}' not found for composition '{}'", base_name, comp.name
+                "Base sprite '{}' not found for composition '{}'",
+                base_name, comp.name
             )));
             None
         }
@@ -677,7 +679,11 @@ fn render_composition_inner(
         (base_img.width(), base_img.height())
     } else {
         let (w, h) = infer_size_from_layers(&comp.layers, cell_size);
-        if w == 0 || h == 0 { (1, 1) } else { (w, h) }
+        if w == 0 || h == 0 {
+            (1, 1)
+        } else {
+            (w, h)
+        }
     };
 
     // Create canvas
@@ -691,10 +697,14 @@ fn render_composition_inner(
     // Render each layer
     for layer in &comp.layers {
         let (blend_mode, blend_warning) = resolve_blend_mode(layer.blend.as_deref(), variables);
-        if let Some(w) = blend_warning { warnings.push(w); }
+        if let Some(w) = blend_warning {
+            warnings.push(w);
+        }
 
         let (opacity, opacity_warning) = resolve_opacity(layer.opacity.as_ref(), variables);
-        if let Some(w) = opacity_warning { warnings.push(w); }
+        if let Some(w) = opacity_warning {
+            warnings.push(w);
+        }
 
         if let Some(ref map) = layer.map {
             for (row_idx, row) in map.iter().enumerate() {
@@ -706,39 +716,48 @@ fn render_composition_inner(
                         Some(None) => continue,
                         None => {
                             warnings.push(Warning::new(format!(
-                                "Unknown sprite key '{}' in composition '{}'", key, comp.name
+                                "Unknown sprite key '{}' in composition '{}'",
+                                key, comp.name
                             )));
                             continue;
                         }
                     };
 
                     // Get sprite/composition image (NC-4: check compositions too)
-                    let sprite_image: std::borrow::Cow<'_, RgbaImage> = if let Some(img) = sprites.get(sprite_name) {
-                        std::borrow::Cow::Borrowed(img)
-                    } else if let Some(reg) = composition_registry {
-                        if let Some(nested_comp) = reg.get(sprite_name) {
-                            if let Some(cached) = ctx.get_cached(sprite_name) {
-                                std::borrow::Cow::Owned(cached.clone())
+                    let sprite_image: std::borrow::Cow<'_, RgbaImage> =
+                        if let Some(img) = sprites.get(sprite_name) {
+                            std::borrow::Cow::Borrowed(img)
+                        } else if let Some(reg) = composition_registry {
+                            if let Some(nested_comp) = reg.get(sprite_name) {
+                                if let Some(cached) = ctx.get_cached(sprite_name) {
+                                    std::borrow::Cow::Owned(cached.clone())
+                                } else {
+                                    let (rendered, nested_warnings) = render_composition_nested(
+                                        nested_comp,
+                                        sprites,
+                                        composition_registry,
+                                        ctx,
+                                        strict,
+                                        variables,
+                                    )?;
+                                    warnings.extend(nested_warnings);
+                                    ctx.cache(sprite_name.to_string(), rendered.clone());
+                                    std::borrow::Cow::Owned(rendered)
+                                }
                             } else {
-                                let (rendered, nested_warnings) = render_composition_nested(
-                                    nested_comp, sprites, composition_registry, ctx, strict, variables
-                                )?;
-                                warnings.extend(nested_warnings);
-                                ctx.cache(sprite_name.to_string(), rendered.clone());
-                                std::borrow::Cow::Owned(rendered)
+                                warnings.push(Warning::new(format!(
+                                    "Sprite '{}' not found for composition '{}'",
+                                    sprite_name, comp.name
+                                )));
+                                continue;
                             }
                         } else {
                             warnings.push(Warning::new(format!(
-                                "Sprite '{}' not found for composition '{}'", sprite_name, comp.name
+                                "Sprite '{}' not found for composition '{}'",
+                                sprite_name, comp.name
                             )));
                             continue;
-                        }
-                    } else {
-                        warnings.push(Warning::new(format!(
-                            "Sprite '{}' not found for composition '{}'", sprite_name, comp.name
-                        )));
-                        continue;
-                    };
+                        };
 
                     let x = (col_idx as u32) * cell_size[0];
                     let y = (row_idx as u32) * cell_size[1];
@@ -2155,98 +2174,7 @@ mod tests {
         assert_eq!(*image.get_pixel(3, 3), Rgba([0, 0, 255, 255]));
     }
 
-    // ========== Task 2.6: Variant in Composition Test ==========
-
-    #[test]
-    fn test_variant_usable_in_composition() {
-        // Verify that a variant can be used in a composition's sprites map
-        // just like a regular sprite
-        use crate::models::{PaletteRef, Sprite, Variant};
-        use crate::registry::{PaletteRegistry, SpriteRegistry};
-        use crate::renderer::render_resolved;
-
-        // Create base sprite and variant
-        let base_sprite = Sprite {
-            name: "hero".to_string(),
-            size: None,
-            palette: PaletteRef::Inline(HashMap::from([
-                ("{_}".to_string(), "#00000000".to_string()),
-                ("{skin}".to_string(), "#FFCC99".to_string()), // Original skin
-            ])),
-            grid: vec!["{_}{skin}".to_string(), "{skin}{_}".to_string()],
-            metadata: None,
-            ..Default::default()
-        };
-
-        let variant = Variant {
-            name: "hero_red".to_string(),
-            base: "hero".to_string(),
-            palette: HashMap::from([
-                ("{skin}".to_string(), "#FF0000".to_string()), // Red skin
-            ]),
-            ..Default::default()
-        };
-
-        // Build registries and resolve
-        let palette_registry = PaletteRegistry::new();
-        let mut sprite_registry = SpriteRegistry::new();
-        sprite_registry.register_sprite(base_sprite);
-        sprite_registry.register_variant(variant);
-
-        // Render both base and variant
-        let hero_resolved = sprite_registry.resolve("hero", &palette_registry, false).unwrap();
-        let variant_resolved =
-            sprite_registry.resolve("hero_red", &palette_registry, false).unwrap();
-
-        let (hero_img, _) = render_resolved(&hero_resolved);
-        let (variant_img, _) = render_resolved(&variant_resolved);
-
-        // Build the composition that uses both
-        let comp = Composition {
-            name: "scene".to_string(),
-            base: None,
-            size: Some([4, 4]),
-            cell_size: Some([2, 2]),
-            sprites: HashMap::from([
-                (".".to_string(), None),
-                ("H".to_string(), Some("hero".to_string())),
-                ("R".to_string(), Some("hero_red".to_string())), // Variant reference
-            ]),
-            layers: vec![CompositionLayer {
-                name: None,
-                fill: None,
-                map: Some(vec!["HR".to_string(), "RH".to_string()]),
-                ..Default::default()
-            }],
-        };
-
-        // Provide both the base sprite and variant as rendered images
-        let sprites =
-            HashMap::from([("hero".to_string(), hero_img), ("hero_red".to_string(), variant_img)]);
-
-        let (image, warnings) = render_composition(&comp, &sprites, false, None).unwrap();
-
-        assert!(warnings.is_empty());
-        assert_eq!(image.width(), 4);
-        assert_eq!(image.height(), 4);
-
-        // hero (original skin #FFCC99 = 255, 204, 153) at (0,0) and (2,2)
-        // hero_red (red skin #FF0000) at (2,0) and (0,2)
-
-        // (1, 0) is hero's skin pixel (from {_}{skin} grid, skin is at x=1)
-        assert_eq!(*image.get_pixel(1, 0), Rgba([255, 204, 153, 255])); // Original skin
-
-        // (3, 0) is hero_red's skin pixel
-        assert_eq!(*image.get_pixel(3, 0), Rgba([255, 0, 0, 255])); // Red skin
-
-        // (1, 2) is hero_red's skin pixel (at grid position (0, 1) * cell_size (2,2))
-        assert_eq!(*image.get_pixel(1, 2), Rgba([255, 0, 0, 255])); // Red skin
-
-        // (3, 2) is hero's skin pixel (at grid position (1, 1) * cell_size (2,2))
-        assert_eq!(*image.get_pixel(3, 2), Rgba([255, 204, 153, 255])); // Original skin
-    }
-
-    // ========== Task 14.3: Tiling Validation Tests ==========
+    // ========== Task 2.6: Variant in Composition Test ==========    // ========== Task 14.3: Tiling Validation Tests ==========
 
     #[test]
     fn test_size_divisible_by_cell_size_valid() {
@@ -3236,14 +3164,8 @@ mod tests {
 
         // Verify colors
         assert_eq!(*ctx.get_cached("red").unwrap().get_pixel(0, 0), Rgba([255, 0, 0, 255]));
-        assert_eq!(
-            *ctx.get_cached("green").unwrap().get_pixel(0, 0),
-            Rgba([0, 255, 0, 255])
-        );
-        assert_eq!(
-            *ctx.get_cached("blue").unwrap().get_pixel(0, 0),
-            Rgba([0, 0, 255, 255])
-        );
+        assert_eq!(*ctx.get_cached("green").unwrap().get_pixel(0, 0), Rgba([0, 255, 0, 255]));
+        assert_eq!(*ctx.get_cached("blue").unwrap().get_pixel(0, 0), Rgba([0, 0, 255, 255]));
     }
 
     #[test]
@@ -3452,7 +3374,9 @@ mod tests {
     // ========== Nested Composition Tests (NC-4) ==========
 
     mod nested {
-        use super::super::{render_composition_nested, Composition, CompositionError, RenderContext, Warning};
+        use super::super::{
+            render_composition_nested, Composition, CompositionError, RenderContext,
+        };
         use crate::registry::CompositionRegistry;
         use image::{Rgba, RgbaImage};
         use std::collections::HashMap;
@@ -3548,23 +3472,15 @@ mod tests {
             let sub_sprites: HashMap<String, Option<String>> =
                 [("P".to_string(), Some("pixel".to_string()))].into_iter().collect();
 
-            let sub_comp = make_composition(
-                "sub",
-                sub_sprites,
-                vec![vec!["P".to_string()]],
-                Some([2, 2]),
-            );
+            let sub_comp =
+                make_composition("sub", sub_sprites, vec![vec!["P".to_string()]], Some([2, 2]));
 
             // Create main composition that references "sub" composition
             let main_sprites: HashMap<String, Option<String>> =
                 [("S".to_string(), Some("sub".to_string()))].into_iter().collect();
 
-            let main_comp = make_composition(
-                "main",
-                main_sprites,
-                vec![vec!["S".to_string()]],
-                Some([2, 2]),
-            );
+            let main_comp =
+                make_composition("main", main_sprites, vec![vec!["S".to_string()]], Some([2, 2]));
 
             let mut composition_registry = CompositionRegistry::new();
             composition_registry.register(sub_comp);
@@ -3623,12 +3539,8 @@ mod tests {
             let main_sprites: HashMap<String, Option<String>> =
                 [("A".to_string(), Some("comp_a".to_string()))].into_iter().collect();
 
-            let main_comp = make_composition(
-                "main",
-                main_sprites,
-                vec![vec!["A".to_string()]],
-                Some([2, 2]),
-            );
+            let main_comp =
+                make_composition("main", main_sprites, vec![vec!["A".to_string()]], Some([2, 2]));
 
             let mut composition_registry = CompositionRegistry::new();
             composition_registry.register(comp_b);
@@ -3746,12 +3658,8 @@ mod tests {
             let sub_sprites: HashMap<String, Option<String>> =
                 [("R".to_string(), Some("red".to_string()))].into_iter().collect();
 
-            let sub_comp = make_composition(
-                "sub",
-                sub_sprites,
-                vec![vec!["R".to_string()]],
-                Some([2, 2]),
-            );
+            let sub_comp =
+                make_composition("sub", sub_sprites, vec![vec!["R".to_string()]], Some([2, 2]));
 
             // main_comp references "sub" twice in a 2x2 grid
             let main_sprites: HashMap<String, Option<String>> =
@@ -3811,12 +3719,10 @@ mod tests {
             );
 
             // main composition has background as base, with red overlay
-            let main_sprites: HashMap<String, Option<String>> = [
-                ("R".to_string(), Some("red".to_string())),
-                (".".to_string(), None),
-            ]
-            .into_iter()
-            .collect();
+            let main_sprites: HashMap<String, Option<String>> =
+                [("R".to_string(), Some("red".to_string())), (".".to_string(), None)]
+                    .into_iter()
+                    .collect();
 
             let mut main_comp = make_composition(
                 "main",
@@ -3861,12 +3767,8 @@ mod tests {
             let main_sprites: HashMap<String, Option<String>> =
                 [("X".to_string(), Some("nonexistent".to_string()))].into_iter().collect();
 
-            let main_comp = make_composition(
-                "main",
-                main_sprites,
-                vec![vec!["X".to_string()]],
-                Some([2, 2]),
-            );
+            let main_comp =
+                make_composition("main", main_sprites, vec![vec!["X".to_string()]], Some([2, 2]));
 
             let composition_registry = CompositionRegistry::new();
             let mut ctx = RenderContext::new();

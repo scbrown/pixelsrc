@@ -15,17 +15,17 @@ The CSS keyframes format uses percentage-based keyframes, familiar to web develo
 
 ### Syntax
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "string (required)",
-  "keyframes": {
-    "0%": { "sprite": "...", "opacity": 0.0 },
-    "50%": { "sprite": "...", "opacity": 1.0 },
-    "100%": { "sprite": "...", "opacity": 0.0 }
+  type: "animation",
+  name: "fade_in",
+  keyframes: {
+    "0%": { sprite: "dot", opacity: 0.0 },
+    "50%": { sprite: "dot", opacity: 1.0 },
+    "100%": { sprite: "dot", opacity: 0.0 },
   },
-  "duration": "500ms",
-  "timing_function": "ease-in-out"
+  duration: "500ms",
+  timing_function: "ease-in-out",
 }
 ```
 
@@ -65,11 +65,11 @@ Keyframe keys are percentages of the total animation duration:
 
 Duration accepts both raw milliseconds and CSS time strings:
 
-```json
-"duration": 500         // 500 milliseconds
-"duration": "500ms"     // 500 milliseconds
-"duration": "1s"        // 1000 milliseconds
-"duration": "0.5s"      // 500 milliseconds
+```json5
+duration: 500        // 500 milliseconds
+duration: "500ms"    // 500 milliseconds
+duration: "1s"       // 1000 milliseconds
+duration: "0.5s"     // 500 milliseconds
 ```
 
 ### Timing Functions
@@ -90,46 +90,65 @@ The `timing_function` field accepts CSS easing functions:
 
 **Fade in animation:**
 
-```json
-{"type": "animation", "name": "fade_in", "keyframes": {"from": {"sprite": "dot", "opacity": 0.0}, "to": {"sprite": "dot", "opacity": 1.0}}, "duration": "1s", "timing_function": "ease"}
+```json5
+{
+  type: "animation",
+  name: "fade_in",
+  keyframes: {
+    from: { sprite: "dot", opacity: 0.0 },
+    to: { sprite: "dot", opacity: 1.0 },
+  },
+  duration: "1s",
+  timing_function: "ease",
+}
 ```
 
 **Walk cycle with opacity:**
 
-```json
-{"type": "animation", "name": "fade_walk", "keyframes": {"0%": {"sprite": "walk_1", "opacity": 0.0}, "50%": {"sprite": "walk_2", "opacity": 1.0}, "100%": {"sprite": "walk_1", "opacity": 0.0}}, "duration": "500ms", "timing_function": "ease-in-out"}
+```json5
+{
+  type: "animation",
+  name: "fade_walk",
+  keyframes: {
+    "0%": { sprite: "walk_1", opacity: 0.0 },
+    "50%": { sprite: "walk_2", opacity: 1.0 },
+    "100%": { sprite: "walk_1", opacity: 0.0 },
+  },
+  duration: "500ms",
+  timing_function: "ease-in-out",
+}
 ```
 
 **Rotating animation:**
 
-```json
-{"type": "animation", "name": "spin", "keyframes": {"0%": {"sprite": "star", "transform": "rotate(0deg)"}, "100%": {"sprite": "star", "transform": "rotate(360deg)"}}, "duration": 1000, "timing_function": "linear"}
-```
-
-**Pulsing scale effect:**
-
-```json
-{"type": "animation", "name": "pulse", "keyframes": {"0%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "star", "transform": "scale(1.5)", "opacity": 0.5}, "100%": {"sprite": "star", "transform": "scale(1)", "opacity": 1.0}}, "duration": "2s", "timing_function": "ease-in-out"}
+```json5
+{
+  type: "animation",
+  name: "spin",
+  keyframes: {
+    "0%": { sprite: "star", transform: "rotate(0deg)" },
+    "100%": { sprite: "star", transform: "rotate(360deg)" },
+  },
+  duration: 1000,
+  timing_function: "linear",
+}
 ```
 
 ---
 
 ## Frame Array Format (Legacy)
 
-<!-- DEMOS format/animation#basic_frames -->
-<!-- /DEMOS -->
-
 The frame array format provides a simple list of sprite names. Use this for straightforward frame-by-frame animations.
 
 ### Syntax
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "string (required)",
-  "frames": ["sprite_name", ...],
-  "duration": number,
-  "loop": boolean
+  type: "animation",
+  name: "walk",
+  frames: ["walk_1", "walk_2", "walk_3", "walk_4"],
+  duration: 100,
+  loop: true,
 }
 ```
 
@@ -143,37 +162,61 @@ The frame array format provides a simple list of sprite names. Use this for stra
 | `duration` | No | 100 | Milliseconds per frame |
 | `loop` | No | true | Whether animation loops |
 
-### Example
-
-```json
-{"type": "animation", "name": "walk", "frames": ["walk_1", "walk_2", "walk_3", "walk_4"], "duration": 100, "loop": true}
-```
-
 ## Frame References
 
-Frames reference sprites by name. The sprites must be defined earlier in the file:
+Frames reference **sprites or compositions** by name. They must be defined earlier in the file:
+
+```json5
+{ type: "palette", name: "hero", colors: { ... } }
+{ type: "sprite", name: "idle_1", size: [8, 8], palette: "hero", regions: { ... } }
+{ type: "sprite", name: "idle_2", size: [8, 8], palette: "hero", regions: { ... } }
+{ type: "animation", name: "idle", frames: ["idle_1", "idle_2"], duration: 500 }
+```
+
+### Compositions as Frames
+
+Animations can reference compositions, enabling layered character animation. This is useful when you want to animate individual body parts (arm, eyes, mouth) while keeping the base body static:
 
 ```json
-{"type": "palette", "name": "hero", "colors": {...}}
-{"type": "sprite", "name": "idle_1", "palette": "hero", "grid": [...]}
-{"type": "sprite", "name": "idle_2", "palette": "hero", "grid": [...]}
-{"type": "animation", "name": "idle", "frames": ["idle_1", "idle_2"], "duration": 500}
+// Layer sprites
+{"type": "sprite", "name": "body", ...}
+{"type": "sprite", "name": "arm_down", ...}
+{"type": "sprite", "name": "arm_wave1", ...}
+{"type": "sprite", "name": "arm_wave2", ...}
+
+// Compositions combining body + arm positions
+{"type": "composition", "name": "char_pose1", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_down"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+{"type": "composition", "name": "char_pose2", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_wave1"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+{"type": "composition", "name": "char_pose3", "size": [32, 48], "cell_size": [32, 48],
+  "sprites": {"B": "body", "A": "arm_wave2"},
+  "layers": [{"map": ["B"]}, {"map": ["A"]}]}
+
+// Animation using compositions as frames
+{"type": "animation", "name": "wave", "frames": ["char_pose1", "char_pose2", "char_pose3", "char_pose2"], "duration": 200}
 ```
+
+This approach avoids duplicating the body sprite for each animation frame.
 
 ## Palette Cycling
 
 Animate by rotating palette colors instead of changing sprites. This classic technique creates efficient water, fire, and energy effects.
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "waterfall",
-  "sprite": "water_static",
-  "palette_cycle": {
-    "tokens": ["{water1}", "{water2}", "{water3}", "{water4}"],
-    "fps": 8,
-    "direction": "forward"
-  }
+  type: "animation",
+  name: "waterfall",
+  sprite: "water_static",
+  palette_cycle: {
+    tokens: ["water1", "water2", "water3", "water4"],
+    fps: 8,
+    direction: "forward",
+  },
 }
 ```
 
@@ -191,34 +234,31 @@ Animate by rotating palette colors instead of changing sprites. This classic tec
 
 Run several palette cycles simultaneously:
 
-```json
+```json5
 {
-  "palette_cycle": [
-    {"tokens": ["{water1}", "{water2}", "{water3}"], "fps": 8},
-    {"tokens": ["{glow1}", "{glow2}"], "fps": 4}
-  ]
+  palette_cycle: [
+    { tokens: ["water1", "water2", "water3"], fps: 8 },
+    { tokens: ["glow1", "glow2"], fps: 4 },
+  ],
 }
 ```
 
 ## Frame Tags
 
-<!-- DEMOS format/animation#frame_tags -->
-<!-- /DEMOS -->
-
 Mark frame ranges with semantic names for game engine integration:
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "player",
-  "frames": ["idle1", "idle2", "run1", "run2", "run3", "run4", "jump", "fall"],
-  "fps": 10,
-  "tags": {
-    "idle": {"start": 0, "end": 1, "loop": true},
-    "run": {"start": 2, "end": 5, "loop": true},
-    "jump": {"start": 6, "end": 6, "loop": false},
-    "fall": {"start": 7, "end": 7, "loop": false}
-  }
+  type: "animation",
+  name: "player",
+  frames: ["idle1", "idle2", "run1", "run2", "run3", "run4", "jump", "fall"],
+  fps: 10,
+  tags: {
+    idle: { start: 0, end: 1, loop: true },
+    run: { start: 2, end: 5, loop: true },
+    jump: { start: 6, end: 6, loop: false },
+    fall: { start: 7, end: 7, loop: false },
+  },
 }
 ```
 
@@ -232,22 +272,22 @@ Mark frame ranges with semantic names for game engine integration:
 | `tags.{name}.loop` | No | true | Whether this segment loops |
 | `tags.{name}.fps` | No | inherit | Override FPS for this tag |
 
-Tags allow game engines to play specific sub-animations by name (e.g., "play the run tag").
+Tags allow game engines to play specific sub-animations by name.
 
 ## Per-Frame Metadata
 
 Define hitboxes and metadata that vary across frames:
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "attack",
-  "frames": ["attack_1", "attack_2", "attack_3"],
-  "frame_metadata": [
-    {"boxes": {"hit": null}},
-    {"boxes": {"hit": {"x": 20, "y": 8, "w": 20, "h": 16}}},
-    {"boxes": {"hit": {"x": 24, "y": 4, "w": 24, "h": 20}}}
-  ]
+  type: "animation",
+  name: "attack",
+  frames: ["attack_1", "attack_2", "attack_3"],
+  frame_metadata: [
+    { boxes: { hit: null } },
+    { boxes: { hit: { x: 20, y: 8, w: 20, h: 16 } } },
+    { boxes: { hit: { x: 24, y: 4, w: 24, h: 20 } } },
+  ],
 }
 ```
 
@@ -257,29 +297,29 @@ Frame 1 has no hitbox (`null`), while frames 2 and 3 have active hit regions.
 
 Animate attached elements like hair, capes, or tails that follow the parent animation with configurable delay:
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "hero_walk",
-  "frames": ["walk_1", "walk_2", "walk_3", "walk_4"],
-  "duration": 100,
-  "attachments": [
+  type: "animation",
+  name: "hero_walk",
+  frames: ["walk_1", "walk_2", "walk_3", "walk_4"],
+  duration: 100,
+  attachments: [
     {
-      "name": "hair",
-      "anchor": [12, 4],
-      "chain": ["hair_1", "hair_2", "hair_3"],
-      "delay": 1,
-      "follow": "position"
+      name: "hair",
+      anchor: [12, 4],
+      chain: ["hair_1", "hair_2", "hair_3"],
+      delay: 1,
+      follow: "position",
     },
     {
-      "name": "cape",
-      "anchor": [8, 8],
-      "chain": ["cape_top", "cape_mid", "cape_bottom"],
-      "delay": 2,
-      "follow": "velocity",
-      "z_index": -1
-    }
-  ]
+      name: "cape",
+      anchor: [8, 8],
+      chain: ["cape_top", "cape_mid", "cape_bottom"],
+      delay: 2,
+      follow: "velocity",
+      z_index: -1,
+    },
+  ],
 }
 ```
 
@@ -307,83 +347,76 @@ Animate attached elements like hair, capes, or tails that follow the parent anim
 
 ## Duration vs FPS
 
-<!-- DEMOS format/animation#timing -->
-<!-- /DEMOS -->
-
 You can specify timing using either `duration` (ms per frame) or `fps` (frames per second):
 
-```json
-{"type": "animation", "name": "fast", "frames": [...], "duration": 50}
-{"type": "animation", "name": "fast", "frames": [...], "fps": 20}
+```json5
+{ type: "animation", name: "fast", frames: [...], duration: 50 }
+{ type: "animation", name: "fast", frames: [...], fps: 20 }
 ```
 
 Both examples create the same 20 FPS animation.
 
-## Complete Examples
-
-### CSS Keyframes Example (Recommended)
+## Complete Example
 
 A blinking light with fade effect:
 
-```json
-{"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FF0", "{off}": "#880"}}
+```json5
+// Light sprites
+{
+  type: "palette",
+  name: "blink",
+  colors: {
+    _: "transparent",
+    on: "#FFFF00",
+    off: "#888800",
+  },
+}
 
-{"type": "sprite", "name": "light_on", "palette": "blink", "grid": [
-  "{_}{on}{on}{_}",
-  "{on}{on}{on}{on}",
-  "{on}{on}{on}{on}",
-  "{_}{on}{on}{_}"
-]}
+{
+  type: "sprite",
+  name: "light_on",
+  size: [4, 4],
+  palette: "blink",
+  regions: {
+    on: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { rect: [0, 1, 4, 2] },
+        { rect: [1, 3, 2, 1] },
+      ],
+    },
+  },
+}
 
-{"type": "sprite", "name": "light_off", "palette": "blink", "grid": [
-  "{_}{off}{off}{_}",
-  "{off}{off}{off}{off}",
-  "{off}{off}{off}{off}",
-  "{_}{off}{off}{_}"
-]}
+{
+  type: "sprite",
+  name: "light_off",
+  size: [4, 4],
+  palette: "blink",
+  regions: {
+    off: {
+      union: [
+        { rect: [1, 0, 2, 1] },
+        { rect: [0, 1, 4, 2] },
+        { rect: [1, 3, 2, 1] },
+      ],
+    },
+  },
+}
 
-{"type": "animation", "name": "blink_fade", "keyframes": {"0%": {"sprite": "light_on", "opacity": 1.0}, "50%": {"sprite": "light_off", "opacity": 0.5}, "100%": {"sprite": "light_on", "opacity": 1.0}}, "duration": "1s", "timing_function": "ease-in-out"}
+// Fade animation
+{
+  type: "animation",
+  name: "blink_fade",
+  keyframes: {
+    "0%": { sprite: "light_on", opacity: 1.0 },
+    "50%": { sprite: "light_off", opacity: 0.5 },
+    "100%": { sprite: "light_on", opacity: 1.0 },
+  },
+  duration: "1s",
+  timing_function: "ease-in-out",
+}
 ```
-
-### Frame Array Example (Legacy)
-
-A simple blinking light:
-
-```json
-{"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FF0", "{off}": "#880"}}
-
-{"type": "sprite", "name": "light_on", "palette": "blink", "grid": [
-  "{_}{on}{on}{_}",
-  "{on}{on}{on}{on}",
-  "{on}{on}{on}{on}",
-  "{_}{on}{on}{_}"
-]}
-
-{"type": "sprite", "name": "light_off", "palette": "blink", "grid": [
-  "{_}{off}{off}{_}",
-  "{off}{off}{off}{off}",
-  "{off}{off}{off}{off}",
-  "{_}{off}{off}{_}"
-]}
-
-{"type": "animation", "name": "blink", "frames": ["light_on", "light_off"], "duration": 500, "loop": true}
-```
-
-### Try It
-
-Click to render the first frame of the blinking animation:
-
-<div class="pixelsrc-demo" data-pixelsrc-demo>
-  <textarea id="animation-demo">{"type": "palette", "name": "blink", "colors": {"{_}": "#0000", "{on}": "#FFFF00", "{off}": "#888800"}}
-{"type": "sprite", "name": "light_on", "palette": "blink", "grid": ["{_}{on}{on}{_}", "{on}{on}{on}{on}", "{on}{on}{on}{on}", "{_}{on}{on}{_}"]}
-{"type": "sprite", "name": "light_off", "palette": "blink", "grid": ["{_}{off}{off}{_}", "{off}{off}{off}{off}", "{off}{off}{off}{off}", "{_}{off}{off}{_}"]}
-{"type": "animation", "name": "blink", "frames": ["light_on", "light_off"], "duration": 500, "loop": true}</textarea>
-  <button onclick="pixelsrcDemo.renderFromTextarea('animation-demo', 'animation-demo-preview', {spriteName: 'light_on'})">Show "On" Frame</button>
-  <button onclick="pixelsrcDemo.renderFromTextarea('animation-demo', 'animation-demo-preview', {spriteName: 'light_off'})">Show "Off" Frame</button>
-  <div class="preview" id="animation-demo-preview"></div>
-</div>
-
-Try changing the `{on}` color to `#00FF00` (green) or `#FF0000` (red).
 
 ## Rendering Animations
 
@@ -408,30 +441,30 @@ Converting from the legacy frame array format to CSS keyframes is straightforwar
 
 **Before (frames format):**
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "walk",
-  "frames": ["walk_1", "walk_2", "walk_3", "walk_4"],
-  "duration": 100,
-  "loop": true
+  type: "animation",
+  name: "walk",
+  frames: ["walk_1", "walk_2", "walk_3", "walk_4"],
+  duration: 100,
+  loop: true,
 }
 ```
 
 **After (keyframes format):**
 
-```json
+```json5
 {
-  "type": "animation",
-  "name": "walk",
-  "keyframes": {
-    "0%": {"sprite": "walk_1"},
-    "25%": {"sprite": "walk_2"},
-    "50%": {"sprite": "walk_3"},
-    "75%": {"sprite": "walk_4"}
+  type: "animation",
+  name: "walk",
+  keyframes: {
+    "0%": { sprite: "walk_1" },
+    "25%": { sprite: "walk_2" },
+    "50%": { sprite: "walk_3" },
+    "75%": { sprite: "walk_4" },
   },
-  "duration": "400ms",
-  "loop": true
+  duration: "400ms",
+  loop: true,
 }
 ```
 
@@ -455,9 +488,9 @@ Converting from the legacy frame array format to CSS keyframes is straightforwar
    - Frame 2 → 50% (2/4)
    - Frame 3 → 75% (3/4)
 
-3. **Wrap sprites in keyframe objects**: `"walk_1"` becomes `{"sprite": "walk_1"}`
+3. **Wrap sprites in keyframe objects**: `"walk_1"` becomes `{ sprite: "walk_1" }`
 
-4. **Add timing function** (optional): Use `"timing_function": "linear"` for frame-accurate timing
+4. **Add timing function** (optional): Use `timing_function: "linear"` for frame-accurate timing
 
 ### When to Migrate
 

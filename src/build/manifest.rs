@@ -417,8 +417,7 @@ pub struct BuildStats {
 }
 
 /// Build metadata with project and tool information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildMetadata {
     /// Project name from config
     pub project_name: String,
@@ -434,7 +433,6 @@ pub struct BuildMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scale: Option<u32>,
 }
-
 
 impl BuildMetadata {
     /// Create new build metadata with project info.

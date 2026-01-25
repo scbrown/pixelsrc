@@ -3,6 +3,7 @@
 //! Supports both CLI transforms (`pxl transform`) and format attributes
 //! (`"transform": ["mirror-h", "rotate:90"]`).
 
+use image::{imageops::FilterType, RgbaImage};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -60,7 +61,7 @@ impl DitherPattern {
         match self {
             DitherPattern::Checker => {
                 // 2x2 checkerboard: alternating 0 and 1
-                if (x + y).is_multiple_of(2) {
+                if (x + y) % 2 == 0 {
                     0.25
                 } else {
                     0.75
@@ -328,6 +329,20 @@ pub enum Transform {
         y: f32,
     },
 
+    /// Skew along the X axis (horizontal shear)
+    /// Positive angles skew the top edge to the right
+    SkewX {
+        /// Skew angle in degrees
+        degrees: f32,
+    },
+
+    /// Skew along the Y axis (vertical shear)
+    /// Positive angles skew the left edge downward
+    SkewY {
+        /// Skew angle in degrees
+        degrees: f32,
+    },
+
     // Animation (only valid for Animation type)
     Pingpong {
         exclude_ends: bool,
@@ -460,6 +475,12 @@ pub fn explain_transform(transform: &Transform) -> String {
             } else {
                 format!("Scale width to {}%, height to {}%", x_pct, y_pct)
             }
+        }
+        Transform::SkewX { degrees } => {
+            format!("Skew horizontally by {}° (shear along X axis)", degrees)
+        }
+        Transform::SkewY { degrees } => {
+            format!("Skew vertically by {}° (shear along Y axis)", degrees)
         }
 
         // Animation
@@ -635,6 +656,24 @@ pub fn parse_transform_str(s: &str) -> Result<Transform, TransformError> {
             })?;
             let (x, y) = parse_scale_params(scale_params)?;
             Ok(Transform::Scale { x, y })
+        }
+        "skew-x" | "skewx" => {
+            // String syntax: "skew-x:ANGLE" e.g., "skew-x:20"
+            let angle_str = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "skew-x".to_string(),
+                param: "angle".to_string(),
+            })?;
+            let degrees = parse_angle(angle_str)?;
+            Ok(Transform::SkewX { degrees })
+        }
+        "skew-y" | "skewy" => {
+            // String syntax: "skew-y:ANGLE" e.g., "skew-y:20"
+            let angle_str = params.ok_or_else(|| TransformError::MissingParameter {
+                op: "skew-y".to_string(),
+                param: "angle".to_string(),
+            })?;
+            let degrees = parse_angle(angle_str)?;
+            Ok(Transform::SkewY { degrees })
         }
 
         // Animation
@@ -815,6 +854,44 @@ fn parse_transform_object(
             }
 
             Ok(Transform::Scale { x, y })
+        }
+        "skew-x" | "skewx" => {
+            let degrees =
+                params.get("degrees").and_then(|v| v.as_f64()).map(|v| v as f32).ok_or_else(
+                    || TransformError::MissingParameter {
+                        op: "skew-x".to_string(),
+                        param: "degrees".to_string(),
+                    },
+                )?;
+
+            // Validate angle is within reasonable bounds
+            if degrees.abs() >= 89.0 {
+                return Err(TransformError::InvalidParameter {
+                    op: "skew-x".to_string(),
+                    message: "skew angle must be between -89 and 89 degrees".to_string(),
+                });
+            }
+
+            Ok(Transform::SkewX { degrees })
+        }
+        "skew-y" | "skewy" => {
+            let degrees =
+                params.get("degrees").and_then(|v| v.as_f64()).map(|v| v as f32).ok_or_else(
+                    || TransformError::MissingParameter {
+                        op: "skew-y".to_string(),
+                        param: "degrees".to_string(),
+                    },
+                )?;
+
+            // Validate angle is within reasonable bounds
+            if degrees.abs() >= 89.0 {
+                return Err(TransformError::InvalidParameter {
+                    op: "skew-y".to_string(),
+                    message: "skew angle must be between -89 and 89 degrees".to_string(),
+                });
+            }
+
+            Ok(Transform::SkewY { degrees })
         }
 
         // Animation
@@ -1093,6 +1170,37 @@ fn parse_scale_params(s: &str) -> Result<(f32, f32), TransformError> {
     Ok((x, y))
 }
 
+/// Parse an angle value from a string.
+///
+/// Accepts formats:
+/// - "20" - degrees without suffix
+/// - "20deg" - degrees with suffix
+/// - "20°" - degrees with degree symbol
+///
+/// Skew angles are limited to -89 to 89 degrees (tangent approaches infinity at 90°).
+fn parse_angle(s: &str) -> Result<f32, TransformError> {
+    // Remove common suffixes
+    let s = s.trim();
+    let s = s.strip_suffix("deg").unwrap_or(s);
+    let s = s.strip_suffix('°').unwrap_or(s);
+    let s = s.trim();
+
+    let degrees = s.parse::<f32>().map_err(|_| TransformError::InvalidParameter {
+        op: "skew".to_string(),
+        message: format!("cannot parse '{}' as angle", s),
+    })?;
+
+    // Validate angle is within reasonable bounds
+    if degrees.abs() >= 89.0 {
+        return Err(TransformError::InvalidParameter {
+            op: "skew".to_string(),
+            message: "skew angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    Ok(degrees)
+}
+
 fn parse_hold_params(s: &str) -> Result<(usize, usize), TransformError> {
     let parts: Vec<&str> = s.split(',').collect();
     if parts.len() != 2 {
@@ -1334,6 +1442,10 @@ pub struct CssTransform {
     pub rotate: Option<f64>,
     /// Scale factors (x, y)
     pub scale: Option<(f64, f64)>,
+    /// Skew along X axis in degrees
+    pub skew_x: Option<f64>,
+    /// Skew along Y axis in degrees
+    pub skew_y: Option<f64>,
     /// Flip horizontally
     pub flip_x: bool,
     /// Flip vertically
@@ -1399,6 +1511,13 @@ impl CssTransform {
             transforms.push(Transform::Scale { x: x as f32, y: y as f32 });
         }
 
+        if let Some(degrees) = self.skew_x {
+            transforms.push(Transform::SkewX { degrees: degrees as f32 });
+        }
+        if let Some(degrees) = self.skew_y {
+            transforms.push(Transform::SkewY { degrees: degrees as f32 });
+        }
+
         if self.flip_x {
             transforms.push(Transform::MirrorH);
         }
@@ -1414,6 +1533,8 @@ impl CssTransform {
         self.translate.is_none()
             && self.rotate.is_none()
             && self.scale.is_none()
+            && self.skew_x.is_none()
+            && self.skew_y.is_none()
             && !self.flip_x
             && !self.flip_y
     }
@@ -1426,6 +1547,8 @@ impl CssTransform {
 /// - `rotate(deg)` - Rotation in degrees (90, 180, or 270 for pixel art)
 /// - `scale(n)` or `scale(x, y)` - Uniform or non-uniform scaling
 /// - `flip(x)` or `flip(y)` - Horizontal or vertical flip
+/// - `skewX(deg)` or `skewY(deg)` - Horizontal or vertical skew
+/// - `skew(x, y)` - Combined skew (x required, y optional)
 ///
 /// # Arguments
 ///
@@ -1453,6 +1576,10 @@ impl CssTransform {
 /// let t = parse_css_transform("flip(x) flip(y)").unwrap();
 /// assert!(t.flip_x);
 /// assert!(t.flip_y);
+///
+/// // Skew transforms for isometric sprites
+/// let t = parse_css_transform("skewX(26.57deg)").unwrap();
+/// assert_eq!(t.skew_x, Some(26.57));
 /// ```
 pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError> {
     let mut result = CssTransform::new();
@@ -1545,6 +1672,22 @@ pub fn parse_css_transform(css: &str) -> Result<CssTransform, CssTransformError>
                 }
                 if fy {
                     result.flip_y = true;
+                }
+            }
+            "skewx" | "skew-x" => {
+                let deg = parse_css_skew_angle(&args, "skewX")?;
+                result.skew_x = Some(deg);
+            }
+            "skewy" | "skew-y" => {
+                let deg = parse_css_skew_angle(&args, "skewY")?;
+                result.skew_y = Some(deg);
+            }
+            "skew" => {
+                // CSS skew(x) or skew(x, y)
+                let (skew_x, skew_y) = parse_css_skew(&args)?;
+                result.skew_x = Some(skew_x);
+                if let Some(y) = skew_y {
+                    result.skew_y = Some(y);
                 }
             }
             _ => {
@@ -1696,9 +1839,267 @@ fn parse_css_length(s: &str) -> Result<i32, std::num::ParseIntError> {
     num_str.trim().parse::<i32>()
 }
 
+/// Parse a single skew angle from CSS skewX/skewY function argument
+fn parse_css_skew_angle(args: &str, func: &str) -> Result<f64, CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: func.to_string(),
+            param: "angle".to_string(),
+        });
+    }
+
+    // Parse angle - remove 'deg' suffix if present
+    let angle_str = if args.to_lowercase().ends_with("deg") {
+        &args[..args.len() - 3]
+    } else {
+        args
+    };
+
+    let degrees = angle_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+        func: func.to_string(),
+        message: format!("cannot parse '{}' as angle", args),
+    })?;
+
+    // Validate angle is within reasonable bounds (avoid approaching tan(90°))
+    if degrees.abs() >= 89.0 {
+        return Err(CssTransformError::InvalidParameter {
+            func: func.to_string(),
+            message: "skew angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    Ok(degrees)
+}
+
+/// Parse CSS skew(x) or skew(x, y) arguments
+fn parse_css_skew(args: &str) -> Result<(f64, Option<f64>), CssTransformError> {
+    let args = args.trim();
+
+    if args.is_empty() {
+        return Err(CssTransformError::MissingParameter {
+            func: "skew".to_string(),
+            param: "x angle".to_string(),
+        });
+    }
+
+    let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+
+    // Parse X angle
+    let x_str = if parts[0].to_lowercase().ends_with("deg") {
+        &parts[0][..parts[0].len() - 3]
+    } else {
+        parts[0]
+    };
+
+    let x = x_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+        func: "skew".to_string(),
+        message: format!("cannot parse '{}' as x angle", parts[0]),
+    })?;
+
+    if x.abs() >= 89.0 {
+        return Err(CssTransformError::InvalidParameter {
+            func: "skew".to_string(),
+            message: "skew x angle must be between -89 and 89 degrees".to_string(),
+        });
+    }
+
+    // Parse optional Y angle
+    let y = if parts.len() > 1 {
+        let y_str = if parts[1].to_lowercase().ends_with("deg") {
+            &parts[1][..parts[1].len() - 3]
+        } else {
+            parts[1]
+        };
+
+        let y_val = y_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+            func: "skew".to_string(),
+            message: format!("cannot parse '{}' as y angle", parts[1]),
+        })?;
+
+        if y_val.abs() >= 89.0 {
+            return Err(CssTransformError::InvalidParameter {
+                func: "skew".to_string(),
+                message: "skew y angle must be between -89 and 89 degrees".to_string(),
+            });
+        }
+
+        Some(y_val)
+    } else {
+        None // CSS skew(x) defaults to y=0, but we use None to indicate only x was specified
+    };
+
+    Ok((x, y))
+}
+
 // ============================================================================
 // Animation Transform Application Functions
 // ============================================================================
+
+// ============================================================================
+// Image Transform Application
+// ============================================================================
+
+/// Apply a single transform to an image.
+///
+/// Handles geometric and spatial transforms that operate on pixel data:
+/// - MirrorH, MirrorV, Rotate
+/// - Scale, SkewX, SkewY
+/// - Tile, Pad, Crop, Shift
+///
+/// Animation transforms (Pingpong, Reverse, etc.) should use `apply_animation_transform` instead.
+///
+/// # Arguments
+/// * `image` - The image to transform
+/// * `transform` - The transform operation to apply
+/// * `palette` - Optional palette for color-based transforms (outline, shadow, etc.)
+///
+/// # Returns
+/// The transformed image, or an error if the transform cannot be applied
+pub fn apply_image_transform(
+    image: &RgbaImage,
+    transform: &Transform,
+    _palette: Option<&std::collections::HashMap<String, String>>,
+) -> Result<RgbaImage, TransformError> {
+    match transform {
+        Transform::MirrorH => {
+            Ok(image::imageops::flip_horizontal(image))
+        }
+        Transform::MirrorV => {
+            Ok(image::imageops::flip_vertical(image))
+        }
+        Transform::Rotate { degrees } => {
+            match degrees {
+                90 => Ok(image::imageops::rotate90(image)),
+                180 => Ok(image::imageops::rotate180(image)),
+                270 => Ok(image::imageops::rotate270(image)),
+                _ => Err(TransformError::InvalidParameter {
+                    op: "rotate".to_string(),
+                    message: format!("invalid rotation: {}° (must be 90, 180, or 270)", degrees),
+                }),
+            }
+        }
+        Transform::Scale { x, y } => {
+            Ok(scale_image(image, *x, *y))
+        }
+        Transform::SkewX { degrees } => {
+            Ok(crate::output::skew_x(image, *degrees))
+        }
+        Transform::SkewY { degrees } => {
+            Ok(crate::output::skew_y(image, *degrees))
+        }
+        Transform::Tile { w, h } => {
+            let (img_w, img_h) = image.dimensions();
+            let new_w = img_w * w;
+            let new_h = img_h * h;
+            let mut result = RgbaImage::new(new_w, new_h);
+            for ty in 0..*h {
+                for tx in 0..*w {
+                    for y in 0..img_h {
+                        for x in 0..img_w {
+                            let pixel = *image.get_pixel(x, y);
+                            result.put_pixel(tx * img_w + x, ty * img_h + y, pixel);
+                        }
+                    }
+                }
+            }
+            Ok(result)
+        }
+        Transform::Pad { size } => {
+            let (w, h) = image.dimensions();
+            let new_w = w + size * 2;
+            let new_h = h + size * 2;
+            let mut result = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+            for y in 0..h {
+                for x in 0..w {
+                    let pixel = *image.get_pixel(x, y);
+                    result.put_pixel(x + size, y + size, pixel);
+                }
+            }
+            Ok(result)
+        }
+        Transform::Crop { x, y, w, h } => {
+            let (img_w, img_h) = image.dimensions();
+            // Clamp crop region to image bounds
+            let end_x = (*x + *w).min(img_w);
+            let end_y = (*y + *h).min(img_h);
+            let crop_w = end_x.saturating_sub(*x);
+            let crop_h = end_y.saturating_sub(*y);
+            if crop_w == 0 || crop_h == 0 {
+                return Ok(RgbaImage::new(1, 1));
+            }
+            let mut result = RgbaImage::new(crop_w, crop_h);
+            for dy in 0..crop_h {
+                for dx in 0..crop_w {
+                    let pixel = *image.get_pixel(*x + dx, *y + dy);
+                    result.put_pixel(dx, dy, pixel);
+                }
+            }
+            Ok(result)
+        }
+        Transform::Shift { x: dx, y: dy } => {
+            let (w, h) = image.dimensions();
+            let mut result = RgbaImage::from_pixel(w, h, image::Rgba([0, 0, 0, 0]));
+            for y in 0..h {
+                for x in 0..w {
+                    let new_x = x as i32 + dx;
+                    let new_y = y as i32 + dy;
+                    if new_x >= 0 && new_x < w as i32 && new_y >= 0 && new_y < h as i32 {
+                        let pixel = *image.get_pixel(x, y);
+                        result.put_pixel(new_x as u32, new_y as u32, pixel);
+                    }
+                }
+            }
+            Ok(result)
+        }
+        // Animation transforms should use apply_animation_transform
+        Transform::Pingpong { .. }
+        | Transform::Reverse
+        | Transform::FrameOffset { .. }
+        | Transform::Hold { .. } => {
+            Err(TransformError::InvalidParameter {
+                op: "image_transform".to_string(),
+                message: "animation transforms cannot be applied to images".to_string(),
+            })
+        }
+        // Color-based transforms are not yet implemented for images
+        Transform::Outline { .. }
+        | Transform::Shadow { .. }
+        | Transform::SelOut { .. }
+        | Transform::Dither { .. }
+        | Transform::DitherGradient { .. }
+        | Transform::Subpixel { .. } => {
+            Err(TransformError::InvalidParameter {
+                op: "image_transform".to_string(),
+                message: "color-based transforms require palette context".to_string(),
+            })
+        }
+    }
+}
+
+/// Apply a sequence of transforms to an image.
+///
+/// Transforms are applied in order from left to right.
+///
+/// # Arguments
+/// * `image` - The image to transform
+/// * `transforms` - The sequence of transforms to apply
+/// * `palette` - Optional palette for color-based transforms
+///
+/// # Returns
+/// The transformed image, or an error if any transform cannot be applied
+pub fn apply_image_transforms(
+    image: &RgbaImage,
+    transforms: &[Transform],
+    palette: Option<&std::collections::HashMap<String, String>>,
+) -> Result<RgbaImage, TransformError> {
+    let mut result = image.clone();
+    for transform in transforms {
+        result = apply_image_transform(&result, transform, palette)?;
+    }
+    Ok(result)
+}
 
 /// Apply pingpong transform: duplicate frames in reverse order for forward-backward play.
 ///
@@ -1858,825 +2259,6 @@ pub fn is_animation_transform(transform: &Transform) -> bool {
             | Transform::FrameOffset { .. }
             | Transform::Hold { .. }
     )
-}
-
-// ============================================================================
-// Grid Transform Application Functions
-// ============================================================================
-
-/// The transparent token used in grids
-const TRANSPARENT_TOKEN: &str = "{_}";
-
-/// Apply selective outline (sel-out) transform to a grid.
-///
-/// Selective outline varies the outline color based on adjacent fill pixels,
-/// creating softer edges. For each outline pixel (a pixel adjacent to both
-/// opaque and transparent pixels), the transform picks a color based on the
-/// most common neighboring fill color.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `fallback` - Optional fallback token for pixels where neighbor can't be determined
-/// * `mapping` - Optional explicit mapping from fill token to outline token.
-///               Key "*" serves as the default fallback.
-///
-/// # Returns
-/// A new grid with outline pixels recolored based on neighbors
-///
-/// # Algorithm
-/// 1. Parse each row into tokens
-/// 2. For each pixel, check if it's an "outline" pixel:
-///    - An outline pixel is opaque (not {_}) and adjacent to at least one {_}
-/// 3. For outline pixels, find the most common non-transparent neighbor
-/// 4. Map that neighbor to an outline color using the mapping or by
-///    appending "_dark" to the token name
-pub fn apply_selout(
-    grid: &[String],
-    fallback: Option<&str>,
-    mapping: Option<&HashMap<String, String>>,
-) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return grid.to_vec();
-    }
-
-    // Helper to get token at position (with bounds checking)
-    let get_token = |x: i32, y: i32| -> Option<&String> {
-        if x < 0 || y < 0 || x >= width as i32 || y >= height as i32 {
-            return None;
-        }
-        parsed.get(y as usize).and_then(|row| row.get(x as usize))
-    };
-
-    // Helper to check if a token is transparent
-    let is_transparent = |token: &str| -> bool { token == TRANSPARENT_TOKEN };
-
-    // Helper to check if a position is an outline pixel
-    // (opaque pixel adjacent to at least one transparent {_} pixel)
-    // Note: out-of-bounds does NOT count as transparent - only explicit {_} does
-    let is_outline_pixel = |x: i32, y: i32| -> bool {
-        let token = match get_token(x, y) {
-            Some(t) => t,
-            None => return false,
-        };
-
-        // Must be opaque
-        if is_transparent(token) {
-            return false;
-        }
-
-        // Check 4-connected neighbors for explicit {_} transparency
-        let neighbors = [(0, -1), (0, 1), (-1, 0), (1, 0)];
-        for (dx, dy) in neighbors {
-            if let Some(t) = get_token(x + dx, y + dy) {
-                if is_transparent(t) {
-                    return true;
-                }
-            }
-            // Out of bounds does NOT count as transparent
-        }
-        false
-    };
-
-    // Helper to find the most common non-transparent neighbor
-    // This determines what fill color the outline pixel should base its outline on
-    let get_dominant_neighbor = |x: i32, y: i32| -> Option<String> {
-        let mut counts: HashMap<String, usize> = HashMap::new();
-
-        // Check 8-connected neighbors (including diagonals)
-        let neighbors = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)];
-
-        for (dx, dy) in neighbors {
-            if let Some(token) = get_token(x + dx, y + dy) {
-                if !is_transparent(token) {
-                    *counts.entry(token.clone()).or_insert(0) += 1;
-                }
-            }
-        }
-
-        // Find most common opaque neighbor
-        // Don't filter out current token - the outline pixel should transform
-        // based on the dominant fill color in its neighborhood
-        counts.into_iter().max_by_key(|(_, count)| *count).map(|(token, _)| token)
-    };
-
-    // Helper to map a fill token to its outline color
-    // Priority: explicit mapping > wildcard mapping > auto-dark suffix
-    // Fallback is only used when NO dominant neighbor is found (not here)
-    let get_outline_token = |fill_token: &str| -> String {
-        // First check explicit mapping
-        if let Some(map) = mapping {
-            if let Some(outline) = map.get(fill_token) {
-                return outline.clone();
-            }
-            // Check wildcard
-            if let Some(default) = map.get("*") {
-                return default.clone();
-            }
-        }
-
-        // Auto-generate: append _dark to token name
-        // {skin} -> {skin_dark}
-        if fill_token.starts_with('{') && fill_token.ends_with('}') {
-            let inner = &fill_token[1..fill_token.len() - 1];
-            format!("{{{}_dark}}", inner)
-        } else {
-            fill_token.to_string()
-        }
-    };
-
-    // Transform the grid
-    let mut result: Vec<String> = Vec::with_capacity(height);
-
-    for (y, row) in parsed.iter().enumerate() {
-        let mut new_row = String::new();
-        for (x, token) in row.iter().enumerate() {
-            if is_outline_pixel(x as i32, y as i32) {
-                // Find dominant neighbor and map to outline color
-                if let Some(neighbor) = get_dominant_neighbor(x as i32, y as i32) {
-                    new_row.push_str(&get_outline_token(&neighbor));
-                } else {
-                    // No non-self neighbor found, use fallback or keep original
-                    if let Some(fb) = fallback {
-                        new_row.push_str(fb);
-                    } else if let Some(map) = mapping {
-                        if let Some(default) = map.get("*") {
-                            new_row.push_str(default);
-                        } else {
-                            new_row.push_str(token);
-                        }
-                    } else {
-                        new_row.push_str(token);
-                    }
-                }
-            } else {
-                new_row.push_str(token);
-            }
-        }
-        result.push(new_row);
-    }
-
-    result
-}
-
-/// Apply scale transform to a grid.
-///
-/// Scales the grid by the given X and Y factors using nearest-neighbor
-/// interpolation, which preserves the crisp pixel art look.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `scale_x` - Horizontal scale factor (1.0 = no change)
-/// * `scale_y` - Vertical scale factor (1.0 = no change)
-///
-/// # Returns
-/// A new grid scaled by the given factors
-///
-/// # Algorithm
-/// Uses nearest-neighbor scaling:
-/// - For each pixel in the output, finds the corresponding pixel in the input
-/// - Works for both scaling up (duplication) and down (sampling)
-pub fn apply_scale(grid: &[String], scale_x: f32, scale_y: f32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() || scale_x <= 0.0 || scale_y <= 0.0 {
-        return Vec::new();
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let src_height = parsed.len();
-    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if src_width == 0 {
-        return grid.to_vec();
-    }
-
-    // Calculate new dimensions
-    let dst_width = ((src_width as f32) * scale_x).round() as usize;
-    let dst_height = ((src_height as f32) * scale_y).round() as usize;
-
-    if dst_width == 0 || dst_height == 0 {
-        return Vec::new();
-    }
-
-    // Build the scaled grid using nearest-neighbor sampling
-    let mut result: Vec<String> = Vec::with_capacity(dst_height);
-
-    for dst_y in 0..dst_height {
-        let mut new_row = String::new();
-
-        // Find source Y coordinate
-        let src_y = ((dst_y as f32) / scale_y).floor() as usize;
-        let src_y = src_y.min(src_height - 1);
-
-        let src_row = &parsed[src_y];
-
-        for dst_x in 0..dst_width {
-            // Find source X coordinate
-            let src_x = ((dst_x as f32) / scale_x).floor() as usize;
-            let src_x = src_x.min(src_row.len().saturating_sub(1));
-
-            if src_x < src_row.len() {
-                new_row.push_str(&src_row[src_x]);
-            } else {
-                // Pad with transparent if source row is shorter
-                new_row.push_str(TRANSPARENT_TOKEN);
-            }
-        }
-
-        result.push(new_row);
-    }
-
-    result
-}
-
-/// Apply outline transform to a grid.
-///
-/// Adds an outline of the specified token around all opaque (non-transparent)
-/// pixels. The outline is placed on transparent pixels adjacent to opaque ones.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `token` - The token to use for the outline (defaults to `{outline}` if None)
-/// * `width` - The outline width in pixels (default 1)
-///
-/// # Returns
-/// A new grid with outline added around opaque pixels
-///
-/// # Algorithm
-/// 1. Parse each row into tokens
-/// 2. For each transparent pixel, check if any opaque pixel exists within `width` distance
-/// 3. If so, replace the transparent pixel with the outline token
-pub fn apply_outline(grid: &[String], token: Option<&str>, width: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() || width == 0 {
-        return grid.to_vec();
-    }
-
-    let outline_token = token.unwrap_or("{outline}");
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let height = parsed.len();
-    let width_pixels = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width_pixels == 0 {
-        return grid.to_vec();
-    }
-
-    // Helper to check if a token is transparent
-    let is_transparent = |token: &str| -> bool { token == TRANSPARENT_TOKEN };
-
-    // Helper to get token at position (with bounds checking)
-    let get_token = |x: i32, y: i32| -> Option<&String> {
-        if x < 0 || y < 0 || x >= width_pixels as i32 || y >= height as i32 {
-            return None;
-        }
-        parsed.get(y as usize).and_then(|row| row.get(x as usize))
-    };
-
-    // Check if any opaque pixel exists within `width` distance of position
-    // Uses Chebyshev distance (max of |dx|, |dy|) to include diagonals
-    let has_opaque_neighbor = |x: i32, y: i32, outline_width: u32| -> bool {
-        let w = outline_width as i32;
-        for dy in -w..=w {
-            for dx in -w..=w {
-                if dx == 0 && dy == 0 {
-                    continue;
-                }
-                // Chebyshev distance: max of |dx| and |dy|
-                // This includes diagonal neighbors at distance 1
-                if dx.abs().max(dy.abs()) > w {
-                    continue;
-                }
-                if let Some(t) = get_token(x + dx, y + dy) {
-                    if !is_transparent(t) {
-                        return true;
-                    }
-                }
-            }
-        }
-        false
-    };
-
-    // Transform the grid
-    let mut result: Vec<String> = Vec::with_capacity(height);
-
-    for (y, row) in parsed.iter().enumerate() {
-        let mut new_row = String::new();
-        for (x, tok) in row.iter().enumerate() {
-            if is_transparent(tok) && has_opaque_neighbor(x as i32, y as i32, width) {
-                new_row.push_str(outline_token);
-            } else {
-                new_row.push_str(tok);
-            }
-        }
-        result.push(new_row);
-    }
-
-    result
-}
-
-/// Apply shift transform to a grid.
-///
-/// Shifts all pixels in the grid by the specified x and y offsets.
-/// Pixels that shift outside the bounds are lost, and empty space
-/// is filled with transparent tokens.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `x` - Horizontal shift (positive = right, negative = left)
-/// * `y` - Vertical shift (positive = down, negative = up)
-///
-/// # Returns
-/// A new grid with content shifted by the specified amounts
-pub fn apply_shift(grid: &[String], x: i32, y: i32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return grid.to_vec();
-    }
-
-    // Helper to get token at position (with bounds checking)
-    let get_token = |px: i32, py: i32| -> Option<&String> {
-        if px < 0 || py < 0 || px >= width as i32 || py >= height as i32 {
-            return None;
-        }
-        parsed.get(py as usize).and_then(|row| row.get(px as usize))
-    };
-
-    // Build shifted grid
-    let mut result: Vec<String> = Vec::with_capacity(height);
-
-    for dst_y in 0..height {
-        let mut new_row = String::new();
-        let src_y = dst_y as i32 - y;
-
-        for dst_x in 0..width {
-            let src_x = dst_x as i32 - x;
-
-            if let Some(token) = get_token(src_x, src_y) {
-                new_row.push_str(token);
-            } else {
-                new_row.push_str(TRANSPARENT_TOKEN);
-            }
-        }
-        result.push(new_row);
-    }
-
-    result
-}
-
-/// Apply shadow transform to a grid.
-///
-/// Creates a drop shadow effect by painting a copy of the opaque pixels
-/// at the specified offset, then overlaying the original on top.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `x` - Horizontal shadow offset (positive = right, negative = left)
-/// * `y` - Vertical shadow offset (positive = down, negative = up)
-/// * `token` - The token to use for the shadow (defaults to `{shadow}` if None)
-///
-/// # Returns
-/// A new grid with shadow effect applied
-///
-/// # Algorithm
-/// 1. Create a shadow layer: shift opaque pixels by (x, y) and paint with shadow token
-/// 2. Composite original on top of shadow layer
-pub fn apply_shadow(grid: &[String], x: i32, y: i32, token: Option<&str>) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    let shadow_token = token.unwrap_or("{shadow}");
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let height = parsed.len();
-    let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if width == 0 {
-        return grid.to_vec();
-    }
-
-    // Helper to check if a token is transparent
-    let is_transparent = |tok: &str| -> bool { tok == TRANSPARENT_TOKEN };
-
-    // Helper to get token at position (with bounds checking)
-    let get_token = |px: i32, py: i32| -> Option<&String> {
-        if px < 0 || py < 0 || px >= width as i32 || py >= height as i32 {
-            return None;
-        }
-        parsed.get(py as usize).and_then(|row| row.get(px as usize))
-    };
-
-    // Build the result grid
-    // For each position, check:
-    // 1. If original pixel is opaque -> use original
-    // 2. Else if shadow source pixel (at offset) is opaque -> use shadow token
-    // 3. Else -> use transparent
-    let mut result: Vec<String> = Vec::with_capacity(height);
-
-    for dst_y in 0..height {
-        let mut new_row = String::new();
-
-        for dst_x in 0..width {
-            // Check original pixel
-            if let Some(orig_token) = get_token(dst_x as i32, dst_y as i32) {
-                if !is_transparent(orig_token) {
-                    // Original is opaque, keep it
-                    new_row.push_str(orig_token);
-                    continue;
-                }
-            }
-
-            // Check shadow source (original position minus offset = where shadow comes from)
-            let shadow_src_x = dst_x as i32 - x;
-            let shadow_src_y = dst_y as i32 - y;
-
-            if let Some(src_token) = get_token(shadow_src_x, shadow_src_y) {
-                if !is_transparent(src_token) {
-                    // Shadow source is opaque, paint shadow
-                    new_row.push_str(shadow_token);
-                    continue;
-                }
-            }
-
-            // Both transparent, keep transparent
-            new_row.push_str(TRANSPARENT_TOKEN);
-        }
-        result.push(new_row);
-    }
-
-    result
-}
-
-/// Apply horizontal mirror (flip left-to-right) to a grid.
-///
-/// Each row is reversed, so the leftmost column becomes the rightmost.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-///
-/// # Returns
-/// A new grid with rows reversed horizontally
-pub fn apply_mirror_horizontal(grid: &[String]) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    // Parse grid into 2D token array and reverse each row
-    grid.iter()
-        .map(|row| {
-            let tokens = tokenize(row).0;
-            let reversed: Vec<&str> = tokens.iter().rev().map(|s| s.as_str()).collect();
-            reversed.concat()
-        })
-        .collect()
-}
-
-/// Apply vertical mirror (flip top-to-bottom) to a grid.
-///
-/// The row order is reversed, so the top row becomes the bottom.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-///
-/// # Returns
-/// A new grid with rows in reversed order
-pub fn apply_mirror_vertical(grid: &[String]) -> Vec<String> {
-    grid.iter().rev().cloned().collect()
-}
-
-/// Apply rotation to a grid.
-///
-/// Rotates the grid clockwise by the specified degrees (90, 180, or 270).
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `degrees` - The rotation angle (must be 90, 180, or 270)
-///
-/// # Returns
-/// A new rotated grid, or the original grid if degrees is not 90, 180, or 270
-pub fn apply_rotate(grid: &[String], degrees: u16) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() {
-        return Vec::new();
-    }
-
-    match degrees {
-        180 => {
-            // 180 degrees: reverse rows and reverse within each row
-            // This is equivalent to mirror_h + mirror_v
-            apply_mirror_horizontal(&apply_mirror_vertical(grid))
-        }
-        90 => {
-            // 90 degrees clockwise: columns become rows (bottom to top)
-            // Original (0,0) goes to (0, h-1)
-            // Original (x,y) goes to (h-1-y, x)
-            let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-            let height = parsed.len();
-            let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-            if width == 0 {
-                return Vec::new();
-            }
-
-            // New dimensions: width becomes height, height becomes width
-            let mut result: Vec<String> = Vec::with_capacity(width);
-
-            for x in 0..width {
-                let mut new_row = String::new();
-                // Read from bottom to top for this column
-                for y in (0..height).rev() {
-                    if let Some(token) = parsed[y].get(x) {
-                        new_row.push_str(token);
-                    } else {
-                        new_row.push_str(TRANSPARENT_TOKEN);
-                    }
-                }
-                result.push(new_row);
-            }
-
-            result
-        }
-        270 => {
-            // 270 degrees clockwise (= 90 CCW): columns become rows (top to bottom)
-            // Original (x,y) goes to (y, w-1-x)
-            let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-            let height = parsed.len();
-            let width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-            if width == 0 {
-                return Vec::new();
-            }
-
-            // New dimensions: width becomes height, height becomes width
-            let mut result: Vec<String> = Vec::with_capacity(width);
-
-            // Iterate columns right to left
-            for x in (0..width).rev() {
-                let mut new_row = String::new();
-                // Read from top to bottom for this column
-                for y in 0..height {
-                    if let Some(token) = parsed[y].get(x) {
-                        new_row.push_str(token);
-                    } else {
-                        new_row.push_str(TRANSPARENT_TOKEN);
-                    }
-                }
-                result.push(new_row);
-            }
-
-            result
-        }
-        _ => {
-            // For 0 or invalid degrees, return unchanged
-            grid.to_vec()
-        }
-    }
-}
-
-/// Apply tile transform to a grid.
-///
-/// Repeats the grid w times horizontally and h times vertically,
-/// creating a tiled pattern.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `w` - Number of horizontal tiles
-/// * `h` - Number of vertical tiles
-///
-/// # Returns
-/// A new grid with the original pattern tiled
-///
-/// # Example
-/// A 2x2 grid tiled with w=2, h=2 becomes 4x4:
-/// ```text
-/// AB    ABAB
-/// CD -> CDCD
-///       ABAB
-///       CDCD
-/// ```
-pub fn apply_tile(grid: &[String], w: u32, h: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if grid.is_empty() || w == 0 || h == 0 {
-        return Vec::new();
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let src_height = parsed.len();
-    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    if src_width == 0 {
-        return grid.to_vec();
-    }
-
-    // Build the tiled grid
-    let mut result: Vec<String> = Vec::with_capacity(src_height * h as usize);
-
-    for _tile_y in 0..h {
-        for src_y in 0..src_height {
-            let mut new_row = String::new();
-            let src_row = &parsed[src_y];
-
-            for _tile_x in 0..w {
-                for x in 0..src_width {
-                    if x < src_row.len() {
-                        new_row.push_str(&src_row[x]);
-                    } else {
-                        new_row.push_str(TRANSPARENT_TOKEN);
-                    }
-                }
-            }
-
-            result.push(new_row);
-        }
-    }
-
-    result
-}
-
-/// Apply pad transform to a grid.
-///
-/// Adds padding of transparent pixels around all sides of the grid.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `size` - Number of transparent pixels to add on each side
-///
-/// # Returns
-/// A new grid with padding added
-///
-/// # Example
-/// A 2x2 grid with size=1 padding becomes 4x4:
-/// ```text
-/// AB    ____
-///    -> _AB_
-/// CD    _CD_
-///       ____
-/// ```
-pub fn apply_pad(grid: &[String], size: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if size == 0 {
-        return grid.to_vec();
-    }
-
-    if grid.is_empty() {
-        // Return a grid of just transparent padding
-        let pad_token = TRANSPARENT_TOKEN.repeat(size as usize * 2);
-        return vec![pad_token; size as usize * 2];
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let src_height = parsed.len();
-    let src_width = parsed.iter().map(|r| r.len()).max().unwrap_or(0);
-
-    let new_width = src_width + (size as usize * 2);
-    let new_height = src_height + (size as usize * 2);
-
-    // Build the padded grid
-    let mut result: Vec<String> = Vec::with_capacity(new_height);
-
-    // Create a row of all transparent tokens
-    let transparent_row = TRANSPARENT_TOKEN.repeat(new_width);
-    let side_padding = TRANSPARENT_TOKEN.repeat(size as usize);
-
-    // Top padding rows
-    for _ in 0..size {
-        result.push(transparent_row.clone());
-    }
-
-    // Content rows with side padding
-    for src_y in 0..src_height {
-        let mut new_row = side_padding.clone();
-        let src_row = &parsed[src_y];
-
-        for x in 0..src_width {
-            if x < src_row.len() {
-                new_row.push_str(&src_row[x]);
-            } else {
-                new_row.push_str(TRANSPARENT_TOKEN);
-            }
-        }
-
-        new_row.push_str(&side_padding);
-        result.push(new_row);
-    }
-
-    // Bottom padding rows
-    for _ in 0..size {
-        result.push(transparent_row.clone());
-    }
-
-    result
-}
-
-/// Apply crop transform to a grid.
-///
-/// Extracts a rectangular region from the grid.
-///
-/// # Arguments
-/// * `grid` - The grid of token rows
-/// * `x` - Starting X coordinate (column)
-/// * `y` - Starting Y coordinate (row)
-/// * `w` - Width of the crop region
-/// * `h` - Height of the crop region
-///
-/// # Returns
-/// A new grid containing only the specified region.
-/// Out-of-bounds areas are filled with transparent pixels.
-///
-/// # Example
-/// Cropping region (1,1,2,2) from a 4x4 grid:
-/// ```text
-/// ABCD
-/// EFGH -> FG
-/// IJKL    JK
-/// MNOP
-/// ```
-pub fn apply_crop(grid: &[String], x: u32, y: u32, w: u32, h: u32) -> Vec<String> {
-    use crate::tokenizer::tokenize;
-
-    if w == 0 || h == 0 {
-        return Vec::new();
-    }
-
-    if grid.is_empty() {
-        // Return transparent grid of the requested size
-        let transparent_row = TRANSPARENT_TOKEN.repeat(w as usize);
-        return vec![transparent_row; h as usize];
-    }
-
-    // Parse grid into 2D token array
-    let parsed: Vec<Vec<String>> = grid.iter().map(|row| tokenize(row).0).collect();
-
-    let src_height = parsed.len();
-
-    // Build the cropped grid
-    let mut result: Vec<String> = Vec::with_capacity(h as usize);
-
-    for dst_y in 0..h {
-        let mut new_row = String::new();
-        let src_y = (y + dst_y) as usize;
-
-        for dst_x in 0..w {
-            let src_x = (x + dst_x) as usize;
-
-            if src_y < src_height {
-                let src_row = &parsed[src_y];
-                if src_x < src_row.len() {
-                    new_row.push_str(&src_row[src_x]);
-                } else {
-                    new_row.push_str(TRANSPARENT_TOKEN);
-                }
-            } else {
-                new_row.push_str(TRANSPARENT_TOKEN);
-            }
-        }
-
-        result.push(new_row);
-    }
-
-    result
 }
 
 // ============================================================================
@@ -3241,6 +2823,170 @@ fn parse_transform_spec_internal(
     }
 }
 
+// ============================================================================
+// Anchor-Preserving Scaling (TTP-ca8cj)
+// ============================================================================
+
+/// Bounding box for an anchor region.
+///
+/// Used to track regions that should be preserved during downscaling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnchorBounds {
+    /// Left edge (inclusive)
+    pub x: u32,
+    /// Top edge (inclusive)
+    pub y: u32,
+    /// Width in pixels
+    pub width: u32,
+    /// Height in pixels
+    pub height: u32,
+}
+
+impl AnchorBounds {
+    /// Create a new anchor bounds.
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self { x, y, width, height }
+    }
+
+    /// Create anchor bounds from a set of pixel coordinates.
+    ///
+    /// Returns `None` if the points set is empty.
+    pub fn from_points(points: &[(i32, i32)]) -> Option<Self> {
+        if points.is_empty() {
+            return None;
+        }
+
+        let min_x = points.iter().map(|(x, _)| *x).min().unwrap();
+        let max_x = points.iter().map(|(x, _)| *x).max().unwrap();
+        let min_y = points.iter().map(|(_, y)| *y).min().unwrap();
+        let max_y = points.iter().map(|(_, y)| *y).max().unwrap();
+
+        // Handle negative coordinates by clamping to 0
+        let x = min_x.max(0) as u32;
+        let y = min_y.max(0) as u32;
+        let width = (max_x - min_x + 1).max(1) as u32;
+        let height = (max_y - min_y + 1).max(1) as u32;
+
+        Some(Self { x, y, width, height })
+    }
+
+    /// Get the center point of the bounding box.
+    pub fn center(&self) -> (u32, u32) {
+        (self.x + self.width / 2, self.y + self.height / 2)
+    }
+
+    /// Scale the bounds by the given factors.
+    ///
+    /// For downscaling, this may result in very small or zero dimensions.
+    pub fn scaled(&self, scale_x: f32, scale_y: f32) -> Self {
+        let new_x = (self.x as f32 * scale_x).round() as u32;
+        let new_y = (self.y as f32 * scale_y).round() as u32;
+        let new_width = (self.width as f32 * scale_x).round() as u32;
+        let new_height = (self.height as f32 * scale_y).round() as u32;
+
+        Self { x: new_x, y: new_y, width: new_width, height: new_height }
+    }
+}
+
+/// Scale an image with preservation of anchor regions.
+///
+/// When downscaling (scale factors < 1.0), ensures that anchor regions
+/// maintain at least 1x1 pixel bounds. This is important for pixel art
+/// where small details like eyes should not disappear during scaling.
+///
+/// # Arguments
+///
+/// * `image` - The source image to scale
+/// * `scale_x` - Horizontal scale factor
+/// * `scale_y` - Vertical scale factor
+/// * `anchors` - List of anchor region bounds to preserve
+///
+/// # Returns
+///
+/// The scaled image with anchor regions preserved.
+///
+/// # Example
+///
+/// ```ignore
+/// use pixelsrc::transforms::{scale_image_with_anchor_preservation, AnchorBounds};
+///
+/// let anchors = vec![
+///     AnchorBounds::new(10, 5, 2, 2),  // Eye region
+/// ];
+///
+/// let scaled = scale_image_with_anchor_preservation(&image, 0.5, 0.5, &anchors);
+/// // The eye region will be preserved at minimum 1x1 pixel
+/// ```
+pub fn scale_image_with_anchor_preservation(
+    image: &RgbaImage,
+    scale_x: f32,
+    scale_y: f32,
+    anchors: &[AnchorBounds],
+) -> RgbaImage {
+    // For upscaling or no anchors, use standard nearest-neighbor scaling
+    if (scale_x >= 1.0 && scale_y >= 1.0) || anchors.is_empty() {
+        return scale_image(image, scale_x, scale_y);
+    }
+
+    let (src_width, src_height) = image.dimensions();
+    let dst_width = ((src_width as f32 * scale_x).round() as u32).max(1);
+    let dst_height = ((src_height as f32 * scale_y).round() as u32).max(1);
+
+    // First, do standard nearest-neighbor scaling
+    let mut result = scale_image(image, scale_x, scale_y);
+
+    // For downscaling, ensure each anchor region has at least 1x1 representation
+    // by explicitly writing the anchor's center pixel to the scaled image
+    for anchor in anchors {
+        // Find the center of the original anchor region
+        let (center_x, center_y) = anchor.center();
+
+        // Map the center to destination coordinates
+        let dst_x = ((center_x as f32 * scale_x).round() as u32).min(dst_width.saturating_sub(1));
+        let dst_y = ((center_y as f32 * scale_y).round() as u32).min(dst_height.saturating_sub(1));
+
+        // Get the color from the center of the original anchor region
+        if center_x < src_width && center_y < src_height {
+            let pixel = *image.get_pixel(center_x, center_y);
+
+            // Write the anchor pixel - this ensures the anchor is always visible
+            // even if the standard scaling algorithm would have skipped it
+            if dst_x < dst_width && dst_y < dst_height {
+                result.put_pixel(dst_x, dst_y, pixel);
+            }
+        }
+    }
+
+    result
+}
+
+/// Scale an image by fractional factors using nearest-neighbor interpolation.
+///
+/// This preserves crisp pixel edges for pixel art. Unlike `output::scale_image`
+/// which only handles integer upscaling, this function supports any scale factor.
+///
+/// # Arguments
+///
+/// * `image` - The image to scale
+/// * `scale_x` - Horizontal scale factor (e.g., 0.5 for half width)
+/// * `scale_y` - Vertical scale factor (e.g., 2.0 for double height)
+///
+/// # Returns
+///
+/// The scaled image.
+pub fn scale_image(image: &RgbaImage, scale_x: f32, scale_y: f32) -> RgbaImage {
+    // Handle no-op case
+    if (scale_x - 1.0).abs() < 0.001 && (scale_y - 1.0).abs() < 0.001 {
+        return image.clone();
+    }
+
+    let (w, h) = image.dimensions();
+    let new_w = ((w as f32 * scale_x).round() as u32).max(1);
+    let new_h = ((h as f32 * scale_y).round() as u32).max(1);
+
+    image::imageops::resize(image, new_w, new_h, FilterType::Nearest)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3331,6 +3077,43 @@ mod tests {
             parse_transform_str("shadow:2,2,{shadow}").unwrap(),
             Transform::Shadow { x: 2, y: 2, token: Some("{shadow}".to_string()) }
         );
+    }
+
+    #[test]
+    fn test_parse_skew_x() {
+        assert_eq!(
+            parse_transform_str("skew-x:20").unwrap(),
+            Transform::SkewX { degrees: 20.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skewx:45deg").unwrap(),
+            Transform::SkewX { degrees: 45.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skew-x:-30").unwrap(),
+            Transform::SkewX { degrees: -30.0 }
+        );
+    }
+
+    #[test]
+    fn test_parse_skew_y() {
+        assert_eq!(
+            parse_transform_str("skew-y:15").unwrap(),
+            Transform::SkewY { degrees: 15.0 }
+        );
+        assert_eq!(
+            parse_transform_str("skewy:26.57°").unwrap(),
+            Transform::SkewY { degrees: 26.57 }
+        );
+    }
+
+    #[test]
+    fn test_parse_skew_invalid() {
+        // 89+ degrees should fail
+        assert!(parse_transform_str("skew-x:89").is_err());
+        assert!(parse_transform_str("skew-y:-90").is_err());
+        // Missing angle
+        assert!(parse_transform_str("skew-x").is_err());
     }
 
     #[test]
@@ -4094,842 +3877,6 @@ mod tests {
         assert_eq!(parse_transform_value(&value).unwrap(), Transform::Subpixel { x: 0.5, y: 0.0 });
     }
 
-    // ========================================================================
-    // Apply Selout Tests (ATF-9 continued)
-    // ========================================================================
-
-    #[test]
-    fn test_apply_selout_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_selout(&grid, None, None);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_selout_no_outline_pixels() {
-        // All pixels are interior (no adjacent transparency)
-        let grid = vec!["{a}{a}{a}".to_string(), "{a}{a}{a}".to_string(), "{a}{a}{a}".to_string()];
-        let result = apply_selout(&grid, None, None);
-        assert_eq!(result, grid);
-    }
-
-    #[test]
-    fn test_apply_selout_single_pixel() {
-        // Single pixel with no transparent neighbors is NOT an outline pixel
-        // (edges of image don't count as transparent)
-        let grid = vec!["{a}".to_string()];
-        let result = apply_selout(&grid, Some("{outline}"), None);
-        // Not an outline pixel, so it stays unchanged
-        assert_eq!(result, vec!["{a}".to_string()]);
-    }
-
-    #[test]
-    fn test_apply_selout_single_pixel_with_transparent() {
-        // Single pixel surrounded by transparent IS an outline pixel
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{a}{_}".to_string(), "{_}{_}{_}".to_string()];
-        let result = apply_selout(&grid, Some("{outline}"), None);
-        // The center pixel is an outline pixel with no opaque neighbors
-        // So it uses fallback
-        assert_eq!(result[1], "{_}{outline}{_}");
-    }
-
-    #[test]
-    fn test_apply_selout_basic() {
-        // A simple 3x3 grid with transparent corners
-        // The edge pixels should become outlined based on interior
-        let grid = vec![
-            "{_}{skin}{_}".to_string(),
-            "{skin}{skin}{skin}".to_string(),
-            "{_}{skin}{_}".to_string(),
-        ];
-
-        let result = apply_selout(&grid, Some("{outline}"), None);
-
-        // Corner transparent pixels stay transparent
-        // Edge skin pixels (adjacent to {_}) get transformed
-        // Center skin pixel stays {skin} (not adjacent to {_})
-        assert_eq!(result[0], "{_}{skin_dark}{_}");
-        assert_eq!(result[1], "{skin_dark}{skin}{skin_dark}");
-        assert_eq!(result[2], "{_}{skin_dark}{_}");
-    }
-
-    #[test]
-    fn test_apply_selout_with_mapping() {
-        let grid = vec![
-            "{_}{skin}{_}".to_string(),
-            "{skin}{skin}{skin}".to_string(),
-            "{_}{skin}{_}".to_string(),
-        ];
-
-        let mut mapping = HashMap::new();
-        mapping.insert("{skin}".to_string(), "{skin_shadow}".to_string());
-
-        let result = apply_selout(&grid, None, Some(&mapping));
-
-        // Outline pixels adjacent to {skin} interior should use mapped value
-        assert_eq!(result[0], "{_}{skin_shadow}{_}");
-        assert_eq!(result[1], "{skin_shadow}{skin}{skin_shadow}");
-        assert_eq!(result[2], "{_}{skin_shadow}{_}");
-    }
-
-    #[test]
-    fn test_apply_selout_with_wildcard() {
-        let grid = vec!["{_}{a}{_}".to_string(), "{a}{b}{a}".to_string(), "{_}{a}{_}".to_string()];
-
-        let mut mapping = HashMap::new();
-        mapping.insert("*".to_string(), "{dark}".to_string());
-
-        let result = apply_selout(&grid, None, Some(&mapping));
-
-        // All outline pixels should use wildcard
-        assert_eq!(result[0], "{_}{dark}{_}");
-        assert_eq!(result[1], "{dark}{b}{dark}");
-        assert_eq!(result[2], "{_}{dark}{_}");
-    }
-
-    #[test]
-    fn test_apply_selout_mixed_colors() {
-        // Test with different colors to verify dominant neighbor selection
-        // Create a grid where the outline pixels have a clear dominant neighbor
-        let grid = vec![
-            "{_}{skin}{skin}{_}".to_string(),
-            "{skin}{skin}{skin}{skin}".to_string(),
-            "{skin}{skin}{skin}{skin}".to_string(),
-            "{hair}{hair}{hair}{hair}".to_string(),
-            "{_}{hair}{hair}{_}".to_string(),
-        ];
-
-        let mut mapping = HashMap::new();
-        mapping.insert("{skin}".to_string(), "{skin_dark}".to_string());
-        mapping.insert("{hair}".to_string(), "{hair_dark}".to_string());
-
-        let result = apply_selout(&grid, None, Some(&mapping));
-
-        // Top row: skin pixels adjacent to {_} should become skin_dark
-        // (dominant neighbor is {skin} from surrounding pixels)
-        assert_eq!(result[0], "{_}{skin_dark}{skin_dark}{_}");
-
-        // Bottom row: hair pixels adjacent to {_} should become hair_dark
-        // (dominant neighbor is {hair} from surrounding pixels - row 3 and 4)
-        assert_eq!(result[4], "{_}{hair_dark}{hair_dark}{_}");
-    }
-
-    #[test]
-    fn test_apply_selout_auto_dark_suffix() {
-        // Without mapping or fallback, should auto-generate {token_dark}
-        let grid = vec!["{_}{x}{_}".to_string(), "{x}{x}{x}".to_string(), "{_}{x}{_}".to_string()];
-
-        let result = apply_selout(&grid, None, None);
-
-        assert_eq!(result[0], "{_}{x_dark}{_}");
-        assert_eq!(result[1], "{x_dark}{x}{x_dark}");
-        assert_eq!(result[2], "{_}{x_dark}{_}");
-    }
-
-    #[test]
-    fn test_is_not_animation_transform_selout() {
-        assert!(!is_animation_transform(&Transform::SelOut { fallback: None, mapping: None }));
-    }
-
-    // ========================================================================
-    // Scale Transform Tests
-    // ========================================================================
-
-    #[test]
-    fn test_parse_scale_string() {
-        assert_eq!(
-            parse_transform_str("scale:2.0,1.5").unwrap(),
-            Transform::Scale { x: 2.0, y: 1.5 }
-        );
-        assert_eq!(
-            parse_transform_str("scale:0.5,0.5").unwrap(),
-            Transform::Scale { x: 0.5, y: 0.5 }
-        );
-    }
-
-    #[test]
-    fn test_parse_scale_string_invalid() {
-        // Missing parameters
-        assert!(parse_transform_str("scale").is_err());
-
-        // Invalid format
-        assert!(parse_transform_str("scale:2.0").is_err());
-
-        // Non-numeric
-        assert!(parse_transform_str("scale:abc,def").is_err());
-
-        // Negative/zero values
-        assert!(parse_transform_str("scale:-1.0,1.0").is_err());
-        assert!(parse_transform_str("scale:1.0,0").is_err());
-    }
-
-    #[test]
-    fn test_parse_scale_object() {
-        let value = serde_json::json!({"op": "scale", "x": 2.0, "y": 1.5});
-        assert_eq!(parse_transform_value(&value).unwrap(), Transform::Scale { x: 2.0, y: 1.5 });
-    }
-
-    #[test]
-    fn test_parse_scale_object_missing_params() {
-        // Missing x
-        let value = serde_json::json!({"op": "scale", "y": 1.5});
-        assert!(parse_transform_value(&value).is_err());
-
-        // Missing y
-        let value = serde_json::json!({"op": "scale", "x": 2.0});
-        assert!(parse_transform_value(&value).is_err());
-    }
-
-    #[test]
-    fn test_apply_scale_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_scale(&grid, 2.0, 2.0);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_scale_identity() {
-        // Scale by 1.0 should return same dimensions
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_scale(&grid, 1.0, 1.0);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{a}{b}");
-        assert_eq!(result[1], "{c}{d}");
-    }
-
-    #[test]
-    fn test_apply_scale_double_horizontal() {
-        // Scale 2x horizontally
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_scale(&grid, 2.0, 1.0);
-        assert_eq!(result.len(), 2);
-        // Each column is duplicated
-        assert_eq!(result[0], "{a}{a}{b}{b}");
-        assert_eq!(result[1], "{c}{c}{d}{d}");
-    }
-
-    #[test]
-    fn test_apply_scale_double_vertical() {
-        // Scale 2x vertically
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_scale(&grid, 1.0, 2.0);
-        assert_eq!(result.len(), 4);
-        // Each row is duplicated
-        assert_eq!(result[0], "{a}{b}");
-        assert_eq!(result[1], "{a}{b}");
-        assert_eq!(result[2], "{c}{d}");
-        assert_eq!(result[3], "{c}{d}");
-    }
-
-    #[test]
-    fn test_apply_scale_double_both() {
-        // Scale 2x in both directions
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_scale(&grid, 2.0, 2.0);
-        assert_eq!(result.len(), 4);
-        assert_eq!(result[0], "{a}{a}{b}{b}");
-        assert_eq!(result[1], "{a}{a}{b}{b}");
-        assert_eq!(result[2], "{c}{c}{d}{d}");
-        assert_eq!(result[3], "{c}{c}{d}{d}");
-    }
-
-    #[test]
-    fn test_apply_scale_half() {
-        // Scale down by half
-        let grid = vec![
-            "{a}{b}{c}{d}".to_string(),
-            "{e}{f}{g}{h}".to_string(),
-            "{i}{j}{k}{l}".to_string(),
-            "{m}{n}{o}{p}".to_string(),
-        ];
-        let result = apply_scale(&grid, 0.5, 0.5);
-        assert_eq!(result.len(), 2);
-        // Should sample every other pixel
-        assert_eq!(result[0], "{a}{c}");
-        assert_eq!(result[1], "{i}{k}");
-    }
-
-    #[test]
-    fn test_apply_scale_squash() {
-        // Squash effect: wider horizontally, shorter vertically
-        let grid = vec!["{_}{x}{_}".to_string(), "{x}{x}{x}".to_string(), "{_}{x}{_}".to_string()];
-        let result = apply_scale(&grid, 1.5, 0.5);
-        // Original: 3x3, Result: 5x2 (rounded)
-        assert_eq!(result.len(), 2);
-        assert!(result[0].contains("{x}") || result[0].contains("{_}"));
-    }
-
-    #[test]
-    fn test_apply_scale_stretch() {
-        // Stretch effect: narrower horizontally, taller vertically
-        let grid = vec!["{_}{x}{_}".to_string(), "{x}{x}{x}".to_string(), "{_}{x}{_}".to_string()];
-        let result = apply_scale(&grid, 0.67, 1.5);
-        // Original: 3x3, Result: 2x5 (rounded)
-        assert_eq!(result.len(), 5);
-    }
-
-    #[test]
-    fn test_is_not_animation_transform_scale() {
-        assert!(!is_animation_transform(&Transform::Scale { x: 2.0, y: 2.0 }));
-    }
-
-    // ============================================================================
-    // Effect Transform Tests (TRF-4)
-    // ============================================================================
-
-    #[test]
-    fn test_apply_outline_basic() {
-        // Simple 3x3 grid with center pixel opaque
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{x}{_}".to_string(), "{_}{_}{_}".to_string()];
-        let result = apply_outline(&grid, None, 1);
-        // All surrounding transparent pixels should become outline
-        assert_eq!(result[0], "{outline}{outline}{outline}");
-        assert_eq!(result[1], "{outline}{x}{outline}");
-        assert_eq!(result[2], "{outline}{outline}{outline}");
-    }
-
-    #[test]
-    fn test_apply_outline_custom_token() {
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{x}{_}".to_string(), "{_}{_}{_}".to_string()];
-        let result = apply_outline(&grid, Some("{border}"), 1);
-        assert_eq!(result[0], "{border}{border}{border}");
-        assert_eq!(result[1], "{border}{x}{border}");
-        assert_eq!(result[2], "{border}{border}{border}");
-    }
-
-    #[test]
-    fn test_apply_outline_width_2() {
-        // 5x5 grid with center pixel
-        let grid = vec![
-            "{_}{_}{_}{_}{_}".to_string(),
-            "{_}{_}{_}{_}{_}".to_string(),
-            "{_}{_}{x}{_}{_}".to_string(),
-            "{_}{_}{_}{_}{_}".to_string(),
-            "{_}{_}{_}{_}{_}".to_string(),
-        ];
-        let result = apply_outline(&grid, None, 2);
-        // With width 2, outline should extend further (Manhattan distance <= 2)
-        // Row 0: positions within distance 2 from center (2,2)
-        // (2,0) is dist 2, so should be outlined
-        assert!(result[0].contains("{outline}"));
-        assert_eq!(result[2], "{outline}{outline}{x}{outline}{outline}");
-    }
-
-    #[test]
-    fn test_apply_outline_preserves_opaque() {
-        // Multiple opaque pixels
-        let grid = vec!["{_}{a}{_}".to_string(), "{b}{c}{d}".to_string(), "{_}{e}{_}".to_string()];
-        let result = apply_outline(&grid, None, 1);
-        // Corners should get outlined, center pixels preserved
-        assert_eq!(result[0], "{outline}{a}{outline}");
-        assert_eq!(result[1], "{b}{c}{d}");
-        assert_eq!(result[2], "{outline}{e}{outline}");
-    }
-
-    #[test]
-    fn test_apply_outline_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_outline(&grid, None, 1);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_outline_width_zero() {
-        let grid = vec!["{_}{x}{_}".to_string()];
-        let result = apply_outline(&grid, None, 0);
-        // Width 0 should return unchanged
-        assert_eq!(result[0], "{_}{x}{_}");
-    }
-
-    #[test]
-    fn test_apply_shift_right() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let result = apply_shift(&grid, 1, 0);
-        // Shift right by 1: left column becomes transparent
-        assert_eq!(result[0], "{_}{a}{b}");
-        assert_eq!(result[1], "{_}{d}{e}");
-    }
-
-    #[test]
-    fn test_apply_shift_left() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let result = apply_shift(&grid, -1, 0);
-        // Shift left by 1: right column becomes transparent
-        assert_eq!(result[0], "{b}{c}{_}");
-        assert_eq!(result[1], "{e}{f}{_}");
-    }
-
-    #[test]
-    fn test_apply_shift_down() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string(), "{e}{f}".to_string()];
-        let result = apply_shift(&grid, 0, 1);
-        // Shift down by 1: top row becomes transparent
-        assert_eq!(result[0], "{_}{_}");
-        assert_eq!(result[1], "{a}{b}");
-        assert_eq!(result[2], "{c}{d}");
-    }
-
-    #[test]
-    fn test_apply_shift_up() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string(), "{e}{f}".to_string()];
-        let result = apply_shift(&grid, 0, -1);
-        // Shift up by 1: bottom row becomes transparent
-        assert_eq!(result[0], "{c}{d}");
-        assert_eq!(result[1], "{e}{f}");
-        assert_eq!(result[2], "{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_shift_diagonal() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
-        let result = apply_shift(&grid, 1, 1);
-        // Shift right 1, down 1
-        assert_eq!(result[0], "{_}{_}{_}");
-        assert_eq!(result[1], "{_}{a}{b}");
-        assert_eq!(result[2], "{_}{d}{e}");
-    }
-
-    #[test]
-    fn test_apply_shift_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_shift(&grid, 1, 1);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_shadow_basic() {
-        // Small sprite, shadow offset (1,1)
-        let grid = vec![
-            "{_}{_}{_}{_}".to_string(),
-            "{_}{x}{x}{_}".to_string(),
-            "{_}{x}{x}{_}".to_string(),
-            "{_}{_}{_}{_}".to_string(),
-        ];
-        let result = apply_shadow(&grid, 1, 1, None);
-        // Original pixels preserved
-        assert!(result[1].contains("{x}"));
-        assert!(result[2].contains("{x}"));
-        // Shadow should appear at offset
-        assert!(result[2].contains("{shadow}") || result[3].contains("{shadow}"));
-    }
-
-    #[test]
-    fn test_apply_shadow_custom_token() {
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{x}{_}".to_string(), "{_}{_}{_}".to_string()];
-        let result = apply_shadow(&grid, 1, 1, Some("{dark}"));
-        // Shadow at (2,2) should be {dark}
-        assert_eq!(result[2], "{_}{_}{dark}");
-    }
-
-    #[test]
-    fn test_apply_shadow_negative_offset() {
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{x}{_}".to_string(), "{_}{_}{_}".to_string()];
-        let result = apply_shadow(&grid, -1, -1, None);
-        // Shadow should appear at (0,0)
-        assert_eq!(result[0], "{shadow}{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_shadow_overlapping() {
-        // Shadow overlaps with original - original should win
-        let grid = vec!["{_}{_}{_}".to_string(), "{_}{a}{b}".to_string(), "{_}{c}{d}".to_string()];
-        let result = apply_shadow(&grid, 1, 0, None);
-        // Rightmost pixels would be shadowed but original is there
-        assert_eq!(result[1], "{_}{a}{b}"); // {b} preserved, not shadowed
-        assert_eq!(result[2], "{_}{c}{d}"); // {d} preserved, not shadowed
-                                            // But check for shadow where original is transparent
-                                            // At (0,1) we're transparent, shadow from (-1,1) - which is out of bounds - no shadow
-                                            // But {a} at (1,1) casts shadow to (2,1) which has {b} - preserved
-    }
-
-    #[test]
-    fn test_apply_shadow_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_shadow(&grid, 1, 1, None);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_shadow_preserves_original() {
-        // Ensure original opaque pixels are never replaced by shadow
-        let grid = vec!["{a}{_}".to_string(), "{_}{b}".to_string()];
-        let result = apply_shadow(&grid, 1, 1, None);
-        // {a} at (0,0) - original preserved
-        // {b} at (1,1) - original preserved
-        // Shadow of {a} would be at (1,1) but {b} is there
-        assert!(result[0].starts_with("{a}"));
-        assert!(result[1].ends_with("{b}"));
-    }
-
-    // ========================================================================
-    // Geometric Transform Tests
-    // ========================================================================
-
-    #[test]
-    fn test_apply_mirror_horizontal_basic() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let result = apply_mirror_horizontal(&grid);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{c}{b}{a}");
-        assert_eq!(result[1], "{f}{e}{d}");
-    }
-
-    #[test]
-    fn test_apply_mirror_horizontal_empty() {
-        let grid: Vec<String> = vec![];
-        let result = apply_mirror_horizontal(&grid);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_mirror_horizontal_single_row() {
-        let grid = vec!["{1}{2}{3}{4}".to_string()];
-        let result = apply_mirror_horizontal(&grid);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], "{4}{3}{2}{1}");
-    }
-
-    #[test]
-    fn test_apply_mirror_horizontal_single_column() {
-        let grid = vec!["{a}".to_string(), "{b}".to_string(), "{c}".to_string()];
-        let result = apply_mirror_horizontal(&grid);
-        assert_eq!(result.len(), 3);
-        // Single column should be unchanged
-        assert_eq!(result[0], "{a}");
-        assert_eq!(result[1], "{b}");
-        assert_eq!(result[2], "{c}");
-    }
-
-    #[test]
-    fn test_apply_mirror_vertical_basic() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string(), "{e}{f}".to_string()];
-        let result = apply_mirror_vertical(&grid);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{e}{f}");
-        assert_eq!(result[1], "{c}{d}");
-        assert_eq!(result[2], "{a}{b}");
-    }
-
-    #[test]
-    fn test_apply_mirror_vertical_empty() {
-        let grid: Vec<String> = vec![];
-        let result = apply_mirror_vertical(&grid);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_mirror_vertical_single_row() {
-        let grid = vec!["{x}{y}{z}".to_string()];
-        let result = apply_mirror_vertical(&grid);
-        assert_eq!(result.len(), 1);
-        // Single row should be unchanged
-        assert_eq!(result[0], "{x}{y}{z}");
-    }
-
-    #[test]
-    fn test_apply_rotate_90_square() {
-        // 2x2 grid rotated 90 degrees clockwise
-        // Original:    Rotated 90:
-        // a b          c a
-        // c d          d b
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_rotate(&grid, 90);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{c}{a}");
-        assert_eq!(result[1], "{d}{b}");
-    }
-
-    #[test]
-    fn test_apply_rotate_90_rectangular() {
-        // 2x3 grid (2 columns, 3 rows) rotated 90 degrees clockwise
-        // Original:    Rotated 90 (3 columns, 2 rows):
-        // a b          e c a
-        // c d          f d b
-        // e f
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string(), "{e}{f}".to_string()];
-        let result = apply_rotate(&grid, 90);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{e}{c}{a}");
-        assert_eq!(result[1], "{f}{d}{b}");
-    }
-
-    #[test]
-    fn test_apply_rotate_180() {
-        // 180 degree rotation (same as mirror_h + mirror_v)
-        // Original:    Rotated 180:
-        // a b c        i h g
-        // d e f        f e d
-        // g h i        c b a
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
-        let result = apply_rotate(&grid, 180);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{i}{h}{g}");
-        assert_eq!(result[1], "{f}{e}{d}");
-        assert_eq!(result[2], "{c}{b}{a}");
-    }
-
-    #[test]
-    fn test_apply_rotate_270() {
-        // 270 degrees clockwise (= 90 counter-clockwise)
-        // Original:    Rotated 270:
-        // a b          b d
-        // c d          a c
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_rotate(&grid, 270);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{b}{d}");
-        assert_eq!(result[1], "{a}{c}");
-    }
-
-    #[test]
-    fn test_apply_rotate_270_rectangular() {
-        // 3x2 grid (3 columns, 2 rows) rotated 270 degrees clockwise
-        // Original:    Rotated 270 (2 columns, 3 rows):
-        // a b c        c f
-        // d e f        b e
-        //              a d
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let result = apply_rotate(&grid, 270);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{c}{f}");
-        assert_eq!(result[1], "{b}{e}");
-        assert_eq!(result[2], "{a}{d}");
-    }
-
-    #[test]
-    fn test_apply_rotate_empty() {
-        let grid: Vec<String> = vec![];
-        let result = apply_rotate(&grid, 90);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_rotate_invalid_degrees() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        // 0 degrees should return unchanged
-        let result = apply_rotate(&grid, 0);
-        assert_eq!(result, grid);
-
-        // 45 degrees (invalid) should return unchanged
-        let result = apply_rotate(&grid, 45);
-        assert_eq!(result, grid);
-    }
-
-    #[test]
-    fn test_rotate_90_then_90_equals_180() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let rotated_twice = apply_rotate(&apply_rotate(&grid, 90), 90);
-        let rotated_180 = apply_rotate(&grid, 180);
-        assert_eq!(rotated_twice, rotated_180);
-    }
-
-    #[test]
-    fn test_rotate_four_times_identity() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let rotated =
-            apply_rotate(&apply_rotate(&apply_rotate(&apply_rotate(&grid, 90), 90), 90), 90);
-        assert_eq!(rotated, grid);
-    }
-
-    #[test]
-    fn test_mirror_h_twice_identity() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string()];
-        let mirrored = apply_mirror_horizontal(&apply_mirror_horizontal(&grid));
-        assert_eq!(mirrored, grid);
-    }
-
-    #[test]
-    fn test_mirror_v_twice_identity() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string(), "{e}{f}".to_string()];
-        let mirrored = apply_mirror_vertical(&apply_mirror_vertical(&grid));
-        assert_eq!(mirrored, grid);
-    }
-
-    #[test]
-    fn test_rotate_with_transparent() {
-        // Test that transparent tokens are handled correctly during rotation
-        let grid = vec!["{a}{_}".to_string(), "{_}{b}".to_string()];
-        let result = apply_rotate(&grid, 90);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{_}{a}");
-        assert_eq!(result[1], "{b}{_}");
-    }
-
-    // =========================================================================
-    // apply_tile tests
-    // =========================================================================
-
-    #[test]
-    fn test_apply_tile_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_tile(&grid, 2, 2);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_apply_tile_zero_dimensions() {
-        let grid = vec!["{a}{b}".to_string()];
-        assert!(apply_tile(&grid, 0, 1).is_empty());
-        assert!(apply_tile(&grid, 1, 0).is_empty());
-        assert!(apply_tile(&grid, 0, 0).is_empty());
-    }
-
-    #[test]
-    fn test_apply_tile_identity() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_tile(&grid, 1, 1);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{a}{b}");
-        assert_eq!(result[1], "{c}{d}");
-    }
-
-    #[test]
-    fn test_apply_tile_horizontal() {
-        let grid = vec!["{a}{b}".to_string()];
-        let result = apply_tile(&grid, 2, 1);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], "{a}{b}{a}{b}");
-    }
-
-    #[test]
-    fn test_apply_tile_vertical() {
-        let grid = vec!["{a}".to_string(), "{b}".to_string()];
-        let result = apply_tile(&grid, 1, 2);
-        assert_eq!(result.len(), 4);
-        assert_eq!(result[0], "{a}");
-        assert_eq!(result[1], "{b}");
-        assert_eq!(result[2], "{a}");
-        assert_eq!(result[3], "{b}");
-    }
-
-    #[test]
-    fn test_apply_tile_2x2() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_tile(&grid, 2, 2);
-        assert_eq!(result.len(), 4);
-        assert_eq!(result[0], "{a}{b}{a}{b}");
-        assert_eq!(result[1], "{c}{d}{c}{d}");
-        assert_eq!(result[2], "{a}{b}{a}{b}");
-        assert_eq!(result[3], "{c}{d}{c}{d}");
-    }
-
-    // =========================================================================
-    // apply_pad tests
-    // =========================================================================
-
-    #[test]
-    fn test_apply_pad_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_pad(&grid, 2);
-        assert_eq!(result.len(), 4);
-        assert_eq!(result[0], "{_}{_}{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_pad_zero() {
-        let grid = vec!["{a}{b}".to_string()];
-        let result = apply_pad(&grid, 0);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], "{a}{b}");
-    }
-
-    #[test]
-    fn test_apply_pad_one() {
-        let grid = vec!["{x}".to_string()];
-        let result = apply_pad(&grid, 1);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{_}{_}{_}");
-        assert_eq!(result[1], "{_}{x}{_}");
-        assert_eq!(result[2], "{_}{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_pad_2x2_with_padding_2() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_pad(&grid, 2);
-        assert_eq!(result.len(), 6);
-        assert_eq!(result[0], "{_}{_}{_}{_}{_}{_}");
-        assert_eq!(result[1], "{_}{_}{_}{_}{_}{_}");
-        assert_eq!(result[2], "{_}{_}{a}{b}{_}{_}");
-        assert_eq!(result[3], "{_}{_}{c}{d}{_}{_}");
-        assert_eq!(result[4], "{_}{_}{_}{_}{_}{_}");
-        assert_eq!(result[5], "{_}{_}{_}{_}{_}{_}");
-    }
-
-    // =========================================================================
-    // apply_crop tests
-    // =========================================================================
-
-    #[test]
-    fn test_apply_crop_empty_grid() {
-        let grid: Vec<String> = vec![];
-        let result = apply_crop(&grid, 0, 0, 2, 2);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{_}{_}");
-        assert_eq!(result[1], "{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_crop_zero_dimensions() {
-        let grid = vec!["{a}{b}".to_string()];
-        assert!(apply_crop(&grid, 0, 0, 0, 1).is_empty());
-        assert!(apply_crop(&grid, 0, 0, 1, 0).is_empty());
-    }
-
-    #[test]
-    fn test_apply_crop_full_grid() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_crop(&grid, 0, 0, 2, 2);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{a}{b}");
-        assert_eq!(result[1], "{c}{d}");
-    }
-
-    #[test]
-    fn test_apply_crop_top_left() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
-        let result = apply_crop(&grid, 0, 0, 2, 2);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{a}{b}");
-        assert_eq!(result[1], "{d}{e}");
-    }
-
-    #[test]
-    fn test_apply_crop_center() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
-        let result = apply_crop(&grid, 1, 1, 1, 1);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], "{e}");
-    }
-
-    #[test]
-    fn test_apply_crop_bottom_right() {
-        let grid = vec!["{a}{b}{c}".to_string(), "{d}{e}{f}".to_string(), "{g}{h}{i}".to_string()];
-        let result = apply_crop(&grid, 1, 1, 2, 2);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{e}{f}");
-        assert_eq!(result[1], "{h}{i}");
-    }
-
-    #[test]
-    fn test_apply_crop_out_of_bounds() {
-        let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
-        let result = apply_crop(&grid, 1, 1, 3, 3);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{d}{_}{_}");
-        assert_eq!(result[1], "{_}{_}{_}");
-        assert_eq!(result[2], "{_}{_}{_}");
-    }
-
-    #[test]
-    fn test_apply_crop_completely_outside() {
-        let grid = vec!["{a}{b}".to_string()];
-        let result = apply_crop(&grid, 10, 10, 2, 2);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0], "{_}{_}");
-        assert_eq!(result[1], "{_}{_}");
-    }
-
     // =========================================================================
     // CSS Transform Parsing Tests (CSS-14)
     // =========================================================================
@@ -5020,6 +3967,47 @@ mod tests {
     fn test_parse_css_scaley() {
         let result = parse_css_transform("scaleY(1.5)").unwrap();
         assert_eq!(result.scale, Some((1.0, 1.5)));
+    }
+
+    #[test]
+    fn test_parse_css_skewx() {
+        let result = parse_css_transform("skewX(20deg)").unwrap();
+        assert_eq!(result.skew_x, Some(20.0));
+        assert_eq!(result.skew_y, None);
+    }
+
+    #[test]
+    fn test_parse_css_skewy() {
+        let result = parse_css_transform("skewY(15deg)").unwrap();
+        assert_eq!(result.skew_x, None);
+        assert_eq!(result.skew_y, Some(15.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_single() {
+        let result = parse_css_transform("skew(30)").unwrap();
+        assert_eq!(result.skew_x, Some(30.0));
+        assert_eq!(result.skew_y, None);
+    }
+
+    #[test]
+    fn test_parse_css_skew_both() {
+        let result = parse_css_transform("skew(20deg, 10deg)").unwrap();
+        assert_eq!(result.skew_x, Some(20.0));
+        assert_eq!(result.skew_y, Some(10.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_negative() {
+        let result = parse_css_transform("skewX(-25deg)").unwrap();
+        assert_eq!(result.skew_x, Some(-25.0));
+    }
+
+    #[test]
+    fn test_parse_css_skew_invalid_angle() {
+        // 90 degrees is invalid (tangent approaches infinity)
+        assert!(parse_css_transform("skewX(90deg)").is_err());
+        assert!(parse_css_transform("skewY(-89deg)").is_err());
     }
 
     #[test]
@@ -5424,6 +4412,18 @@ mod tests {
     }
 
     #[test]
+    fn test_explain_transform_skew() {
+        assert_eq!(
+            explain_transform(&Transform::SkewX { degrees: 20.0 }),
+            "Skew horizontally by 20° (shear along X axis)"
+        );
+        assert_eq!(
+            explain_transform(&Transform::SkewY { degrees: -15.0 }),
+            "Skew vertically by -15° (shear along Y axis)"
+        );
+    }
+
+    #[test]
     fn test_explain_transform_pingpong() {
         assert_eq!(
             explain_transform(&Transform::Pingpong { exclude_ends: false }),
@@ -5505,7 +4505,7 @@ mod tests {
     fn test_expression_evaluator_numbers() {
         let eval = ExpressionEvaluator::new(std::collections::HashMap::new());
         assert!((eval.evaluate("42").unwrap() - 42.0).abs() < f64::EPSILON);
-        assert!((eval.evaluate("3.14").unwrap() - 3.14).abs() < 0.001);
+        assert!((eval.evaluate("2.5").unwrap() - 2.5).abs() < 0.001);
         assert!((eval.evaluate("-5").unwrap() - (-5.0)).abs() < f64::EPSILON);
     }
 
@@ -5641,5 +4641,192 @@ mod tests {
             }
             _ => panic!("Expected Scale transform"),
         }
+    }
+
+    // ============================================================================
+    // Anchor Preservation Scaling Tests (TTP-ca8cj)
+    // ============================================================================
+
+    #[test]
+    fn test_anchor_bounds_new() {
+        let bounds = AnchorBounds::new(10, 20, 5, 3);
+        assert_eq!(bounds.x, 10);
+        assert_eq!(bounds.y, 20);
+        assert_eq!(bounds.width, 5);
+        assert_eq!(bounds.height, 3);
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points() {
+        let points = vec![(5, 10), (7, 10), (6, 11), (5, 12)];
+        let bounds = AnchorBounds::from_points(&points).unwrap();
+
+        assert_eq!(bounds.x, 5);
+        assert_eq!(bounds.y, 10);
+        assert_eq!(bounds.width, 3); // 5, 6, 7 -> width 3
+        assert_eq!(bounds.height, 3); // 10, 11, 12 -> height 3
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points_single() {
+        let points = vec![(5, 10)];
+        let bounds = AnchorBounds::from_points(&points).unwrap();
+
+        assert_eq!(bounds.x, 5);
+        assert_eq!(bounds.y, 10);
+        assert_eq!(bounds.width, 1);
+        assert_eq!(bounds.height, 1);
+    }
+
+    #[test]
+    fn test_anchor_bounds_from_points_empty() {
+        let points: Vec<(i32, i32)> = vec![];
+        let bounds = AnchorBounds::from_points(&points);
+        assert!(bounds.is_none());
+    }
+
+    #[test]
+    fn test_anchor_bounds_center() {
+        let bounds = AnchorBounds::new(10, 20, 6, 4);
+        let (cx, cy) = bounds.center();
+        assert_eq!(cx, 13); // 10 + 6/2 = 13
+        assert_eq!(cy, 22); // 20 + 4/2 = 22
+    }
+
+    #[test]
+    fn test_anchor_bounds_scaled() {
+        let bounds = AnchorBounds::new(10, 20, 4, 6);
+        let scaled = bounds.scaled(0.5, 0.5);
+
+        assert_eq!(scaled.x, 5); // 10 * 0.5 = 5
+        assert_eq!(scaled.y, 10); // 20 * 0.5 = 10
+        assert_eq!(scaled.width, 2); // 4 * 0.5 = 2
+        assert_eq!(scaled.height, 3); // 6 * 0.5 = 3
+    }
+
+    #[test]
+    fn test_scale_image_noop() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        let scaled = scale_image(&image, 1.0, 1.0);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_upscale() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Red
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 255])); // Green
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 255])); // Blue
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255])); // Yellow
+
+        let scaled = scale_image(&image, 2.0, 2.0);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+
+        // Red block (0,0) -> (0,0), (1,0), (0,1), (1,1)
+        assert_eq!(*scaled.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*scaled.get_pixel(1, 1), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_scale_image_downscale() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        // Fill with red
+        for y in 0..4 {
+            for x in 0..4 {
+                image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let scaled = scale_image(&image, 0.5, 0.5);
+
+        assert_eq!(scaled.width(), 2);
+        assert_eq!(scaled.height(), 2);
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_no_anchors() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(1, 1, Rgba([255, 0, 0, 255]));
+
+        let anchors: Vec<AnchorBounds> = vec![];
+        let scaled = scale_image_with_anchor_preservation(&image, 0.5, 0.5, &anchors);
+
+        assert_eq!(scaled.width(), 2);
+        assert_eq!(scaled.height(), 2);
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_preserves_small_anchor() {
+        use image::Rgba;
+
+        // Create an 8x8 image with a 2x2 "eye" region at (3, 3)
+        let mut image = RgbaImage::new(8, 8);
+
+        // Fill with transparent
+        for y in 0..8 {
+            for x in 0..8 {
+                image.put_pixel(x, y, Rgba([0, 0, 0, 0]));
+            }
+        }
+
+        // Draw the "eye" (anchor) at (3, 3) with size 2x2
+        image.put_pixel(3, 3, Rgba([0, 0, 255, 255])); // Blue eye
+        image.put_pixel(4, 3, Rgba([0, 0, 255, 255]));
+        image.put_pixel(3, 4, Rgba([0, 0, 255, 255]));
+        image.put_pixel(4, 4, Rgba([0, 0, 255, 255]));
+
+        // Define the anchor region
+        let anchors = vec![AnchorBounds::new(3, 3, 2, 2)];
+
+        // Scale down to 25% - the 2x2 eye would normally shrink to 0x0 or less than 1px
+        let scaled = scale_image_with_anchor_preservation(&image, 0.25, 0.25, &anchors);
+
+        assert_eq!(scaled.width(), 2); // 8 * 0.25 = 2
+        assert_eq!(scaled.height(), 2);
+
+        // The anchor center is at (4, 4) -> maps to (1, 1) in scaled image
+        // Check that at least one blue pixel exists in the scaled image
+        let mut found_blue = false;
+        for y in 0..scaled.height() {
+            for x in 0..scaled.width() {
+                let pixel = scaled.get_pixel(x, y);
+                if pixel[2] > 200 && pixel[3] > 200 {
+                    // Blue with alpha
+                    found_blue = true;
+                    break;
+                }
+            }
+        }
+        assert!(found_blue, "Anchor region should be preserved during downscaling");
+    }
+
+    #[test]
+    fn test_scale_image_with_anchor_preservation_upscale_passthrough() {
+        use image::Rgba;
+
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        // Even with anchors, upscaling should work normally
+        let anchors = vec![AnchorBounds::new(0, 0, 1, 1)];
+        let scaled = scale_image_with_anchor_preservation(&image, 2.0, 2.0, &anchors);
+
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
     }
 }
