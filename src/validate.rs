@@ -5,6 +5,7 @@
 
 use crate::color::parse_color;
 use crate::models::{Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject};
+use crate::palette_parser::{PaletteParser, ParseMode};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -380,18 +381,51 @@ impl Validator {
             );
         }
 
-        // Validate each color
+        // Resolve var() references before validating colors
+        let parser = PaletteParser::new();
+        let resolved = parser.resolve_to_strings(colors, ParseMode::Lenient);
+
+        // Validate each color (using resolved values)
         let mut defined_tokens = HashSet::new();
         for (token, color) in colors {
+            // Skip CSS variable definitions - they're not color tokens
+            if token.starts_with("--") {
+                continue;
+            }
             defined_tokens.insert(token.clone());
 
+            // Get the resolved color value (with var() expanded)
+            let color_to_check = resolved
+                .as_ref()
+                .ok()
+                .and_then(|r| r.colors.get(token))
+                .map(|s| s.as_str())
+                .unwrap_or(color);
+
             // Check color format
-            if let Err(e) = parse_color(color) {
+            if let Err(e) = parse_color(color_to_check) {
                 self.issues.push(
                     ValidationIssue::error(
                         line_number,
                         IssueType::InvalidColor,
                         format!("Invalid color \"{}\" for token {}: {}", color, token, e),
+                    )
+                    .with_context(format!("palette \"{}\"", name)),
+                );
+            }
+        }
+
+        // Report any variable resolution warnings
+        if let Ok(ref res) = resolved {
+            for warning in &res.warnings {
+                self.issues.push(
+                    ValidationIssue::warning(
+                        line_number,
+                        IssueType::InvalidColor,
+                        format!(
+                            "Variable resolution warning for token {}: {}",
+                            warning.token, warning.message
+                        ),
                     )
                     .with_context(format!("palette \"{}\"", name)),
                 );
@@ -1129,6 +1163,49 @@ mod tests {
         );
         assert_eq!(validator.issues().len(), 1);
         assert_eq!(validator.issues()[0].issue_type, IssueType::InvalidColor);
+    }
+
+    #[test]
+    #[serial]
+    fn test_validate_palette_with_var_in_color_mix() {
+        // TTP-hm34: var() inside color-mix() should work
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"--skin": "#d8b088", "skin": "var(--skin)", "skin_hi": "color-mix(in oklch, var(--skin) 40%, white)"}}"##,
+        );
+        // Should have no errors - var() references should be resolved before parsing
+        let errors: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.severity == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "Expected no errors for var() in color-mix(), got: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_validate_palette_with_undefined_var() {
+        // Undefined var() should produce a warning, not crash
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "test", "colors": {"bad": "var(--undefined)"}}"##,
+        );
+        // Should have a warning about the undefined variable
+        let warnings: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.severity == Severity::Warning)
+            .collect();
+        assert!(
+            !warnings.is_empty(),
+            "Expected warning for undefined var()"
+        );
     }
 
     #[test]
