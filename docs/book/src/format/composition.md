@@ -1,18 +1,18 @@
 # Composition
 
-A composition layers multiple sprites onto a canvas using a character-based map. This is useful for building scenes, tile maps, and complex images from smaller sprite components.
+A composition layers multiple sprites onto a canvas. This is useful for building scenes, tile maps, and complex images from smaller sprite components.
 
 ## Basic Syntax
 
-```json
+```json5
 {
-  "type": "composition",
-  "name": "string (required)",
-  "base": "string (optional)",
-  "size": [width, height],
-  "cell_size": [width, height],
-  "sprites": { "char": "sprite_name" | null, ... },
-  "layers": [ { "name": "...", "map": [...] }, ... ]
+  type: "composition",
+  name: "scene",
+  size: [width, height],
+  layers: [
+    { sprite: "background", x: 0, y: 0 },
+    { sprite: "hero", x: 16, y: 16 },
+  ],
 }
 ```
 
@@ -22,437 +22,269 @@ A composition layers multiple sprites onto a canvas using a character-based map.
 |-------|----------|---------|-------------|
 | `type` | Yes | - | Must be `"composition"` |
 | `name` | Yes | - | Unique identifier |
-| `base` | No | - | Base sprite to render first (background) |
-| `size` | No | Inferred | Canvas size `[width, height]` in pixels |
-| `cell_size` | No | `[1, 1]` | Size of each map character in pixels |
-| `sprites` | Yes | - | Map of single characters to sprite names |
+| `size` | Yes | - | Canvas size `[width, height]` in pixels |
 | `layers` | Yes | - | Array of layers, rendered bottom-to-top |
 
 ## Layer Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | No | Layer identifier (for debugging) |
-| `fill` | No | Sprite name to fill entire layer |
-| `map` | No | Array of strings - character map for sprite placement |
-| `blend` | No | Blend mode (default: `"normal"`). Supports `var()` syntax. |
-| `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0). Supports `var()` syntax. |
+| `sprite` | Yes | Sprite name to place |
+| `x` | No | X position (default: 0) |
+| `y` | No | Y position (default: 0) |
+| `blend` | No | Blend mode (default: `"normal"`) |
+| `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0) |
 
 ## Simple Example
 
-```json
-{"type": "composition", "name": "scene", "size": [32, 32],
-  "sprites": {".": null, "H": "hero", "T": "tree"},
-  "layers": [
-    {"map": [
-      "........",
-      ".T....T.",
-      "........",
-      "...H....",
-      "........"
-    ]}
-  ]}
-```
-
-The `.` character maps to `null` (transparent/no sprite), while `H` and `T` place the hero and tree sprites.
-
-## Cell Size (Tiling)
-
-<!-- DEMOS format/composition#positioning -->
-<!-- /DEMOS -->
-
-The `cell_size` field enables tiling - composing large images from smaller sprites:
-
-| Cell Size | Meaning |
-|-----------|---------|
-| `[1, 1]` (default) | Each map character = 1 pixel position |
-| `[8, 8]` | Each map character = 8×8 pixel region |
-| `[16, 16]` | Each map character = 16×16 tile |
-| `[4, 8]` | Custom cells for text/UI composition |
-
-Sprites are placed at `(col * cell_size[0], row * cell_size[1])`.
-
-### Pixel Overlay Example
-
-```json
-{"type": "composition", "name": "icon", "size": [8, 8], "cell_size": [1, 1],
-  "sprites": {".": null, "x": "pixel"},
-  "layers": [{"map": [
-    "..xx..",
-    ".xxxx.",
-    "xxxxxx",
-    "xxxxxx",
-    ".xxxx.",
-    "..xx.."
-  ]}]}
-```
-
-### Tiled Map Example
-
-```json
-{"type": "composition", "name": "level", "size": [128, 96], "cell_size": [16, 16],
-  "sprites": {
-    "G": "grass_tile",
-    "W": "water_tile",
-    "T": "tree_tile",
-    ".": null
+```json5
+{
+  type: "palette",
+  name: "scene",
+  colors: {
+    _: "transparent",
+    g: "#228B22",
+    h: "#FFD700",
+    t: "#8B4513",
   },
-  "layers": [{"map": [
-    "GGGGGGGG",
-    "GGTGGGTG",
-    "GGGGGGGG",
-    "WWWWWWWW",
-    "GGGGGGGG",
-    "GGGGGGGG"
-  ]}]}
+}
+
+{
+  type: "sprite",
+  name: "grass",
+  size: [8, 8],
+  palette: "scene",
+  regions: { g: { rect: [0, 0, 8, 8] } },
+}
+
+{
+  type: "sprite",
+  name: "hero",
+  size: [8, 8],
+  palette: "scene",
+  regions: {
+    h: { rect: [2, 2, 4, 6] },
+  },
+}
+
+{
+  type: "sprite",
+  name: "tree",
+  size: [8, 8],
+  palette: "scene",
+  regions: {
+    g: { ellipse: [4, 2, 3, 2] },
+    t: { rect: [3, 4, 2, 4] },
+  },
+}
+
+{
+  type: "composition",
+  name: "scene",
+  size: [32, 32],
+  layers: [
+    { sprite: "grass", x: 0, y: 0 },
+    { sprite: "grass", x: 8, y: 0 },
+    { sprite: "grass", x: 16, y: 0 },
+    { sprite: "grass", x: 24, y: 0 },
+    { sprite: "tree", x: 4, y: 8 },
+    { sprite: "hero", x: 12, y: 16 },
+    { sprite: "tree", x: 20, y: 8 },
+  ],
+}
 ```
 
 ## Multiple Layers
 
-<!-- DEMOS format/composition#basic_layers -->
-<!-- /DEMOS -->
-
 Layers are rendered bottom-to-top. The first layer is the background:
 
-```json
-{"type": "composition", "name": "scene", "size": [64, 64], "cell_size": [16, 16],
-  "sprites": {"G": "grass", "H": "hero", "T": "tree", ".": null},
-  "layers": [
-    {"name": "ground", "map": [
-      "GGGG",
-      "GGGG",
-      "GGGG",
-      "GGGG"
-    ]},
-    {"name": "objects", "map": [
-      "T...",
-      "....",
-      ".H..",
-      "...T"
-    ]}
-  ]}
-```
-
-## Base Sprite
-
-Use `base` to set a full-canvas background:
-
-```json
-{"type": "composition", "name": "hero_scene", "base": "sky_background",
-  "sprites": {".": null, "H": "hero"},
-  "layers": [
-    {"name": "characters", "map": ["..H.."]}
-  ]}
-```
-
-The base sprite renders first, covering the entire canvas.
-
-## Fill Layers
-
-Fill an entire layer with a single sprite:
-
-```json
-{"type": "composition", "name": "ocean", "size": [128, 128], "cell_size": [16, 16],
-  "sprites": {"B": "boat"},
-  "layers": [
-    {"name": "water", "fill": "water_tile"},
-    {"name": "objects", "map": [
-      "........",
-      "...B....",
-      "........"
-    ]}
-  ]}
+```json5
+{
+  type: "composition",
+  name: "scene",
+  size: [64, 64],
+  layers: [
+    // Background layer
+    { sprite: "sky_background", x: 0, y: 0 },
+    // Middle layer - ground
+    { sprite: "ground", x: 0, y: 48 },
+    // Foreground - characters
+    { sprite: "hero", x: 24, y: 32 },
+    { sprite: "enemy", x: 40, y: 32 },
+  ],
+}
 ```
 
 ## Blend Modes
 
-<!-- DEMOS format/composition#blend_modes -->
-<!-- /DEMOS -->
+Layer blending controls how colors combine when layers overlap:
 
-Layer blending controls how colors combine when layers overlap. Each blend mode applies a mathematical formula to determine the final pixel color.
-
-```json
+```json5
 {
-  "type": "composition",
-  "name": "scene",
-  "layers": [
-    {"fill": "background"},
-    {"map": ["..S.."], "blend": "multiply", "opacity": 0.5},
-    {"map": ["..G.."], "blend": "add"},
-    {"map": ["..P.."]}
-  ]
+  type: "composition",
+  name: "effects",
+  size: [32, 32],
+  layers: [
+    { sprite: "background", x: 0, y: 0 },
+    { sprite: "shadow", x: 8, y: 8, blend: "multiply", opacity: 0.5 },
+    { sprite: "glow", x: 12, y: 4, blend: "add" },
+  ],
 }
 ```
 
 ### Blend Mode Reference
 
-| Mode | Formula | Description |
-|------|---------|-------------|
-| `normal` | `src over dst` | Standard alpha compositing. Source replaces destination based on alpha. |
-| `multiply` | `src × dst` | Multiplies color values (0-1 range). Always darkens. Black stays black, white is transparent. |
-| `screen` | `1 - (1-src)(1-dst)` | Inverse of multiply. Always lightens. White stays white, black is transparent. |
-| `overlay` | Multiply if dst < 0.5, else screen | Enhances contrast. Dark areas darken, light areas lighten. |
-| `add` | `src + dst` | Adds color values (clamped). Creates glowing, luminous effects. |
-| `subtract` | `dst - src` | Subtracts source from destination. Can create inverted effects. |
-| `difference` | `|src - dst|` | Absolute difference. Useful for detecting changes between layers. |
-| `darken` | `min(src, dst)` | Keeps the darker color per channel. |
-| `lighten` | `max(src, dst)` | Keeps the lighter color per channel. |
+| Mode | Description |
+|------|-------------|
+| `normal` | Standard alpha compositing |
+| `multiply` | Darkens - good for shadows |
+| `screen` | Lightens - good for glows |
+| `overlay` | Enhances contrast |
+| `add` | Additive blending - fire, particles |
+| `subtract` | Subtractive blending |
+| `difference` | Absolute difference |
+| `darken` | Keeps darker color |
+| `lighten` | Keeps lighter color |
 
 ### When to Use Each Mode
 
 **`multiply`** - Shadows, tinting, darkening
-```json
-{"name": "shadow", "map": ["..S.."], "blend": "multiply", "opacity": 0.3}
+```json5
+{ sprite: "shadow", x: 4, y: 4, blend: "multiply", opacity: 0.3 }
 ```
-Use for drop shadows, color overlays that darken, or simulating light absorption.
 
-**`screen`** - Glows, highlights, lightening
-```json
-{"name": "glow", "map": ["..G.."], "blend": "screen"}
+**`screen`** - Glows, highlights, fog
+```json5
+{ sprite: "glow", x: 8, y: 8, blend: "screen" }
 ```
-Use for light sources, specular highlights, or fog/mist effects.
 
-**`add`** - Particles, fire, magical effects
-```json
-{"name": "particles", "map": ["..P.."], "blend": "add"}
+**`add`** - Fire, particles, magical effects
+```json5
+{ sprite: "particles", x: 0, y: 0, blend: "add" }
 ```
-Use for fire, explosions, magic sparkles, or any additive light effect.
-
-**`overlay`** - Contrast, texture application
-```json
-{"name": "texture", "fill": "noise_texture", "blend": "overlay", "opacity": 0.5}
-```
-Use for applying textures while preserving underlying tones.
 
 ## CSS Variables in Compositions
 
-Composition layers support CSS variable references for `opacity` and `blend` properties. This enables dynamic theming where layer effects can be controlled via palette variables.
+Composition layers support CSS variable references:
 
-### Variable Syntax
-
-Both `opacity` and `blend` accept `var()` syntax:
-
-```json
+```json5
 {
-  "type": "composition",
-  "name": "themed_scene",
-  "layers": [
-    {"fill": "background"},
-    {"map": ["..S.."], "blend": "var(--shadow-blend)", "opacity": "var(--shadow-opacity)"},
-    {"map": ["..G.."], "blend": "var(--glow-mode, add)"}
-  ]
+  type: "composition",
+  name: "themed_scene",
+  size: [32, 32],
+  layers: [
+    { sprite: "background", x: 0, y: 0 },
+    { sprite: "shadow", x: 4, y: 4, blend: "var(--shadow-blend)", opacity: "var(--shadow-opacity)" },
+    { sprite: "glow", x: 8, y: 8, blend: "var(--glow-mode, add)" },
+  ],
 }
 ```
 
 Variables are resolved from the palette's variable registry at render time.
 
-### Opacity with Variables
-
-Opacity can be a literal number or a variable reference:
-
-| Syntax | Description |
-|--------|-------------|
-| `0.5` | Literal opacity value |
-| `"var(--opacity)"` | Variable reference |
-| `"var(--opacity, 0.5)"` | Variable with fallback |
-
-```json
-{"name": "shadow", "map": ["..S.."], "opacity": "var(--shadow-alpha, 0.3)"}
-```
-
-Values are clamped to 0.0-1.0 after resolution.
-
-### Blend Mode with Variables
-
-Blend mode can be a literal string or a variable reference:
-
-| Syntax | Description |
-|--------|-------------|
-| `"multiply"` | Literal blend mode |
-| `"var(--blend)"` | Variable reference |
-| `"var(--blend, normal)"` | Variable with fallback |
-
-```json
-{"name": "effect", "fill": "overlay_sprite", "blend": "var(--effect-blend, screen)"}
-```
-
-If the resolved value is not a valid blend mode, `normal` is used with a warning.
-
-### Complete Variable Example
-
-```jsonl
-{"type": "palette", "name": "effects", "colors": {
-  "--shadow-opacity": "0.4",
-  "--shadow-blend": "multiply",
-  "--glow-opacity": "0.8",
-  "--glow-blend": "add",
-  "{_}": "transparent",
-  "{shadow}": "#000000",
-  "{glow}": "#FFFF00"
-}}
-{"type": "sprite", "name": "shadow_sprite", "palette": "effects", "grid": [
-  "{shadow}{shadow}",
-  "{shadow}{shadow}"
-]}
-{"type": "sprite", "name": "glow_sprite", "palette": "effects", "grid": [
-  "{glow}{glow}",
-  "{glow}{glow}"
-]}
-{"type": "composition", "name": "layered", "size": [16, 16], "cell_size": [8, 8],
-  "sprites": {"S": "shadow_sprite", "G": "glow_sprite", ".": null},
-  "layers": [
-    {"name": "shadows", "map": ["S.",".."], "blend": "var(--shadow-blend)", "opacity": "var(--shadow-opacity)"},
-    {"name": "glows", "map": ["..","G."], "blend": "var(--glow-blend)", "opacity": "var(--glow-opacity)"}
-  ]}
-```
-
-This creates a composition where shadow and glow effects are controlled by palette variables, making it easy to adjust effects across multiple compositions by changing a single variable definition.
-
-### Error Handling
-
-When variable resolution fails:
-
-| Error | Behavior |
-|-------|----------|
-| Undefined variable (no fallback) | `opacity`: uses 1.0; `blend`: uses `normal` |
-| Invalid opacity value | Uses 1.0, emits warning |
-| Unknown blend mode | Uses `normal`, emits warning |
-| No variable registry | Uses defaults, emits warning |
-
-In strict mode (`--strict`), variable errors cause the render to fail.
-
-## Size Inference
-
-Canvas size is determined (in priority order):
-
-1. Explicit `size` field
-2. `base` sprite dimensions
-3. Inferred from `layers` and `cell_size`
-
-## Size Mismatch Handling
-
-When a sprite is larger than the cell size:
-
-- **Lenient mode:** Emits warning, anchors top-left, may overwrite adjacent cells
-- **Strict mode:** Returns error
-
-## Text Banner Example
-
-```json
-{"type": "composition", "name": "banner", "size": [20, 8], "cell_size": [4, 8],
-  "sprites": {
-    "{": "bracket_l",
-    "p": "letter_p",
-    "x": "letter_x",
-    "l": "letter_l",
-    "}": "bracket_r"
-  },
-  "layers": [{"map": ["{pxl}"]}]}
-```
-
-## Complete Example
-
-```json
-{"type": "palette", "name": "tiles", "colors": {
-  "{_}": "#0000",
-  "{grass}": "#228B22",
-  "{water}": "#4169E1",
-  "{sand}": "#F4A460"
-}}
-
-{"type": "sprite", "name": "grass_tile", "palette": "tiles", "grid": [
-  "{grass}{grass}",
-  "{grass}{grass}"
-]}
-
-{"type": "sprite", "name": "water_tile", "palette": "tiles", "grid": [
-  "{water}{water}",
-  "{water}{water}"
-]}
-
-{"type": "sprite", "name": "beach_tile", "palette": "tiles", "grid": [
-  "{sand}{sand}",
-  "{sand}{sand}"
-]}
-
-{"type": "composition", "name": "island", "size": [16, 16], "cell_size": [2, 2],
-  "sprites": {"G": "grass_tile", "W": "water_tile", "S": "beach_tile"},
-  "layers": [{"map": [
-    "WWWWWWWW",
-    "WWSSSSWW",
-    "WSGGGSW",
-    "WSGGGGSW",
-    "WSGGGGSW",
-    "WSGGGSW",
-    "WWSSSSWW",
-    "WWWWWWWW"
-  ]}]}
-```
-
-This creates a 16x16 pixel island from 2x2 pixel tiles.
-
 ## Nested Compositions
 
-Compositions can reference other compositions in their `sprites` map, enabling hierarchical scene construction. When rendering, if a sprite name is not found in the sprite pool, the renderer checks for a composition with that name and renders it recursively.
+Compositions can reference other compositions, enabling hierarchical scene construction:
 
-### Key Features
+```json5
+// Forest tile composition
+{
+  type: "composition",
+  name: "forest_tile",
+  size: [16, 16],
+  layers: [
+    { sprite: "grass", x: 0, y: 0 },
+    { sprite: "tree", x: 4, y: 0 },
+  ],
+}
 
-- **Recursive rendering:** Compositions can contain other compositions at any nesting depth
-- **Cycle detection:** Self-referential cycles (A → B → A) are detected and reported as errors
-- **Caching:** Rendered compositions are cached, so repeated references reuse the cached result
-
-### Basic Example
-
-```jsonl
-{"type": "sprite", "name": "tree", "data": ["G", "T"], "palette": {"G": "#228B22", "T": "#8B4513"}}
-{"type": "composition", "name": "forest_tile", "size": [16, 16], "cell_size": [8, 8],
-  "sprites": {"T": "tree", ".": null},
-  "layers": [{"map": ["TT", ".T"]}]}
-{"type": "composition", "name": "scene", "size": [32, 32], "cell_size": [16, 16],
-  "sprites": {"F": "forest_tile", "R": "rock"},
-  "layers": [{"map": ["FF", "FR"]}]}
+// Main scene using forest_tile
+{
+  type: "composition",
+  name: "scene",
+  size: [32, 32],
+  layers: [
+    { sprite: "forest_tile", x: 0, y: 0 },
+    { sprite: "forest_tile", x: 16, y: 0 },
+    { sprite: "hero", x: 12, y: 16 },
+  ],
+}
 ```
-
-In this example, `scene` references `forest_tile` as if it were a sprite. When rendering `scene`, the renderer:
-
-1. Encounters `F` mapped to `forest_tile`
-2. Finds no sprite named `forest_tile`, but finds a composition
-3. Recursively renders `forest_tile` to produce an image
-4. Uses that rendered image in place of a sprite
-
-### Base as Composition
-
-The `base` field can also reference a composition:
-
-```jsonl
-{"type": "composition", "name": "background", "size": [64, 64], "cell_size": [16, 16],
-  "sprites": {"G": "grass"},
-  "layers": [{"map": ["GGGG", "GGGG", "GGGG", "GGGG"]}]}
-{"type": "composition", "name": "scene", "base": "background",
-  "sprites": {"H": "hero", ".": null},
-  "layers": [{"map": ["..H.."]}]}
-```
-
-The background composition renders first, then the scene layers on top.
 
 ### Cycle Detection
 
 Circular references are detected and produce an error:
 
-```jsonl
-{"type": "composition", "name": "A", "sprites": {"B": "comp_b"}, "layers": [{"map": ["B"]}]}
-{"type": "composition", "name": "comp_b", "sprites": {"A": "A"}, "layers": [{"map": ["A"]}]}
+```json5
+// ERROR: Cycle detected
+{ type: "composition", name: "A", layers: [{ sprite: "B" }] }
+{ type: "composition", name: "B", layers: [{ sprite: "A" }] }
 ```
 
-This produces: `Error: Cycle detected in composition references: A -> comp_b -> A`
+## Complete Example
 
-### Use Cases
+```json5
+// Palette
+{
+  type: "palette",
+  name: "island",
+  colors: {
+    _: "transparent",
+    grass: "#228B22",
+    water: "#4169E1",
+    sand: "#F4A460",
+  },
+}
 
-**Modular Scene Building:**
-Create reusable sub-scenes that can be combined into larger compositions.
+// Tile sprites
+{
+  type: "sprite",
+  name: "grass_tile",
+  size: [8, 8],
+  palette: "island",
+  regions: { grass: { rect: [0, 0, 8, 8] } },
+}
 
-**Tile Prefabs:**
-Build complex tiles from simpler components, then use those tiles in maps.
+{
+  type: "sprite",
+  name: "water_tile",
+  size: [8, 8],
+  palette: "island",
+  regions: { water: { rect: [0, 0, 8, 8] } },
+}
 
-**UI Components:**
-Create button or panel compositions that can be reused in larger UI layouts.
+{
+  type: "sprite",
+  name: "sand_tile",
+  size: [8, 8],
+  palette: "island",
+  regions: { sand: { rect: [0, 0, 8, 8] } },
+}
+
+// Island composition
+{
+  type: "composition",
+  name: "island",
+  size: [32, 32],
+  layers: [
+    // Water background
+    { sprite: "water_tile", x: 0, y: 0 },
+    { sprite: "water_tile", x: 8, y: 0 },
+    { sprite: "water_tile", x: 16, y: 0 },
+    { sprite: "water_tile", x: 24, y: 0 },
+    { sprite: "water_tile", x: 0, y: 24 },
+    { sprite: "water_tile", x: 8, y: 24 },
+    { sprite: "water_tile", x: 16, y: 24 },
+    { sprite: "water_tile", x: 24, y: 24 },
+    // Sand border
+    { sprite: "sand_tile", x: 8, y: 8 },
+    { sprite: "sand_tile", x: 16, y: 8 },
+    { sprite: "sand_tile", x: 8, y: 16 },
+    { sprite: "sand_tile", x: 16, y: 16 },
+    // Grass center
+    { sprite: "grass_tile", x: 12, y: 12 },
+  ],
+}
+```
+
+This creates a 32x32 pixel island with water around the edges, a sand border, and grass in the center.
