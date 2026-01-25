@@ -1,0 +1,5 @@
+{"type": "palette", "name": "hsl_basic", "colors": {"{_}": "#00000000", "{r}": "hsl(0, 100%, 50%)", "{g}": "hsl(120, 100%, 50%)", "{b}": "hsl(240, 100%, 50%)"}}
+{"type": "palette", "name": "hsl_saturation", "colors": {"{_}": "#00000000", "{s0}": "hsl(0, 0%, 50%)", "{s50}": "hsl(0, 50%, 50%)", "{s100}": "hsl(0, 100%, 50%)"}}
+{"type": "palette", "name": "hsl_lightness", "colors": {"{_}": "#00000000", "{l25}": "hsl(0, 100%, 25%)", "{l50}": "hsl(0, 100%, 50%)", "{l75}": "hsl(0, 100%, 75%)"}}
+{"type": "sprite", "name": "hsl_demo", "palette": "hsl_basic", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}
+{"type": "sprite", "name": "saturation_demo", "palette": "hsl_saturation", "size": [3, 1], "regions": {"s0": {"points": [[0, 0]]}, "s50": {"points": [[1, 0]]}, "s100": {"points": [[2, 0]]}}}

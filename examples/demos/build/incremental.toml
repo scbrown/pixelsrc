@@ -1,0 +1,31 @@
+[project]
+name = "incremental-demo"
+
+[defaults]
+scale = 1
+padding = 1
+
+[atlases.player]
+sources = ["sprites/player/**"]
+max_size = [512, 512]
+power_of_two = true
+
+[atlases.enemies]
+sources = ["sprites/enemies/**"]
+max_size = [1024, 1024]
+power_of_two = true
+
+[atlases.environment]
+sources = ["sprites/tiles/**", "sprites/backgrounds/**"]
+max_size = [2048, 2048]
+power_of_two = true
+
+[atlases.items]
+sources = ["sprites/items/**", "sprites/pickups/**"]
+max_size = [512, 512]
+power_of_two = true
+
+[validate]
+strict = false
+unused_palettes = "warn"
+missing_refs = "error"

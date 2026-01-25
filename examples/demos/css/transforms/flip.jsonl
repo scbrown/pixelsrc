@@ -1,0 +1,7 @@
+{"type": "palette", "name": "flip_pal", "colors": {"{_}": "#00000000", "{f}": "#FF00FF"}}
+{"type": "sprite", "name": "face_right", "palette": "flip_pal", "size": [2, 2], "regions": {"f": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "arrow_left", "palette": "flip_pal", "size": [2, 2], "regions": {"f": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "flip_horizontal", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scaleX(1)"}, "100%": {"sprite": "face_right", "transform": "scaleX(-1)"}}}
+{"type": "animation", "name": "flip_vertical", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scaleY(1)"}, "100%": {"sprite": "face_right", "transform": "scaleY(-1)"}}}
+{"type": "animation", "name": "flip_both", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scale(1, 1)"}, "50%": {"sprite": "face_right", "transform": "scale(-1, 1)"}, "100%": {"sprite": "face_right", "transform": "scale(-1, -1)"}}}
+{"type": "animation", "name": "mirror_walk", "duration": "1s", "keyframes": {"0%": {"sprite": "arrow_left", "transform": "translate(0, 0) scaleX(1)"}, "50%": {"sprite": "arrow_left", "transform": "translate(8px, 0) scaleX(1)"}, "51%": {"sprite": "arrow_left", "transform": "translate(8px, 0) scaleX(-1)"}, "100%": {"sprite": "arrow_left", "transform": "translate(0, 0) scaleX(-1)"}}}

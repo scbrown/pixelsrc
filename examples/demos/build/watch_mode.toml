@@ -1,0 +1,16 @@
+[project]
+name = "watch-demo"
+
+[watch]
+debounce_ms = 50
+clear_screen = true
+
+[validate]
+strict = false
+unused_palettes = "ignore"
+missing_refs = "warn"
+
+[animations]
+preview = true
+preview_scale = 2
+sheet_layout = "horizontal"

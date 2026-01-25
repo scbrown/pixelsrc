@@ -1,0 +1,5 @@
+{"type": "palette", "name": "ui_pal", "colors": {"{_}": "#00000000", "{n}": "#888888", "{h}": "#AAAAAA", "{p}": "#666666", "{c}": "#00FF00"}}
+{"type": "sprite", "name": "button_normal", "palette": "ui_pal", "size": [16, 8], "regions": {"n": {"rect": [0, 0, 16, 8]}}}
+{"type": "sprite", "name": "button_hover", "palette": "ui_pal", "size": [16, 8], "regions": {"h": {"rect": [0, 0, 16, 8]}}}
+{"type": "sprite", "name": "button_pressed", "palette": "ui_pal", "size": [16, 8], "regions": {"p": {"rect": [0, 0, 16, 8]}}}
+{"type": "sprite", "name": "icon_check", "palette": "ui_pal", "size": [8, 8], "regions": {"c": {"points": [[1, 4], [2, 5], [3, 6], [4, 5], [5, 4], [6, 3], [7, 2]]}}}

@@ -1,0 +1,4 @@
+{"type": "palette", "name": "oklch_basic", "colors": {"{_}": "#00000000", "{r}": "oklch(0.6 0.2 30)", "{g}": "oklch(0.8 0.2 150)", "{b}": "oklch(0.5 0.2 270)"}}
+{"type": "palette", "name": "oklch_lightness", "colors": {"{_}": "#00000000", "{l25}": "oklch(0.25 0.2 30)", "{l50}": "oklch(0.5 0.2 30)", "{l75}": "oklch(0.75 0.2 30)"}}
+{"type": "palette", "name": "oklch_chroma", "colors": {"{_}": "#00000000", "{c0}": "oklch(0.6 0 30)", "{c1}": "oklch(0.6 0.1 30)", "{c2}": "oklch(0.6 0.2 30)"}}
+{"type": "sprite", "name": "oklch_demo", "palette": "oklch_basic", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}

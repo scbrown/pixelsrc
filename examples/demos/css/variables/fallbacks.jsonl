@@ -1,0 +1,6 @@
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}

@@ -1,0 +1,6 @@
+{"type": "palette", "name": "named_basic", "colors": {"{_}": "#00000000", "{r}": "red", "{g}": "green", "{b}": "blue"}}
+{"type": "palette", "name": "named_warm", "colors": {"{_}": "#00000000", "{c}": "coral", "{o}": "orange", "{g}": "gold"}}
+{"type": "palette", "name": "named_cool", "colors": {"{_}": "#00000000", "{t}": "teal", "{c}": "cyan", "{a}": "aqua"}}
+{"type": "palette", "name": "named_neutral", "colors": {"{_}": "#00000000", "{w}": "white", "{s}": "silver", "{g}": "gray"}}
+{"type": "sprite", "name": "named_demo", "palette": "named_basic", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}
+{"type": "sprite", "name": "grayscale", "palette": "named_neutral", "size": [3, 1], "regions": {"w": {"points": [[0, 0]]}, "s": {"points": [[1, 0]]}, "g": {"points": [[2, 0]]}}}

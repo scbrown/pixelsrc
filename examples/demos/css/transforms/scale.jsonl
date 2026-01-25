@@ -1,0 +1,8 @@
+{"type": "palette", "name": "scale_pal", "colors": {"{_}": "#00000000", "{d}": "#0000FF"}}
+{"type": "sprite", "name": "dot", "palette": "scale_pal", "size": [1, 1], "regions": {"d": {"points": [[0, 0]]}}}
+{"type": "sprite", "name": "square", "palette": "scale_pal", "size": [2, 2], "regions": {"d": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "scale_up", "duration": "500ms", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)"}, "100%": {"sprite": "dot", "transform": "scale(4)"}}}
+{"type": "animation", "name": "scale_xy", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scale(1, 1)"}, "50%": {"sprite": "square", "transform": "scale(2, 1)"}, "100%": {"sprite": "square", "transform": "scale(2, 2)"}}}
+{"type": "animation", "name": "scale_x_only", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scaleX(1)"}, "100%": {"sprite": "square", "transform": "scaleX(3)"}}}
+{"type": "animation", "name": "scale_y_only", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scaleY(1)"}, "100%": {"sprite": "square", "transform": "scaleY(3)"}}}
+{"type": "animation", "name": "pulse_scale", "duration": "500ms", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "dot", "transform": "scale(2)", "opacity": 0.6}, "100%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}}}

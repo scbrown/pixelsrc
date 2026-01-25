@@ -1,0 +1,4 @@
+{"type": "palette", "name": "hwb_basic", "colors": {"{_}": "#00000000", "{r}": "hwb(0 0% 0%)", "{g}": "hwb(120 0% 0%)", "{b}": "hwb(240 0% 0%)"}}
+{"type": "palette", "name": "hwb_whiteness", "colors": {"{_}": "#00000000", "{w0}": "hwb(0 0% 0%)", "{w25}": "hwb(0 25% 0%)", "{w50}": "hwb(0 50% 0%)"}}
+{"type": "palette", "name": "hwb_blackness", "colors": {"{_}": "#00000000", "{b0}": "hwb(0 0% 0%)", "{b25}": "hwb(0 0% 25%)", "{b50}": "hwb(0 0% 50%)"}}
+{"type": "sprite", "name": "hwb_demo", "palette": "hwb_basic", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}

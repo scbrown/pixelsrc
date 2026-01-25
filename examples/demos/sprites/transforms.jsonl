@@ -1,0 +1,4 @@
+{"type": "palette", "name": "arrow_colors", "colors": {"{_}": "#00000000", "{a}": "#FF0000"}}
+{"type": "sprite", "name": "arrow_right", "palette": "arrow_colors", "size": [4, 3], "regions": {"_": {"points": [[0,0],[1,0],[0,2],[1,2]]}, "a": {"points": [[2,0],[3,0],[2,1],[3,1],[2,2],[3,2],[0,1],[1,1]]}}}
+{"type": "sprite", "name": "arrow_left", "source": "arrow_right", "transform": ["flip:h"]}
+{"type": "sprite", "name": "arrow_scaled", "source": "arrow_right", "transform": ["scale:2.0,2.0"]}

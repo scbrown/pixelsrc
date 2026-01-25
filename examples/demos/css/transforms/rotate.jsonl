@@ -1,0 +1,7 @@
+{"type": "palette", "name": "shape_pal", "colors": {"{_}": "#00000000", "{s}": "#00FF00"}}
+{"type": "sprite", "name": "L_shape", "palette": "shape_pal", "size": [2, 2], "regions": {"s": {"points": [[0, 0], [0, 1], [1, 1]]}}}
+{"type": "sprite", "name": "arrow_up", "palette": "shape_pal", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "rotate_90", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(90deg)"}}}
+{"type": "animation", "name": "rotate_180", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(180deg)"}}}
+{"type": "animation", "name": "rotate_270", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(270deg)"}}}
+{"type": "animation", "name": "spin_full", "duration": "1s", "keyframes": {"0%": {"sprite": "arrow_up", "transform": "rotate(0deg)"}, "25%": {"sprite": "arrow_up", "transform": "rotate(90deg)"}, "50%": {"sprite": "arrow_up", "transform": "rotate(180deg)"}, "75%": {"sprite": "arrow_up", "transform": "rotate(270deg)"}, "100%": {"sprite": "arrow_up", "transform": "rotate(360deg)"}}}

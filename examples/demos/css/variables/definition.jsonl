@@ -1,0 +1,2 @@
+{"type": "palette", "name": "theme_colors", "colors": {"{_}": "#00000000", "{primary}": "#FF0000", "{secondary}": "#00FF00"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "size": [2, 2], "regions": {"primary": {"rect": [0, 0, 1, 2]}, "secondary": {"rect": [1, 0, 1, 2]}}}

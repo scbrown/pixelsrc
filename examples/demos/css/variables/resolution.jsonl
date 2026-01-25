@@ -1,0 +1,2 @@
+{"type": "palette", "name": "var_resolution", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 1, 2]}, "b": {"rect": [1, 0, 1, 2]}}}

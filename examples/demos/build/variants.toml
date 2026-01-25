@@ -1,0 +1,26 @@
+[project]
+name = "variants-demo"
+out = "build"
+
+[defaults]
+scale = 1
+padding = 1
+
+[validate]
+strict = false
+
+[animations]
+preview = true
+preview_scale = 1
+
+[exports.generic]
+enabled = true
+
+[exports.godot]
+enabled = false
+
+[exports.unity]
+enabled = false
+
+[watch]
+clear_screen = true

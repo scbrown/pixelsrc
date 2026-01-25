@@ -1,0 +1,5 @@
+{"type": "palette", "name": "hex_short", "colors": {"{_}": "#00000000", "{r}": "#F00", "{g}": "#0F0", "{b}": "#00F"}}
+{"type": "palette", "name": "hex_full", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}
+{"type": "palette", "name": "hex_alpha", "colors": {"{_}": "#00000000", "{a1}": "#FF000080", "{a2}": "#FF0000C0", "{a3}": "#FF0000FF"}}
+{"type": "sprite", "name": "rgb_short", "palette": "hex_short", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}
+{"type": "sprite", "name": "alpha_gradient", "palette": "hex_alpha", "size": [3, 1], "regions": {"a1": {"points": [[0, 0]]}, "a2": {"points": [[1, 0]]}, "a3": {"points": [[2, 0]]}}}

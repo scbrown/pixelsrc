@@ -1,0 +1,9 @@
+{"type": "palette", "name": "box_colors", "colors": {"{_}": "#00000000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "box_left", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "box_center", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "box_right", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "linear_slide", "duration": "500ms", "timing_function": "linear", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_slide", "duration": "500ms", "timing_function": "ease", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_in_slide", "duration": "500ms", "timing_function": "ease-in", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_out_slide", "duration": "500ms", "timing_function": "ease-out", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_in_out_slide", "duration": "500ms", "timing_function": "ease-in-out", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}

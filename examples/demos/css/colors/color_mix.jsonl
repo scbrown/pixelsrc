@@ -1,0 +1,5 @@
+{"type": "palette", "name": "color_mix_basic", "colors": {"{_}": "#00000000", "{m}": "color-mix(in srgb, red 50%, blue 50%)"}}
+{"type": "palette", "name": "shadows_oklch", "colors": {"{_}": "#00000000", "{s}": "color-mix(in oklch, black 30%, blue)"}}
+{"type": "palette", "name": "highlights_srgb", "colors": {"{_}": "#00000000", "{h}": "color-mix(in srgb, white 30%, red)"}}
+{"type": "palette", "name": "skin_tones", "colors": {"{_}": "#00000000", "{b}": "color-mix(in srgb, #f5d0c5 80%, #8b4513)"}}
+{"type": "sprite", "name": "shaded_square", "palette": "color_mix_basic", "size": [2, 2], "regions": {"m": {"rect": [0, 0, 2, 2]}}}

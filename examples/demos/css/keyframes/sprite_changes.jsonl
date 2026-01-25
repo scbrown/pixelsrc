@@ -1,0 +1,5 @@
+{"type": "palette", "name": "char_colors", "colors": {"{_}": "#00000000", "{c}": "#0000FF"}}
+{"type": "sprite", "name": "char_idle", "palette": "char_colors", "size": [2, 2], "regions": {"c": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "char_jump", "palette": "char_colors", "size": [2, 2], "regions": {"c": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "char_land", "palette": "char_colors", "size": [2, 2], "regions": {"c": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "jump_cycle", "duration": "800ms", "keyframes": {"0%": {"sprite": "char_idle"}, "25%": {"sprite": "char_jump"}, "75%": {"sprite": "char_land"}, "100%": {"sprite": "char_idle"}}}

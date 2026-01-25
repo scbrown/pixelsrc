@@ -1,0 +1,4 @@
+{"type": "palette", "name": "walk_colors", "colors": {"{_}": "#00000000", "{c}": "#FF0000"}}
+{"type": "sprite", "name": "walk_1", "palette": "walk_colors", "size": [2, 2], "regions": {"c": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "walk_2", "palette": "walk_colors", "size": [2, 2], "regions": {"c": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "fade_walk", "duration": "1s", "timing_function": "ease-in-out", "keyframes": {"0%": {"sprite": "walk_1", "opacity": 0.0}, "50%": {"sprite": "walk_2", "opacity": 1.0}, "100%": {"sprite": "walk_1", "opacity": 0.0}}}

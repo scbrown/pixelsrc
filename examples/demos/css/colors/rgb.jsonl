@@ -1,0 +1,4 @@
+{"type": "palette", "name": "rgb_basic", "colors": {"{_}": "#00000000", "{r}": "rgb(255, 0, 0)", "{g}": "rgb(0, 255, 0)", "{b}": "rgb(0, 0, 255)"}}
+{"type": "palette", "name": "rgba_alpha", "colors": {"{_}": "#00000000", "{a1}": "rgba(255, 0, 0, 0.5)", "{a2}": "rgba(255, 0, 0, 0.75)", "{a3}": "rgba(255, 0, 0, 1.0)"}}
+{"type": "sprite", "name": "rgb_demo", "palette": "rgb_basic", "size": [3, 1], "regions": {"r": {"points": [[0, 0]]}, "g": {"points": [[1, 0]]}, "b": {"points": [[2, 0]]}}}
+{"type": "sprite", "name": "rgba_gradient", "palette": "rgba_alpha", "size": [3, 1], "regions": {"a1": {"points": [[0, 0]]}, "a2": {"points": [[1, 0]]}, "a3": {"points": [[2, 0]]}}}

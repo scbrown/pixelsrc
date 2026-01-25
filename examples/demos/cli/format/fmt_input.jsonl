@@ -1,0 +1,3 @@
+{"type": "palette", "name": "colors", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "dot", "palette": "colors", "size": [1, 1], "regions": {"r": {"points": [[0,0]]}}}
+{"type": "sprite", "name": "square", "palette": "colors", "size": [2, 2], "regions": {"r": {"points": [[0,0],[1,0]]}, "b": {"points": [[0,1],[1,1]]}}}

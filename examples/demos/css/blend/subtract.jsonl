@@ -1,0 +1,4 @@
+{"type": "palette", "name": "blend_pal", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "base_layer", "palette": "blend_pal", "size": [6, 6], "regions": {"r": {"rect": [0, 0, 6, 6]}}}
+{"type": "sprite", "name": "overlay_layer", "palette": "blend_pal", "size": [6, 6], "regions": {"b": {"rect": [2, 2, 2, 2]}, "_": {"points": [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[0,2],[1,2],[4,2],[5,2],[0,3],[1,3],[4,3],[5,3],[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[0,5],[1,5],[2,5],[3,5],[4,5],[5,5]]}}}
+{"type": "composition", "name": "blend_subtract_demo", "size": [6, 6], "cell_size": [6, 6], "sprites": {".": null, "B": "base_layer", "O": "overlay_layer"}, "layers": [{"map": ["B"]}, {"map": ["O"], "blend": "subtract"}]}

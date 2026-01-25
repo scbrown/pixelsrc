@@ -1,0 +1,7 @@
+{"type": "palette", "name": "ball_colors", "colors": {"{_}": "#00000000", "{b}": "#FFFF00"}}
+{"type": "sprite", "name": "ball_top", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "ball_middle", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "ball_bottom", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "bounce_fall", "duration": "800ms", "timing_function": "cubic-bezier(0.5, 0, 0.5, 1)", "keyframes": {"0%": {"sprite": "ball_top"}, "50%": {"sprite": "ball_middle"}, "100%": {"sprite": "ball_bottom"}}}
+{"type": "animation", "name": "snap_ease", "duration": "500ms", "timing_function": "cubic-bezier(0.68, -0.55, 0.27, 1.55)", "keyframes": {"from": {"sprite": "ball_top"}, "to": {"sprite": "ball_bottom"}}}
+{"type": "animation", "name": "smooth_decel", "duration": "500ms", "timing_function": "cubic-bezier(0.25, 0.1, 0.25, 1.0)", "keyframes": {"from": {"sprite": "ball_top"}, "to": {"sprite": "ball_bottom"}}}

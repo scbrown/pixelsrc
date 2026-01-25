@@ -1,0 +1,6 @@
+{"type": "palette", "name": "item_pal", "colors": {"{_}": "#00000000", "{s}": "#888888", "{g}": "#404040", "{r}": "#FF0000", "{b}": "#0000FF"}}
+{"type": "sprite", "name": "sword", "palette": "item_pal", "size": [4, 8], "regions": {"s": {"rect": [1, 0, 2, 5]}, "g": {"rect": [1, 5, 2, 3]}}, "metadata": {"origin": [0, 3]}}
+{"type": "sprite", "name": "shield", "palette": "item_pal", "size": [6, 6], "regions": {"s": {"rect": [0, 0, 6, 6]}}}
+{"type": "sprite", "name": "potion_1", "palette": "item_pal", "size": [3, 4], "regions": {"r": {"rect": [0, 1, 3, 3]}, "g": {"rect": [1, 0, 1, 1]}}}
+{"type": "sprite", "name": "potion_2", "palette": "item_pal", "size": [3, 4], "regions": {"b": {"rect": [0, 1, 3, 3]}, "g": {"rect": [1, 0, 1, 1]}}}
+{"type": "animation", "name": "potion_shimmer", "frames": ["potion_1", "potion_2"], "duration": "200ms"}

@@ -1,0 +1,3 @@
+{"type": "palette", "name": "wave_pal", "colors": {"{_}": "#00000000", "{c1}": "#0066FF", "{c2}": "#0088FF", "{c3}": "#00AAFF", "{c4}": "#00CCFF"}}
+{"type": "sprite", "name": "wave", "palette": "wave_pal", "size": [4, 2], "regions": {"c1": {"points": [[0, 0], [0, 1]]}, "c2": {"points": [[1, 0], [1, 1]]}, "c3": {"points": [[2, 0], [2, 1]]}, "c4": {"points": [[3, 0], [3, 1]]}}}
+{"type": "animation", "name": "wave_cycle", "sprite": "wave", "palette_cycles": [{"tokens": ["{c1}", "{c2}", "{c3}", "{c4}"], "duration": 200}]}

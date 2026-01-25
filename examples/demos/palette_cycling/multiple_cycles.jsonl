@@ -1,0 +1,3 @@
+{"type": "palette", "name": "dual_pal", "colors": {"{_}": "#00000000", "{w1}": "#0066FF", "{w2}": "#0088FF", "{w3}": "#00AAFF", "{f1}": "#FF6600", "{f2}": "#FF8800", "{f3}": "#FFAA00"}}
+{"type": "sprite", "name": "waterfire", "palette": "dual_pal", "size": [6, 2], "regions": {"w1": {"points": [[0, 0], [0, 1]]}, "w2": {"points": [[1, 0], [1, 1]]}, "w3": {"points": [[2, 0], [2, 1]]}, "f1": {"points": [[3, 0], [3, 1]]}, "f2": {"points": [[4, 0], [4, 1]]}, "f3": {"points": [[5, 0], [5, 1]]}}}
+{"type": "animation", "name": "dual_cycle", "sprite": "waterfire", "palette_cycles": [{"tokens": ["{w1}", "{w2}", "{w3}"], "duration": 300}, {"tokens": ["{f1}", "{f2}", "{f3}"], "duration": 200}]}

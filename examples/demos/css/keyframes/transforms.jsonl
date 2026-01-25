@@ -1,0 +1,4 @@
+{"type": "palette", "name": "shape_colors", "colors": {"{_}": "#00000000", "{s}": "#FF00FF"}}
+{"type": "sprite", "name": "shape", "palette": "shape_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "spin", "duration": "1s", "timing_function": "linear", "keyframes": {"0%": {"sprite": "shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "shape", "transform": "rotate(360deg)"}}}
+{"type": "animation", "name": "pulse", "duration": "500ms", "timing_function": "ease-in-out", "keyframes": {"0%": {"sprite": "shape", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "shape", "transform": "scale(1.5)", "opacity": 0.5}, "100%": {"sprite": "shape", "transform": "scale(1)", "opacity": 1.0}}}

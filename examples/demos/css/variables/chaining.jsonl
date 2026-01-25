@@ -1,0 +1,6 @@
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}

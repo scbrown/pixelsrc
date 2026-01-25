@@ -1,0 +1,10 @@
+{"type": "palette", "name": "step_colors", "colors": {"{_}": "#00000000", "{s}": "#00FFFF"}}
+{"type": "sprite", "name": "step1", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step2", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step3", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step4", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "steps_4", "duration": "1s", "timing_function": "steps(4)", "keyframes": {"0%": {"sprite": "step1"}, "25%": {"sprite": "step2"}, "50%": {"sprite": "step3"}, "75%": {"sprite": "step4"}, "100%": {"sprite": "step1"}}}
+{"type": "animation", "name": "steps_jump_start", "duration": "1s", "timing_function": "steps(4, jump-start)", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "steps_jump_end", "duration": "1s", "timing_function": "steps(4, jump-end)", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "step_start_instant", "duration": "500ms", "timing_function": "step-start", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "step_end_delayed", "duration": "500ms", "timing_function": "step-end", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}

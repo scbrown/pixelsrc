@@ -1,0 +1,7 @@
+{"type": "palette", "name": "player_pal", "colors": {"{_}": "#00000000", "{s}": "#F5D0C5", "{h}": "#8B4513", "{c}": "#0066CC"}}
+{"type": "sprite", "name": "player_idle", "palette": "player_pal", "size": [5, 4], "regions": {"s": {"rect": [1, 0, 3, 2]}, "h": {"rect": [1, 2, 3, 1]}, "c": {"rect": [1, 3, 3, 1]}}, "metadata": {"origin": [2, 3]}}
+{"type": "sprite", "name": "player_walk_1", "palette": "player_pal", "size": [5, 4], "regions": {"s": {"rect": [1, 0, 3, 2]}, "h": {"rect": [1, 2, 3, 1]}, "c": {"rect": [1, 3, 3, 1]}}}
+{"type": "sprite", "name": "player_walk_2", "palette": "player_pal", "size": [5, 4], "regions": {"s": {"rect": [1, 0, 3, 2]}, "h": {"rect": [1, 2, 3, 1]}, "c": {"rect": [1, 3, 3, 1]}}}
+{"type": "palette", "name": "coin_pal", "colors": {"{_}": "#00000000", "{g}": "#FFD700"}}
+{"type": "sprite", "name": "coin", "palette": "coin_pal", "size": [3, 3], "regions": {"g": {"rect": [0, 0, 3, 3]}}}
+{"type": "animation", "name": "walk", "frames": ["player_walk_1", "player_walk_2"], "duration": "200ms"}

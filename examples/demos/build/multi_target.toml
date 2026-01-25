@@ -1,0 +1,37 @@
+[project]
+name = "multi-target-demo"
+src = "sprites"
+out = "build"
+
+[atlases.game]
+sources = ["characters/**", "enemies/**", "items/**"]
+max_size = [2048, 2048]
+padding = 2
+power_of_two = true
+
+[atlases.ui]
+sources = ["ui/**", "hud/**"]
+max_size = [1024, 1024]
+power_of_two = true
+
+[atlases.effects]
+sources = ["effects/**", "particles/**"]
+max_size = [512, 512]
+padding = 0
+power_of_two = false
+
+[exports.generic]
+enabled = true
+
+[exports.godot]
+enabled = true
+resource_path = "res://assets/sprites"
+animation_player = true
+sprite_frames = true
+
+[exports.unity]
+enabled = true
+pixels_per_unit = 16
+
+[exports.libgdx]
+enabled = true
