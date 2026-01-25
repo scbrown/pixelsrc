@@ -14,16 +14,16 @@ use pixelsrc::wasm::{list_sprites, render_to_png, render_to_rgba, validate};
 
 // Test fixtures - using r##""## to avoid # prefix issues in Rust 2021
 const MINIMAL_DOT: &str =
-    r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
 const HEART_SPRITE: &str = r##"{"type": "palette", "name": "reds", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}}
-{"type": "sprite", "name": "heart", "palette": "reds", "grid": ["{_}{r}{r}{_}", "{r}{r}{r}{r}", "{_}{r}{r}{_}", "{_}{_}{r}{_}"]}"##;
+{"type": "sprite", "name": "heart", "palette": "reds", "size": [4,4], "regions": {"_": {"points": [[0,0],[3,0],[0,2],[3,2],[0,3],[1,3],[3,3]]}, "r": {"points": [[1,0],[2,0],[0,1],[1,1],[2,1],[3,1],[1,2],[2,2],[2,3]]}}}"##;
 
-const TRANSPARENT_SPRITE: &str = r##"{"type": "sprite", "name": "transparent", "palette": {"{_}": "#00000000", "{x}": "#FF000080"}, "grid": ["{_}{x}", "{x}{_}"]}"##;
+const TRANSPARENT_SPRITE: &str = r##"{"type": "sprite", "name": "transparent", "palette": {"{_}": "#00000000", "{x}": "#FF000080"}, "size": [2,2], "regions": {"_": {"points": [[0,0],[1,1]]}, "x": {"points": [[1,0],[0,1]]}}}"##;
 
-const MULTI_SPRITE: &str = r##"{"type": "sprite", "name": "first", "palette": {"{a}": "#FF0000"}, "grid": ["{a}"]}
-{"type": "sprite", "name": "second", "palette": {"{b}": "#00FF00"}, "grid": ["{b}"]}
-{"type": "sprite", "name": "third", "palette": {"{c}": "#0000FF"}, "grid": ["{c}"]}"##;
+const MULTI_SPRITE: &str = r##"{"type": "sprite", "name": "first", "palette": {"{a}": "#FF0000"}, "size": [1,1], "regions": {"a": {"points": [[0,0]]}}}
+{"type": "sprite", "name": "second", "palette": {"{b}": "#00FF00"}, "size": [1,1], "regions": {"b": {"points": [[0,0]]}}}
+{"type": "sprite", "name": "third", "palette": {"{c}": "#0000FF"}, "size": [1,1], "regions": {"c": {"points": [[0,0]]}}}"##;
 
 // ============================================================================
 // render_to_png tests
@@ -161,7 +161,7 @@ fn test_render_named_sprite_with_palette_ref() {
 #[wasm_bindgen_test]
 fn test_render_named_sprite_inline_palette() {
     // Sprite with inline palette (no separate palette definition)
-    let jsonl = r##"{"type": "sprite", "name": "inline_test", "palette": {"{g}": "#00FF00"}, "grid": ["{g}"]}"##;
+    let jsonl = r##"{"type": "sprite", "name": "inline_test", "palette": {"{g}": "#00FF00"}, "size": [1,1], "regions": {"g": {"points": [[0,0]]}}}"##;
     let result = render_to_rgba(jsonl);
 
     assert_eq!(result.width(), 1);
@@ -213,9 +213,9 @@ fn test_list_sprites_palette_only() {
 fn test_list_sprites_mixed_content() {
     // Palettes and sprites mixed
     let jsonl = r##"{"type": "palette", "name": "p1", "colors": {}}
-{"type": "sprite", "name": "s1", "palette": {}, "grid": []}
+{"type": "sprite", "name": "s1", "palette": {}, "size": [0,0], "regions": {}}
 {"type": "palette", "name": "p2", "colors": {}}
-{"type": "sprite", "name": "s2", "palette": {}, "grid": []}"##;
+{"type": "sprite", "name": "s2", "palette": {}, "size": [0,0], "regions": {}}"##;
 
     let result = list_sprites(jsonl);
     assert_eq!(result.len(), 2);
@@ -248,7 +248,7 @@ fn test_validate_invalid_json() {
 #[wasm_bindgen_test]
 fn test_validate_missing_palette() {
     let jsonl =
-        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "grid": ["{x}"]}"##;
+        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
     let result = validate(jsonl);
 
     assert!(!result.is_empty(), "Missing palette reference should warn");
@@ -275,8 +275,8 @@ fn test_validate_unknown_type() {
 
 #[wasm_bindgen_test]
 fn test_validate_size_mismatch() {
-    // Grid row shorter than declared size
-    let jsonl = r##"{"type": "sprite", "name": "mismatch", "palette": {"{x}": "#FF0000"}, "size": [3, 1], "grid": ["{x}"]}"##;
+    // Regions don't cover full size
+    let jsonl = r##"{"type": "sprite", "name": "mismatch", "palette": {"{x}": "#FF0000"}, "size": [3, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
     let result = validate(jsonl);
     // Size mismatch may or may not be a validation error depending on implementation
     // Just verify it doesn't crash
@@ -290,7 +290,7 @@ fn test_validate_size_mismatch() {
 #[wasm_bindgen_test]
 fn test_render_with_transparency_full() {
     // Fully transparent pixel (#00000000)
-    let jsonl = r##"{"type": "sprite", "name": "clear", "palette": {"{_}": "#00000000"}, "grid": ["{_}"]}"##;
+    let jsonl = r##"{"type": "sprite", "name": "clear", "palette": {"{_}": "#00000000"}, "size": [1,1], "regions": {"_": {"points": [[0,0]]}}}"##;
     let result = render_to_rgba(jsonl);
 
     assert_eq!(result.width(), 1);
@@ -304,7 +304,7 @@ fn test_render_with_transparency_full() {
 fn test_render_with_transparency_partial() {
     // 50% transparent red (#FF000080)
     let jsonl =
-        r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "grid": ["{s}"]}"##;
+        r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "size": [1,1], "regions": {"s": {"points": [[0,0]]}}}"##;
     let result = render_to_rgba(jsonl);
 
     let pixels = result.pixels();
@@ -356,9 +356,9 @@ fn test_render_transparency_in_png() {
 
 #[wasm_bindgen_test]
 fn test_malformed_json_lines() {
-    let jsonl = r##"{"type": "sprite", "name": "good", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}
+    let jsonl = r##"{"type": "sprite", "name": "good", "palette": {"{x}": "#FF0000"}, "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}
 not valid json
-{"type": "sprite", "name": "also_good", "palette": {"{y}": "#00FF00"}, "grid": ["{y}"]}"##;
+{"type": "sprite", "name": "also_good", "palette": {"{y}": "#00FF00"}, "size": [1,1], "regions": {"y": {"points": [[0,0]]}}}"##;
 
     let sprites = list_sprites(jsonl);
     // Should parse what it can
@@ -368,7 +368,7 @@ not valid json
 #[wasm_bindgen_test]
 fn test_unicode_sprite_name() {
     // Use actual unicode character instead of escape sequence
-    let jsonl = r##"{"type": "sprite", "name": "emoji_🚀", "palette": {"{x}": "#FF0000"}, "grid": ["{x}"]}"##;
+    let jsonl = r##"{"type": "sprite", "name": "emoji_🚀", "palette": {"{x}": "#FF0000"}, "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
     let result = list_sprites(jsonl);
 
     assert_eq!(result.len(), 1);
@@ -378,14 +378,16 @@ fn test_unicode_sprite_name() {
 
 #[wasm_bindgen_test]
 fn test_large_sprite() {
-    // 10x10 sprite
-    let mut grid = Vec::new();
-    for _ in 0..10 {
-        grid.push(r#""{x}{x}{x}{x}{x}{x}{x}{x}{x}{x}""#);
+    // 10x10 sprite - all pixels filled with color x
+    let mut points = Vec::new();
+    for y in 0..10 {
+        for x in 0..10 {
+            points.push(format!("[{},{}]", x, y));
+        }
     }
     let jsonl = format!(
-        r##"{{"type": "sprite", "name": "large", "palette": {{"{{x}}": "#FF0000"}}, "grid": [{}]}}"##,
-        grid.join(",")
+        r##"{{"type": "sprite", "name": "large", "palette": {{"{{x}}": "#FF0000"}}, "size": [10,10], "regions": {{"x": {{"points": [{}]}}}}}}"##,
+        points.join(",")
     );
 
     let result = render_to_rgba(&jsonl);

@@ -459,7 +459,7 @@ mod tests {
     }
 
     // Tests matching the fixture file: tests/fixtures/valid/color_formats.jsonl
-    // {"type": "sprite", "name": "color_test", "palette": {"{a}": "#F00", "{b}": "#FF0000", "{c}": "#FF0000FF", "{d}": "#F00F"}, "grid": ["{a}{b}", "{c}{d}"]}
+    // {"type": "sprite", "name": "color_test", "palette": {"{a}": "#F00", "{b}": "#FF0000", ...}, "regions": {...}}
     #[test]
     fn test_fixture_color_formats() {
         // {a}: #F00 -> red (short form)
