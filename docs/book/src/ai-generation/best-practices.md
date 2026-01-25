@@ -132,6 +132,23 @@ Use variants to recolor existing sprites without regenerating:
 
 ## Iteration Strategies
 
+### Silhouette First
+
+Before adding detail, nail the outline. A good silhouette is recognizable when filled solid.
+
+**The Mushroom Principle**: Most organic forms can be built from 3 basic shapes:
+- **Circle** - head/cranium
+- **Rectangle** - torso/mid-section
+- **Triangle/Polygon** - tapers (jaw, legs)
+
+**Workflow:**
+1. Define outline with 2-3 basic shapes
+2. Adjust proportions until shape reads correctly
+3. Add asymmetry for 3/4 view (shift shapes, angle triangles)
+4. Only then add internal detail, shading, features
+
+> If you can't make the silhouette work with 3 shapes, the problem is proportions, not detail.
+
 ### Start Simple, Add Detail
 
 1. Generate basic shape
@@ -195,3 +212,23 @@ pxl fmt generated.pxl
 - Provide more examples
 - May need multiple attempts
 - Consider fine-tuning for pixelsrc format
+
+## Known Rendering Limitations
+
+Some shape combinations can cause rendering artifacts. Keep these in mind:
+
+| Issue | Trigger | Workaround |
+|-------|---------|------------|
+| Stripe artifacts | 5+ shapes with same color | Keep to 4 shapes max per color |
+| Polygon fill gaps | 6+ vertices in polygon | Break into simpler shapes, use `union` |
+| Overlap artifacts | Multiple regions overlapping at same z | Use different z-levels |
+
+**Safe patterns:**
+- 3-4 simple shapes (circle, rect, polygon with 3-5 vertices)
+- `union` of simple shapes
+
+**Risky patterns:**
+- 5+ overlapping regions with same color
+- Single polygon with 6+ vertices
+
+When in doubt, keep it simple. If you hit artifacts, reduce complexity.

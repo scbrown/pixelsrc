@@ -81,13 +81,15 @@ dot: { circle: [4, 4, 2] }  // [cx, cy, r]
 
 ### Polygon
 
-Filled polygon from vertices.
+Filled polygon from vertices. **Winding order doesn't matter** - clockwise or counter-clockwise produces identical results.
 
 ```json5
 hair: {
   polygon: [[4, 0], [12, 0], [14, 4], [2, 4]]
 }
 ```
+
+> **Tip**: Keep polygons simple (3-5 vertices). Complex polygons with 6+ vertices may cause fill artifacts. Use `union` of simpler shapes instead.
 
 ### Path
 
@@ -340,3 +342,52 @@ regions: {
   outline: { stroke: [0, 0, 16, 16] }
 }
 ```
+
+## Visual Reference
+
+Here's how common shapes map to coordinates:
+
+```
+CIRCLE: circle: [cx, cy, r]
+Example: circle: [16, 12, 8]
+
+       0   4   8  12  16  20  24  28  32
+     4 │         ●●●●●●●               │  ← radius 8
+     8 │       ●●       ●●             │
+    12 │      ●    (16,12)  ●          │  ← center
+    16 │       ●●       ●●             │
+    20 │         ●●●●●●●               │
+
+RECTANGLE: rect: [x, y, w, h]
+Example: rect: [8, 16, 16, 8]
+
+       0   4   8  12  16  20  24  28  32
+    16 │        ████████████████       │  ← y=16 (top)
+    20 │        ████████████████       │
+    24 │        ████████████████       │  ← y=24 (top + height)
+               ↑               ↑
+             x=8            x=24 (x + width)
+
+POLYGON (Triangle): polygon: [[16,4], [4,28], [28,28]]
+
+       0   4   8  12  16  20  24  28  32
+     4 │               ▲ (16,4)        │  ← tip
+    12 │             █████             │
+    20 │           █████████           │
+    28 │ (4,28)  █████████████ (28,28) │  ← base
+
+COMBINED: Skull silhouette (circle + rect + polygon)
+
+       0   4   8  12  16  20  24  28  32
+     4 │         ●●●●●●●               │
+     8 │       ●●●●●●●●●●●             │  ← circle (cranium)
+    12 │      ●●●●●●●●●●●●●            │
+    16 │       ●●●●●●●●●●●             │
+    20 │        ████████████████       │
+    24 │        ████████████████       │  ← rect (mid-face)
+    28 │        ████████████████       │
+    32 │         ██████████████        │
+    36 │          ████████████         │  ← polygon (jaw taper)
+```
+
+> **Design tip**: Start with 2-3 basic shapes (circle + rect + polygon) for silhouettes. Get proportions right before adding detail.
