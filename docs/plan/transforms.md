@@ -5,7 +5,7 @@ title: Sprite Transforms
 
 # Phase 18: Sprite Transforms
 
-**Status:** Not Started
+**Status:** In Progress (CLI command implemented, format support partial)
 
 **Depends on:** Phase 17 (Colored Grid Display - for `pxl show` visualization)
 

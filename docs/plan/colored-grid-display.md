@@ -7,7 +7,7 @@ title: Colored Terminal Output & Alias Management
 
 **Related:** [Transforms](./transforms.md) - Use `pxl show` to visualize transform results
 
-**Status:** Not Started
+**Status:** In Progress (pxl show implemented, grid/inline/alias/sketch pending)
 
 **Depends on:** Phase 0 (Core CLI exists)
 
