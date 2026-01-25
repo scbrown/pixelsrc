@@ -1110,6 +1110,7 @@ fn run_render(
             output,
             &animations_by_name,
             &sprites_by_name,
+            &compositions_by_name,
             &sprite_registry,
             &registry,
             input_dir,
@@ -1580,13 +1581,15 @@ fn render_composition_to_image(
 
 /// Render an animation as GIF or spritesheet
 /// TRF-9: Now uses SpriteRegistry for transform support
+// TTP-9qjwr: Added compositions parameter to support compositions as animation frames
 #[allow(clippy::too_many_arguments)]
 fn run_animation_render(
     input: &std::path::Path,
     output: Option<&std::path::Path>,
     animations: &std::collections::HashMap<String, Animation>,
     sprites: &std::collections::HashMap<String, Sprite>,
-    _sprite_registry: &SpriteRegistry,
+    compositions: &std::collections::HashMap<String, Composition>,
+    sprite_registry: &SpriteRegistry,
     palette_registry: &PaletteRegistry,
     input_dir: &std::path::Path,
     include_visited: &mut HashSet<PathBuf>,
@@ -1620,17 +1623,18 @@ fn run_animation_render(
         }
     };
 
-    // Validate animation: check that all frame references exist
+    // Validate animation: check that all frame references exist (sprites OR compositions)
+    // TTP-9qjwr: Now also checks compositions as valid frame references
     let mut missing_frames = Vec::new();
     for frame_name in &animation.frames {
-        if !sprites.contains_key(frame_name) {
+        if !sprites.contains_key(frame_name) && !compositions.contains_key(frame_name) {
             missing_frames.push(frame_name.clone());
         }
     }
 
     if !missing_frames.is_empty() {
         let warning_msg = format!(
-            "Animation '{}' references missing sprites: {}",
+            "Animation '{}' references missing sprites/compositions: {}",
             animation.name,
             missing_frames.join(", ")
         );
@@ -1734,75 +1738,96 @@ fn run_animation_render(
         (scaled_frames, duration)
     } else {
         // Traditional frame-based animation
+        // TTP-9qjwr: Now supports both sprites and compositions as frames
         let mut frame_images = Vec::new();
         for frame_name in &animation.frames {
-            let sprite = match sprites.get(frame_name) {
-                Some(s) => s,
-                None => continue, // Skip missing sprites (warned above)
-            };
-
-            // Resolve palette
-            let resolved = match &sprite.palette {
-                PaletteRef::Named(name) if is_include_ref(name) => {
-                    let include_path = extract_include_path(name).unwrap();
-                    match resolve_include_with_detection(include_path, input_dir, include_visited) {
-                        Ok(palette) => ResolvedPalette {
-                            colors: palette.colors,
-                            source: PaletteSource::Named(format!("@include:{}", include_path)),
-                        },
-                        Err(e) => {
-                            if strict {
-                                eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                                return ExitCode::from(EXIT_ERROR);
-                            }
-                            all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
-                            ResolvedPalette {
-                                colors: std::collections::HashMap::new(),
-                                source: PaletteSource::Fallback,
-                            }
-                        }
-                    }
-                }
-                _ => match palette_registry.resolve(sprite, strict) {
-                    Ok(result) => {
-                        if let Some(warning) = result.warning {
-                            all_warnings
-                                .push(format!("sprite '{}': {}", sprite.name, warning.message));
-                            if strict {
-                                for warning in all_warnings.iter() {
-                                    eprintln!("Error: {}", warning);
+            // First try to get as sprite
+            if let Some(sprite) = sprites.get(frame_name) {
+                // Resolve palette
+                let resolved = match &sprite.palette {
+                    PaletteRef::Named(name) if is_include_ref(name) => {
+                        let include_path = extract_include_path(name).unwrap();
+                        match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                            Ok(palette) => ResolvedPalette {
+                                colors: palette.colors,
+                                source: PaletteSource::Named(format!("@include:{}", include_path)),
+                            },
+                            Err(e) => {
+                                if strict {
+                                    eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                                    return ExitCode::from(EXIT_ERROR);
                                 }
-                                return ExitCode::from(EXIT_ERROR);
+                                all_warnings.push(format!("sprite '{}': {}", sprite.name, e));
+                                ResolvedPalette {
+                                    colors: std::collections::HashMap::new(),
+                                    source: PaletteSource::Fallback,
+                                }
                             }
                         }
-                        result.palette
                     }
-                    Err(e) => {
-                        eprintln!("Error: sprite '{}': {}", sprite.name, e);
-                        return ExitCode::from(EXIT_ERROR);
-                    }
-                },
-            };
+                    _ => match palette_registry.resolve(sprite, strict) {
+                        Ok(result) => {
+                            if let Some(warning) = result.warning {
+                                all_warnings
+                                    .push(format!("sprite '{}': {}", sprite.name, warning.message));
+                                if strict {
+                                    for warning in all_warnings.iter() {
+                                        eprintln!("Error: {}", warning);
+                                    }
+                                    return ExitCode::from(EXIT_ERROR);
+                                }
+                            }
+                            result.palette
+                        }
+                        Err(e) => {
+                            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+                            return ExitCode::from(EXIT_ERROR);
+                        }
+                    },
+                };
 
-            // Render sprite
-            let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
+                // Render sprite
+                let (image, render_warnings) = render_sprite(sprite, &resolved.colors);
 
-            // Apply scaling if requested
-            let image = scale_image(image, scale);
+                // Apply scaling if requested
+                let image = scale_image(image, scale);
 
-            // Collect render warnings
-            for warning in render_warnings {
-                all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
-            }
-
-            if strict && !all_warnings.is_empty() {
-                for warning in all_warnings.iter() {
-                    eprintln!("Error: {}", warning);
+                // Collect render warnings
+                for warning in render_warnings {
+                    all_warnings.push(format!("sprite '{}': {}", sprite.name, warning.message));
                 }
-                return ExitCode::from(EXIT_ERROR);
-            }
 
-            frame_images.push(image);
+                if strict && !all_warnings.is_empty() {
+                    for warning in all_warnings.iter() {
+                        eprintln!("Error: {}", warning);
+                    }
+                    return ExitCode::from(EXIT_ERROR);
+                }
+
+                frame_images.push(image);
+            } else if let Some(comp) = compositions.get(frame_name) {
+                // TTP-9qjwr: Render composition as animation frame
+                let result = render_composition_to_image(
+                    comp,
+                    sprites,
+                    sprite_registry,
+                    palette_registry,
+                    input_dir,
+                    include_visited,
+                    all_warnings,
+                    strict,
+                );
+
+                match result {
+                    Ok(image) => {
+                        // Apply scaling if requested
+                        let image = scale_image(image, scale);
+                        frame_images.push(image);
+                    }
+                    Err(code) => return code,
+                }
+            }
+            // If neither sprite nor composition found, skip (warned above)
         }
 
         (frame_images, animation.duration_ms())
