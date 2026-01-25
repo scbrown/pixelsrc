@@ -178,33 +178,58 @@ At small scale, details become noise. 2-3 emphasized features max.
 ### ❌ Mismatched Names
 Region names must exactly match palette keys or you get "Unknown token" warnings.
 
-### ❌ Missing Z-Order
-Without explicit `z` values, regions render in undefined order. Important details (eyes, belt) get covered.
+### ❌ Missing Z-Order and Roles
+Without explicit `z` values or semantic `role` tags, regions render in undefined order. Important details (eyes, belt) get covered.
 
 ---
 
 ## Z-Ordering: Layer Control
 
-**Critical**: Regions without explicit `z` values all default to `0`, rendering in undefined (HashMap) order. This causes important details to be covered by other regions.
+### Semantic Roles: Automatic Z-Ordering
 
-### Always Use Explicit Z-Order
+**The simplest approach**: Use semantic `role` tags and let the renderer infer z-order automatically.
+
+| Role | Default Z | Purpose |
+|------|-----------|---------|
+| `anchor` | 100 | Critical details (eyes, belt buckle) - always on top |
+| `boundary` | 80 | Outlines, edges - high priority |
+| `shadow` / `highlight` | 60 | Shading overlays |
+| `fill` | 40 | Interior mass (skin, clothing) |
+| (no role) | 0 | Untagged regions |
 
 ```json
 "regions": {
-  // Base layer (z: 0)
+  // Fill renders at z=40 (automatic)
+  "suit": { "polygon": [...], "role": "fill" },
+
+  // Shadow renders at z=60 (above fill)
+  "suit_shd": { "polygon": [...], "role": "shadow" },
+
+  // Anchor renders at z=100 (on top of everything)
+  "buckle": { "rect": [...], "role": "anchor" }
+}
+```
+
+### Explicit Z-Order (Override)
+
+When you need precise control, explicit `z` values override role-based defaults:
+
+```json
+"regions": {
+  // Base layer (explicit z: 0)
   "suit": { "polygon": [...], "z": 0 },
 
-  // Shading overlays (z: 1)
+  // Shading overlays (explicit z: 1)
   "suit_hi": { "polygon": [...], "z": 1 },
   "suit_shd": { "polygon": [...], "z": 1 },
 
-  // Details on top (z: 5+)
+  // Details on top (explicit z: 5+)
   "belt": { "polygon": [...], "z": 5 },
   "buckle": { "rect": [...], "z": 6 }
 }
 ```
 
-### Recommended Z-Order Ranges
+### Recommended Explicit Z Ranges
 
 | Layer Type | Z Range | Examples |
 |------------|---------|----------|
@@ -218,10 +243,15 @@ Without explicit `z` values, regions render in undefined order. Important detail
 
 ### Eye Layering Example
 
-Eyes require precise z-order (inside-out):
+Eyes require precise z-order. Use roles for simplicity, or explicit z for fine control:
 
 ```json
-// Eyes must layer: white → iris → pupil
+// Option 1: Using roles (simple)
+"eye_l_w": { "ellipse": [25, 18, 5, 3], "role": "fill" },       // z=40 auto
+"eye_l_iris": { "ellipse": [26, 18, 3, 3], "role": "boundary" }, // z=80 auto
+"eye_l_pupil": { "ellipse": [26, 18, 1, 2], "role": "anchor" },  // z=100 auto
+
+// Option 2: Explicit z (fine control)
 "eye_l_w": { "ellipse": [25, 18, 5, 3], "z": 14 },      // White (back)
 "eye_l_iris": { "ellipse": [26, 18, 3, 3], "z": 15 },   // Iris (middle)
 "eye_l_pupil": { "ellipse": [26, 18, 1, 2], "z": 16 },  // Pupil (front)
@@ -230,8 +260,8 @@ Eyes require precise z-order (inside-out):
 ### Debugging Z-Order Issues
 
 If details are invisible:
-1. Check that the region has an explicit `z` value
-2. Ensure `z` is higher than overlapping regions
+1. Add a semantic `role` tag (anchor for critical details)
+2. Or use explicit `z` value higher than overlapping regions
 3. Verify region coordinates are within canvas bounds
 
 ---

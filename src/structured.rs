@@ -5,7 +5,7 @@
 //! operations, then rasterized and rendered in z-order.
 
 use crate::color::parse_color;
-use crate::models::RegionDef;
+use crate::models::{RegionDef, Role};
 use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
@@ -20,6 +20,27 @@ const MAGENTA: Rgba<u8> = Rgba([255, 0, 255, 255]);
 
 /// Transparent color used for padding
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
+
+/// Default z-order values for semantic roles.
+///
+/// When a region has a role but no explicit z-value, these defaults are used.
+/// Higher values render on top of lower values.
+///
+/// Priority (highest to lowest):
+/// - anchor (100): Critical details like eyes that must be visible
+/// - boundary (80): Outlines and edges
+/// - shadow/highlight (60): Depth indicators
+/// - fill (40): Interior mass
+/// - no role (0): Default for untagged regions
+fn default_z_for_role(role: Option<&Role>) -> i32 {
+    match role {
+        Some(Role::Anchor) => 100,
+        Some(Role::Boundary) => 80,
+        Some(Role::Shadow) | Some(Role::Highlight) => 60,
+        Some(Role::Fill) => 40,
+        None => 0,
+    }
+}
 
 /// Rasterize a RegionDef into a set of pixel coordinates.
 ///
@@ -349,10 +370,11 @@ pub fn render_structured(
     let mut image = RgbaImage::new(width as u32, height as u32);
 
     // Collect regions with their z-order for sorting
+    // Uses explicit z if provided, otherwise infers from semantic role
     let mut region_order: Vec<(String, i32)> = regions
         .iter()
         .map(|(token, region)| {
-            let z = region.z.unwrap_or(0);
+            let z = region.z.unwrap_or_else(|| default_z_for_role(region.role.as_ref()));
             (token.clone(), z)
         })
         .collect();
@@ -622,5 +644,101 @@ mod tests {
 
         // Shadow visible at offset (5,5) where body doesn't overlap
         assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_default_z_for_role() {
+        // Anchor should be highest
+        assert_eq!(default_z_for_role(Some(&Role::Anchor)), 100);
+        // Boundary is high
+        assert_eq!(default_z_for_role(Some(&Role::Boundary)), 80);
+        // Shadow and highlight are medium
+        assert_eq!(default_z_for_role(Some(&Role::Shadow)), 60);
+        assert_eq!(default_z_for_role(Some(&Role::Highlight)), 60);
+        // Fill is low
+        assert_eq!(default_z_for_role(Some(&Role::Fill)), 40);
+        // No role defaults to 0
+        assert_eq!(default_z_for_role(None), 0);
+    }
+
+    #[test]
+    fn test_role_based_z_ordering() {
+        // Create overlapping regions with different roles but no explicit z
+        // The anchor (eye) should render on top of fill (skin) despite being added first
+        let mut regions = HashMap::new();
+
+        // Fill region at position (2,2)-(5,5) - should be at bottom
+        regions.insert(
+            "skin".to_string(),
+            RegionDef {
+                rect: Some([2, 2, 4, 4]),
+                role: Some(Role::Fill),
+                ..Default::default()
+            },
+        );
+
+        // Anchor region at same position - should be on top
+        regions.insert(
+            "eye".to_string(),
+            RegionDef {
+                rect: Some([3, 3, 2, 2]),
+                role: Some(Role::Anchor),
+                ..Default::default()
+            },
+        );
+
+        let mut palette = HashMap::new();
+        palette.insert("skin".to_string(), "#FFCC99".to_string());
+        palette.insert("eye".to_string(), "#000000".to_string());
+
+        let (image, warnings) = render_structured("test", Some([8, 8]), &regions, &palette);
+
+        assert!(warnings.is_empty(), "Unexpected warnings: {:?}", warnings);
+
+        // Eye at (3,3) should be visible (black) because anchor > fill
+        assert_eq!(*image.get_pixel(3, 3), Rgba([0, 0, 0, 255]));
+        // Skin at (2,2) outside eye should still be visible
+        assert_eq!(*image.get_pixel(2, 2), Rgba([255, 204, 153, 255]));
+    }
+
+    #[test]
+    fn test_explicit_z_overrides_role() {
+        // Explicit z should override role-based z
+        let mut regions = HashMap::new();
+
+        // Anchor role but explicit low z - should be behind
+        regions.insert(
+            "anchor_low".to_string(),
+            RegionDef {
+                rect: Some([2, 2, 4, 4]),
+                role: Some(Role::Anchor),
+                z: Some(-10), // Explicit low z overrides anchor default of 100
+                ..Default::default()
+            },
+        );
+
+        // Fill role but explicit high z - should be on top
+        regions.insert(
+            "fill_high".to_string(),
+            RegionDef {
+                rect: Some([3, 3, 2, 2]),
+                role: Some(Role::Fill),
+                z: Some(200), // Explicit high z overrides fill default of 40
+                ..Default::default()
+            },
+        );
+
+        let mut palette = HashMap::new();
+        palette.insert("anchor_low".to_string(), "#FF0000".to_string());
+        palette.insert("fill_high".to_string(), "#00FF00".to_string());
+
+        let (image, warnings) = render_structured("test", Some([8, 8]), &regions, &palette);
+
+        assert!(warnings.is_empty(), "Unexpected warnings: {:?}", warnings);
+
+        // Green fill_high should be on top despite Fill role
+        assert_eq!(*image.get_pixel(3, 3), Rgba([0, 255, 0, 255]));
+        // Red anchor visible where not overlapped
+        assert_eq!(*image.get_pixel(2, 2), Rgba([255, 0, 0, 255]));
     }
 }
