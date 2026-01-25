@@ -69,7 +69,7 @@ fn test_new_sprite_basic() {
     let content = fs::read_to_string(&path).unwrap();
     assert!(content.contains("\"type\": \"sprite\""));
     assert!(content.contains("\"name\": \"hero\""));
-    assert!(content.contains("\"grid\""));
+    assert!(content.contains("\"regions\""));
 }
 
 /// @demo cli/new#sprite_with_palette

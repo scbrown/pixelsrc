@@ -22,15 +22,15 @@ max_size = [1024, 1024]
 preview = true
 preview_scale = 4
 
-[exports.godot]
+[export.godot]
 enabled = true
 resource_path = "res://sprites"
 
-[exports.unity]
+[export.unity]
 enabled = true
 pixels_per_unit = 32
 
-[exports.libgdx]
+[export.libgdx]
 enabled = false
 
 [validate]

@@ -195,12 +195,12 @@ fn generate_animation_template(name: &str, palette: &str) -> String {
 fn generate_palette_template(name: &str) -> String {
     format!(
         r##"{{"type": "palette", "name": "{}", "colors": {{
-  "_": "#00000000",
-  "black": "#000000",
-  "white": "#FFFFFF",
-  "color1": "#FF0000",
-  "color2": "#00FF00",
-  "color3": "#0000FF"
+  "{{_}}": "#00000000",
+  "{{black}}": "#000000",
+  "{{white}}": "#FFFFFF",
+  "{{color1}}": "#FF0000",
+  "{{color2}}": "#00FF00",
+  "{{color3}}": "#0000FF"
 }}}}"##,
         name
     )
@@ -276,9 +276,9 @@ version = "0.1.0"
         let content = generate_palette_template("enemies");
         assert!(content.contains("\"type\": \"palette\""));
         assert!(content.contains("\"name\": \"enemies\""));
-        assert!(content.contains("\"_\""));
-        assert!(content.contains("\"black\""));
-        assert!(content.contains("\"white\""));
+        assert!(content.contains("\"{_}\""));
+        assert!(content.contains("\"{black}\""));
+        assert!(content.contains("\"{white}\""));
     }
 
     #[test]

@@ -1,0 +1,6 @@
+{"type": "palette", "name": "building_pal", "colors": {"{_}": "#00000000", "{wall}": "#886644", "{window}": "#88CCFF", "{roof}": "#AA4444"}}
+{"type": "sprite", "name": "wall_1", "palette": "building_pal", "size": [8, 16], "regions": {"wall": {"rect": [0, 0, 8, 16]}}}
+{"type": "sprite", "name": "window_1", "palette": "building_pal", "size": [8, 8], "regions": {"_": {"rect": [0, 0, 8, 8]}, "window": {"rect": [1, 1, 6, 6]}}}
+{"type": "sprite", "name": "roof_1", "palette": "building_pal", "size": [8, 8], "regions": {"roof": {"rect": [0, 0, 8, 8]}}}
+{"type": "composition", "name": "building_3w", "size": [24, 24], "cell_size": [8, 8], "sprites": {".": null, "W": "wall_1", "N": "window_1", "R": "roof_1"}, "layers": [{"map": ["RRR", "NNN", "WWW"]}]}
+{"type": "composition", "name": "city_block", "size": [72, 24], "cell_size": [24, 24], "sprites": {".": null, "B": "building_3w"}, "layers": [{"map": ["BBB"]}]}

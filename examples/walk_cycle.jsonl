@@ -1,0 +1,4 @@
+{"type": "palette", "name": "walk_pal", "colors": {"{_}": "#00000000", "{body}": "#4488FF", "{head}": "#FFCC88"}}
+{"type": "sprite", "name": "walk_1", "palette": "walk_pal", "size": [8, 12], "regions": {"_": {"rect": [0, 0, 8, 12]}, "body": {"rect": [2, 4, 4, 6]}, "head": {"rect": [2, 0, 4, 4]}}}
+{"type": "sprite", "name": "walk_2", "palette": "walk_pal", "size": [8, 12], "regions": {"_": {"rect": [0, 0, 8, 12]}, "body": {"rect": [2, 5, 4, 5]}, "head": {"rect": [2, 1, 4, 4]}}}
+{"type": "animation", "name": "walk_cycle", "frames": ["walk_1", "walk_2"], "duration": 200}

@@ -1,3 +1,3 @@
 {"type": "palette", "name": "glow_pal", "colors": {"{_}": "#00000000", "{p1}": "#FF0000", "{p2}": "#FF4400", "{p3}": "#FF8800", "{p4}": "#FFCC00", "{p5}": "#FFFF00"}}
 {"type": "sprite", "name": "glow", "palette": "glow_pal", "size": [1, 1], "regions": {"p1": {"points": [[0, 0]]}}}
-{"type": "animation", "name": "ping_pong_glow", "sprite": "glow", "palette_cycles": [{"tokens": ["{p1}", "{p2}", "{p3}", "{p4}", "{p5}", "{p4}", "{p3}", "{p2}"], "duration": 100}]}
+{"type": "animation", "name": "ping_pong_glow", "sprite": "glow", "palette_cycle": [{"tokens": ["{p1}", "{p2}", "{p3}", "{p4}", "{p5}", "{p4}", "{p3}", "{p2}"], "duration": 100}]}

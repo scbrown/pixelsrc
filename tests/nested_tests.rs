@@ -205,9 +205,9 @@ fn test_example_nested_building() {
 
     let (image, _) = result.unwrap();
 
-    // city_block is 80x48 pixels (according to the example)
-    assert_eq!(image.width(), 80, "Width should be 80");
-    assert_eq!(image.height(), 48, "Height should be 48");
+    // city_block is 72x24 pixels (3 buildings of 24x24 each)
+    assert_eq!(image.width(), 72, "Width should be 72");
+    assert_eq!(image.height(), 24, "Height should be 24");
 
     // building_3w should be cached
     assert!(ctx.is_cached("building_3w"), "building_3w should be cached");
@@ -237,9 +237,9 @@ fn test_example_nested_ui() {
 
     let (image, _) = result.unwrap();
 
-    // settings_panel is 96x64 pixels
-    assert_eq!(image.width(), 96, "Width should be 96");
-    assert_eq!(image.height(), 64, "Height should be 64");
+    // settings_panel is 48x24 pixels
+    assert_eq!(image.width(), 48, "Width should be 48");
+    assert_eq!(image.height(), 24, "Height should be 24");
 }
 
 // ============================================================================

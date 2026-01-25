@@ -1,0 +1,9 @@
+{"type": "palette", "name": "ui_pal", "colors": {"{_}": "#00000000", "{bg}": "#333344", "{border}": "#666688", "{text}": "#FFFFFF", "{accent}": "#44AAFF"}}
+{"type": "sprite", "name": "button", "palette": "ui_pal", "size": [16, 8], "regions": {"bg": {"rect": [0, 0, 16, 8]}, "border": {"points": [[0, 0], [15, 0], [0, 7], [15, 7]]}}}
+{"type": "sprite", "name": "checkbox", "palette": "ui_pal", "size": [8, 8], "regions": {"border": {"rect": [0, 0, 8, 8]}, "bg": {"rect": [1, 1, 6, 6]}}}
+{"type": "sprite", "name": "slider_track", "palette": "ui_pal", "size": [32, 4], "regions": {"bg": {"rect": [0, 0, 32, 4]}}}
+{"type": "sprite", "name": "slider_thumb", "palette": "ui_pal", "size": [4, 8], "regions": {"accent": {"rect": [0, 0, 4, 8]}}}
+{"type": "composition", "name": "slider", "size": [32, 8], "cell_size": [4, 4], "sprites": {".": null, "T": "slider_track", "H": "slider_thumb"}, "layers": [{"map": ["TTTTTTTT", "..H....."]}, {"map": ["........", "........"]}]}
+{"type": "composition", "name": "checkbox_row", "size": [48, 8], "cell_size": [8, 8], "sprites": {".": null, "C": "checkbox", "B": "button"}, "layers": [{"map": ["CB...B"]}]}
+{"type": "composition", "name": "settings_row", "size": [48, 8], "cell_size": [32, 8], "sprites": {".": null, "S": "slider"}, "layers": [{"map": ["S."]}]}
+{"type": "composition", "name": "settings_panel", "size": [48, 24], "cell_size": [48, 8], "sprites": {".": null, "R": "checkbox_row", "S": "settings_row"}, "layers": [{"map": ["R", "S", "S"]}]}

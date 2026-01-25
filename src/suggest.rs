@@ -170,9 +170,12 @@ impl Suggester {
         }
 
         // Check for missing tokens
+        // Region keys are without braces (e.g., "x") while palette tokens have braces (e.g., "{x}")
         if let Some(ref defined_tokens) = palette_tokens {
             for token in &all_tokens_used {
-                if !defined_tokens.contains(token) {
+                // Check both with and without braces for compatibility
+                let braced_token = format!("{{{}}}", token);
+                if !defined_tokens.contains(token) && !defined_tokens.contains(&braced_token) {
                     self.suggest_missing_token(line_number, sprite, token, defined_tokens);
                 }
             }

@@ -1,4 +1,4 @@
 {"type": "palette", "name": "timing_pal", "colors": {"{_}": "#00000000", "{t1}": "#FF0000", "{t2}": "#00FF00", "{t3}": "#0000FF"}}
 {"type": "sprite", "name": "timing_demo", "palette": "timing_pal", "size": [3, 1], "regions": {"t1": {"points": [[0, 0]]}, "t2": {"points": [[1, 0]]}, "t3": {"points": [[2, 0]]}}}
-{"type": "animation", "name": "fast_cycle", "sprite": "timing_demo", "palette_cycles": [{"tokens": ["{t1}", "{t2}", "{t3}"], "duration": 50}]}
-{"type": "animation", "name": "slow_cycle", "sprite": "timing_demo", "palette_cycles": [{"tokens": ["{t1}", "{t2}", "{t3}"], "duration": 500}]}
+{"type": "animation", "name": "fast_cycle", "sprite": "timing_demo", "palette_cycle": [{"tokens": ["{t1}", "{t2}", "{t3}"], "duration": 50}]}
+{"type": "animation", "name": "slow_cycle", "sprite": "timing_demo", "palette_cycle": [{"tokens": ["{t1}", "{t2}", "{t3}"], "duration": 500}]}

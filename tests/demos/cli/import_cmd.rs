@@ -194,7 +194,7 @@ fn test_import_jsonl_structure() {
     assert!(sprite["name"].is_string(), "Sprite should have name");
     assert!(sprite["palette"].is_string(), "Sprite should reference palette");
     assert!(sprite["size"].is_array(), "Sprite should have size");
-    assert!(sprite["grid"].is_array(), "Sprite should have grid");
+    assert!(sprite["regions"].is_object(), "Sprite should have regions");
 }
 #[test]
 fn test_import_token_generation() {
