@@ -502,18 +502,19 @@ TextureImporter:
         let frame_duration = 1.0 / fps;
 
         // Build PPtrCurve keyframes
+        // Collect and sort keys once for consistent index lookup
+        let mut sorted_keys: Vec<_> = metadata.frames.keys().collect();
+        sorted_keys.sort();
+
         let mut keyframes = String::new();
         for (i, frame_name) in anim.frames.iter().enumerate() {
             let time = i as f32 * frame_duration;
 
             // Find the sprite internal ID (matches what we generate in .meta)
-            let sprite_index = metadata
-                .frames
-                .keys()
-                .collect::<Vec<_>>()
-                .iter()
-                .position(|k| *k == frame_name)
-                .unwrap_or(0);
+            // Skip frames that don't exist in metadata to avoid incorrect references
+            let Some(sprite_index) = sorted_keys.iter().position(|k| *k == frame_name) else {
+                continue;
+            };
             let internal_id = 21300000 + (sprite_index as i64 * 2);
 
             keyframes.push_str(&format!(
