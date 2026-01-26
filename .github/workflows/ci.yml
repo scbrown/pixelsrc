@@ -38,9 +38,9 @@ jobs:
         run: cargo test --all-features --verbose
 
       - name: Check demo coverage
-        # Informational: warn on missing demos but don't fail the build
-        continue-on-error: true
-        run: ./scripts/demo-coverage.sh
+        # Enforce minimum demo coverage threshold (DT-19)
+        # Threshold roadmap: 35% baseline → 70% Wave 2 → 85% Wave 3 → 95% full
+        run: ./scripts/demo-coverage.sh --ci --threshold 35
 
   # Coverage reporting (runs separately to not block main checks)
   coverage:
