@@ -52,7 +52,7 @@
 //! ```
 
 use crate::atlas::AtlasMetadata;
-use crate::export::{ExportError, ExportOptions, Exporter};
+use crate::export::{ExportError, ExportOptions, Exporter, Result};
 use serde::Serialize;
 use std::fs::{self, File};
 use std::io::Write;
@@ -264,7 +264,7 @@ impl UnityExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         options: &UnityExportOptions,
-    ) -> Result<Vec<std::path::PathBuf>, ExportError> {
+    ) -> Result<Vec<std::path::PathBuf>> {
         let mut outputs = Vec::new();
 
         // Ensure parent directory exists
@@ -677,7 +677,7 @@ AnimationClip:
         &self,
         metadata: &AtlasMetadata,
         options: &UnityExportOptions,
-    ) -> Result<String, ExportError> {
+    ) -> Result<String> {
         let data = self.build_atlas_data(metadata, options);
         let json = if options.base.pretty {
             serde_json::to_string_pretty(&data)?
@@ -694,7 +694,7 @@ impl Exporter for UnityExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         options: &ExportOptions,
-    ) -> Result<(), ExportError> {
+    ) -> Result<()> {
         let unity_options = UnityExportOptions {
             base: options.clone(),
             pixels_per_unit: self.pixels_per_unit,
@@ -757,7 +757,7 @@ pub fn export_unity(
     metadata: &AtlasMetadata,
     output_path: &Path,
     pixels_per_unit: u32,
-) -> Result<Vec<std::path::PathBuf>, ExportError> {
+) -> Result<Vec<std::path::PathBuf>> {
     let exporter = UnityExporter::new().with_pixels_per_unit(pixels_per_unit);
     let options = UnityExportOptions { pixels_per_unit, ..Default::default() };
     exporter.export_unity(metadata, output_path, &options)

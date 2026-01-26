@@ -43,3 +43,6 @@ pub use pipeline::*;
 pub use progress::*;
 pub use result::*;
 pub use target::*;
+
+/// Result type alias for build operations.
+pub type Result<T> = std::result::Result<T, BuildError>;

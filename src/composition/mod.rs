@@ -13,6 +13,9 @@ pub use error::{CompositionError, Warning};
 pub use render::{render_composition, render_composition_nested};
 pub use resolve::{resolve_blend_mode, resolve_opacity};
 
+/// Result type alias for composition operations.
+pub type Result<T> = std::result::Result<T, CompositionError>;
+
 #[cfg(test)]
 mod tests {
     use super::*;

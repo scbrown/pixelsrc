@@ -32,7 +32,7 @@
 //! This format is directly loadable by libGDX's `TextureAtlas` class.
 
 use crate::atlas::AtlasMetadata;
-use crate::export::{ExportError, ExportOptions, Exporter};
+use crate::export::{ExportError, ExportOptions, Exporter, Result};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -182,7 +182,7 @@ impl LibGdxExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         _options: &LibGdxExportOptions,
-    ) -> Result<(), ExportError> {
+    ) -> Result<()> {
         let content = self.generate_atlas_content(metadata);
 
         if let Some(parent) = output_path.parent() {
@@ -276,7 +276,7 @@ impl Exporter for LibGdxExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         options: &ExportOptions,
-    ) -> Result<(), ExportError> {
+    ) -> Result<()> {
         let libgdx_options = LibGdxExportOptions { base: options.clone(), ..Default::default() };
         self.export_libgdx(metadata, output_path, &libgdx_options)
     }

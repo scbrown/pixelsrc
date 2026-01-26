@@ -55,6 +55,9 @@ impl From<serde_json::Error> for ExportError {
     }
 }
 
+/// Result type alias for export operations.
+pub type Result<T> = std::result::Result<T, ExportError>;
+
 /// Options for export operations.
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
@@ -78,7 +81,7 @@ pub trait Exporter {
         metadata: &crate::atlas::AtlasMetadata,
         output_path: &Path,
         options: &ExportOptions,
-    ) -> Result<(), ExportError>;
+    ) -> Result<()>;
 
     /// Get the format name for this exporter.
     fn format_name(&self) -> &'static str;
