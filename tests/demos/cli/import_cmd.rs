@@ -75,6 +75,9 @@ fn create_checkerboard_transparent() -> RgbaImage {
 // ============================================================================
 // Basic Import Tests
 // ============================================================================
+/// @demo cli/import#basic
+/// @title Basic PNG Import
+/// @description Imports PNG to JSONL with palette and sprite.
 #[test]
 fn test_import_basic() {
     let path = ensure_png("cli_red_square", create_red_square);
@@ -97,6 +100,10 @@ fn test_import_basic() {
     let lines: Vec<&str> = jsonl.lines().collect();
     assert_eq!(lines.len(), 2, "Output should be palette + sprite lines");
 }
+
+/// @demo cli/import#output_spec
+/// @title Import Output Specification
+/// @description Custom sprite name is used in output.
 #[test]
 fn test_import_output_specification() {
     let path = ensure_png("cli_red_square", create_red_square);
@@ -113,6 +120,10 @@ fn test_import_output_specification() {
 
     assert_eq!(sprite_json["name"], "custom_name");
 }
+
+/// @demo cli/import#max_colors
+/// @title Import Max Colors
+/// @description Color quantization limits palette size.
 #[test]
 fn test_import_max_colors() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -125,6 +136,10 @@ fn test_import_max_colors() {
     let result_2 = import_png(&path, "colors_2", 2).expect("Import should succeed");
     assert!(result_2.palette.len() <= 2, "Quantization should limit to 2 colors");
 }
+
+/// @demo cli/import#transparency
+/// @title Import Transparency
+/// @description Transparent pixels are detected and assigned {_} token.
 #[test]
 fn test_import_transparency() {
     let path = ensure_png("cli_checkerboard", create_checkerboard_transparent);
@@ -148,6 +163,10 @@ fn test_import_transparency() {
     let jsonl = result.to_jsonl();
     assert!(jsonl.contains("{_}"), "Grid should contain transparent tokens");
 }
+
+/// @demo cli/import#name_from_filename
+/// @title Import Name from Filename
+/// @description Sprite name can be derived from input filename.
 #[test]
 fn test_import_name_from_filename() {
     let path = ensure_png("cli_my_sprite_name", create_red_square);
@@ -172,6 +191,9 @@ fn test_import_name_from_filename() {
 // ============================================================================
 // Output Format Tests
 // ============================================================================
+/// @demo cli/import#jsonl_structure
+/// @title Import JSONL Structure
+/// @description Output has correct palette and sprite structure.
 #[test]
 fn test_import_jsonl_structure() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -196,6 +218,10 @@ fn test_import_jsonl_structure() {
     assert!(sprite["size"].is_array(), "Sprite should have size");
     assert!(sprite["regions"].is_object(), "Sprite should have regions");
 }
+
+/// @demo cli/import#token_generation
+/// @title Import Token Generation
+/// @description Unique tokens are generated for each color.
 #[test]
 fn test_import_token_generation() {
     let path = ensure_png("cli_multicolor", create_multicolor_4x4);
@@ -214,6 +240,10 @@ fn test_import_token_generation() {
         assert!(token.len() >= 3, "Token should have content between braces");
     }
 }
+
+/// @demo cli/import#grid_tokens
+/// @title Import Grid Tokens
+/// @description Grid tokens reference palette entries.
 #[test]
 fn test_import_grid_tokens() {
     let path = ensure_png("cli_red_square", create_red_square);

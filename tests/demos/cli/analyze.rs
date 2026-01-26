@@ -26,6 +26,9 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // Token Counter Tests
 // ============================================================================
+/// @demo cli/analyze#token_frequency
+/// @title Token Frequency Analysis
+/// @description Counts occurrences of each token in the corpus.
 #[test]
 fn test_analyze_token_frequency() {
     let mut counter = TokenCounter::new();
@@ -43,6 +46,10 @@ fn test_analyze_token_frequency() {
     assert_eq!(counter.get("{shirt}"), 1);
     assert_eq!(counter.total(), 6);
 }
+
+/// @demo cli/analyze#unique_tokens
+/// @title Unique Token Count
+/// @description Counts distinct tokens used in the corpus.
 #[test]
 fn test_analyze_unique_tokens() {
     let mut counter = TokenCounter::new();
@@ -56,6 +63,10 @@ fn test_analyze_unique_tokens() {
 
     assert_eq!(counter.unique_count(), 3, "Should have 3 unique tokens");
 }
+
+/// @demo cli/analyze#token_percentage
+/// @title Token Usage Percentage
+/// @description Calculates percentage of total for each token.
 #[test]
 fn test_analyze_token_percentage() {
     let mut counter = TokenCounter::new();
@@ -72,6 +83,10 @@ fn test_analyze_token_percentage() {
     assert!((percentage_a - 50.0).abs() < 0.1, "Token {{a}} should be ~50%");
     assert!((percentage_b - 50.0).abs() < 0.1, "Token {{b}} should be ~50%");
 }
+
+/// @demo cli/analyze#top_tokens
+/// @title Top N Tokens
+/// @description Returns most frequently used tokens in order.
 #[test]
 fn test_analyze_top_tokens() {
     let mut counter = TokenCounter::new();
@@ -91,6 +106,9 @@ fn test_analyze_top_tokens() {
 // ============================================================================
 // Co-Occurrence Matrix Tests
 // ============================================================================
+/// @demo cli/analyze#cooccurrence
+/// @title Token Co-Occurrence
+/// @description Tracks which tokens appear together in sprites.
 #[test]
 fn test_analyze_cooccurrence() {
     let mut matrix = CoOccurrenceMatrix::new();
@@ -113,6 +131,10 @@ fn test_analyze_cooccurrence() {
     let cooccur_count = matrix.get("{skin}", "{hair}");
     assert_eq!(cooccur_count, 2, "skin+hair should co-occur in 2 sprites");
 }
+
+/// @demo cli/analyze#top_pairs
+/// @title Top Co-Occurring Pairs
+/// @description Returns most common token pairs by frequency.
 #[test]
 fn test_analyze_top_pairs() {
     let mut matrix = CoOccurrenceMatrix::new();
@@ -144,6 +166,9 @@ fn test_analyze_top_pairs() {
 // ============================================================================
 // Dimension Stats Tests
 // ============================================================================
+/// @demo cli/analyze#dimensions
+/// @title Dimension Statistics
+/// @description Tracks sprite dimensions across the corpus.
 #[test]
 fn test_analyze_dimensions() {
     let mut stats = DimensionStats::new();
@@ -158,6 +183,10 @@ fn test_analyze_dimensions() {
 
     assert_eq!(stats.total(), 6);
 }
+
+/// @demo cli/analyze#common_sizes
+/// @title Common Sprite Sizes
+/// @description Returns most frequent dimensions sorted by count.
 #[test]
 fn test_analyze_common_sizes() {
     let mut stats = DimensionStats::new();
@@ -176,16 +205,11 @@ fn test_analyze_common_sizes() {
 }
 
 // ============================================================================
-// Compression Analysis Tests
-// ============================================================================
-/// @title Row Repetition Analysis
-/// @description Detects duplicate rows within sprites.// ============================================================================
-// Analysis Report Tests
-// ============================================================================
-/// @title Format Analysis as Text
-/// @description Analysis can be output as human-readable text report.// ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/analyze#empty_corpus
+/// @title Empty Corpus Analysis
+/// @description Analysis report handles empty input gracefully.
 #[test]
 fn test_analyze_empty_corpus() {
     let report = AnalysisReport::new();

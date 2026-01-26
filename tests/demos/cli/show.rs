@@ -7,14 +7,11 @@ use pixelsrc::terminal::{render_ansi_grid, render_coordinate_grid};
 use std::collections::HashMap;
 
 // ============================================================================
-// Basic Show Tests
-// ============================================================================
-/// @title Show with Palette Colors
-/// @description Terminal output shows actual palette colors as backgrounds./// @demo cli/show#transparency
-/// @title Show Transparent Pixels
-/// @description Transparent pixels are displayed with a distinct visual representation.// ============================================================================
 // Coordinate Grid Tests
 // ============================================================================
+/// @demo cli/show#coordinates
+/// @title Show with Coordinates
+/// @description Coordinate grid display for debugging positions.
 #[test]
 fn test_show_with_coordinates() {
     let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];
@@ -27,10 +24,11 @@ fn test_show_with_coordinates() {
 }
 
 // ============================================================================
-// Alias Tests
-// ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/show#empty_grid
+/// @title Show Empty Grid
+/// @description Empty grid produces empty output without crashing.
 #[test]
 #[ignore = "Grid format deprecated"]
 fn test_show_empty_grid() {

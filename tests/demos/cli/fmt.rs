@@ -6,6 +6,10 @@ use pixelsrc::fmt::format_pixelsrc;
 use pixelsrc::models::TtpObject;
 use pixelsrc::parser::parse_stream;
 use std::io::Cursor;
+
+/// @demo cli/fmt#basic
+/// @title Basic Formatting
+/// @description Format JSONL content and verify it remains valid.
 #[test]
 fn test_fmt_basic() {
     let input = include_str!("../../../examples/demos/cli/format/fmt_input.jsonl");
@@ -31,8 +35,8 @@ fn test_fmt_basic() {
     assert_eq!(palette_count, 1, "Should have 1 palette");
     assert_eq!(sprite_count, 2, "Should have 2 sprites");
 }
-/// @title Single Row Stays Compact
-/// @description Single-row sprites remain on a single line for compactness./// @demo cli/fmt#palette_sorted
+
+/// @demo cli/fmt#palette_sorted
 /// @title Palette Colors Sorted
 /// @description Palette colors are sorted alphabetically for consistent output.
 #[test]
@@ -50,6 +54,10 @@ fn test_fmt_palette_sorted() {
     assert!(a_pos < m_pos, "{{a}} should come before {{m}}");
     assert!(m_pos < z_pos, "{{m}} should come before {{z}}");
 }
+
+/// @demo cli/fmt#roundtrip
+/// @title Format Roundtrip
+/// @description Formatted content parses identically to original.
 #[test]
 fn test_fmt_roundtrip() {
     let input = include_str!("../../../examples/demos/cli/format/fmt_input.jsonl");
@@ -94,6 +102,10 @@ fn test_fmt_roundtrip() {
         assert_eq!(orig.size, fmt.size, "Sprite sizes should match");
     }
 }
+
+/// @demo cli/fmt#composition
+/// @title Format Composition
+/// @description Compositions have multi-line formatting for readability.
 #[test]
 fn test_fmt_composition() {
     let input = r##"{"type": "composition", "name": "scene", "size": [16, 16], "sprites": {".": null, "H": "hero"}, "layers": [{"name": "ground", "fill": "."}, {"name": "objects", "map": ["....", "..H.", "...."]}]}"##;

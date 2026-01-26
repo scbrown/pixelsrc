@@ -27,6 +27,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
 // ============================================================================
 // Sprite Explanation Tests
 // ============================================================================
+/// @demo cli/explain#token_usage
 /// @title Explain Token Usage
 /// @description Shows token frequency and percentage of total grid cells.
 #[test]
@@ -52,8 +53,13 @@ fn test_explain_token_usage() {
         assert_eq!(token.count, 8, "Each token should appear 8 times in 4x4");
     }
 }
+
+// ============================================================================
 // Palette Explanation Tests
 // ============================================================================
+/// @demo cli/explain#palette
+/// @title Explain Palette
+/// @description Provides details about palette colors and token count.
 #[test]
 fn test_explain_palette() {
     let colors = HashMap::from([
@@ -78,6 +84,9 @@ fn test_explain_palette() {
 // ============================================================================
 // Animation Explanation Tests
 // ============================================================================
+/// @demo cli/explain#animation
+/// @title Explain Animation
+/// @description Provides details about animation frames and timing.
 #[test]
 fn test_explain_animation() {
     let animation = Animation {
@@ -111,6 +120,9 @@ fn test_explain_animation() {
 // ============================================================================
 // Composition Explanation Tests
 // ============================================================================
+/// @demo cli/explain#composition
+/// @title Explain Composition
+/// @description Provides details about composition layers and sprites.
 #[test]
 fn test_explain_composition() {
     let composition = Composition {
@@ -136,6 +148,9 @@ fn test_explain_composition() {
 // ============================================================================
 // Format Explanation Tests
 // ============================================================================
+/// @demo cli/explain#format
+/// @title Format Explanation
+/// @description Explanations are formatted for human-readable output.
 #[test]
 fn test_format_explanation() {
     let sprite = make_sprite(
@@ -159,6 +174,9 @@ fn test_format_explanation() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/explain#inline_vs_named
+/// @title Explain Inline vs Named Palette
+/// @description Distinguishes between inline and named palette references.
 #[test]
 fn test_explain_inline_vs_named_palette() {
     // Inline palette
