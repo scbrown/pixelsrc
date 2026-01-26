@@ -23,6 +23,11 @@
 - [Overview](format/overview.md)
 - [Palette](format/palette.md)
 - [CSS Variables](format/css-variables.md)
+- [CSS Features]()
+  - [Colors](format/css/colors.md)
+  - [Timing Functions](format/css/timing.md)
+  - [Keyframes](format/css/keyframes.md)
+  - [Unsupported CSS](format/css/unsupported.md)
 - [Sprite](format/sprite.md)
 - [Regions & Shapes](format/regions.md)
 - [Semantic Metadata](format/semantic.md)
@@ -32,7 +37,6 @@
 - [Composition](format/composition.md)
 - [Transforms](format/transforms.md)
 - [Includes](format/includes.md)
-- [Unsupported CSS](format/css/unsupported.md)
 
 # CLI Reference
 

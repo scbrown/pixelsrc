@@ -22,7 +22,20 @@ Define variables with the `--` prefix and reference them with `var()`:
 
 ## Variable Definition
 
-<!-- DEMOS format/css-variables#definition -->
+<!-- DEMOS format/css/variables#definition -->
+**Tests CSS custom property definition syntax (--name: value)**
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "theme_colors", "colors": {"{_}": "#00000000", "{primary}": "#FF0000", "{secondary}": "#00FF00"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "size": [2, 2], "regions": {"primary": {"rect": [0, 0, 1, 2]}, "secondary": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="definition">
+</div>
 <!-- /DEMOS -->
 
 Variables are palette entries with keys starting with `--`:
@@ -40,7 +53,20 @@ This allows forward references - a color can use `var(--name)` even if `--name` 
 
 ## Variable References
 
-<!-- DEMOS format/css-variables#resolution -->
+<!-- DEMOS format/css/variables#resolution -->
+**Tests var() reference resolution**
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "var_resolution", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 1, 2]}, "b": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="resolution">
+</div>
 <!-- /DEMOS -->
 
 Reference variables with `var(--name)` or `var(--name, fallback)`:
@@ -53,7 +79,24 @@ Reference variables with `var(--name)` or `var(--name, fallback)`:
 
 ### Fallback Values
 
-<!-- DEMOS format/css-variables#fallbacks -->
+<!-- DEMOS format/css/variables#fallbacks -->
+**Tests var(--name, fallback) syntax**
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallbacks">
+</div>
 <!-- /DEMOS -->
 
 Fallbacks are used when a variable is undefined:

@@ -1,0 +1,218 @@
+# CSS Timing Functions
+
+Timing functions control the pacing of animations, determining how intermediate values are calculated between keyframes.
+
+## Named Timing Functions
+
+<!-- DEMOS format/css/timing#named -->
+**Named Timing Functions**
+
+Animation easing using named timing functions: linear, ease, ease-in, ease-out, ease-in-out.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "box_colors", "colors": {"{_}": "#00000000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "box_left", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "box_center", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "box_right", "palette": "box_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "linear_slide", "duration": "500ms", "timing_function": "linear", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_slide", "duration": "500ms", "timing_function": "ease", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_in_slide", "duration": "500ms", "timing_function": "ease-in", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_out_slide", "duration": "500ms", "timing_function": "ease-out", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+{"type": "animation", "name": "ease_in_out_slide", "duration": "500ms", "timing_function": "ease-in-out", "keyframes": {"from": {"sprite": "box_left"}, "to": {"sprite": "box_right"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="named">
+</div>
+<!-- /DEMOS -->
+
+Standard CSS easing functions:
+
+| Function | Description | Use Case |
+|----------|-------------|----------|
+| `linear` | Constant speed | Mechanical motion, progress bars |
+| `ease` | Slow start/end, fast middle | General-purpose, natural feel |
+| `ease-in` | Slow start, fast end | Objects accelerating |
+| `ease-out` | Fast start, slow end | Objects decelerating |
+| `ease-in-out` | Slow start and end | Smooth transitions |
+
+### Usage
+
+```json
+{
+  "type": "animation",
+  "name": "slide",
+  "timing_function": "ease-out",
+  "duration": "500ms",
+  "keyframes": {
+    "0%": { "sprite": "box", "transform": "translate(0, 0)" },
+    "100%": { "sprite": "box", "transform": "translate(10, 0)" }
+  }
+}
+```
+
+## cubic-bezier()
+
+<!-- DEMOS format/css/timing#cubic_bezier -->
+**Cubic Bezier Timing**
+
+Custom easing curves using cubic-bezier(x1, y1, x2, y2).
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "ball_colors", "colors": {"{_}": "#00000000", "{b}": "#FFFF00"}}
+{"type": "sprite", "name": "ball_top", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "ball_middle", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "ball_bottom", "palette": "ball_colors", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "bounce_fall", "duration": "800ms", "timing_function": "cubic-bezier(0.5, 0, 0.5, 1)", "keyframes": {"0%": {"sprite": "ball_top"}, "50%": {"sprite": "ball_middle"}, "100%": {"sprite": "ball_bottom"}}}
+{"type": "animation", "name": "snap_ease", "duration": "500ms", "timing_function": "cubic-bezier(0.68, -0.55, 0.27, 1.55)", "keyframes": {"from": {"sprite": "ball_top"}, "to": {"sprite": "ball_bottom"}}}
+{"type": "animation", "name": "smooth_decel", "duration": "500ms", "timing_function": "cubic-bezier(0.25, 0.1, 0.25, 1.0)", "keyframes": {"from": {"sprite": "ball_top"}, "to": {"sprite": "ball_bottom"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="cubic_bezier">
+</div>
+<!-- /DEMOS -->
+
+Custom easing curves using cubic Bezier control points:
+
+```json
+{
+  "timing_function": "cubic-bezier(0.68, -0.55, 0.27, 1.55)"
+}
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| x1 | 0-1 | First control point X |
+| y1 | any | First control point Y |
+| x2 | 0-1 | Second control point X |
+| y2 | any | Second control point Y |
+
+### Common Custom Curves
+
+| Name | cubic-bezier | Effect |
+|------|--------------|--------|
+| Bounce | `cubic-bezier(0.68, -0.55, 0.27, 1.55)` | Overshoots then settles |
+| Snap | `cubic-bezier(0.5, 0, 0.5, 1.5)` | Quick with overshoot |
+| Smooth | `cubic-bezier(0.4, 0, 0.2, 1)` | Material Design standard |
+
+## steps()
+
+<!-- DEMOS format/css/timing#steps -->
+**Steps Timing Function**
+
+Discrete step-based timing using steps(n) and step-start/step-end.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "step_colors", "colors": {"{_}": "#00000000", "{s}": "#00FFFF"}}
+{"type": "sprite", "name": "step1", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step2", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step3", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "step4", "palette": "step_colors", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "steps_4", "duration": "1s", "timing_function": "steps(4)", "keyframes": {"0%": {"sprite": "step1"}, "25%": {"sprite": "step2"}, "50%": {"sprite": "step3"}, "75%": {"sprite": "step4"}, "100%": {"sprite": "step1"}}}
+{"type": "animation", "name": "steps_jump_start", "duration": "1s", "timing_function": "steps(4, jump-start)", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "steps_jump_end", "duration": "1s", "timing_function": "steps(4, jump-end)", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "step_start_instant", "duration": "500ms", "timing_function": "step-start", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+{"type": "animation", "name": "step_end_delayed", "duration": "500ms", "timing_function": "step-end", "keyframes": {"from": {"sprite": "step1"}, "to": {"sprite": "step4"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="steps">
+</div>
+<!-- /DEMOS -->
+
+Discrete stepping for frame-by-frame animation:
+
+```json
+{
+  "timing_function": "steps(4, jump-start)"
+}
+```
+
+| Syntax | Description |
+|--------|-------------|
+| `steps(n)` | n equal steps, default jump-end |
+| `steps(n, jump-start)` | Change at start of each step |
+| `steps(n, jump-end)` | Change at end of each step |
+| `steps(n, jump-none)` | Stay at start/end values |
+| `steps(n, jump-both)` | Include both start and end |
+
+### Aliases
+
+| Alias | Equivalent |
+|-------|------------|
+| `step-start` | `steps(1, jump-start)` |
+| `step-end` | `steps(1, jump-end)` |
+
+### Use Cases
+
+**Sprite sheet animation:**
+```json
+{
+  "timing_function": "steps(4)",
+  "keyframes": {
+    "0%": { "sprite": "walk_1" },
+    "25%": { "sprite": "walk_2" },
+    "50%": { "sprite": "walk_3" },
+    "75%": { "sprite": "walk_4" },
+    "100%": { "sprite": "walk_1" }
+  }
+}
+```
+
+**Blinking cursor:**
+```json
+{
+  "timing_function": "steps(1)",
+  "keyframes": {
+    "0%": { "opacity": 1 },
+    "50%": { "opacity": 0 },
+    "100%": { "opacity": 1 }
+  }
+}
+```
+
+## Timing in Pixel Art
+
+For pixel art animations, consider:
+
+1. **Use `steps()` for sprite swaps**: Prevents interpolation between discrete sprites
+2. **Use `linear` for mechanical motion**: Conveyor belts, rotating gears
+3. **Use `ease-out` for impacts**: Objects hitting the ground
+4. **Use `ease-in-out` for breathing/idle**: Smooth, organic motion
+
+## Per-Keyframe Timing
+
+Timing functions can be applied at keyframe level:
+
+```json
+{
+  "keyframes": {
+    "0%": {
+      "sprite": "ball",
+      "transform": "translate(0, 0)",
+      "timing_function": "ease-in"
+    },
+    "50%": {
+      "sprite": "ball",
+      "transform": "translate(0, -10)",
+      "timing_function": "ease-out"
+    },
+    "100%": {
+      "sprite": "ball",
+      "transform": "translate(0, 0)"
+    }
+  }
+}
+```
+
+This creates a ball that accelerates upward (ease-in) then decelerates downward (ease-out).

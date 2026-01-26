@@ -48,7 +48,26 @@ Multiple transforms can be combined in a single string, separated by spaces.
 
 ### translate(x, y)
 
-<!-- DEMOS format/transforms#translate -->
+<!-- DEMOS format/css/transforms#translate -->
+**Translate Transform**
+
+Position offset using translate(x, y), translateX(x), translateY(y).
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "arrow_pal", "colors": {"{_}": "#00000000", "{a}": "#FF0000"}}
+{"type": "sprite", "name": "arrow_right", "palette": "arrow_pal", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "arrow_base", "palette": "arrow_pal", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "slide_right", "duration": "500ms", "keyframes": {"0%": {"sprite": "arrow_base", "transform": "translate(0, 0)"}, "100%": {"sprite": "arrow_right", "transform": "translate(8px, 0)"}}}
+{"type": "animation", "name": "slide_down", "duration": "500ms", "keyframes": {"0%": {"sprite": "arrow_base", "transform": "translateY(0)"}, "100%": {"sprite": "arrow_base", "transform": "translateY(4px)"}}}
+{"type": "animation", "name": "slide_diagonal", "duration": "500ms", "keyframes": {"0%": {"sprite": "arrow_base", "transform": "translate(0, 0)"}, "50%": {"sprite": "arrow_base", "transform": "translate(4px, 4px)"}, "100%": {"sprite": "arrow_base", "transform": "translate(8px, 8px)"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="translate">
+</div>
 <!-- /DEMOS -->
 
 Move the sprite by the specified pixel offset.
@@ -66,7 +85,27 @@ Move the sprite by the specified pixel offset.
 
 ### rotate(deg)
 
-<!-- DEMOS format/transforms#rotate -->
+<!-- DEMOS format/css/transforms#rotate -->
+**Rotate Transform**
+
+Rotation using rotate(deg) - pixel art supports 90, 180, 270 degrees.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "shape_pal", "colors": {"{_}": "#00000000", "{s}": "#00FF00"}}
+{"type": "sprite", "name": "L_shape", "palette": "shape_pal", "size": [2, 2], "regions": {"s": {"points": [[0, 0], [0, 1], [1, 1]]}}}
+{"type": "sprite", "name": "arrow_up", "palette": "shape_pal", "size": [2, 2], "regions": {"s": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "rotate_90", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(90deg)"}}}
+{"type": "animation", "name": "rotate_180", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(180deg)"}}}
+{"type": "animation", "name": "rotate_270", "duration": "500ms", "keyframes": {"0%": {"sprite": "L_shape", "transform": "rotate(0deg)"}, "100%": {"sprite": "L_shape", "transform": "rotate(270deg)"}}}
+{"type": "animation", "name": "spin_full", "duration": "1s", "keyframes": {"0%": {"sprite": "arrow_up", "transform": "rotate(0deg)"}, "25%": {"sprite": "arrow_up", "transform": "rotate(90deg)"}, "50%": {"sprite": "arrow_up", "transform": "rotate(180deg)"}, "75%": {"sprite": "arrow_up", "transform": "rotate(270deg)"}, "100%": {"sprite": "arrow_up", "transform": "rotate(360deg)"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="rotate">
+</div>
 <!-- /DEMOS -->
 
 Rotate the sprite clockwise by the specified angle.
@@ -89,7 +128,28 @@ For crisp pixel art, use 90-degree increments (0, 90, 180, 270). Other angles wo
 
 ### scale(n) or scale(x, y)
 
-<!-- DEMOS format/transforms#scale -->
+<!-- DEMOS format/css/transforms#scale -->
+**Scale Transform**
+
+Scaling using scale(s), scale(x, y), scaleX(x), scaleY(y).
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "scale_pal", "colors": {"{_}": "#00000000", "{d}": "#0000FF"}}
+{"type": "sprite", "name": "dot", "palette": "scale_pal", "size": [1, 1], "regions": {"d": {"points": [[0, 0]]}}}
+{"type": "sprite", "name": "square", "palette": "scale_pal", "size": [2, 2], "regions": {"d": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "scale_up", "duration": "500ms", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)"}, "100%": {"sprite": "dot", "transform": "scale(4)"}}}
+{"type": "animation", "name": "scale_xy", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scale(1, 1)"}, "50%": {"sprite": "square", "transform": "scale(2, 1)"}, "100%": {"sprite": "square", "transform": "scale(2, 2)"}}}
+{"type": "animation", "name": "scale_x_only", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scaleX(1)"}, "100%": {"sprite": "square", "transform": "scaleX(3)"}}}
+{"type": "animation", "name": "scale_y_only", "duration": "500ms", "keyframes": {"0%": {"sprite": "square", "transform": "scaleY(1)"}, "100%": {"sprite": "square", "transform": "scaleY(3)"}}}
+{"type": "animation", "name": "pulse_scale", "duration": "500ms", "keyframes": {"0%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}, "50%": {"sprite": "dot", "transform": "scale(2)", "opacity": 0.6}, "100%": {"sprite": "dot", "transform": "scale(1)", "opacity": 1.0}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="scale">
+</div>
 <!-- /DEMOS -->
 
 Scale the sprite uniformly or non-uniformly.
@@ -124,7 +184,27 @@ Integer scale factors (2, 3, 4) maintain pixel-perfect appearance. Fractional sc
 
 ### flip(x) or flip(y)
 
-<!-- DEMOS format/transforms#flip -->
+<!-- DEMOS format/css/transforms#flip -->
+**Flip Transform**
+
+Flipping sprites using scaleX(-1) and scaleY(-1).
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "flip_pal", "colors": {"{_}": "#00000000", "{f}": "#FF00FF"}}
+{"type": "sprite", "name": "face_right", "palette": "flip_pal", "size": [2, 2], "regions": {"f": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "arrow_left", "palette": "flip_pal", "size": [2, 2], "regions": {"f": {"rect": [0, 0, 2, 2]}}}
+{"type": "animation", "name": "flip_horizontal", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scaleX(1)"}, "100%": {"sprite": "face_right", "transform": "scaleX(-1)"}}}
+{"type": "animation", "name": "flip_vertical", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scaleY(1)"}, "100%": {"sprite": "face_right", "transform": "scaleY(-1)"}}}
+{"type": "animation", "name": "flip_both", "duration": "500ms", "keyframes": {"0%": {"sprite": "face_right", "transform": "scale(1, 1)"}, "50%": {"sprite": "face_right", "transform": "scale(-1, 1)"}, "100%": {"sprite": "face_right", "transform": "scale(-1, -1)"}}}
+{"type": "animation", "name": "mirror_walk", "duration": "1s", "keyframes": {"0%": {"sprite": "arrow_left", "transform": "translate(0, 0) scaleX(1)"}, "50%": {"sprite": "arrow_left", "transform": "translate(8px, 0) scaleX(1)"}, "51%": {"sprite": "arrow_left", "transform": "translate(8px, 0) scaleX(-1)"}, "100%": {"sprite": "arrow_left", "transform": "translate(0, 0) scaleX(-1)"}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="flip">
+</div>
 <!-- /DEMOS -->
 
 Mirror the sprite horizontally or vertically.
