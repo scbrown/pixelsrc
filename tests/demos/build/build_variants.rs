@@ -186,7 +186,9 @@ fn test_build_variants_partial_overrides() {
     assert_eq!(config.project.src, original_src);
 }
 
-/// Test variant configuration validation
+/// @demo build/variants#validation
+/// @title Build Variant Validation
+/// @description Verify configurations remain valid after applying CLI overrides.
 #[test]
 fn test_build_variants_validation() {
     let toml_content = variants_toml();

@@ -154,7 +154,9 @@ fn test_watch_mode_serde_roundtrip() {
     assert!(!restored.clear_screen);
 }
 
-/// Test watch mode with different debounce values
+/// @demo build/watch#debounce_variations
+/// @title Debounce Timing Variations
+/// @description Different debounce values for various system responsiveness needs.
 #[test]
 fn test_watch_mode_debounce_variations() {
     // Fast debounce for responsive feedback
