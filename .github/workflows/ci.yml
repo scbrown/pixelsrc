@@ -37,10 +37,16 @@ jobs:
       - name: Run tests
         run: cargo test --all-features --verbose
 
+      - name: Run demo tests
+        run: cargo test --test demo_tests --all-features
+
       - name: Check demo coverage
         # Enforce minimum demo coverage threshold (DT-19)
         # Threshold roadmap: 35% baseline → 70% Wave 2 → 85% Wave 3 → 95% full
         run: ./scripts/demo-coverage.sh --ci --threshold 35
+
+      - name: Verify demo documentation is current
+        run: ./scripts/generate-demos.sh --book --check
 
   # Coverage reporting (runs separately to not block main checks)
   coverage:
