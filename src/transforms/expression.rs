@@ -421,7 +421,10 @@ pub fn generate_frame_transforms(
 
     // Handle keyframe animation
     if transform_def.generates_animation() {
-        let keyframes = transform_def.keyframes.as_ref().unwrap();
+        let keyframes = transform_def
+            .keyframes
+            .as_ref()
+            .expect("generates_animation() guarantees keyframes is Some");
         let default_easing = transform_def.easing.clone().unwrap_or_default();
 
         let mut transforms = Vec::new();

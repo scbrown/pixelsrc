@@ -34,10 +34,10 @@ impl AnchorBounds {
             return None;
         }
 
-        let min_x = points.iter().map(|(x, _)| *x).min().unwrap();
-        let max_x = points.iter().map(|(x, _)| *x).max().unwrap();
-        let min_y = points.iter().map(|(_, y)| *y).min().unwrap();
-        let max_y = points.iter().map(|(_, y)| *y).max().unwrap();
+        let min_x = points.iter().map(|(x, _)| *x).min().expect("non-empty checked above");
+        let max_x = points.iter().map(|(x, _)| *x).max().expect("non-empty checked above");
+        let min_y = points.iter().map(|(_, y)| *y).min().expect("non-empty checked above");
+        let max_y = points.iter().map(|(_, y)| *y).max().expect("non-empty checked above");
 
         // Handle negative coordinates by clamping to 0
         let x = min_x.max(0) as u32;
