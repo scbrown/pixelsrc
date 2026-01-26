@@ -5,7 +5,7 @@ use crate::validate::{Severity, ValidationIssue, Validator};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use tower_lsp::jsonrpc::Result;
+use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -186,8 +186,18 @@ impl LanguageServer for PixelsrcLanguageServer {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
-        // Store document content
-        self.documents.write().unwrap().insert(uri.clone(), text.clone());
+        // Store document content (lock must be dropped before any await)
+        let lock_failed = match self.documents.write() {
+            Ok(mut documents) => {
+                documents.insert(uri.clone(), text.clone());
+                false
+            }
+            Err(_) => true,
+        };
+        if lock_failed {
+            self.client.log_message(MessageType::ERROR, "Failed to acquire document lock").await;
+            return;
+        }
 
         // Validate and publish diagnostics
         self.validate_and_publish(&uri, &text).await;
@@ -198,8 +208,18 @@ impl LanguageServer for PixelsrcLanguageServer {
 
         // Get the full text from the first change (we use FULL sync)
         if let Some(change) = params.content_changes.into_iter().next() {
-            // Store updated content
-            self.documents.write().unwrap().insert(uri.clone(), change.text.clone());
+            // Store updated content (lock must be dropped before any await)
+            let lock_failed = match self.documents.write() {
+                Ok(mut documents) => {
+                    documents.insert(uri.clone(), change.text.clone());
+                    false
+                }
+                Err(_) => true,
+            };
+            if lock_failed {
+                self.client.log_message(MessageType::ERROR, "Failed to acquire document lock").await;
+                return;
+            }
 
             // Validate and publish diagnostics
             self.validate_and_publish(&uri, &change.text).await;
@@ -209,8 +229,18 @@ impl LanguageServer for PixelsrcLanguageServer {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
 
-        // Remove document from tracking
-        self.documents.write().unwrap().remove(&uri);
+        // Remove document from tracking (lock must be dropped before any await)
+        let lock_failed = match self.documents.write() {
+            Ok(mut documents) => {
+                documents.remove(&uri);
+                false
+            }
+            Err(_) => true,
+        };
+        if lock_failed {
+            self.client.log_message(MessageType::ERROR, "Failed to acquire document lock").await;
+            return;
+        }
 
         // Clear diagnostics for closed document
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
@@ -221,7 +251,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let pos = params.text_document_position_params.position;
 
         // Get the document content
-        let documents = self.documents.read().unwrap();
+        let documents = self.documents.read().map_err(|_| Error::internal_error())?;
         let content = match documents.get(uri) {
             Some(c) => c.clone(),
             None => return Ok(None),
@@ -377,7 +407,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let pos = params.text_document_position.position;
 
         // Get the document content
-        let documents = self.documents.read().unwrap();
+        let documents = self.documents.read().map_err(|_| Error::internal_error())?;
         let content = match documents.get(uri) {
             Some(c) => c.clone(),
             None => return Ok(None),
@@ -490,7 +520,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let uri = &params.text_document.uri;
 
         // Get the document content
-        let documents = self.documents.read().unwrap();
+        let documents = self.documents.read().map_err(|_| Error::internal_error())?;
         let content = match documents.get(uri) {
             Some(c) => c.clone(),
             None => return Ok(None),
@@ -530,7 +560,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let uri = &params.text_document.uri;
 
         // Get the document content
-        let documents = self.documents.read().unwrap();
+        let documents = self.documents.read().map_err(|_| Error::internal_error())?;
         let content = match documents.get(uri) {
             Some(c) => c.clone(),
             None => return Ok(Vec::new()),
@@ -612,7 +642,7 @@ impl LanguageServer for PixelsrcLanguageServer {
         let pos = params.text_document_position_params.position;
 
         // Get the document content
-        let documents = self.documents.read().unwrap();
+        let documents = self.documents.read().map_err(|_| Error::internal_error())?;
         let content = match documents.get(uri) {
             Some(c) => c.clone(),
             None => return Ok(None),
