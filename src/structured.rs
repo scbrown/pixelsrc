@@ -9,8 +9,8 @@ use crate::models::{RegionDef, Role};
 use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
-    flood_fill, intersect, rasterize_ellipse, rasterize_line, rasterize_points,
-    rasterize_polygon, rasterize_rect, rasterize_stroke, subtract, union,
+    flood_fill, intersect, rasterize_ellipse, rasterize_line, rasterize_points, rasterize_polygon,
+    rasterize_rect, rasterize_stroke, subtract, union,
 };
 use image::{Rgba, RgbaImage};
 use std::collections::{HashMap, HashSet};
@@ -139,13 +139,8 @@ pub fn rasterize_region(
     else if let Some(union_regions) = &region.union {
         let mut sub_regions = Vec::new();
         for sub_region in union_regions {
-            let sub_pixels = rasterize_region(
-                sub_region,
-                all_regions,
-                canvas_width,
-                canvas_height,
-                warnings,
-            );
+            let sub_pixels =
+                rasterize_region(sub_region, all_regions, canvas_width, canvas_height, warnings);
             sub_regions.push(sub_pixels);
         }
         pixels = union(&sub_regions);
@@ -173,13 +168,8 @@ pub fn rasterize_region(
     } else if let Some(intersect_regions) = &region.intersect {
         let mut sub_regions = Vec::new();
         for sub_region in intersect_regions {
-            let sub_pixels = rasterize_region(
-                sub_region,
-                all_regions,
-                canvas_width,
-                canvas_height,
-                warnings,
-            );
+            let sub_pixels =
+                rasterize_region(sub_region, all_regions, canvas_width, canvas_height, warnings);
             sub_regions.push(sub_pixels);
         }
         pixels = intersect(&sub_regions);
@@ -192,10 +182,8 @@ pub fn rasterize_region(
             if let Some(except_pixels) = all_regions.get(token_name) {
                 except_sets.push(except_pixels.clone());
             } else {
-                warnings.push(Warning::new(format!(
-                    "Unknown token '{}' in except clause",
-                    token_name
-                )));
+                warnings
+                    .push(Warning::new(format!("Unknown token '{}' in except clause", token_name)));
             }
         }
         if !except_sets.is_empty() {
@@ -310,10 +298,7 @@ pub fn render_structured(
     let (width, height) = if let Some([w, h]) = size {
         (w as i32, h as i32)
     } else {
-        warnings.push(Warning::new(format!(
-            "Structured sprite '{}' requires explicit size",
-            name
-        )));
+        warnings.push(Warning::new(format!("Structured sprite '{}' requires explicit size", name)));
         return (RgbaImage::from_pixel(1, 1, TRANSPARENT), warnings);
     };
 
@@ -355,7 +340,8 @@ pub fn render_structured(
             // Defer regions with fill or auto-shadow references
             pending_regions.push((token.clone(), region.clone()));
         } else {
-            let pixels = rasterize_region(region, &rasterized_regions, width, height, &mut warnings);
+            let pixels =
+                rasterize_region(region, &rasterized_regions, width, height, &mut warnings);
             rasterized_regions.insert(token.clone(), pixels);
         }
     }
@@ -388,10 +374,8 @@ pub fn render_structured(
             let color = if let Some(&rgba) = color_cache.get(&token) {
                 rgba
             } else {
-                warnings.push(Warning::new(format!(
-                    "Unknown token {} in sprite '{}'",
-                    token, name
-                )));
+                warnings
+                    .push(Warning::new(format!("Unknown token {} in sprite '{}'", token, name)));
                 color_cache.insert(token.clone(), MAGENTA);
                 MAGENTA
             };
@@ -439,16 +423,26 @@ pub fn extract_anchor_bounds(
         if region.fill.is_some() || region.auto_shadow.is_some() {
             pending_regions.push((token.clone(), region.clone()));
         } else {
-            let pixels =
-                rasterize_region(region, &rasterized_regions, canvas_width, canvas_height, &mut warnings);
+            let pixels = rasterize_region(
+                region,
+                &rasterized_regions,
+                canvas_width,
+                canvas_height,
+                &mut warnings,
+            );
             rasterized_regions.insert(token.clone(), pixels);
         }
     }
 
     // Second pass: rasterize fill/auto-shadow regions
     for (token, region) in pending_regions {
-        let pixels =
-            rasterize_region(&region, &rasterized_regions, canvas_width, canvas_height, &mut warnings);
+        let pixels = rasterize_region(
+            &region,
+            &rasterized_regions,
+            canvas_width,
+            canvas_height,
+            &mut warnings,
+        );
         rasterized_regions.insert(token, pixels);
     }
 
@@ -484,10 +478,7 @@ mod tests {
 
     #[test]
     fn test_rasterize_region_rect() {
-        let region = RegionDef {
-            rect: Some([0, 0, 3, 2]),
-            ..Default::default()
-        };
+        let region = RegionDef { rect: Some([0, 0, 3, 2]), ..Default::default() };
         let all_regions = HashMap::new();
         let mut warnings = Vec::new();
 
@@ -501,11 +492,8 @@ mod tests {
 
     #[test]
     fn test_rasterize_region_stroke() {
-        let region = RegionDef {
-            stroke: Some([0, 0, 4, 4]),
-            thickness: Some(1),
-            ..Default::default()
-        };
+        let region =
+            RegionDef { stroke: Some([0, 0, 4, 4]), thickness: Some(1), ..Default::default() };
         let all_regions = HashMap::new();
         let mut warnings = Vec::new();
 
@@ -522,20 +510,15 @@ mod tests {
     fn test_rasterize_region_fill() {
         // Create an outline region first
         let mut all_regions = HashMap::new();
-        let outline_region = RegionDef {
-            stroke: Some([0, 0, 5, 5]),
-            thickness: Some(1),
-            ..Default::default()
-        };
+        let outline_region =
+            RegionDef { stroke: Some([0, 0, 5, 5]), thickness: Some(1), ..Default::default() };
         let mut warnings = Vec::new();
         let outline_pixels = rasterize_region(&outline_region, &all_regions, 10, 10, &mut warnings);
         all_regions.insert("outline".to_string(), outline_pixels);
 
         // Now create a fill region
-        let fill_region = RegionDef {
-            fill: Some("inside(outline)".to_string()),
-            ..Default::default()
-        };
+        let fill_region =
+            RegionDef { fill: Some("inside(outline)".to_string()), ..Default::default() };
 
         let pixels = rasterize_region(&fill_region, &all_regions, 10, 10, &mut warnings);
 
@@ -550,19 +533,11 @@ mod tests {
         let mut regions = HashMap::new();
         regions.insert(
             "o".to_string(),
-            RegionDef {
-                stroke: Some([0, 0, 8, 8]),
-                thickness: Some(1),
-                ..Default::default()
-            },
+            RegionDef { stroke: Some([0, 0, 8, 8]), thickness: Some(1), ..Default::default() },
         );
         regions.insert(
             "f".to_string(),
-            RegionDef {
-                fill: Some("inside(o)".to_string()),
-                z: Some(1),
-                ..Default::default()
-            },
+            RegionDef { fill: Some("inside(o)".to_string()), z: Some(1), ..Default::default() },
         );
 
         let mut palette = HashMap::new();
@@ -588,7 +563,8 @@ mod tests {
     fn test_verification_example_from_spec() {
         // This is the verification example from the task specification
         // Create palette
-        let palette_line = "{type: \"palette\", name: \"p\", colors: {_: \"#0000\", o: \"#000\", f: \"#FF0000\"}}";
+        let palette_line =
+            "{type: \"palette\", name: \"p\", colors: {_: \"#0000\", o: \"#000\", f: \"#FF0000\"}}";
         let palette_obj = parse_line(palette_line, 0).unwrap();
 
         // Create sprite with regions
@@ -641,10 +617,7 @@ mod tests {
     fn test_rasterize_auto_shadow() {
         // Create a body region first
         let mut all_regions = HashMap::new();
-        let body_region = RegionDef {
-            rect: Some([2, 2, 4, 4]),
-            ..Default::default()
-        };
+        let body_region = RegionDef { rect: Some([2, 2, 4, 4]), ..Default::default() };
         let mut warnings = Vec::new();
         let body_pixels = rasterize_region(&body_region, &all_regions, 10, 10, &mut warnings);
         all_regions.insert("body".to_string(), body_pixels);
@@ -671,11 +644,7 @@ mod tests {
         let mut regions = HashMap::new();
         regions.insert(
             "body".to_string(),
-            RegionDef {
-                rect: Some([1, 1, 4, 4]),
-                z: Some(1),
-                ..Default::default()
-            },
+            RegionDef { rect: Some([1, 1, 4, 4]), z: Some(1), ..Default::default() },
         );
         regions.insert(
             "shadow".to_string(),
@@ -729,21 +698,13 @@ mod tests {
         // Fill region at position (2,2)-(5,5) - should be at bottom
         regions.insert(
             "skin".to_string(),
-            RegionDef {
-                rect: Some([2, 2, 4, 4]),
-                role: Some(Role::Fill),
-                ..Default::default()
-            },
+            RegionDef { rect: Some([2, 2, 4, 4]), role: Some(Role::Fill), ..Default::default() },
         );
 
         // Anchor region at same position - should be on top
         regions.insert(
             "eye".to_string(),
-            RegionDef {
-                rect: Some([3, 3, 2, 2]),
-                role: Some(Role::Anchor),
-                ..Default::default()
-            },
+            RegionDef { rect: Some([3, 3, 2, 2]), role: Some(Role::Anchor), ..Default::default() },
         );
 
         let mut palette = HashMap::new();

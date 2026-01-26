@@ -73,7 +73,11 @@ pub fn apply_symmetric(
                 if reflected_y >= 0 && reflected_y < height {
                     result.insert((x, reflected_y));
                 }
-                if reflected_x >= 0 && reflected_x < width && reflected_y >= 0 && reflected_y < height {
+                if reflected_x >= 0
+                    && reflected_x < width
+                    && reflected_y >= 0
+                    && reflected_y < height
+                {
                     result.insert((reflected_x, reflected_y));
                 }
             }
@@ -107,10 +111,16 @@ pub fn apply_symmetric(
 /// assert!(result.contains(&(5, 5)));
 /// assert!(!result.contains(&(15, 15)));
 /// ```
-pub fn apply_range(pixels: &HashSet<(i32, i32)>, x_range: Range<i32>, y_range: Range<i32>) -> HashSet<(i32, i32)> {
+pub fn apply_range(
+    pixels: &HashSet<(i32, i32)>,
+    x_range: Range<i32>,
+    y_range: Range<i32>,
+) -> HashSet<(i32, i32)> {
     pixels
         .iter()
-        .filter(|&&(x, y)| x >= x_range.start && x < x_range.end && y >= y_range.start && y < y_range.end)
+        .filter(|&&(x, y)| {
+            x >= x_range.start && x < x_range.end && y >= y_range.start && y < y_range.end
+        })
         .copied()
         .collect()
 }

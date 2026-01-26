@@ -196,16 +196,11 @@ impl ImportResult {
         // Build regions object - use structured regions if available, fallback to points
         let regions: HashMap<String, serde_json::Value> =
             if let Some(ref structured) = self.structured_regions {
-                structured
-                    .iter()
-                    .map(|(token, region)| (token.clone(), region.to_json()))
-                    .collect()
+                structured.iter().map(|(token, region)| (token.clone(), region.to_json())).collect()
             } else {
                 self.regions
                     .iter()
-                    .map(|(token, points)| {
-                        (token.clone(), serde_json::json!({ "points": points }))
-                    })
+                    .map(|(token, points)| (token.clone(), serde_json::json!({ "points": points })))
                     .collect()
             };
 
@@ -235,11 +230,8 @@ impl ImportResult {
         // Add roles if analysis was performed
         if let Some(ref analysis) = self.analysis {
             if !analysis.roles.is_empty() {
-                let roles: HashMap<String, String> = analysis
-                    .roles
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.to_string()))
-                    .collect();
+                let roles: HashMap<String, String> =
+                    analysis.roles.iter().map(|(k, v)| (k.clone(), v.to_string())).collect();
                 palette_obj["roles"] = serde_json::json!(roles);
             }
 
@@ -275,67 +267,72 @@ impl ImportResult {
 
         // Build regions object - use structured regions if available, adding z-order if present
         let z_order = self.analysis.as_ref().map(|a| &a.z_order);
-        let regions: HashMap<String, serde_json::Value> = if let Some(ref structured) = self.structured_regions {
-            structured
-                .iter()
-                .filter_map(|(token, region)| {
-                    // Apply half-sprite filtering if enabled
-                    let filtered_region = if apply_half_sprite {
-                        let sym = symmetry.unwrap();
-                        let filtered = filter_structured_region_for_half_sprite(
-                            region, sym, self.width, self.height
-                        );
-                        // Skip empty regions
-                        if matches!(&filtered, StructuredRegion::Points(p) if p.is_empty()) {
-                            return None;
-                        }
-                        filtered
-                    } else {
-                        region.clone()
-                    };
+        let regions: HashMap<String, serde_json::Value> =
+            if let Some(ref structured) = self.structured_regions {
+                structured
+                    .iter()
+                    .filter_map(|(token, region)| {
+                        // Apply half-sprite filtering if enabled
+                        let filtered_region = if apply_half_sprite {
+                            let sym = symmetry.unwrap();
+                            let filtered = filter_structured_region_for_half_sprite(
+                                region,
+                                sym,
+                                self.width,
+                                self.height,
+                            );
+                            // Skip empty regions
+                            if matches!(&filtered, StructuredRegion::Points(p) if p.is_empty()) {
+                                return None;
+                            }
+                            filtered
+                        } else {
+                            region.clone()
+                        };
 
-                    let mut region_json = filtered_region.to_json();
-                    // Add z-order if available
-                    if let Some(z_map) = z_order {
-                        if let Some(&z) = z_map.get(token) {
-                            if let serde_json::Value::Object(ref mut obj) = region_json {
-                                obj.insert("z".to_string(), serde_json::json!(z));
+                        let mut region_json = filtered_region.to_json();
+                        // Add z-order if available
+                        if let Some(z_map) = z_order {
+                            if let Some(&z) = z_map.get(token) {
+                                if let serde_json::Value::Object(ref mut obj) = region_json {
+                                    obj.insert("z".to_string(), serde_json::json!(z));
+                                }
                             }
                         }
-                    }
-                    Some((token.clone(), region_json))
-                })
-                .collect()
-        } else {
-            self.regions
-                .iter()
-                .filter_map(|(token, points)| {
-                    // Apply half-sprite filtering if enabled
-                    let filtered_points = if apply_half_sprite {
-                        let sym = symmetry.unwrap();
-                        let pts = filter_points_for_half_sprite(points, sym, self.width, self.height);
-                        // Skip empty regions
-                        if pts.is_empty() {
-                            return None;
-                        }
-                        pts
-                    } else {
-                        points.clone()
-                    };
+                        Some((token.clone(), region_json))
+                    })
+                    .collect()
+            } else {
+                self.regions
+                    .iter()
+                    .filter_map(|(token, points)| {
+                        // Apply half-sprite filtering if enabled
+                        let filtered_points = if apply_half_sprite {
+                            let sym = symmetry.unwrap();
+                            let pts =
+                                filter_points_for_half_sprite(points, sym, self.width, self.height);
+                            // Skip empty regions
+                            if pts.is_empty() {
+                                return None;
+                            }
+                            pts
+                        } else {
+                            points.clone()
+                        };
 
-                    let mut region_json = serde_json::json!({ "points": filtered_points });
-                    // Add z-order if available
-                    if let Some(z_map) = z_order {
-                        if let Some(&z) = z_map.get(token) {
-                            if let serde_json::Value::Object(ref mut obj) = region_json {
-                                obj.insert("z".to_string(), serde_json::json!(z));
+                        let mut region_json = serde_json::json!({ "points": filtered_points });
+                        // Add z-order if available
+                        if let Some(z_map) = z_order {
+                            if let Some(&z) = z_map.get(token) {
+                                if let serde_json::Value::Object(ref mut obj) = region_json {
+                                    obj.insert("z".to_string(), serde_json::json!(z));
+                                }
                             }
                         }
-                    }
-                    Some((token.clone(), region_json))
-                })
-                .collect()
-        };
+                        Some((token.clone(), region_json))
+                    })
+                    .collect()
+            };
 
         let mut sprite_obj = serde_json::json!({
             "type": "sprite",
@@ -440,24 +437,14 @@ pub fn import_png_with_options<P: AsRef<Path>>(
 
             // Add to regions
             regions.entry(token.clone()).or_default().push([x, y]);
-            token_pixels
-                .entry(token.clone())
-                .or_default()
-                .insert((x as i32, y as i32));
+            token_pixels.entry(token.clone()).or_default().insert((x as i32, y as i32));
         }
         grid.push(row);
     }
 
     // Perform analysis if requested
     let analysis = if options.analyze {
-        Some(perform_analysis(
-            width,
-            height,
-            &token_pixels,
-            &idx_to_token,
-            &idx_to_color,
-            options,
-        ))
+        Some(perform_analysis(width, height, &token_pixels, &idx_to_token, &idx_to_color, options))
     } else {
         None
     };
@@ -595,13 +582,8 @@ fn perform_analysis(
 
     // Generate naming hints if requested
     if options.hints {
-        analysis.naming_hints = generate_naming_hints(
-            &analysis.roles,
-            token_pixels,
-            &token_to_color,
-            width,
-            height,
-        );
+        analysis.naming_hints =
+            generate_naming_hints(&analysis.roles, token_pixels, &token_to_color, width, height);
     }
 
     analysis

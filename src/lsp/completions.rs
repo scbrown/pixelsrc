@@ -123,14 +123,24 @@ pub fn get_modifier_completions() -> Vec<CompletionItem> {
             CompletionItemKind::PROPERTY,
             "symmetric: \"x\"",
         ),
-        make_completion("z", "Render order (higher = on top)", CompletionItemKind::PROPERTY, "z: 10"),
+        make_completion(
+            "z",
+            "Render order (higher = on top)",
+            CompletionItemKind::PROPERTY,
+            "z: 10",
+        ),
         make_completion(
             "round",
             "Corner radius for rect/stroke",
             CompletionItemKind::PROPERTY,
             "round: 2",
         ),
-        make_completion("thickness", "Line thickness", CompletionItemKind::PROPERTY, "thickness: 1"),
+        make_completion(
+            "thickness",
+            "Line thickness",
+            CompletionItemKind::PROPERTY,
+            "thickness: 1",
+        ),
         make_completion(
             "within",
             "Validate containment",
@@ -298,7 +308,12 @@ pub fn get_state_selector_completions() -> Vec<CompletionItem> {
             CompletionItemKind::SNIPPET,
             "[token=outline]",
         ),
-        make_completion("[role=type]", "Select by role", CompletionItemKind::SNIPPET, "[role=boundary]"),
+        make_completion(
+            "[role=type]",
+            "Select by role",
+            CompletionItemKind::SNIPPET,
+            "[role=boundary]",
+        ),
         make_completion(".state", "Select by sprite state", CompletionItemKind::SNIPPET, ".hover"),
         make_completion(
             ".hover [role=fill]",

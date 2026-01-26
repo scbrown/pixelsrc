@@ -204,10 +204,10 @@ fn parse_coordinate_pair(tokens: &mut Vec<String>, cmd: &str) -> Result<(f32, f3
     let x_str = tokens.remove(0);
     let y_str = tokens.remove(0);
 
-    let x = x_str.parse::<f32>()
-        .map_err(|e| PathError::InvalidNumber(x_str.clone(), e.to_string()))?;
-    let y = y_str.parse::<f32>()
-        .map_err(|e| PathError::InvalidNumber(y_str.clone(), e.to_string()))?;
+    let x =
+        x_str.parse::<f32>().map_err(|e| PathError::InvalidNumber(x_str.clone(), e.to_string()))?;
+    let y =
+        y_str.parse::<f32>().map_err(|e| PathError::InvalidNumber(y_str.clone(), e.to_string()))?;
 
     Ok((x, y))
 }
@@ -219,8 +219,7 @@ fn parse_single_coordinate(tokens: &mut Vec<String>, cmd: &str) -> Result<f32, P
     }
 
     let num_str = tokens.remove(0);
-    num_str.parse::<f32>()
-        .map_err(|e| PathError::InvalidNumber(num_str.clone(), e.to_string()))
+    num_str.parse::<f32>().map_err(|e| PathError::InvalidNumber(num_str.clone(), e.to_string()))
 }
 
 #[cfg(test)]

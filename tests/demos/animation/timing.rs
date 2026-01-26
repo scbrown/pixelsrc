@@ -14,9 +14,7 @@ fn test_fast_timing() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("fast_blink")
-        .expect("Animation 'fast_blink' not found");
+    let anim = animations.get("fast_blink").expect("Animation 'fast_blink' not found");
     assert_eq!(anim.frames.len(), 2, "fast_blink should have 2 frames");
     assert_eq!(anim.duration_ms(), 50, "Frame duration should be 50ms");
     assert!(anim.loops(), "fast_blink should loop");
@@ -32,9 +30,7 @@ fn test_slow_timing() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("slow_blink")
-        .expect("Animation 'slow_blink' not found");
+    let anim = animations.get("slow_blink").expect("Animation 'slow_blink' not found");
     assert_eq!(anim.frames.len(), 2, "slow_blink should have 2 frames");
     assert_eq!(anim.duration_ms(), 500, "Frame duration should be 500ms");
 }
@@ -49,9 +45,7 @@ fn test_duration_string_ms() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("duration_ms")
-        .expect("Animation 'duration_ms' not found");
+    let anim = animations.get("duration_ms").expect("Animation 'duration_ms' not found");
     assert_eq!(anim.duration_ms(), 250, "Duration '250ms' should parse to 250");
 }
 
@@ -65,9 +59,7 @@ fn test_duration_string_seconds() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("duration_1s")
-        .expect("Animation 'duration_1s' not found");
+    let anim = animations.get("duration_1s").expect("Animation 'duration_1s' not found");
     assert_eq!(anim.frames.len(), 4, "duration_1s should have 4 frames");
     assert_eq!(anim.duration_ms(), 1000, "Duration '1s' should parse to 1000ms");
 }
@@ -82,9 +74,7 @@ fn test_default_duration() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("default_duration")
-        .expect("Animation 'default_duration' not found");
+    let anim = animations.get("default_duration").expect("Animation 'default_duration' not found");
     assert_eq!(
         anim.duration_ms(),
         100,

@@ -5,18 +5,18 @@
 use std::collections::{HashMap, HashSet};
 
 use super::color_quantization::LabColor;
-use super::{NamingHint};
+use super::NamingHint;
 use crate::models::Role;
 
 /// Semantic region position within the sprite.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum SemanticPosition {
-    TopCenter,     // Hair region
-    Center,        // Face/body center
-    Bottom,        // Feet/base
-    Edge,          // Border/background
-    TopCorner,     // Hair edge or accessory
-    Surrounding,   // Background
+    TopCenter,   // Hair region
+    Center,      // Face/body center
+    Bottom,      // Feet/base
+    Edge,        // Border/background
+    TopCorner,   // Hair edge or accessory
+    Surrounding, // Background
 }
 
 /// Analyze the semantic position of a region within the sprite.
@@ -52,10 +52,8 @@ pub(crate) fn analyze_semantic_position(
     let touches_right = pixels.iter().any(|(x, _)| *x as u32 == width - 1);
     let touches_top = pixels.iter().any(|(_, y)| *y == 0);
     let touches_bottom = pixels.iter().any(|(_, y)| *y as u32 == height - 1);
-    let edge_count = [touches_left, touches_right, touches_top, touches_bottom]
-        .iter()
-        .filter(|&&b| b)
-        .count();
+    let edge_count =
+        [touches_left, touches_right, touches_top, touches_bottom].iter().filter(|&&b| b).count();
 
     // Touches multiple edges and moderate coverage = background
     if edge_count >= 2 && coverage > 0.15 {
@@ -141,11 +139,7 @@ pub(crate) fn generate_naming_hints(
 
         if let Some(suggested_name) = suggested {
             if token != &suggested_name {
-                hints.push(NamingHint {
-                    token: token.clone(),
-                    suggested_name,
-                    reason,
-                });
+                hints.push(NamingHint { token: token.clone(), suggested_name, reason });
             }
         }
     }
@@ -211,7 +205,10 @@ fn suggest_semantic_name(
             }
             // Small light spots = eyes/reflections
             if size <= 4 {
-                return (Some("{gleam}".to_string()), "Small light region (reflection)".to_string());
+                return (
+                    Some("{gleam}".to_string()),
+                    "Small light region (reflection)".to_string(),
+                );
             }
         }
     }

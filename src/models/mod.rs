@@ -12,9 +12,7 @@ mod transform;
 mod variant;
 
 // Re-export all public types
-pub use animation::{
-    Animation, Attachment, AttachmentKeyframe, CssKeyframe, FollowMode,
-};
+pub use animation::{Animation, Attachment, AttachmentKeyframe, CssKeyframe, FollowMode};
 pub use composition::{Composition, CompositionLayer};
 pub use core::{parse_css_duration, Duration, VarOr};
 pub use object::{TtpObject, Warning};
@@ -24,7 +22,9 @@ pub use palette::{
 pub use particle::{Particle, ParticleEmitter, VelocityRange};
 pub use region::{JitterSpec, RegionDef};
 pub use sprite::{CollisionBox, FrameMetadata, FrameTag, NineSlice, Sprite, SpriteMetadata};
-pub use transform::{Easing, Keyframe, KeyframeSpec, PropertyKeyframes, TransformDef, TransformSpec};
+pub use transform::{
+    Easing, Keyframe, KeyframeSpec, PropertyKeyframes, TransformDef, TransformSpec,
+};
 pub use variant::Variant;
 
 #[cfg(test)]
@@ -1612,10 +1612,7 @@ mod tests {
 
     #[test]
     fn test_region_def_simple_rect() {
-        let region = RegionDef {
-            rect: Some([5, 6, 2, 2]),
-            ..Default::default()
-        };
+        let region = RegionDef { rect: Some([5, 6, 2, 2]), ..Default::default() };
         let json = serde_json::to_string(&region).unwrap();
         let parsed: RegionDef = serde_json::from_str(&json).unwrap();
         assert_eq!(region, parsed);
@@ -1652,14 +1649,8 @@ mod tests {
     fn test_region_def_compound_union() {
         let region = RegionDef {
             union: Some(vec![
-                RegionDef {
-                    rect: Some([2, 0, 12, 2]),
-                    ..Default::default()
-                },
-                RegionDef {
-                    rect: Some([0, 2, 16, 2]),
-                    ..Default::default()
-                },
+                RegionDef { rect: Some([2, 0, 12, 2]), ..Default::default() },
+                RegionDef { rect: Some([0, 2, 16, 2]), ..Default::default() },
             ]),
             ..Default::default()
         };
@@ -1671,10 +1662,7 @@ mod tests {
     #[test]
     fn test_region_def_with_subtraction() {
         let region = RegionDef {
-            base: Some(Box::new(RegionDef {
-                rect: Some([2, 4, 12, 8]),
-                ..Default::default()
-            })),
+            base: Some(Box::new(RegionDef { rect: Some([2, 4, 12, 8]), ..Default::default() })),
             subtract: Some(vec![RegionDef {
                 points: Some(vec![[5, 6], [10, 6]]),
                 ..Default::default()
@@ -1724,10 +1712,7 @@ mod tests {
 
     #[test]
     fn test_jitter_spec() {
-        let jitter = JitterSpec {
-            x: Some([-2, 2]),
-            y: Some([-1, 1]),
-        };
+        let jitter = JitterSpec { x: Some([-2, 2]), y: Some([-1, 1]) };
         let json = serde_json::to_string(&jitter).unwrap();
         let parsed: JitterSpec = serde_json::from_str(&json).unwrap();
         assert_eq!(jitter, parsed);
@@ -1737,10 +1722,7 @@ mod tests {
     fn test_region_def_with_jitter() {
         let region = RegionDef {
             points: Some(vec![[0, 15], [4, 15], [8, 15]]),
-            jitter: Some(JitterSpec {
-                x: None,
-                y: Some([-2, 0]),
-            }),
+            jitter: Some(JitterSpec { x: None, y: Some([-2, 0]) }),
             seed: Some(42),
             ..Default::default()
         };

@@ -26,10 +26,7 @@ pub(crate) fn infer_z_order(
     for (source, rel_type, target) in relationships {
         if matches!(rel_type, RelationshipType::ContainedWithin) {
             // source is contained within target
-            contained_in
-                .entry(source.clone())
-                .or_default()
-                .push(target.clone());
+            contained_in.entry(source.clone()).or_default().push(target.clone());
         }
     }
 
@@ -241,11 +238,7 @@ fn detect_checkerboard_pattern(
 
     // Minimum coverage and match ratio for detection
     let coverage = total_cells as f64 / ((max_x - min_x + 1) * (max_y - min_y + 1)) as f64;
-    let match_ratio = if total_cells > 0 {
-        best_matches as f64 / total_cells as f64
-    } else {
-        0.0
-    };
+    let match_ratio = if total_cells > 0 { best_matches as f64 / total_cells as f64 } else { 0.0 };
 
     // Need at least 4 cells (2x2 minimum) and 80% match ratio
     if total_cells >= 4 && match_ratio >= 0.8 && coverage >= 0.7 {
@@ -257,7 +250,12 @@ fn detect_checkerboard_pattern(
         Some(DitherInfo {
             tokens: vec![token1.to_string(), token2.to_string()],
             pattern: DitherPattern::Checkerboard,
-            bounds: [min_x as u32, min_y as u32, (max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32],
+            bounds: [
+                min_x as u32,
+                min_y as u32,
+                (max_x - min_x + 1) as u32,
+                (max_y - min_y + 1) as u32,
+            ],
             merged_color: format!("#{:02X}{:02X}{:02X}", merged[0], merged[1], merged[2]),
             confidence: match_ratio * coverage,
         })
@@ -336,11 +334,7 @@ fn detect_line_pattern(
 
     let best_matches = line_matches.max(inverse_matches);
     let coverage = total_cells as f64 / ((max_x - min_x + 1) * (max_y - min_y + 1)) as f64;
-    let match_ratio = if total_cells > 0 {
-        best_matches as f64 / total_cells as f64
-    } else {
-        0.0
-    };
+    let match_ratio = if total_cells > 0 { best_matches as f64 / total_cells as f64 } else { 0.0 };
 
     // Need at least 4 cells and 90% match ratio for line patterns (stricter than checkerboard)
     // Also need at least 2 lines in the primary direction
@@ -351,16 +345,18 @@ fn detect_line_pattern(
         let color2 = token_to_color.get(token2).copied().unwrap_or([0, 0, 0, 255]);
         let merged = average_colors(&[color1, color2]);
 
-        let pattern = if horizontal {
-            DitherPattern::HorizontalLines
-        } else {
-            DitherPattern::VerticalLines
-        };
+        let pattern =
+            if horizontal { DitherPattern::HorizontalLines } else { DitherPattern::VerticalLines };
 
         Some(DitherInfo {
             tokens: vec![token1.to_string(), token2.to_string()],
             pattern,
-            bounds: [min_x as u32, min_y as u32, (max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32],
+            bounds: [
+                min_x as u32,
+                min_y as u32,
+                (max_x - min_x + 1) as u32,
+                (max_y - min_y + 1) as u32,
+            ],
             merged_color: format!("#{:02X}{:02X}{:02X}", merged[0], merged[1], merged[2]),
             confidence: match_ratio * coverage,
         })
@@ -397,11 +393,7 @@ pub(crate) fn average_colors(colors: &[[u8; 4]]) -> [u8; 4] {
 /// the image was upscaled from a lower resolution using nearest-neighbor scaling.
 ///
 /// Returns the detected scale and native resolution if upscaling is found.
-pub(crate) fn detect_upscale(
-    pixel_data: &[u8],
-    width: u32,
-    height: u32,
-) -> Option<UpscaleInfo> {
+pub(crate) fn detect_upscale(pixel_data: &[u8], width: u32, height: u32) -> Option<UpscaleInfo> {
     // Check common scale factors: 2x, 3x, 4x, 5x, 6x, 8x
     let scales_to_check = [2, 3, 4, 5, 6, 8];
 
@@ -431,12 +423,7 @@ pub(crate) fn detect_upscale(
 }
 
 /// Check what fraction of scale x scale blocks in the image are uniform.
-fn check_uniform_blocks(
-    pixel_data: &[u8],
-    width: u32,
-    height: u32,
-    scale: u32,
-) -> f64 {
+fn check_uniform_blocks(pixel_data: &[u8], width: u32, height: u32, scale: u32) -> f64 {
     let native_width = width / scale;
     let native_height = height / scale;
     let mut uniform_blocks = 0u64;
@@ -522,7 +509,8 @@ pub(crate) fn detect_outlines(
 
         // Check if color is dark
         let color = token_to_color.get(token).copied().unwrap_or([0, 0, 0, 255]);
-        let luminosity = (color[0] as f64 * 0.299 + color[1] as f64 * 0.587 + color[2] as f64 * 0.114) / 255.0;
+        let luminosity =
+            (color[0] as f64 * 0.299 + color[1] as f64 * 0.587 + color[2] as f64 * 0.114) / 255.0;
 
         // Skip if not dark enough (luminosity > 0.3 means not dark)
         if luminosity > 0.3 {
@@ -667,11 +655,8 @@ mod tests {
         // {inner} is contained within {outer}
         // {inner} should have z = 1, {outer} should have z = 0
         let tokens = vec!["{inner}".to_string(), "{outer}".to_string()];
-        let relationships = vec![(
-            "{inner}".to_string(),
-            RelationshipType::ContainedWithin,
-            "{outer}".to_string(),
-        )];
+        let relationships =
+            vec![("{inner}".to_string(), RelationshipType::ContainedWithin, "{outer}".to_string())];
 
         let z_order = infer_z_order(&tokens, &relationships);
 

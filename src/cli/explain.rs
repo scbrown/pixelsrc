@@ -66,11 +66,12 @@ pub fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> Ex
         }
 
         // Resolve palette colors for sprites if needed
-        let resolved_colors: Option<HashMap<String, String>> = if let TtpObject::Sprite(sprite) = obj {
-            resolve_palette_colors(&sprite.palette, &known_palettes)
-        } else {
-            None
-        };
+        let resolved_colors: Option<HashMap<String, String>> =
+            if let TtpObject::Sprite(sprite) = obj {
+                resolve_palette_colors(&sprite.palette, &known_palettes)
+            } else {
+                None
+            };
 
         let exp = explain_object(obj, resolved_colors.as_ref());
         explanations.push(exp);

@@ -967,7 +967,12 @@ mod tests {
         ) -> Composition {
             let layers: Vec<CompositionLayer> = layer_maps
                 .into_iter()
-                .map(|map| CompositionLayer { name: None, fill: None, map: Some(map), ..Default::default() })
+                .map(|map| CompositionLayer {
+                    name: None,
+                    fill: None,
+                    map: Some(map),
+                    ..Default::default()
+                })
                 .collect();
 
             Composition {
@@ -1051,7 +1056,8 @@ mod tests {
             let sub_sprites: HashMap<String, Option<String>> =
                 [("R".to_string(), Some("red".to_string()))].into_iter().collect();
 
-            let sub_comp = make_composition("sub", sub_sprites, vec![vec!["R".to_string()]], Some([2, 2]));
+            let sub_comp =
+                make_composition("sub", sub_sprites, vec![vec!["R".to_string()]], Some([2, 2]));
 
             // Create main composition that references sub
             let main_sprites: HashMap<String, Option<String>> =

@@ -53,25 +53,10 @@ fn test_layer_render_order() {
     let three_layer = capture_composition_info(jsonl, "three_layer_stack");
 
     // Verify sprite keys are defined
-    assert!(
-        two_layer.sprite_keys.contains(&"R".to_string()),
-        "Should have R sprite key"
-    );
-    assert!(
-        two_layer.sprite_keys.contains(&"G".to_string()),
-        "Should have G sprite key"
-    );
+    assert!(two_layer.sprite_keys.contains(&"R".to_string()), "Should have R sprite key");
+    assert!(two_layer.sprite_keys.contains(&"G".to_string()), "Should have G sprite key");
 
-    assert!(
-        three_layer.sprite_keys.contains(&"R".to_string()),
-        "Should have R sprite key"
-    );
-    assert!(
-        three_layer.sprite_keys.contains(&"G".to_string()),
-        "Should have G sprite key"
-    );
-    assert!(
-        three_layer.sprite_keys.contains(&"B".to_string()),
-        "Should have B sprite key"
-    );
+    assert!(three_layer.sprite_keys.contains(&"R".to_string()), "Should have R sprite key");
+    assert!(three_layer.sprite_keys.contains(&"G".to_string()), "Should have G sprite key");
+    assert!(three_layer.sprite_keys.contains(&"B".to_string()), "Should have B sprite key");
 }

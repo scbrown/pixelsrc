@@ -495,7 +495,8 @@ mod tests {
         let dim = diff.dimension_change.unwrap();
         assert_eq!(dim.old, (8, 8));
         assert_eq!(dim.new, (16, 16));
-    }    #[test]
+    }
+    #[test]
     fn test_get_sprite_dimensions_from_size() {
         let sprite = Sprite {
             name: "test".to_string(),

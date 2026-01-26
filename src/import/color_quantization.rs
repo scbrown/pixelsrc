@@ -297,9 +297,12 @@ impl LabColorBox {
         }
 
         // Calculate weighted average in LAB space
-        let l: f64 = self.colors.iter().map(|(_, lab, count)| lab.l * *count as f64).sum::<f64>() / total as f64;
-        let a: f64 = self.colors.iter().map(|(_, lab, count)| lab.a * *count as f64).sum::<f64>() / total as f64;
-        let b: f64 = self.colors.iter().map(|(_, lab, count)| lab.b * *count as f64).sum::<f64>() / total as f64;
+        let l: f64 = self.colors.iter().map(|(_, lab, count)| lab.l * *count as f64).sum::<f64>()
+            / total as f64;
+        let a: f64 = self.colors.iter().map(|(_, lab, count)| lab.a * *count as f64).sum::<f64>()
+            / total as f64;
+        let b: f64 = self.colors.iter().map(|(_, lab, count)| lab.b * *count as f64).sum::<f64>()
+            / total as f64;
         let avg_lab = LabColor { l, a, b };
 
         // Find the original color closest to this average
@@ -323,7 +326,10 @@ impl LabColorBox {
 
 /// Quantize colors using median cut algorithm in perceptual LAB color space.
 /// This produces better results for skin tones, gradients, and similar colors.
-pub(crate) fn median_cut_quantize_lab(colors: HashMap<Color, u32>, max_colors: usize) -> Vec<Color> {
+pub(crate) fn median_cut_quantize_lab(
+    colors: HashMap<Color, u32>,
+    max_colors: usize,
+) -> Vec<Color> {
     if colors.len() <= max_colors {
         return colors.into_keys().collect();
     }
@@ -576,17 +582,19 @@ mod tests {
     #[test]
     fn test_lab_skin_tone_grouping() {
         // Test that similar skin tones are grouped together in LAB space
-        let skin_light = LabColor::from_rgb(255, 220, 185);  // Light skin
+        let skin_light = LabColor::from_rgb(255, 220, 185); // Light skin
         let skin_medium = LabColor::from_rgb(210, 160, 120); // Medium skin
-        let _skin_dark = LabColor::from_rgb(140, 90, 60);    // Dark skin
-        let pure_red = LabColor::from_rgb(255, 0, 0);        // Pure red
+        let _skin_dark = LabColor::from_rgb(140, 90, 60); // Dark skin
+        let pure_red = LabColor::from_rgb(255, 0, 0); // Pure red
 
         // Skin tones should be closer to each other than to pure red
         let light_to_medium = skin_light.distance(&skin_medium);
         let light_to_red = skin_light.distance(&pure_red);
 
-        assert!(light_to_medium < light_to_red,
-            "Skin tones should be closer to each other than to pure red");
+        assert!(
+            light_to_medium < light_to_red,
+            "Skin tones should be closer to each other than to pure red"
+        );
     }
 
     #[test]

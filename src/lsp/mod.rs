@@ -56,8 +56,9 @@ mod tests {
 
     #[test]
     fn test_issue_to_diagnostic_with_suggestion() {
-        let issue = ValidationIssue::warning(3, IssueType::UndefinedToken, "Undefined token {skni}")
-            .with_suggestion("did you mean {skin}?");
+        let issue =
+            ValidationIssue::warning(3, IssueType::UndefinedToken, "Undefined token {skni}")
+                .with_suggestion("did you mean {skin}?");
         let diagnostic = PixelsrcLanguageServer::issue_to_diagnostic(&issue);
 
         assert_eq!(diagnostic.range.start.line, 2); // 0-indexed

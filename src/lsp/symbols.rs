@@ -95,10 +95,8 @@ pub fn collect_defined_tokens(content: &str) -> Vec<(String, String, Option<Stri
                     None => continue,
                 };
                 // Look up role for this token
-                let role = roles
-                    .and_then(|r| r.get(key))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
+                let role =
+                    roles.and_then(|r| r.get(key)).and_then(|v| v.as_str()).map(|s| s.to_string());
                 tokens.push((key.clone(), color_str, role));
             }
         }
@@ -174,11 +172,8 @@ pub fn build_variable_registry(content: &str) -> VariableRegistry {
 ///
 /// Returns (line_number, start_char, end_char) if found.
 pub fn find_variable_definition(content: &str, var_name: &str) -> Option<(usize, u32, u32)> {
-    let normalized_name = if var_name.starts_with("--") {
-        var_name.to_string()
-    } else {
-        format!("--{}", var_name)
-    };
+    let normalized_name =
+        if var_name.starts_with("--") { var_name.to_string() } else { format!("--{}", var_name) };
 
     // Search pattern: "var_name": or "var_name" : (with possible spaces)
     let search_key = format!("\"{}\"", normalized_name);

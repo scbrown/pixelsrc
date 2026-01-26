@@ -359,4 +359,3 @@ pub fn render_nine_slice(
 
     (result, warnings)
 }
-

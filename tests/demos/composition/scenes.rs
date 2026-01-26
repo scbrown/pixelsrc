@@ -71,11 +71,7 @@ fn test_sprite_variety() {
     let info = capture_composition_info(jsonl, "simple_scene");
 
     // Count unique sprite mappings (excluding null)
-    let sprite_count = info
-        .sprite_keys
-        .iter()
-        .filter(|k| *k != ".")
-        .count();
+    let sprite_count = info.sprite_keys.iter().filter(|k| *k != ".").count();
 
     assert!(
         sprite_count >= 5,

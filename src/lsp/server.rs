@@ -9,7 +9,9 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-use super::color_utils::{extract_colors_from_line, rgba_to_hex, rgba_to_hsl, rgba_to_rgb_functional};
+use super::color_utils::{
+    extract_colors_from_line, rgba_to_hex, rgba_to_hsl, rgba_to_rgb_functional,
+};
 use super::completions::{
     get_compound_completions, get_modifier_completions, get_relationship_completions,
     get_role_completions, get_shape_completions, get_state_apply_completions,
@@ -83,7 +85,11 @@ impl PixelsrcLanguageServer {
     /// Detect completion context for the structured format
     ///
     /// Analyzes the JSON structure to determine what kind of completions should be offered.
-    pub fn detect_completion_context(content: &str, line: &str, _char_pos: u32) -> CompletionContext {
+    pub fn detect_completion_context(
+        content: &str,
+        line: &str,
+        _char_pos: u32,
+    ) -> CompletionContext {
         // Try to parse the line as JSON to determine object type
         if let Ok(obj) = serde_json::from_str::<Value>(line) {
             if let Some(obj) = obj.as_object() {

@@ -274,8 +274,7 @@ pub fn infer_roles_batch(
     let mut inferences = HashMap::new();
     let mut warnings = Vec::new();
 
-    let all_colors: Vec<[u8; 4]> =
-        regions.values().filter_map(|(_, color)| *color).collect();
+    let all_colors: Vec<[u8; 4]> = regions.values().filter_map(|(_, color)| *color).collect();
 
     for (name, (pixels, color)) in regions {
         let adjacent: Vec<[u8; 4]> = all_colors

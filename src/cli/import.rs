@@ -62,11 +62,7 @@ pub fn run_import(
     });
 
     // Write output (JSONL for legacy, structured for analysis)
-    let output_content = if analyze {
-        result.to_structured_jsonl()
-    } else {
-        result.to_jsonl()
-    };
+    let output_content = if analyze { result.to_structured_jsonl() } else { result.to_jsonl() };
 
     if let Err(e) = std::fs::write(&output_path, &output_content) {
         eprintln!("Error: Failed to write '{}': {}", output_path.display(), e);
@@ -132,7 +128,10 @@ pub fn run_import(
                     }
                 }
             }
-            println!("  Shapes extracted: {} rects, {} polygons, {} point arrays", rects, polys, points);
+            println!(
+                "  Shapes extracted: {} rects, {} polygons, {} point arrays",
+                rects, polys, points
+            );
         }
     }
 

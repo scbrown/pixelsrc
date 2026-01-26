@@ -15,9 +15,7 @@ fn test_sprite_origins() {
     let (palette_registry, sprite_registry, _) = parse_content(jsonl);
 
     // Get idle frame and check origin
-    let idle_1 = sprite_registry
-        .get_sprite("idle_1")
-        .expect("Sprite 'idle_1' not found");
+    let idle_1 = sprite_registry.get_sprite("idle_1").expect("Sprite 'idle_1' not found");
     assert!(idle_1.metadata.is_some(), "idle_1 should have metadata");
 
     let meta = idle_1.metadata.as_ref().unwrap();
@@ -28,9 +26,7 @@ fn test_sprite_origins() {
     assert_eq!(origin[1], 8, "origin y should be 8 (foot position)");
 
     // Verify sprite can still be resolved with metadata
-    sprite_registry
-        .resolve("idle_1", &palette_registry, false)
-        .expect("idle_1 should resolve");
+    sprite_registry.resolve("idle_1", &palette_registry, false).expect("idle_1 should resolve");
 }
 
 /// @demo format/animation/metadata#hitbox
@@ -44,9 +40,7 @@ fn test_sprite_hitbox() {
     let (_, sprite_registry, _) = parse_content(jsonl);
 
     // Get walk frame with hitbox
-    let walk_1 = sprite_registry
-        .get_sprite("walk_1")
-        .expect("Sprite 'walk_1' not found");
+    let walk_1 = sprite_registry.get_sprite("walk_1").expect("Sprite 'walk_1' not found");
     assert!(walk_1.metadata.is_some(), "walk_1 should have metadata");
 
     let meta = walk_1.metadata.as_ref().unwrap();
@@ -78,9 +72,7 @@ fn test_animation_frame_tags() {
     let (_, _, animations) = parse_content(jsonl);
 
     // Test idle animation tags
-    let idle = animations
-        .get("char_idle")
-        .expect("Animation 'char_idle' not found");
+    let idle = animations.get("char_idle").expect("Animation 'char_idle' not found");
     assert!(idle.tags.is_some(), "char_idle should have tags");
 
     let idle_tags = idle.tags.as_ref().unwrap();
@@ -89,9 +81,7 @@ fn test_animation_frame_tags() {
     assert_eq!(idle_tag.end, 1, "idle tag should end at frame 1");
 
     // Test walk animation tags
-    let walk = animations
-        .get("char_walk")
-        .expect("Animation 'char_walk' not found");
+    let walk = animations.get("char_walk").expect("Animation 'char_walk' not found");
     assert!(walk.tags.is_some(), "char_walk should have tags");
 
     let walk_tags = walk.tags.as_ref().unwrap();

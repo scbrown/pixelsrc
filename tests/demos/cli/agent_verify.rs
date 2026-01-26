@@ -139,10 +139,7 @@ fn test_resolve_css_variables() {
 
     if let Some(skin) = skin {
         assert!(skin.original.contains("var(--base)"), "Should have original var() value");
-        assert!(
-            skin.resolved.to_uppercase().contains("FF6347"),
-            "Should resolve to base color"
-        );
+        assert!(skin.resolved.to_uppercase().contains("FF6347"), "Should resolve to base color");
     }
 }
 
@@ -292,7 +289,8 @@ fn test_completions_on_empty_content() {
 #[test]
 fn test_client_builder_pattern() {
     let client = LspAgentClient::new().with_strict(true);
-    let result = client.verify_content(r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##);
+    let result = client
+        .verify_content(r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##);
 
     // Just verify builder pattern works
     assert!(result.valid || !result.valid); // Always true, just testing it doesn't panic

@@ -214,8 +214,7 @@ mod tests {
 
     #[test]
     fn test_validate_missing_palette() {
-        let jsonl =
-            r#"{"type": "sprite", "name": "bad", "size": [2, 1], "palette": "nonexistent", "regions": {"x": {"rect": [0, 0, 2, 1], "z": 0}}}"#;
+        let jsonl = r#"{"type": "sprite", "name": "bad", "size": [2, 1], "palette": "nonexistent", "regions": {"x": {"rect": [0, 0, 2, 1], "z": 0}}}"#;
         let result = validate(jsonl);
         assert!(!result.is_empty());
         assert!(result[0].contains("not found"));

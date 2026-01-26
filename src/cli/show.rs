@@ -216,14 +216,13 @@ pub fn run_show(
     // Grid-based terminal rendering is deprecated
     // Use render command to generate PNG output instead
     eprintln!("Error: Terminal view requires grid format, which is deprecated.");
-    eprintln!("Use 'pxl render' to generate PNG output, or use sprites with structured regions format.");
+    eprintln!(
+        "Use 'pxl render' to generate PNG output, or use sprites with structured regions format."
+    );
 
     // Show basic sprite info
-    let (width, height) = if let Some(size) = sprite.size {
-        (size[0] as usize, size[1] as usize)
-    } else {
-        (0, 0)
-    };
+    let (width, height) =
+        if let Some(size) = sprite.size { (size[0] as usize, size[1] as usize) } else { (0, 0) };
     println!("Sprite: {} ({}x{})", sprite.name, width, height);
     println!("Has regions: {}", sprite.regions.is_some());
 

@@ -1,0 +1,161 @@
+// simple-face.pxl - Minimal face to establish base shapes
+// Size: 16x20 - compact but readable
+
+// Palette: minimal colors for a simple face
+{
+  "type": "palette",
+  "name": "face_pal",
+  "colors": {
+    "_": "transparent",
+    "outline": "#2a2a2a",
+    "skin": "#e8c8a8",
+    "skin_shd": "#c8a888",
+    "eye_w": "#f8f8f0",
+    "eye_p": "#202020",
+    "brow": "#4a3a2a",
+    "lip": "#d8a090",
+    "hat": "#2a4a6a",
+    "hat_hi": "#4a6a8a",
+    "hat_shd": "#1a3a5a",
+    "beard": "#4a3a2a",
+    "beard_hi": "#6a5a4a",
+    "beard_shd": "#2a1a0a"
+  }
+}
+
+// The face sprite - just the essentials
+{
+  "type": "sprite",
+  "name": "simple_face",
+  "size": [16, 20],
+  "palette": "face_pal",
+  "regions": {
+    // === HEAD SHAPE ===
+    // Main head - ellipse centered in canvas
+    "skin": { "ellipse": [8, 10, 7, 9], "z": 0 },
+
+    // Subtle shadow on left side
+    "skin_shd": {
+      "polygon": [[2, 8], [4, 5], [5, 8], [5, 14], [4, 16], [2, 14]],
+      "z": 1
+    },
+
+    // === EYES ===
+    // White of eyes - symmetric across x-axis
+    "eye_w": { "ellipse": [5, 8, 2, 1], "symmetric": "x", "z": 2 },
+
+    // Pupils - single pixel each side
+    "eye_p": { "points": [[5, 8]], "symmetric": "x", "z": 3 },
+
+    // === EYEBROWS ===
+    // Simple line brows
+    "brow": { "line": [[3, 5], [7, 6]], "symmetric": "x", "z": 4 },
+
+    // === MOUTH ===
+    // Simple lip line
+    "lip": { "line": [[5, 15], [11, 15]], "z": 2 }
+  }
+}
+
+// Beanie hat for simple face
+{
+  "type": "sprite",
+  "name": "simple_beanie",
+  "size": [16, 20],
+  "palette": "face_pal",
+  "regions": {
+    // Main beanie dome
+    "hat": {
+      "polygon": [
+        [2, 6], [3, 3], [5, 1], [8, 0], [11, 1], [13, 3], [14, 6],
+        [13, 4], [10, 2], [8, 1], [6, 2], [3, 4]
+      ],
+      "z": 10
+    },
+    // Folded cuff
+    "hat_shd": {
+      "polygon": [[2, 6], [3, 5], [13, 5], [14, 6], [13, 7], [3, 7]],
+      "z": 11
+    },
+    // Highlight
+    "hat_hi": { "points": [[10, 1], [11, 2], [12, 3]], "z": 12 }
+  }
+}
+
+// Burly sailor beard for simple face
+{
+  "type": "sprite",
+  "name": "simple_sailor_beard",
+  "size": [16, 20],
+  "palette": "face_pal",
+  "regions": {
+    // Thick beard mass
+    "beard": {
+      "union": [
+        // Main beard
+        { "polygon": [
+          [2, 12], [4, 11], [12, 11], [14, 12],
+          [15, 15], [14, 18], [12, 20], [8, 20], [4, 20], [2, 18], [1, 15]
+        ]},
+        // Thick sideburns
+        { "polygon": [[1, 8], [2, 7], [4, 8], [4, 12], [2, 13], [1, 11]] },
+        { "polygon": [[15, 8], [14, 7], [12, 8], [12, 12], [14, 13], [15, 11]] },
+        // Mustache
+        { "polygon": [[5, 13], [8, 12], [11, 13], [10, 14], [8, 14], [6, 14]] }
+      ],
+      "z": 5
+    },
+    // Highlight
+    "beard_hi": {
+      "polygon": [[12, 12], [14, 14], [13, 17], [11, 19], [10, 16], [10, 13]],
+      "z": 6
+    },
+    // Shadow
+    "beard_shd": {
+      "polygon": [[4, 12], [2, 14], [3, 17], [5, 19], [6, 16], [6, 13]],
+      "z": 6
+    }
+  }
+}
+
+// === COMPOSITIONS ===
+
+// Simple face with beanie
+{
+  "type": "composition",
+  "name": "face_with_beanie",
+  "size": [16, 20],
+  "cell_size": [16, 20],
+  "sprites": { "F": "simple_face", "B": "simple_beanie" },
+  "layers": [
+    { "map": ["F"] },
+    { "map": ["B"] }
+  ]
+}
+
+// Simple face with sailor beard
+{
+  "type": "composition",
+  "name": "face_with_sailor_beard",
+  "size": [16, 20],
+  "cell_size": [16, 20],
+  "sprites": { "F": "simple_face", "D": "simple_sailor_beard" },
+  "layers": [
+    { "map": ["F"] },
+    { "map": ["D"] }
+  ]
+}
+
+// Sailor: beanie + beard (sea dog look)
+{
+  "type": "composition",
+  "name": "sailor_face",
+  "size": [16, 20],
+  "cell_size": [16, 20],
+  "sprites": { "F": "simple_face", "B": "simple_beanie", "D": "simple_sailor_beard" },
+  "layers": [
+    { "map": ["F"] },
+    { "map": ["D"] },
+    { "map": ["B"] }
+  ]
+}

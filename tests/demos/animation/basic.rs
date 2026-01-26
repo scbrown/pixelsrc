@@ -22,9 +22,7 @@ fn test_basic_frame_sequence() {
     }
 
     // Verify animation exists and has correct frame count
-    let anim = animations
-        .get("color_cycle")
-        .expect("Animation 'color_cycle' not found");
+    let anim = animations.get("color_cycle").expect("Animation 'color_cycle' not found");
     assert_eq!(anim.frames.len(), 4, "color_cycle should have 4 frames");
 
     // Verify frame order is preserved
@@ -45,9 +43,7 @@ fn test_two_frame_animation() {
     assert_frame_count(jsonl, "two_frame", 2);
 
     let (_, _, animations) = parse_content(jsonl);
-    let anim = animations
-        .get("two_frame")
-        .expect("Animation 'two_frame' not found");
+    let anim = animations.get("two_frame").expect("Animation 'two_frame' not found");
 
     assert_eq!(anim.frames[0], "frame1");
     assert_eq!(anim.frames[1], "frame2");

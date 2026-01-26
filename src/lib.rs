@@ -112,4 +112,3 @@ pub use structured::{extract_anchor_bounds, render_structured};
 
 // Transform scaling with anchor preservation (TTP-ca8cj)
 pub use transforms::{scale_image, scale_image_with_anchor_preservation, AnchorBounds};
-

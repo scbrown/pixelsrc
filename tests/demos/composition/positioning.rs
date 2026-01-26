@@ -71,8 +71,5 @@ fn test_null_cells() {
     let info = capture_composition_info(jsonl, "diagonal_placement");
 
     // Should have "." as a null key
-    assert!(
-        info.sprite_keys.contains(&".".to_string()),
-        "Should have null key '.'"
-    );
+    assert!(info.sprite_keys.contains(&".".to_string()), "Should have null key '.'");
 }

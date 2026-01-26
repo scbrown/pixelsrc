@@ -477,9 +477,25 @@ pub fn run() -> ExitCode {
             power_of_two,
             nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name, analyze, confidence, hints, no_shapes } => {
-            import::run_import(&input, output.as_deref(), max_colors, name.as_deref(), analyze, confidence, hints, !no_shapes)
-        }
+        Commands::Import {
+            input,
+            output,
+            max_colors,
+            name,
+            analyze,
+            confidence,
+            hints,
+            no_shapes,
+        } => import::run_import(
+            &input,
+            output.as_deref(),
+            max_colors,
+            name.as_deref(),
+            analyze,
+            confidence,
+            hints,
+            !no_shapes,
+        ),
         Commands::Prompts { template } => info::run_prompts(template.as_deref()),
         Commands::Palettes { action } => info::run_palettes(action),
         Commands::Analyze { files, dir, recursive, format, output } => {
@@ -507,7 +523,9 @@ pub fn run() -> ExitCode {
             resolve_colors,
             analyze_timing,
         ),
-        Commands::Explain { input, name, json } => explain::run_explain(&input, name.as_deref(), json),
+        Commands::Explain { input, name, json } => {
+            explain::run_explain(&input, name.as_deref(), json)
+        }
         Commands::Diff { file_a, file_b, sprite, json } => {
             explain::run_diff(&file_a, &file_b, sprite.as_deref(), json)
         }

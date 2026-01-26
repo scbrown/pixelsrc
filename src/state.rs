@@ -91,7 +91,12 @@ pub struct ParsedSelector {
 
 impl ParsedSelector {
     /// Check if this selector matches a region in the given state
-    pub fn matches(&self, current_state: Option<&str>, token_name: &str, region: &RegionDef) -> bool {
+    pub fn matches(
+        &self,
+        current_state: Option<&str>,
+        token_name: &str,
+        region: &RegionDef,
+    ) -> bool {
         // Check state condition
         if let Some(required_state) = &self.state {
             match current_state {
@@ -156,7 +161,10 @@ pub fn parse_selector(selector: &str) -> Result<ParsedSelector, SelectorParseErr
     Ok(result)
 }
 
-fn parse_attribute_selector(attr: &str, result: &mut ParsedSelector) -> Result<(), SelectorParseError> {
+fn parse_attribute_selector(
+    attr: &str,
+    result: &mut ParsedSelector,
+) -> Result<(), SelectorParseError> {
     let parts: Vec<&str> = attr.splitn(2, '=').collect();
     if parts.len() != 2 {
         return Err(SelectorParseError::InvalidAttribute(attr.to_string()));
@@ -214,7 +222,9 @@ impl std::fmt::Display for SelectorParseError {
         match self {
             SelectorParseError::Empty => write!(f, "selector cannot be empty"),
             SelectorParseError::InvalidState(s) => write!(f, "invalid state selector: {}", s),
-            SelectorParseError::InvalidAttribute(s) => write!(f, "invalid attribute selector: {}", s),
+            SelectorParseError::InvalidAttribute(s) => {
+                write!(f, "invalid attribute selector: {}", s)
+            }
             SelectorParseError::UnknownAttribute(s) => write!(f, "unknown attribute: {}", s),
             SelectorParseError::InvalidRole(s) => write!(f, "invalid role: {}", s),
             SelectorParseError::UnknownSyntax(s) => write!(f, "unknown selector syntax: {}", s),
@@ -342,11 +352,7 @@ mod tests {
 
     #[test]
     fn test_selector_matches_state() {
-        let selector = ParsedSelector {
-            state: Some("hover".to_string()),
-            token: None,
-            role: None,
-        };
+        let selector = ParsedSelector { state: Some("hover".to_string()), token: None, role: None };
         let region = RegionDef::default();
 
         assert!(selector.matches(Some("hover"), "any", &region));
@@ -356,11 +362,7 @@ mod tests {
 
     #[test]
     fn test_selector_matches_token() {
-        let selector = ParsedSelector {
-            state: None,
-            token: Some("bg".to_string()),
-            role: None,
-        };
+        let selector = ParsedSelector { state: None, token: Some("bg".to_string()), role: None };
         let region = RegionDef::default();
 
         assert!(selector.matches(None, "bg", &region));
@@ -369,11 +371,7 @@ mod tests {
 
     #[test]
     fn test_selector_matches_role() {
-        let selector = ParsedSelector {
-            state: None,
-            token: None,
-            role: Some(Role::Fill),
-        };
+        let selector = ParsedSelector { state: None, token: None, role: Some(Role::Fill) };
 
         let mut region_with_role = RegionDef::default();
         region_with_role.role = Some(Role::Fill);
@@ -418,17 +416,15 @@ mod tests {
     fn test_state_rules_serde() {
         let rules = StateRules {
             name: "button".to_string(),
-            rules: vec![
-                StateRule {
-                    selector: ".hover [role=fill]".to_string(),
-                    apply: StateApplication {
-                        color: Some("#AAFFAA".to_string()),
-                        visible: None,
-                        z: None,
-                        transform: None,
-                    },
+            rules: vec![StateRule {
+                selector: ".hover [role=fill]".to_string(),
+                apply: StateApplication {
+                    color: Some("#AAFFAA".to_string()),
+                    visible: None,
+                    z: None,
+                    transform: None,
                 },
-            ],
+            }],
         };
 
         let json = serde_json::to_string(&rules).unwrap();

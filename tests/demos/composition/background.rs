@@ -23,15 +23,8 @@ fn test_solid_background() {
     // Verify the background layer has a fill
     let (_, _, compositions) = parse_compositions(jsonl);
     let comp = compositions.get("solid_background").unwrap();
-    assert!(
-        comp.layers[0].fill.is_some(),
-        "Background layer should have fill"
-    );
-    assert_eq!(
-        comp.layers[0].fill.as_deref(),
-        Some("#000000FF"),
-        "Background should be black"
-    );
+    assert!(comp.layers[0].fill.is_some(), "Background layer should have fill");
+    assert_eq!(comp.layers[0].fill.as_deref(), Some("#000000FF"), "Background should be black");
 
     assert_composition_sprites_resolve(jsonl, "solid_background");
 }
@@ -50,10 +43,7 @@ fn test_transparent_background() {
     // Verify the layer has no fill
     let (_, _, compositions) = parse_compositions(jsonl);
     let comp = compositions.get("transparent_background").unwrap();
-    assert!(
-        comp.layers[0].fill.is_none(),
-        "Layer should not have fill"
-    );
+    assert!(comp.layers[0].fill.is_none(), "Layer should not have fill");
 
     assert_composition_sprites_resolve(jsonl, "transparent_background");
 }
@@ -72,11 +62,7 @@ fn test_colored_background() {
     // Verify the background layer has a green fill
     let (_, _, compositions) = parse_compositions(jsonl);
     let comp = compositions.get("colored_background").unwrap();
-    assert_eq!(
-        comp.layers[0].fill.as_deref(),
-        Some("#00FF00FF"),
-        "Background should be green"
-    );
+    assert_eq!(comp.layers[0].fill.as_deref(), Some("#00FF00FF"), "Background should be green");
 
     assert_composition_sprites_resolve(jsonl, "colored_background");
 }

@@ -56,7 +56,8 @@ fn test_named_neutral() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("named_neutral").expect("named_neutral palette should exist");
+    let palette =
+        palette_registry.get("named_neutral").expect("named_neutral palette should exist");
     assert_eq!(palette.colors.len(), 4, "Should have 4 colors");
 }
 

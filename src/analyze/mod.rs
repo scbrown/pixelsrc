@@ -464,19 +464,10 @@ mod tests {
     #[test]
     fn test_detect_shape_polygon_fallback() {
         // Create an irregular shape that doesn't match any primitive
-        let pixels: HashSet<(i32, i32)> = [
-            (0, 0),
-            (1, 0),
-            (2, 0),
-            (3, 0),
-            (1, 1),
-            (2, 1),
-            (2, 2),
-            (3, 2),
-            (4, 2),
-        ]
-        .into_iter()
-        .collect();
+        let pixels: HashSet<(i32, i32)> =
+            [(0, 0), (1, 0), (2, 0), (3, 0), (1, 1), (2, 1), (2, 2), (3, 2), (4, 2)]
+                .into_iter()
+                .collect();
         let (shape, _confidence) = detect_shape(&pixels);
         // Should fall back to polygon since it's not a recognized primitive
         assert!(matches!(shape, DetectedShape::Polygon(_)));
@@ -715,8 +706,7 @@ mod tests {
         let ctx = RoleInferenceContext::new(10, 10);
 
         // 1px wide vertical line on left edge
-        let pixels: HashSet<(i32, i32)> =
-            [(0, 2), (0, 3), (0, 4), (0, 5)].into_iter().collect();
+        let pixels: HashSet<(i32, i32)> = [(0, 2), (0, 3), (0, 4), (0, 5)].into_iter().collect();
 
         let result = RoleInferrer::infer_boundary(&pixels, &ctx);
         assert!(result.is_some());
@@ -730,8 +720,7 @@ mod tests {
         let ctx = RoleInferenceContext::new(10, 10);
 
         // 1px tall horizontal line on top edge
-        let pixels: HashSet<(i32, i32)> =
-            [(2, 0), (3, 0), (4, 0), (5, 0)].into_iter().collect();
+        let pixels: HashSet<(i32, i32)> = [(2, 0), (3, 0), (4, 0), (5, 0)].into_iter().collect();
 
         let result = RoleInferrer::infer_boundary(&pixels, &ctx);
         assert!(result.is_some());
@@ -745,8 +734,7 @@ mod tests {
         let ctx = RoleInferenceContext::new(10, 10);
 
         // Interior thin line - not on sprite edge
-        let pixels: HashSet<(i32, i32)> =
-            [(5, 2), (5, 3), (5, 4), (5, 5)].into_iter().collect();
+        let pixels: HashSet<(i32, i32)> = [(5, 2), (5, 3), (5, 4), (5, 5)].into_iter().collect();
 
         let result = RoleInferrer::infer_boundary(&pixels, &ctx);
         assert!(result.is_none());
@@ -776,8 +764,7 @@ mod tests {
 
     #[test]
     fn test_infer_anchor_three_pixels() {
-        let pixels: HashSet<(i32, i32)> =
-            [(5, 5), (6, 5), (5, 6)].into_iter().collect();
+        let pixels: HashSet<(i32, i32)> = [(5, 5), (6, 5), (5, 6)].into_iter().collect();
 
         let result = RoleInferrer::infer_anchor(&pixels);
         assert!(result.is_some());
@@ -788,8 +775,7 @@ mod tests {
 
     #[test]
     fn test_infer_anchor_four_pixels_too_large() {
-        let pixels: HashSet<(i32, i32)> =
-            [(5, 5), (6, 5), (5, 6), (6, 6)].into_iter().collect();
+        let pixels: HashSet<(i32, i32)> = [(5, 5), (6, 5), (5, 6), (6, 6)].into_iter().collect();
 
         let result = RoleInferrer::infer_anchor(&pixels);
         assert!(result.is_none());
@@ -937,8 +923,7 @@ mod tests {
         // 2-pixel region on edge - should be Boundary (takes priority over Anchor)
         let pixels: HashSet<(i32, i32)> = [(0, 5), (0, 6)].into_iter().collect();
 
-        let result =
-            RoleInferrer::infer_role(&pixels, &ctx, None, &[]);
+        let result = RoleInferrer::infer_role(&pixels, &ctx, None, &[]);
         assert!(result.is_some());
         let inference = result.unwrap();
         assert_eq!(inference.role, Role::Boundary);
@@ -1006,8 +991,7 @@ mod tests {
         let base = [200, 100, 100, 255];
         let shadow = [100, 50, 50, 255];
 
-        let result =
-            RelationshipInferrer::infer_derives_from("{shadow}", shadow, "{base}", base);
+        let result = RelationshipInferrer::infer_derives_from("{shadow}", shadow, "{base}", base);
 
         assert!(result.is_some());
         let rel = result.unwrap();
@@ -1037,8 +1021,7 @@ mod tests {
         let red = [255, 0, 0, 255];
         let blue = [0, 0, 255, 255];
 
-        let result =
-            RelationshipInferrer::infer_derives_from("{red}", red, "{blue}", blue);
+        let result = RelationshipInferrer::infer_derives_from("{red}", red, "{blue}", blue);
 
         assert!(result.is_none());
     }
@@ -1049,8 +1032,7 @@ mod tests {
         let color1 = [200, 100, 100, 255];
         let color2 = [198, 99, 99, 255];
 
-        let result =
-            RelationshipInferrer::infer_derives_from("{a}", color1, "{b}", color2);
+        let result = RelationshipInferrer::infer_derives_from("{a}", color1, "{b}", color2);
 
         assert!(result.is_none());
     }
@@ -1076,9 +1058,8 @@ mod tests {
             }
         }
 
-        let result = RelationshipInferrer::infer_contained_within(
-            "{inner}", &inner, "{outer}", &outer,
-        );
+        let result =
+            RelationshipInferrer::infer_contained_within("{inner}", &inner, "{outer}", &outer);
 
         // Inner is within outer's bounding box but not directly adjacent
         // This test checks the bounding box containment logic
@@ -1101,9 +1082,8 @@ mod tests {
         // Inner region
         let inner: HashSet<(i32, i32)> = [(5, 5), (5, 6), (6, 5), (6, 6)].into_iter().collect();
 
-        let result = RelationshipInferrer::infer_contained_within(
-            "{inner}", &inner, "{outer}", &outer,
-        );
+        let result =
+            RelationshipInferrer::infer_contained_within("{inner}", &inner, "{outer}", &outer);
 
         assert!(result.is_some());
         let rel = result.unwrap();
@@ -1119,9 +1099,8 @@ mod tests {
         let region_b: HashSet<(i32, i32)> =
             [(10, 10), (11, 10), (10, 11), (11, 11)].into_iter().collect();
 
-        let result = RelationshipInferrer::infer_contained_within(
-            "{a}", &region_a, "{b}", &region_b,
-        );
+        let result =
+            RelationshipInferrer::infer_contained_within("{a}", &region_a, "{b}", &region_b);
 
         assert!(result.is_none());
     }
@@ -1132,9 +1111,7 @@ mod tests {
         let region_a: HashSet<(i32, i32)> = [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().collect();
         let region_b: HashSet<(i32, i32)> = [(2, 0), (3, 0), (2, 1), (3, 1)].into_iter().collect();
 
-        let result = RelationshipInferrer::infer_adjacent_to(
-            "{a}", &region_a, "{b}", &region_b,
-        );
+        let result = RelationshipInferrer::infer_adjacent_to("{a}", &region_a, "{b}", &region_b);
 
         assert!(result.is_some());
         let rel = result.unwrap();
@@ -1147,9 +1124,7 @@ mod tests {
         let region_a: HashSet<(i32, i32)> = [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().collect();
         let region_b: HashSet<(i32, i32)> = [(2, 2), (3, 2), (2, 3), (3, 3)].into_iter().collect();
 
-        let result = RelationshipInferrer::infer_adjacent_to(
-            "{a}", &region_a, "{b}", &region_b,
-        );
+        let result = RelationshipInferrer::infer_adjacent_to("{a}", &region_a, "{b}", &region_b);
 
         assert!(result.is_none());
     }
@@ -1160,9 +1135,7 @@ mod tests {
         let region_a: HashSet<(i32, i32)> = [(0, 0), (1, 0)].into_iter().collect();
         let region_b: HashSet<(i32, i32)> = [(5, 0), (6, 0)].into_iter().collect();
 
-        let result = RelationshipInferrer::infer_adjacent_to(
-            "{a}", &region_a, "{b}", &region_b,
-        );
+        let result = RelationshipInferrer::infer_adjacent_to("{a}", &region_a, "{b}", &region_b);
 
         assert!(result.is_none());
     }
@@ -1285,9 +1258,8 @@ mod tests {
         assert!(!relationships.is_empty());
 
         // Check that we found an adjacent-to relationship
-        let adjacent = relationships
-            .iter()
-            .find(|r| r.relationship_type == RelationshipType::AdjacentTo);
+        let adjacent =
+            relationships.iter().find(|r| r.relationship_type == RelationshipType::AdjacentTo);
         assert!(adjacent.is_some());
     }
 
@@ -1309,9 +1281,8 @@ mod tests {
         let relationships = infer_relationships_batch(&regions, 16);
 
         // Should detect derives-from relationship
-        let derives = relationships
-            .iter()
-            .find(|r| r.relationship_type == RelationshipType::DerivesFrom);
+        let derives =
+            relationships.iter().find(|r| r.relationship_type == RelationshipType::DerivesFrom);
         assert!(derives.is_some());
     }
 

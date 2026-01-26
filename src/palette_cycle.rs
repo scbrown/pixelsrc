@@ -291,7 +291,8 @@ mod tests {
         assert_eq!(gcd(7, 3), 1);
         assert_eq!(lcm(3, 4), 12);
         assert_eq!(lcm(6, 8), 24);
-    }    #[test]
+    }
+    #[test]
     fn test_get_cycle_duration() {
         // Animation with cycle that has explicit duration
         let anim1 = Animation {

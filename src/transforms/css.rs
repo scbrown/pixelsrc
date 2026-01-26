@@ -412,16 +412,14 @@ fn parse_css_skew_angle(args: &str, func: &str) -> Result<f64, CssTransformError
     }
 
     // Parse angle - remove 'deg' suffix if present
-    let angle_str = if args.to_lowercase().ends_with("deg") {
-        &args[..args.len() - 3]
-    } else {
-        args
-    };
+    let angle_str =
+        if args.to_lowercase().ends_with("deg") { &args[..args.len() - 3] } else { args };
 
-    let degrees = angle_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
-        func: func.to_string(),
-        message: format!("cannot parse '{}' as angle", args),
-    })?;
+    let degrees =
+        angle_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+            func: func.to_string(),
+            message: format!("cannot parse '{}' as angle", args),
+        })?;
 
     // Validate angle is within reasonable bounds (avoid approaching tan(90°))
     if degrees.abs() >= 89.0 {
@@ -474,10 +472,11 @@ fn parse_css_skew(args: &str) -> Result<(f64, Option<f64>), CssTransformError> {
             parts[1]
         };
 
-        let y_val = y_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
-            func: "skew".to_string(),
-            message: format!("cannot parse '{}' as y angle", parts[1]),
-        })?;
+        let y_val =
+            y_str.trim().parse::<f64>().map_err(|_| CssTransformError::InvalidParameter {
+                func: "skew".to_string(),
+                message: format!("cannot parse '{}' as y angle", parts[1]),
+            })?;
 
         if y_val.abs() >= 89.0 {
             return Err(CssTransformError::InvalidParameter {

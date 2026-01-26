@@ -32,7 +32,7 @@ fn test_show_with_coordinates() {
 // Edge Cases
 // ============================================================================
 #[test]
-    #[ignore = "Grid format deprecated"]
+#[ignore = "Grid format deprecated"]
 fn test_show_empty_grid() {
     let grid: Vec<String> = vec![];
     let palette = HashMap::new();

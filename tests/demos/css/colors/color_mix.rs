@@ -14,7 +14,8 @@ fn test_color_mix_basic() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("color_mix_basic").expect("color_mix_basic palette should exist");
+    let palette =
+        palette_registry.get("color_mix_basic").expect("color_mix_basic palette should exist");
     assert_eq!(palette.colors.len(), 2, "Should have 2 colors (transparent + mixed)");
 }
 
@@ -28,7 +29,8 @@ fn test_color_mix_oklch() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("shadows_oklch").expect("shadows_oklch palette should exist");
+    let palette =
+        palette_registry.get("shadows_oklch").expect("shadows_oklch palette should exist");
     assert_eq!(palette.colors.len(), 2, "Should have 2 colors (transparent + mixed shadow)");
 }
 
@@ -42,7 +44,8 @@ fn test_color_mix_highlight() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("highlights_srgb").expect("highlights_srgb palette should exist");
+    let palette =
+        palette_registry.get("highlights_srgb").expect("highlights_srgb palette should exist");
     assert_eq!(palette.colors.len(), 2, "Should have 2 colors");
 }
 

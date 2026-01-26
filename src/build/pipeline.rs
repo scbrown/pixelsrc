@@ -885,7 +885,8 @@ mod tests {
         let img = image::open(&output_file).expect("Should open as valid PNG");
         assert_eq!(img.width(), 1);
         assert_eq!(img.height(), 1);
-    }    fn create_atlas_test_context(atlas_name: &str, sources: Vec<&str>) -> (TempDir, BuildContext) {
+    }
+    fn create_atlas_test_context(atlas_name: &str, sources: Vec<&str>) -> (TempDir, BuildContext) {
         use crate::config::{AtlasConfig as ConfigAtlas, ProjectConfig, PxlConfig};
 
         let temp = TempDir::new().unwrap();
@@ -921,7 +922,8 @@ mod tests {
         fs::create_dir_all(&src_dir).unwrap();
 
         (temp, ctx)
-    }    #[test]
+    }
+    #[test]
     fn test_build_atlas_multiple_sprites() {
         let (temp, ctx) = create_atlas_test_context("chars", vec!["**/*.pxl"]);
 
@@ -1021,4 +1023,5 @@ mod tests {
 
         let result = pipeline.execute_target(&target);
         assert!(result.status.is_failure(), "Should fail when no sprites found");
-    }}
+    }
+}

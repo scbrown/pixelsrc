@@ -27,12 +27,7 @@ impl RelationshipInference {
         target: String,
         confidence: f64,
     ) -> Self {
-        Self {
-            source,
-            relationship_type,
-            target,
-            confidence: confidence.clamp(0.0, 1.0),
-        }
+        Self { source, relationship_type, target, confidence: confidence.clamp(0.0, 1.0) }
     }
 }
 
@@ -59,11 +54,7 @@ pub(crate) fn rgb_to_hsl(r: u8, g: u8, b: u8) -> Hsl {
     }
 
     let d = max - min;
-    let s = if l > 0.5 {
-        d / (2.0 - max - min)
-    } else {
-        d / (max + min)
-    };
+    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
 
     let h = if (max - r).abs() < f64::EPSILON {
         let mut h = (g - b) / d;
@@ -240,20 +231,14 @@ impl RelationshipInferrer {
             let sum: (i64, i64) = region_a_pixels
                 .iter()
                 .fold((0i64, 0i64), |acc, &(x, y)| (acc.0 + x as i64, acc.1 + y as i64));
-            (
-                sum.0 as f64 / size_a as f64,
-                sum.1 as f64 / size_a as f64,
-            )
+            (sum.0 as f64 / size_a as f64, sum.1 as f64 / size_a as f64)
         };
 
         let centroid_b = {
             let sum: (i64, i64) = region_b_pixels
                 .iter()
                 .fold((0i64, 0i64), |acc, &(x, y)| (acc.0 + x as i64, acc.1 + y as i64));
-            (
-                sum.0 as f64 / size_b as f64,
-                sum.1 as f64 / size_b as f64,
-            )
+            (sum.0 as f64 / size_b as f64, sum.1 as f64 / size_b as f64)
         };
 
         let center_x = sprite_width as f64 / 2.0;
@@ -265,10 +250,8 @@ impl RelationshipInferrer {
         let tolerance = sprite_width as f64 * 0.1;
 
         if x_mirror_diff <= tolerance && y_diff <= tolerance {
-            let mirrored_a: HashSet<(i32, i32)> = region_a_pixels
-                .iter()
-                .map(|&(x, y)| (sprite_width as i32 - 1 - x, y))
-                .collect();
+            let mirrored_a: HashSet<(i32, i32)> =
+                region_a_pixels.iter().map(|&(x, y)| (sprite_width as i32 - 1 - x, y)).collect();
 
             let intersection = mirrored_a.intersection(region_b_pixels).count();
             let union = mirrored_a.union(region_b_pixels).count();
@@ -276,8 +259,8 @@ impl RelationshipInferrer {
 
             if shape_similarity >= 0.5 {
                 let position_score = 1.0 - (x_mirror_diff + y_diff) / (2.0 * tolerance);
-                let confidence = (size_ratio * 0.2 + shape_similarity * 0.5 + position_score * 0.3)
-                    .min(1.0);
+                let confidence =
+                    (size_ratio * 0.2 + shape_similarity * 0.5 + position_score * 0.3).min(1.0);
 
                 if confidence >= 0.6 {
                     return Some(RelationshipInference::new(
@@ -341,9 +324,9 @@ pub fn infer_relationships_batch(
             }
 
             if i < j {
-                if let Some(rel) = RelationshipInferrer::infer_adjacent_to(
-                    &a.name, &a.pixels, &b.name, &b.pixels,
-                ) {
+                if let Some(rel) =
+                    RelationshipInferrer::infer_adjacent_to(&a.name, &a.pixels, &b.name, &b.pixels)
+                {
                     relationships.push(rel);
                 }
             }

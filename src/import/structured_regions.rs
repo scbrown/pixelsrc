@@ -41,7 +41,11 @@ impl StructuredRegion {
 /// - Rectangles for rectangular regions
 /// - Polygons for irregular but contiguous regions
 /// - Unions for multiple disconnected components
-pub fn extract_structured_regions(points: &[[u32; 2]], _width: u32, _height: u32) -> StructuredRegion {
+pub fn extract_structured_regions(
+    points: &[[u32; 2]],
+    _width: u32,
+    _height: u32,
+) -> StructuredRegion {
     if points.is_empty() {
         return StructuredRegion::Points(vec![]);
     }
@@ -343,7 +347,8 @@ pub fn filter_points_for_half_sprite(
     let half_width = (width + 1) / 2; // Include center column for odd widths
     let half_height = (height + 1) / 2; // Include center row for odd heights
 
-    points.iter()
+    points
+        .iter()
         .filter(|p| {
             let in_left_half = p[0] < half_width;
             let in_top_half = p[1] < half_height;
@@ -401,14 +406,13 @@ pub fn filter_structured_region_for_half_sprite(
             // For polygons, we clip to the half region
             // This is complex, so we fall back to filtering the rasterized points
             let rasterized = rasterize_polygon(vertices);
-            let points: Vec<[u32; 2]> = rasterized.into_iter()
-                .map(|(x, y)| [x, y])
-                .collect();
+            let points: Vec<[u32; 2]> = rasterized.into_iter().map(|(x, y)| [x, y]).collect();
             let filtered = filter_points_for_half_sprite(&points, symmetry, width, height);
             StructuredRegion::Points(filtered)
         }
         StructuredRegion::Union(regions) => {
-            let filtered: Vec<StructuredRegion> = regions.iter()
+            let filtered: Vec<StructuredRegion> = regions
+                .iter()
                 .map(|r| filter_structured_region_for_half_sprite(r, symmetry, width, height))
                 .filter(|r| !matches!(r, StructuredRegion::Points(p) if p.is_empty()))
                 .collect();

@@ -812,7 +812,8 @@ mod tests {
         // Warning makes it invalid in strict mode
         assert!(!result.valid);
         assert_eq!(result.warning_count, 1);
-    }    #[test]
+    }
+    #[test]
     fn test_get_completions_basic() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}"##;
@@ -838,7 +839,8 @@ mod tests {
         let labels: Vec<&str> = result.items.iter().map(|i| i.label.as_str()).collect();
         assert!(labels.contains(&"{skin}"));
         assert!(labels.contains(&"{hair}"));
-    }    #[test]
+    }
+    #[test]
     fn test_verify_content_json() {
         let client = LspAgentClient::new();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##;
@@ -859,7 +861,8 @@ mod tests {
         // Should be valid JSON
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed["items"].as_array().unwrap().len() >= 3);
-    }    #[test]
+    }
+    #[test]
     fn test_empty_content() {
         let client = LspAgentClient::new();
         let result = client.verify_content("");

@@ -28,7 +28,8 @@ fn test_hwb_whiteness() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("hwb_whiteness").expect("hwb_whiteness palette should exist");
+    let palette =
+        palette_registry.get("hwb_whiteness").expect("hwb_whiteness palette should exist");
     assert_eq!(palette.colors.len(), 4, "Should have 4 colors (transparent + 3 whiteness levels)");
 }
 
@@ -42,7 +43,8 @@ fn test_hwb_blackness() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("hwb_blackness").expect("hwb_blackness palette should exist");
+    let palette =
+        palette_registry.get("hwb_blackness").expect("hwb_blackness palette should exist");
     assert_eq!(palette.colors.len(), 4, "Should have 4 colors (transparent + 3 blackness levels)");
 }
 

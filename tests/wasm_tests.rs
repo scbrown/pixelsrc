@@ -13,8 +13,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 use pixelsrc::wasm::{list_sprites, render_to_png, render_to_rgba, validate};
 
 // Test fixtures - using r##""## to avoid # prefix issues in Rust 2021
-const MINIMAL_DOT: &str =
-    r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
+const MINIMAL_DOT: &str = r##"{"type": "sprite", "name": "dot", "palette": {"{x}": "#FF0000"}, "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
 const HEART_SPRITE: &str = r##"{"type": "palette", "name": "reds", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{p}": "#FF6B6B"}}
 {"type": "sprite", "name": "heart", "palette": "reds", "size": [4,4], "regions": {"_": {"points": [[0,0],[3,0],[0,2],[3,2],[0,3],[1,3],[3,3]]}, "r": {"points": [[1,0],[2,0],[0,1],[1,1],[2,1],[3,1],[1,2],[2,2],[2,3]]}}}"##;
@@ -247,8 +246,7 @@ fn test_validate_invalid_json() {
 
 #[wasm_bindgen_test]
 fn test_validate_missing_palette() {
-    let jsonl =
-        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
+    let jsonl = r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1,1], "regions": {"x": {"points": [[0,0]]}}}"##;
     let result = validate(jsonl);
 
     assert!(!result.is_empty(), "Missing palette reference should warn");
@@ -303,8 +301,7 @@ fn test_render_with_transparency_full() {
 #[wasm_bindgen_test]
 fn test_render_with_transparency_partial() {
     // 50% transparent red (#FF000080)
-    let jsonl =
-        r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "size": [1,1], "regions": {"s": {"points": [[0,0]]}}}"##;
+    let jsonl = r##"{"type": "sprite", "name": "semi", "palette": {"{s}": "#FF000080"}, "size": [1,1], "regions": {"s": {"points": [[0,0]]}}}"##;
     let result = render_to_rgba(jsonl);
 
     let pixels = result.pixels();

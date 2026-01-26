@@ -83,8 +83,7 @@ fn test_validate_missing_name() {
 }
 #[test]
 fn test_validate_undefined_palette() {
-    let jsonl =
-        r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
+    let jsonl = r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let (errors, _) = validate_content(jsonl);
 
@@ -165,8 +164,7 @@ fn test_validate_multiple_errors() {
 }
 #[test]
 fn test_validate_json_output() {
-    let jsonl =
-        r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
+    let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
 
     let mut validator = Validator::new();
     for (line_idx, line) in jsonl.lines().enumerate() {

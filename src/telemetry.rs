@@ -135,9 +135,8 @@ impl ErrorCollector {
         let file = OpenOptions::new().create(true).append(true).open(&self.path)?;
 
         let mut writer = BufWriter::new(file);
-        let json = serde_json::to_string(entry).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        })?;
+        let json = serde_json::to_string(entry)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
         writeln!(writer, "{}", json)?;
         writer.flush()?;
 

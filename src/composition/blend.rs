@@ -125,7 +125,12 @@ pub(crate) fn blit_sprite_blended(
 }
 
 /// Blend source pixel over destination using the specified blend mode and opacity.
-pub(crate) fn blend_pixels(src: &Rgba<u8>, dst: &Rgba<u8>, mode: BlendMode, src_alpha: f32) -> Rgba<u8> {
+pub(crate) fn blend_pixels(
+    src: &Rgba<u8>,
+    dst: &Rgba<u8>,
+    mode: BlendMode,
+    src_alpha: f32,
+) -> Rgba<u8> {
     let dst_alpha = dst[3] as f32 / 255.0;
 
     // Normalize colors to 0.0-1.0

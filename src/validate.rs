@@ -335,11 +335,7 @@ impl Validator {
     }
 
     /// Validate a state rules definition
-    fn validate_state_rules(
-        &mut self,
-        line_number: usize,
-        state_rules: &crate::state::StateRules,
-    ) {
+    fn validate_state_rules(&mut self, line_number: usize, state_rules: &crate::state::StateRules) {
         // Check for duplicate name - state rules share namespace with other named objects
         if !self.sprite_names.insert(state_rules.name.clone()) {
             self.issues.push(
@@ -440,10 +436,7 @@ impl Validator {
                         ValidationIssue::error(
                             line_number,
                             IssueType::InvalidRoleToken,
-                            format!(
-                                "Role \"{}\" references undefined token {}",
-                                role, token
-                            ),
+                            format!("Role \"{}\" references undefined token {}", role, token),
                         )
                         .with_context(format!("palette \"{}\"", name)),
                     );
@@ -1080,10 +1073,7 @@ mod tests {
             1,
             r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000"}}"##,
         );
-        validator.validate_line(
-            2,
-            r#"{"type": "sprite", "name": "test", "palette": "test"}"#,
-        );
+        validator.validate_line(2, r#"{"type": "sprite", "name": "test", "palette": "test"}"#);
 
         let empty_issues: Vec<_> =
             validator.issues().iter().filter(|i| i.issue_type == IssueType::EmptyGrid).collect();
@@ -1175,11 +1165,8 @@ mod tests {
             r##"{"type": "palette", "name": "test", "colors": {"--skin": "#d8b088", "skin": "var(--skin)", "skin_hi": "color-mix(in oklch, var(--skin) 40%, white)"}}"##,
         );
         // Should have no errors - var() references should be resolved before parsing
-        let errors: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.severity == Severity::Error)
-            .collect();
+        let errors: Vec<_> =
+            validator.issues().iter().filter(|i| i.severity == Severity::Error).collect();
         assert!(
             errors.is_empty(),
             "Expected no errors for var() in color-mix(), got: {:?}",
@@ -1197,15 +1184,9 @@ mod tests {
             r##"{"type": "palette", "name": "test", "colors": {"bad": "var(--undefined)"}}"##,
         );
         // Should have a warning about the undefined variable
-        let warnings: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.severity == Severity::Warning)
-            .collect();
-        assert!(
-            !warnings.is_empty(),
-            "Expected warning for undefined var()"
-        );
+        let warnings: Vec<_> =
+            validator.issues().iter().filter(|i| i.severity == Severity::Warning).collect();
+        assert!(!warnings.is_empty(), "Expected warning for undefined var()");
     }
 
     #[test]
@@ -1401,11 +1382,8 @@ mod tests {
             r##"{"type": "palette", "name": "test", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}, "relationships": {"{a}": {"type": "invalid-type", "target": "{b}"}}}"##,
         );
         // This should result in a JSON syntax error because the enum doesn't include "invalid-type"
-        let issues: Vec<_> = validator
-            .issues()
-            .iter()
-            .filter(|i| i.issue_type == IssueType::JsonSyntax)
-            .collect();
+        let issues: Vec<_> =
+            validator.issues().iter().filter(|i| i.issue_type == IssueType::JsonSyntax).collect();
         assert_eq!(issues.len(), 1, "Expected JSON syntax error for invalid relationship type");
     }
 

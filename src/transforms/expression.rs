@@ -815,7 +815,9 @@ mod tests {
 
         let transforms = property_values_to_transforms(&props).unwrap();
         assert_eq!(transforms.len(), 1);
-        assert!(matches!(transforms[0], Transform::Scale { x, y } if (x - 2.0).abs() < 0.001 && (y - 0.5).abs() < 0.001));
+        assert!(
+            matches!(transforms[0], Transform::Scale { x, y } if (x - 2.0).abs() < 0.001 && (y - 0.5).abs() < 0.001)
+        );
     }
 
     #[test]
@@ -825,7 +827,9 @@ mod tests {
 
         let transforms = property_values_to_transforms(&props).unwrap();
         assert_eq!(transforms.len(), 1);
-        assert!(matches!(transforms[0], Transform::Scale { x, y } if (x - 3.0).abs() < 0.001 && (y - 3.0).abs() < 0.001));
+        assert!(
+            matches!(transforms[0], Transform::Scale { x, y } if (x - 3.0).abs() < 0.001 && (y - 3.0).abs() < 0.001)
+        );
     }
 
     #[test]
@@ -846,7 +850,9 @@ mod tests {
 
         let transforms = property_values_to_transforms(&props).unwrap();
         assert_eq!(transforms.len(), 1);
-        assert!(matches!(transforms[0], Transform::Subpixel { x, y } if (x - 0.5).abs() < 0.001 && (y - 0.25).abs() < 0.001));
+        assert!(
+            matches!(transforms[0], Transform::Subpixel { x, y } if (x - 0.5).abs() < 0.001 && (y - 0.25).abs() < 0.001)
+        );
     }
 
     #[test]

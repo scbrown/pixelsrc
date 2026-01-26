@@ -14,9 +14,7 @@ fn test_loop_forever() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("loop_forever")
-        .expect("Animation 'loop_forever' not found");
+    let anim = animations.get("loop_forever").expect("Animation 'loop_forever' not found");
     assert!(anim.loops(), "loop_forever should loop");
     assert_eq!(anim.frames.len(), 4);
 }
@@ -31,9 +29,7 @@ fn test_play_once() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("play_once")
-        .expect("Animation 'play_once' not found");
+    let anim = animations.get("play_once").expect("Animation 'play_once' not found");
     assert!(!anim.loops(), "play_once should not loop");
     assert_eq!(anim.frames.len(), 4);
 }
@@ -48,9 +44,7 @@ fn test_default_loop() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let anim = animations
-        .get("default_loop")
-        .expect("Animation 'default_loop' not found");
+    let anim = animations.get("default_loop").expect("Animation 'default_loop' not found");
     // Default behavior is to loop
     assert!(anim.loops(), "Animation without loop field should default to looping");
     assert_eq!(anim.frames.len(), 3);

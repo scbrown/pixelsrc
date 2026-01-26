@@ -138,10 +138,7 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
             match json5::from_str::<TtpObject>(&accumulator) {
                 Ok(obj) => result.objects.push(obj),
                 Err(e) => {
-                    result.warnings.push(Warning {
-                        message: e.to_string(),
-                        line: start_line,
-                    });
+                    result.warnings.push(Warning { message: e.to_string(), line: start_line });
                     // Stop parsing after error - can't reliably find next object boundary
                     return result;
                 }
@@ -161,10 +158,7 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
         match json5::from_str::<TtpObject>(&accumulator) {
             Ok(obj) => result.objects.push(obj),
             Err(e) => {
-                result.warnings.push(Warning {
-                    message: e.to_string(),
-                    line: start_line,
-                });
+                result.warnings.push(Warning { message: e.to_string(), line: start_line });
             }
         }
     }
@@ -505,7 +499,12 @@ mod tests {
         let result = parse_stream(reader);
 
         // Should have 2 objects: a palette and a sprite
-        assert_eq!(result.objects.len(), 2, "Expected 2 objects (palette + sprite), got {:?}", result.objects.len());
+        assert_eq!(
+            result.objects.len(),
+            2,
+            "Expected 2 objects (palette + sprite), got {:?}",
+            result.objects.len()
+        );
         assert!(result.warnings.is_empty(), "Unexpected warnings: {:?}", result.warnings);
 
         // First should be palette

@@ -28,7 +28,8 @@ fn test_oklch_lightness() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry.get("oklch_lightness").expect("oklch_lightness palette should exist");
+    let palette =
+        palette_registry.get("oklch_lightness").expect("oklch_lightness palette should exist");
     assert_eq!(palette.colors.len(), 4, "Should have 4 colors (transparent + 3 lightness levels)");
 }
 

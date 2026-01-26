@@ -413,11 +413,8 @@ pub fn run_agent_verify(
                 let height = size.get(1).and_then(|v| v.as_u64()).unwrap_or(0) as usize;
 
                 // Count regions if using regions format
-                let region_count = obj
-                    .get("regions")
-                    .and_then(|r| r.as_object())
-                    .map(|r| r.len())
-                    .unwrap_or(0);
+                let region_count =
+                    obj.get("regions").and_then(|r| r.as_object()).map(|r| r.len()).unwrap_or(0);
 
                 Some(serde_json::json!({
                     "name": name,

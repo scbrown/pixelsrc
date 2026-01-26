@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 use crate::color::parse_color;
 use crate::models::{Animation, Composition, PaletteRef, Particle, Sprite, TtpObject, Variant};
-use crate::state::StateRules;
 use crate::palettes;
+use crate::state::StateRules;
 
 /// Token usage statistics within a sprite
 #[derive(Debug, Clone)]
@@ -172,11 +172,8 @@ pub fn explain_sprite(
     _palette_colors: Option<&HashMap<String, String>>,
 ) -> SpriteExplanation {
     // Use size field or default values
-    let (width, height) = if let Some([w, h]) = sprite.size {
-        (w as usize, h as usize)
-    } else {
-        (0, 0)
-    };
+    let (width, height) =
+        if let Some([w, h]) = sprite.size { (w as usize, h as usize) } else { (0, 0) };
 
     // Determine palette reference
     let palette_ref = match &sprite.palette {
@@ -648,7 +645,8 @@ mod tests {
         assert!(describe_color("#FF0000").unwrap().contains("red"));
         assert!(describe_color("#00FF00").unwrap().contains("green"));
         assert!(describe_color("#0000FF").unwrap().contains("blue"));
-    }    #[test]
+    }
+    #[test]
     fn test_explain_sprite_no_size() {
         // With grid format deprecated, sprites without explicit size
         // will have width/height of 0

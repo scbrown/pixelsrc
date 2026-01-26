@@ -963,26 +963,14 @@ mod tests {
 
     #[test]
     fn test_parse_skew_x() {
-        assert_eq!(
-            parse_transform_str("skew-x:20").unwrap(),
-            Transform::SkewX { degrees: 20.0 }
-        );
-        assert_eq!(
-            parse_transform_str("skewx:45deg").unwrap(),
-            Transform::SkewX { degrees: 45.0 }
-        );
-        assert_eq!(
-            parse_transform_str("skew-x:-30").unwrap(),
-            Transform::SkewX { degrees: -30.0 }
-        );
+        assert_eq!(parse_transform_str("skew-x:20").unwrap(), Transform::SkewX { degrees: 20.0 });
+        assert_eq!(parse_transform_str("skewx:45deg").unwrap(), Transform::SkewX { degrees: 45.0 });
+        assert_eq!(parse_transform_str("skew-x:-30").unwrap(), Transform::SkewX { degrees: -30.0 });
     }
 
     #[test]
     fn test_parse_skew_y() {
-        assert_eq!(
-            parse_transform_str("skew-y:15").unwrap(),
-            Transform::SkewY { degrees: 15.0 }
-        );
+        assert_eq!(parse_transform_str("skew-y:15").unwrap(), Transform::SkewY { degrees: 15.0 });
         assert_eq!(
             parse_transform_str("skewy:26.57°").unwrap(),
             Transform::SkewY { degrees: 26.57 }

@@ -419,13 +419,7 @@ pub(crate) fn extract_polygon_vertices(pixels: &HashSet<(i32, i32)>) -> Vec<[i32
 
     // Find convex hull using Graham scan
     // First, find the lowest point (and leftmost if tied)
-    points.sort_by(|a, b| {
-        if a.1 != b.1 {
-            a.1.cmp(&b.1)
-        } else {
-            a.0.cmp(&b.0)
-        }
-    });
+    points.sort_by(|a, b| if a.1 != b.1 { a.1.cmp(&b.1) } else { a.0.cmp(&b.0) });
 
     let start = points[0];
 
@@ -531,15 +525,11 @@ pub fn detect_shape(pixels: &HashSet<(i32, i32)>) -> (DetectedShape, f64) {
     // Fall back to polygon
     let vertices = extract_polygon_vertices(pixels);
     // Polygon confidence based on how well the convex hull represents the pixels
-    let hull_pixels = shapes::rasterize_polygon(
-        &vertices.iter().map(|[x, y]| (*x, *y)).collect::<Vec<_>>(),
-    );
+    let hull_pixels =
+        shapes::rasterize_polygon(&vertices.iter().map(|[x, y]| (*x, *y)).collect::<Vec<_>>());
     let intersection = pixels.intersection(&hull_pixels).count();
-    let confidence = if pixels.is_empty() {
-        0.0
-    } else {
-        intersection as f64 / pixels.len() as f64
-    };
+    let confidence =
+        if pixels.is_empty() { 0.0 } else { intersection as f64 / pixels.len() as f64 };
 
     (DetectedShape::Polygon(vertices), confidence)
 }

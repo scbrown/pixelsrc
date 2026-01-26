@@ -267,7 +267,10 @@ pub fn union(regions: &[HashSet<(i32, i32)>]) -> HashSet<(i32, i32)> {
 /// assert!(result.contains(&(2, 0)));
 /// assert!(!result.contains(&(1, 0)));
 /// ```
-pub fn subtract(base: &HashSet<(i32, i32)>, removals: &[HashSet<(i32, i32)>]) -> HashSet<(i32, i32)> {
+pub fn subtract(
+    base: &HashSet<(i32, i32)>,
+    removals: &[HashSet<(i32, i32)>],
+) -> HashSet<(i32, i32)> {
     let mut result = base.clone();
     for removal in removals {
         for pixel in removal {
@@ -797,12 +800,12 @@ mod tests {
         // Hexagon with 6 vertices - should have no horizontal gaps/stripes
         // This tests the scanline algorithm's vertex handling
         let hexagon = vec![
-            (5, 0),   // top
-            (9, 2),   // upper right
-            (9, 6),   // lower right
-            (5, 8),   // bottom
-            (1, 6),   // lower left
-            (1, 2),   // upper left
+            (5, 0), // top
+            (9, 2), // upper right
+            (9, 6), // lower right
+            (5, 8), // bottom
+            (1, 6), // lower left
+            (1, 2), // upper left
         ];
         let pixels = rasterize_polygon(&hexagon);
 
@@ -822,11 +825,11 @@ mod tests {
     fn test_rasterize_polygon_convex_no_stripes() {
         // Pentagon (5 vertices) - another test for vertex handling
         let pentagon = vec![
-            (5, 0),   // top
-            (10, 4),  // right
-            (8, 10),  // bottom right
-            (2, 10),  // bottom left
-            (0, 4),   // left
+            (5, 0),  // top
+            (10, 4), // right
+            (8, 10), // bottom right
+            (2, 10), // bottom left
+            (0, 4),  // left
         ];
         let pixels = rasterize_polygon(&pentagon);
 
@@ -855,10 +858,10 @@ mod tests {
         //    \ /
         //     *     (2,4)
         let diamond = vec![
-            (2, 0),  // top
-            (4, 2),  // right
-            (2, 4),  // bottom
-            (0, 2),  // left
+            (2, 0), // top
+            (4, 2), // right
+            (2, 4), // bottom
+            (0, 2), // left
         ];
         let pixels = rasterize_polygon(&diamond);
 
@@ -892,21 +895,17 @@ mod tests {
         //      \ /
         //       * (5, 10) - local min
         let shape = vec![
-            (5, 0),    // top (local max)
-            (10, 5),   // right
-            (5, 10),   // bottom (local min)
-            (0, 5),    // left
+            (5, 0),  // top (local max)
+            (10, 5), // right
+            (5, 10), // bottom (local min)
+            (0, 5),  // left
         ];
         let pixels = rasterize_polygon(&shape);
 
         // Every row should have pixels
         for y in 0..=10 {
             let row_count = pixels.iter().filter(|(_, py)| *py == y).count();
-            assert!(
-                row_count > 0,
-                "Row y={} is empty - scanline vertex handling bug!",
-                y
-            );
+            assert!(row_count > 0, "Row y={} is empty - scanline vertex handling bug!", y);
         }
 
         // The widest row should be y=5 (through both side vertices)

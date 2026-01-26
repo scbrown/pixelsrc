@@ -396,10 +396,7 @@ fn format_state_rules(state_rules: &crate::state::StateRules) -> String {
     // Use serde_json for simplicity since StateRules has nested structures
     serde_json::to_string(state_rules).unwrap_or_else(|_| {
         // Fallback to basic format
-        format!(
-            r#"{{"type": "state-rules", "name": "{}"}}"#,
-            escape_json_string(&state_rules.name)
-        )
+        format!(r#"{{"type": "state-rules", "name": "{}"}}"#, escape_json_string(&state_rules.name))
     })
 }
 

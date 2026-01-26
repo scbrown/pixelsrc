@@ -281,11 +281,8 @@ pub fn run_render(
                     unreachable!()
                 };
 
-                match resolve_include_with_detection(
-                    include_path,
-                    input_dir,
-                    &mut include_visited,
-                ) {
+                match resolve_include_with_detection(include_path, input_dir, &mut include_visited)
+                {
                     Ok(palette) => palette.colors,
                     Err(e) => {
                         if strict {
@@ -336,7 +333,10 @@ pub fn run_render(
                 size: sprite.size.or_else(|| {
                     // For derived sprites, get size from resolved source
                     if sprite.source.is_some() {
-                        sprite_registry.resolve(&sprite.name, &registry, false).ok().and_then(|r| r.size)
+                        sprite_registry
+                            .resolve(&sprite.name, &registry, false)
+                            .ok()
+                            .and_then(|r| r.size)
                     } else {
                         None
                     }
@@ -352,8 +352,8 @@ pub fn run_render(
 
             // Apply transforms from sprite.transform if present
             if let Some(ref transform_specs) = sprite.transform {
-                use crate::transforms::{apply_image_transform, parse_transform_str};
                 use crate::models::TransformSpec;
+                use crate::transforms::{apply_image_transform, parse_transform_str};
 
                 for spec in transform_specs {
                     let transform_result = match spec {
@@ -365,7 +365,9 @@ pub fn run_render(
                             for (k, v) in params {
                                 obj.insert(k.clone(), v.clone());
                             }
-                            crate::transforms::parse_transform_value(&serde_json::Value::Object(obj))
+                            crate::transforms::parse_transform_value(&serde_json::Value::Object(
+                                obj,
+                            ))
                         }
                     };
 
@@ -378,7 +380,8 @@ pub fn run_render(
                             match apply_image_transform(&image, &transform, Some(&final_palette)) {
                                 Ok(transformed) => image = transformed,
                                 Err(e) => {
-                                    let msg = format!("sprite '{}': transform error: {}", sprite.name, e);
+                                    let msg =
+                                        format!("sprite '{}': transform error: {}", sprite.name, e);
                                     if strict {
                                         eprintln!("Error: {}", msg);
                                         return ExitCode::from(EXIT_ERROR);
@@ -882,7 +885,11 @@ fn run_animation_render(
                 let resolved = match &sprite.palette {
                     PaletteRef::Named(name) if is_include_ref(name) => {
                         let include_path = extract_include_path(name).unwrap();
-                        match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                        match resolve_include_with_detection(
+                            include_path,
+                            input_dir,
+                            include_visited,
+                        ) {
                             Ok(palette) => ResolvedPalette {
                                 colors: palette.colors,
                                 source: PaletteSource::Named(format!("@include:{}", include_path)),
