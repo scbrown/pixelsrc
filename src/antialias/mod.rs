@@ -7,13 +7,15 @@
 //!
 //! - [`context`] - Semantic context extraction from palette roles/relationships
 //! - [`algorithms`] - Implementation of antialiasing algorithms (aa-blur, scale2x, hq2x, etc.)
-//! - `gradient` (planned) - Gradient smoothing for shadow/highlight transitions
+//! - [`gradient`] - Gradient smoothing for shadow/highlight transitions
 
 pub mod algorithms;
 pub mod context;
+pub mod gradient;
 
 pub use algorithms::{apply_semantic_blur, hq2x, hq4x, scale2x, Scale2xOptions};
 pub use context::{AdjacencyInfo, GradientPair, RenderedRegion, SemanticContext};
+pub use gradient::apply_gradient_smoothing;
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
