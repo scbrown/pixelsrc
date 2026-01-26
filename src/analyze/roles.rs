@@ -6,6 +6,9 @@ use crate::models::Role;
 
 use super::shapes::bounding_box;
 
+/// Type alias for region data: maps token names to (pixel coordinates, optional RGBA color).
+pub type RegionMap = HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)>;
+
 /// Result of role inference with confidence score.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RoleInference {
@@ -268,7 +271,7 @@ pub(crate) fn color_brightness(color: [u8; 4]) -> f64 {
 
 /// Batch inference of roles for multiple regions.
 pub fn infer_roles_batch(
-    regions: &HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)>,
+    regions: &RegionMap,
     ctx: &RoleInferenceContext,
 ) -> (HashMap<String, RoleInference>, Vec<RoleInferenceWarning>) {
     let mut inferences = HashMap::new();

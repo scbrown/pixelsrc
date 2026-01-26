@@ -92,12 +92,10 @@ todo = "warn"
 dbg_macro = "warn"
 
 # Allow these lints - they're either false positives or intentional patterns
-cloned_ref_to_slice_refs = "allow"
 needless_range_loop = "allow"       # Sometimes clearer than enumerate()
 should_implement_trait = "allow"    # Custom impl choices are intentional
 too_many_arguments = "allow"        # Sprite/animation functions need many params
 ptr_arg = "allow"                   # &String/&Vec are sometimes clearer
-doc_overindented_list_items = "allow"
 match_overlapping_arm = "allow"
 match_like_matches_macro = "allow"  # Explicit match is sometimes clearer
 vec_init_then_push = "allow"        # Sometimes clearer than collect()

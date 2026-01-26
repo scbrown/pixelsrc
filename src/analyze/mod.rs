@@ -24,7 +24,8 @@ pub use relationships::{
 };
 pub use report::{collect_files, format_report_text, AnalysisReport};
 pub use roles::{
-    infer_roles_batch, RoleInference, RoleInferenceContext, RoleInferenceWarning, RoleInferrer,
+    infer_roles_batch, RegionMap, RoleInference, RoleInferenceContext, RoleInferenceWarning,
+    RoleInferrer,
 };
 pub use shapes::{
     detect_ellipse, detect_line, detect_rect, detect_shape, detect_stroke, detect_symmetry,

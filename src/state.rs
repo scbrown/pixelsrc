@@ -142,9 +142,8 @@ pub fn parse_selector(selector: &str) -> Result<ParsedSelector, SelectorParseErr
 
     // Split by whitespace and process each part
     for part in selector.split_whitespace() {
-        if part.starts_with('.') {
+        if let Some(state) = part.strip_prefix('.') {
             // State selector
-            let state = &part[1..];
             if state.is_empty() {
                 return Err(SelectorParseError::InvalidState("empty state name".into()));
             }

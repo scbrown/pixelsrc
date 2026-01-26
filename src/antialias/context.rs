@@ -130,12 +130,9 @@ impl SemanticContext {
 
     /// Get gradient pair information for a pixel, if it's at a gradient boundary.
     pub fn get_gradient_at(&self, pos: (i32, i32)) -> Option<&GradientPair> {
-        for gradient in &self.gradient_pairs {
-            if gradient.boundary_pixels.contains(&pos) {
-                return Some(gradient);
-            }
-        }
-        None
+        self.gradient_pairs
+            .iter()
+            .find(|gradient| gradient.boundary_pixels.contains(&pos))
     }
 
     /// Check if a pixel is at an adjacency boundary between two regions.
