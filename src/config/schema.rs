@@ -111,6 +111,47 @@ pub enum FilterMode {
     Bilinear,
 }
 
+/// Antialiasing mode for pixel art scaling
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum AntialiasMode {
+    /// No antialiasing
+    #[default]
+    None,
+    /// Basic edge antialiasing
+    Edge,
+    /// Semantic-aware antialiasing (uses region roles)
+    Semantic,
+}
+
+/// Antialiasing configuration for scaled output
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntialiasConfig {
+    /// Enable antialiasing
+    #[serde(default)]
+    pub enabled: bool,
+    /// Antialiasing mode
+    #[serde(default)]
+    pub mode: AntialiasMode,
+    /// Edge detection threshold (0.0-1.0, default: 0.5)
+    #[serde(default = "default_edge_threshold")]
+    pub edge_threshold: f64,
+}
+
+impl Default for AntialiasConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            mode: AntialiasMode::None,
+            edge_threshold: default_edge_threshold(),
+        }
+    }
+}
+
+fn default_edge_threshold() -> f64 {
+    0.5
+}
+
 /// Project metadata section
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectConfig {
@@ -148,11 +189,18 @@ pub struct DefaultsConfig {
     /// Default padding between sprites
     #[serde(default = "default_padding")]
     pub padding: u32,
+    /// Default antialiasing settings
+    #[serde(default)]
+    pub antialias: AntialiasConfig,
 }
 
 impl Default for DefaultsConfig {
     fn default() -> Self {
-        Self { scale: default_scale(), padding: default_padding() }
+        Self {
+            scale: default_scale(),
+            padding: default_padding(),
+            antialias: AntialiasConfig::default(),
+        }
     }
 }
 
@@ -181,6 +229,9 @@ pub struct AtlasConfig {
     /// Preserve nine-slice metadata
     #[serde(default)]
     pub nine_slice: bool,
+    /// Antialiasing settings (overrides defaults)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub antialias: Option<AntialiasConfig>,
 }
 
 fn default_max_size() -> [u32; 2] {
@@ -456,6 +507,14 @@ impl PxlConfig {
             });
         }
 
+        // Validate defaults.antialias
+        if !(0.0..=1.0).contains(&self.defaults.antialias.edge_threshold) {
+            errors.push(ConfigValidationError {
+                field: "defaults.antialias.edge_threshold".to_string(),
+                message: "must be between 0.0 and 1.0".to_string(),
+            });
+        }
+
         // Validate atlases
         for (name, atlas) in &self.atlases {
             if atlas.sources.is_empty() {
@@ -470,6 +529,15 @@ impl PxlConfig {
                     field: format!("atlases.{}.max_size", name),
                     message: "dimensions must be positive".to_string(),
                 });
+            }
+
+            if let Some(ref aa) = atlas.antialias {
+                if !(0.0..=1.0).contains(&aa.edge_threshold) {
+                    errors.push(ConfigValidationError {
+                        field: format!("atlases.{}.antialias.edge_threshold", name),
+                        message: "must be between 0.0 and 1.0".to_string(),
+                    });
+                }
             }
         }
 
@@ -500,6 +568,11 @@ impl PxlConfig {
     /// Get effective padding for an atlas (atlas-specific or default)
     pub fn effective_padding(&self, atlas: &AtlasConfig) -> u32 {
         atlas.padding.unwrap_or(self.defaults.padding)
+    }
+
+    /// Get effective antialias config for an atlas (atlas-specific or default)
+    pub fn effective_antialias<'a>(&'a self, atlas: &'a AtlasConfig) -> &'a AntialiasConfig {
+        atlas.antialias.as_ref().unwrap_or(&self.defaults.antialias)
     }
 }
 
@@ -821,5 +894,136 @@ name = "test"
         assert!(!config.validate.allow_overflow);
         assert!(!config.validate.allow_orphans);
         assert!(!config.validate.allow_cycles);
+    }
+
+    #[test]
+    fn test_antialias_config_defaults() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(!config.defaults.antialias.enabled);
+        assert_eq!(config.defaults.antialias.mode, AntialiasMode::None);
+        assert!((config.defaults.antialias.edge_threshold - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_antialias_config_explicit() {
+        let toml = r#"
+[project]
+name = "test"
+
+[defaults.antialias]
+enabled = true
+mode = "semantic"
+edge_threshold = 0.75
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert!(config.defaults.antialias.enabled);
+        assert_eq!(config.defaults.antialias.mode, AntialiasMode::Semantic);
+        assert!((config.defaults.antialias.edge_threshold - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_antialias_mode_serde() {
+        let toml = r#"
+[project]
+name = "test"
+
+[defaults.antialias]
+mode = "edge"
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.defaults.antialias.mode, AntialiasMode::Edge);
+    }
+
+    #[test]
+    fn test_atlas_antialias_config() {
+        let toml = r#"
+[project]
+name = "test"
+
+[atlases.sprites]
+sources = ["sprites/**"]
+
+[atlases.sprites.antialias]
+enabled = true
+mode = "semantic"
+edge_threshold = 0.6
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let atlas = config.atlases.get("sprites").unwrap();
+        let aa = atlas.antialias.as_ref().unwrap();
+        assert!(aa.enabled);
+        assert_eq!(aa.mode, AntialiasMode::Semantic);
+        assert!((aa.edge_threshold - 0.6).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_effective_antialias() {
+        let toml = r#"
+[project]
+name = "test"
+
+[defaults.antialias]
+enabled = true
+mode = "edge"
+edge_threshold = 0.4
+
+[atlases.with_aa]
+sources = ["a/**"]
+
+[atlases.with_aa.antialias]
+enabled = true
+mode = "semantic"
+edge_threshold = 0.8
+
+[atlases.without_aa]
+sources = ["b/**"]
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+
+        let with = config.atlases.get("with_aa").unwrap();
+        let without = config.atlases.get("without_aa").unwrap();
+
+        let aa_with = config.effective_antialias(with);
+        assert_eq!(aa_with.mode, AntialiasMode::Semantic);
+        assert!((aa_with.edge_threshold - 0.8).abs() < 0.001);
+
+        let aa_without = config.effective_antialias(without);
+        assert_eq!(aa_without.mode, AntialiasMode::Edge);
+        assert!((aa_without.edge_threshold - 0.4).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_validation_invalid_edge_threshold_defaults() {
+        let toml = r#"
+[project]
+name = "test"
+
+[defaults.antialias]
+edge_threshold = 1.5
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let errors = config.validate();
+        assert!(errors.iter().any(|e| e.field == "defaults.antialias.edge_threshold"));
+    }
+
+    #[test]
+    fn test_validation_invalid_edge_threshold_atlas() {
+        let toml = r#"
+[project]
+name = "test"
+
+[atlases.bad]
+sources = ["sprites/**"]
+
+[atlases.bad.antialias]
+edge_threshold = -0.1
+"#;
+        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let errors = config.validate();
+        assert!(errors.iter().any(|e| e.field == "atlases.bad.antialias.edge_threshold"));
     }
 }
