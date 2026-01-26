@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::analyze::{
-    detect_symmetry, infer_relationships_batch, infer_roles_batch, RegionData,
+    detect_symmetry, infer_relationships_batch, infer_roles_batch, RegionData, RegionMap,
     RoleInferenceContext, Symmetric,
 };
 use crate::models::{RelationshipType, Role};
@@ -519,7 +519,7 @@ fn perform_analysis(
 
     // Prepare data for role inference
     let ctx = RoleInferenceContext::new(width, height);
-    let role_input: HashMap<String, (HashSet<(i32, i32)>, Option<[u8; 4]>)> = token_pixels
+    let role_input: RegionMap = token_pixels
         .iter()
         .map(|(token, pixels)| {
             let color = token_to_color.get(token).copied();

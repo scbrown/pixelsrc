@@ -4,6 +4,9 @@ use std::collections::HashSet;
 
 use crate::shapes;
 
+/// Type alias for line match candidates: (start_point, end_point, confidence).
+type LineMatchCandidate = ((i32, i32), (i32, i32), f64);
+
 /// Result of shape detection with confidence score.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapeDetection<T> {
@@ -223,7 +226,7 @@ pub fn detect_line(pixels: &HashSet<(i32, i32)>) -> Option<ShapeDetection<Vec<[i
     }
 
     // Try all pairs of candidates to find the best line fit
-    let mut best_match: Option<((i32, i32), (i32, i32), f64)> = None;
+    let mut best_match: Option<LineMatchCandidate> = None;
 
     for i in 0..candidates.len() {
         for j in (i + 1)..candidates.len() {
@@ -428,15 +431,15 @@ pub(crate) fn extract_polygon_vertices(pixels: &HashSet<(i32, i32)>) -> Vec<[i32
     // Sort remaining points by polar angle from start
     points[1..].sort_by(|a, b| {
         let cross = cross_product(start, *a, *b);
-        if cross == 0 {
-            // Collinear - sort by distance
-            let dist_a = (a.0 - start.0).pow(2) + (a.1 - start.1).pow(2);
-            let dist_b = (b.0 - start.0).pow(2) + (b.1 - start.1).pow(2);
-            dist_a.cmp(&dist_b)
-        } else if cross > 0 {
-            std::cmp::Ordering::Less
-        } else {
-            std::cmp::Ordering::Greater
+        match cross.cmp(&0) {
+            std::cmp::Ordering::Equal => {
+                // Collinear - sort by distance
+                let dist_a = (a.0 - start.0).pow(2) + (a.1 - start.1).pow(2);
+                let dist_b = (b.0 - start.0).pow(2) + (b.1 - start.1).pow(2);
+                dist_a.cmp(&dist_b)
+            }
+            std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
+            std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
         }
     });
 

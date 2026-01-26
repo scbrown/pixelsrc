@@ -273,7 +273,7 @@ fn yuv_difference(a: &Rgba<u8>, b: &Rgba<u8>) -> f32 {
     let v = -r_diff * 0.169 - g_diff * 0.331 + b_diff * 0.500;
 
     // Return weighted magnitude
-    (y.abs() * 2.0 + u.abs() + v.abs())
+    y.abs() * 2.0 + u.abs() + v.abs()
 }
 
 /// Interpolate a 2x2 block using HQ2x rules.
