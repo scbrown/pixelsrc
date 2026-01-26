@@ -49,6 +49,10 @@ fn build_atlas_metadata(jsonl: &str) -> AtlasMetadata {
         animations: HashMap::new(),
     }
 }
+
+/// @demo export/atlas#unity
+/// @title Unity Atlas Export
+/// @description Export atlas metadata to Unity format for UI components.
 #[test]
 fn test_atlas_unity_export() {
     let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
@@ -65,6 +69,10 @@ fn test_atlas_unity_export() {
     // Verify frame count
     assert_eq!(metadata.frames.len(), 4, "Should have 4 UI sprite frames");
 }
+
+/// @demo export/atlas#unity_files
+/// @title Unity Export File Generation
+/// @description Generates JSON metadata and .meta texture import settings.
 #[test]
 fn test_atlas_unity_file_generation() {
     let jsonl = include_str!("../../../examples/demos/exports/atlas_unity.jsonl");
@@ -84,6 +92,8 @@ fn test_atlas_unity_file_generation() {
     // Verify file count (JSON + meta, no .anim since no animations in fixture)
     assert!(outputs.len() >= 2, "Should generate at least 2 files");
 }
+
+/// @demo export/atlas#unity_meta
 /// @title Unity Texture Meta File
 /// @description Verify .meta file contains TextureImporter settings with sprite slices.
 #[test]
@@ -110,6 +120,8 @@ fn test_atlas_unity_meta_content() {
     assert!(meta_content.contains("button_pressed"), "Should contain button_pressed sprite");
     assert!(meta_content.contains("icon_check"), "Should contain icon_check sprite");
 }
+
+/// @demo export/atlas#unity_filter
 /// @title Unity Export Filter Modes
 /// @description Configure texture filtering for different use cases.
 #[test]
@@ -133,6 +145,10 @@ fn test_atlas_unity_filter_modes() {
 
     assert!(json_tri.contains("\"filterMode\": \"Trilinear\""), "Should use trilinear filtering");
 }
+
+/// @demo export/atlas#unity_config
+/// @title Unity Exporter Configuration
+/// @description Configure Unity exporter with custom options.
 #[test]
 fn test_atlas_unity_exporter_config() {
     let exporter = UnityExporter::new()
