@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::antialias::{AAAlgorithm, AnchorMode};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
 use crate::gif::render_gif;
@@ -39,6 +40,11 @@ pub fn run_render(
     padding: u32,
     power_of_two: bool,
     nine_slice_arg: Option<&str>,
+    _antialias: Option<AAAlgorithm>,
+    _aa_strength: f32,
+    _anchor_mode: AnchorMode,
+    _no_semantic_aa: bool,
+    _gradient_shadows: bool,
 ) -> ExitCode {
     // Parse nine-slice target size if provided
     let nine_slice_size = if let Some(size_str) = nine_slice_arg {

@@ -9,6 +9,7 @@
 //! - [`context`] - Semantic context extraction from palette roles/relationships
 //! - [`gradient`] - Gradient smoothing for shadow/highlight transitions
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -25,7 +26,7 @@ use std::collections::HashMap;
 /// | `xbr2x` | 2x | Best | Slower |
 /// | `xbr4x` | 4x | Best | Slower |
 /// | `aa-blur` | Any | Subtle | Fast |
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum AAAlgorithm {
     /// No antialiasing (passthrough), default behavior
@@ -43,6 +44,7 @@ pub enum AAAlgorithm {
     Xbr4x,
     /// Gaussian blur with semantic masking
     #[serde(rename = "aa-blur")]
+    #[value(name = "aa-blur")]
     AaBlur,
 }
 
@@ -97,7 +99,7 @@ impl std::fmt::Display for AAAlgorithm {
 ///
 /// Anchors are typically small, important details that should remain crisp.
 /// This enum controls the antialiasing strength applied to them.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum AnchorMode {
     /// No antialiasing on anchor regions (default) - keeps details crisp

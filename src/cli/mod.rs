@@ -129,6 +129,26 @@ pub enum Commands {
         /// Requires sprite to have nine_slice attribute defined
         #[arg(long)]
         nine_slice: Option<String>,
+
+        /// Apply antialiasing algorithm (nearest, scale2x, hq2x, hq4x, xbr2x, xbr4x, aa-blur)
+        #[arg(long, value_enum)]
+        antialias: Option<crate::antialias::AAAlgorithm>,
+
+        /// Antialiasing strength 0.0-1.0 (default: 0.5)
+        #[arg(long, default_value = "0.5", value_parser = clap::value_parser!(f32))]
+        aa_strength: f32,
+
+        /// How to handle anchor regions during antialiasing (preserve, reduce, normal)
+        #[arg(long, value_enum, default_value = "preserve")]
+        anchor_mode: crate::antialias::AnchorMode,
+
+        /// Disable semantic awareness (apply antialiasing globally without role-based decisions)
+        #[arg(long)]
+        no_semantic_aa: bool,
+
+        /// Enable gradient smoothing for shadow/highlight transitions (DerivesFrom relationships)
+        #[arg(long)]
+        gradient_shadows: bool,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -460,6 +480,11 @@ pub fn run() -> ExitCode {
             padding,
             power_of_two,
             nine_slice,
+            antialias,
+            aa_strength,
+            anchor_mode,
+            no_semantic_aa,
+            gradient_shadows,
         } => render::run_render(
             &input,
             output.as_deref(),
@@ -476,6 +501,11 @@ pub fn run() -> ExitCode {
             padding,
             power_of_two,
             nine_slice.as_deref(),
+            antialias,
+            aa_strength,
+            anchor_mode,
+            no_semantic_aa,
+            gradient_shadows,
         ),
         Commands::Import {
             input,
