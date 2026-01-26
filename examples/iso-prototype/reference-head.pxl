@@ -1060,6 +1060,98 @@
 }
 
 // ============================================================================
+// EYEBROW STYLE OVERLAYS (swappable brow styles)
+// ============================================================================
+// These overlay the base brows with different style variations.
+// Use in compositions to swap between brow styles.
+
+// Neutral eyebrows (same as base, extracted for explicit swapping)
+{
+  "type": "sprite",
+  "name": "brows_neutral",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base brows
+    "skin": { "rect": [6, 13, 20, 4], "z": 10 },
+    // Standard neutral position (matches head_base default)
+    "brow": { "line": [[18, 14], [25, 15]], "symmetric": "x", "z": 11 }
+  }
+}
+
+// Thick eyebrows (bolder, more prominent)
+{
+  "type": "sprite",
+  "name": "brows_thick",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base brows
+    "skin": { "rect": [6, 12, 20, 6], "z": 10 },
+    // Thick brows using polygon for 2-pixel height
+    "brow": {
+      "polygon": [[18, 13], [25, 14], [25, 16], [18, 15]],
+      "symmetric": "x",
+      "z": 11
+    }
+  }
+}
+
+// Thin eyebrows (delicate, single pixel)
+{
+  "type": "sprite",
+  "name": "brows_thin",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base brows
+    "skin": { "rect": [6, 13, 20, 4], "z": 10 },
+    // Thin brows - shorter, more refined
+    "brow": { "line": [[19, 14], [24, 15]], "symmetric": "x", "z": 11 }
+  }
+}
+
+// Arched eyebrows (curved upward in middle)
+{
+  "type": "sprite",
+  "name": "brows_arched",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base brows
+    "skin": { "rect": [6, 12, 20, 6], "z": 10 },
+    // Arched brows using path for curve
+    "brow": {
+      "polygon": [[18, 15], [20, 13], [23, 13], [25, 15]],
+      "symmetric": "x",
+      "z": 11
+    }
+  }
+}
+
+// Bushy eyebrows (thick and textured)
+{
+  "type": "sprite",
+  "name": "brows_bushy",
+  "size": [32, 40],
+  "palette": "head_pal",
+  "regions": {
+    // Cover base brows
+    "skin": { "rect": [6, 11, 20, 7], "z": 10 },
+    // Bushy brows - thick polygon base
+    "brow": {
+      "union": [
+        { "polygon": [[17, 13], [25, 13], [26, 16], [17, 16]] },
+        // Stray hairs for texture
+        { "points": [[17, 12], [19, 12], [22, 12], [24, 12], [26, 14]] }
+      ],
+      "symmetric": "x",
+      "z": 11
+    }
+  }
+}
+
+// ============================================================================
 // BLUSH/EMOTION OVERLAYS
 // ============================================================================
 
@@ -1330,6 +1422,62 @@
     { "map": ["B"] },
     { "map": ["L"] },
     { "map": ["H"] }
+  ]
+}
+
+// Head with thick eyebrows
+{
+  "type": "composition",
+  "name": "head_thick_brows",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "brows_thick" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
+// Head with thin eyebrows
+{
+  "type": "composition",
+  "name": "head_thin_brows",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "brows_thin" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
+// Head with arched eyebrows
+{
+  "type": "composition",
+  "name": "head_arched_brows",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "brows_arched" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
+  ]
+}
+
+// Head with bushy eyebrows
+{
+  "type": "composition",
+  "name": "head_bushy_brows",
+  "size": [32, 40],
+  "cell_size": [32, 40],
+  "sprites": { "B": "head_base", "H": "hair_short", "E": "brows_bushy" },
+  "layers": [
+    { "map": ["B"] },
+    { "map": ["H"] },
+    { "map": ["E"] }
   ]
 }
 
