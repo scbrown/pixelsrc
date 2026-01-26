@@ -9,7 +9,9 @@ use pixelsrc::lsp_agent_client::LspAgentClient;
 // ============================================================================
 // Agent Verify Subcommand Tests
 // ============================================================================
-/// Tests verify subcommand functionality (mirrors agent-verify but via subcommand)
+/// @demo cli/agent#verify_valid
+/// @title Agent Verify Returns Valid
+/// @description Tests verify subcommand functionality (mirrors agent-verify but via subcommand).
 #[test]
 fn test_agent_verify_returns_valid_result() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}
@@ -22,6 +24,9 @@ fn test_agent_verify_returns_valid_result() {
     assert_eq!(result.error_count, 0);
 }
 
+/// @demo cli/agent#verify_strict
+/// @title Agent Verify Strict Mode
+/// @description Compare strict vs non-strict verification modes.
 #[test]
 fn test_agent_verify_strict_mode() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}
@@ -48,6 +53,9 @@ fn test_agent_verify_strict_mode() {
 // ============================================================================
 // Agent Completions Subcommand Tests
 // ============================================================================
+/// @demo cli/agent#completions_at_line
+/// @title Completions at Line
+/// @description Get completions at a specific line including palette tokens.
 #[test]
 fn test_agent_completions_at_line() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{a}": "#FF0000", "{b}": "#00FF00"}}
@@ -64,6 +72,9 @@ fn test_agent_completions_at_line() {
     assert!(labels.contains(&"{b}"));
 }
 
+/// @demo cli/agent#completions_builtin
+/// @title Completions Include Builtins
+/// @description Completions always include built-in tokens like {_} and dot shorthand.
 #[test]
 fn test_agent_completions_includes_builtin() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##;
@@ -77,6 +88,9 @@ fn test_agent_completions_includes_builtin() {
     assert!(labels.contains(&"."), "Should include dot shorthand");
 }
 
+/// @demo cli/agent#completions_json
+/// @title Completions JSON Output
+/// @description Completions can be returned as valid JSON for programmatic use.
 #[test]
 fn test_agent_completions_json_output() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##;
@@ -93,6 +107,9 @@ fn test_agent_completions_json_output() {
     assert!(parsed["items"].is_array(), "items should be an array");
 }
 
+/// @demo cli/agent#completions_different_lines
+/// @title Completions on Different Lines
+/// @description Completions work for palette and sprite lines with correct context.
 #[test]
 fn test_agent_completions_different_lines() {
     let content = r##"{"type": "palette", "name": "colors", "colors": {"{skin}": "#FFCC99", "{hair}": "#442200"}}
@@ -116,6 +133,9 @@ fn test_agent_completions_different_lines() {
 // Note: Position info works with legacy grid format, not regions format
 // The regions format doesn't have inline grid definitions to query positions in
 
+/// @demo cli/agent#position_outside_grid
+/// @title Position Outside Grid
+/// @description Position queries on regions-format content return None.
 #[test]
 fn test_agent_position_outside_grid() {
     // Using regions format - no grid positions available
@@ -128,6 +148,9 @@ fn test_agent_position_outside_grid() {
     assert!(result.is_none(), "Regions format doesn't have grid positions");
 }
 
+/// @demo cli/agent#position_invalid_line
+/// @title Position Invalid Line
+/// @description Position queries on invalid lines return None.
 #[test]
 fn test_agent_position_invalid_line() {
     let content = r##"{"type": "sprite", "name": "test"}"##;
@@ -146,6 +169,9 @@ fn test_agent_position_invalid_line() {
 // ============================================================================
 // Integration Tests
 // ============================================================================
+/// @demo cli/agent#workflow_verify_complete
+/// @title Verify Then Complete Workflow
+/// @description Simulate a typical agent workflow: verify content, then get completions.
 #[test]
 fn test_agent_workflow_verify_then_complete() {
     // Simulate a typical agent workflow: verify content, then get completions
@@ -168,6 +194,9 @@ fn test_agent_workflow_verify_then_complete() {
     assert!(labels.contains(&"{accent}"));
 }
 
+/// @demo cli/agent#workflow_with_errors
+/// @title Workflow with Errors
+/// @description Agent workflow handles content with intentional issues.
 #[test]
 fn test_agent_workflow_with_errors() {
     // Content with intentional issues
@@ -187,6 +216,9 @@ fn test_agent_workflow_with_errors() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/agent#multiline_content
+/// @title Multiline Content
+/// @description Agent handles multiple object definitions in content.
 #[test]
 fn test_agent_with_multiline_content() {
     let content = r##"{"type": "palette", "name": "p1", "colors": {"{a}": "#FF0000"}}
@@ -201,6 +233,9 @@ fn test_agent_with_multiline_content() {
     assert!(result.valid);
 }
 
+/// @demo cli/agent#completions_no_palettes
+/// @title Completions Without Named Palettes
+/// @description Completions work with inline palettes and include built-ins.
 #[test]
 fn test_agent_completions_with_no_palettes() {
     let content = r##"{"type": "sprite", "name": "inline", "palette": {"x": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
@@ -213,6 +248,9 @@ fn test_agent_completions_with_no_palettes() {
     assert!(labels.contains(&"{_}"));
 }
 
+/// @demo cli/agent#verify_css_variables
+/// @title Verify CSS Variables
+/// @description CSS variables (--name) are allowed in palette definitions.
 #[test]
 fn test_agent_verify_with_css_variables() {
     // CSS variables (--name) are allowed in palette definitions

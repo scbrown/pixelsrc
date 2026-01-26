@@ -8,6 +8,9 @@ use pixelsrc::lsp_agent_client::LspAgentClient;
 // ============================================================================
 // Basic Verification Tests
 // ============================================================================
+/// @demo cli/agent-verify#valid_sprite
+/// @title Verify Valid Sprite
+/// @description Valid content passes verification with no errors.
 #[test]
 fn test_verify_valid_sprite() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
@@ -20,6 +23,9 @@ fn test_verify_valid_sprite() {
     assert_eq!(result.error_count, 0, "Should have no errors");
 }
 
+/// @demo cli/agent-verify#invalid_json
+/// @title Verify Invalid JSON
+/// @description Invalid JSON syntax fails verification with errors.
 #[test]
 fn test_verify_invalid_json() {
     let content = r#"{"type": "sprite", "name": "test" missing_comma: true}"#;
@@ -31,6 +37,9 @@ fn test_verify_invalid_json() {
     assert!(result.error_count > 0, "Should have errors");
 }
 
+/// @demo cli/agent-verify#missing_palette
+/// @title Verify Missing Palette
+/// @description Missing palette reference produces error or warning.
 #[test]
 fn test_verify_missing_palette() {
     let content = r##"{"type": "sprite", "name": "test", "palette": "nonexistent", "size": [2, 2], "regions": {"x": {"points": [[0,0]]}}}"##;
@@ -45,6 +54,9 @@ fn test_verify_missing_palette() {
 // ============================================================================
 // Strict Mode Tests
 // ============================================================================
+/// @demo cli/agent-verify#strict_fails_warnings
+/// @title Strict Mode Fails on Warnings
+/// @description In strict mode, warnings cause verification to fail.
 #[test]
 fn test_strict_mode_fails_on_warnings() {
     // Content that might produce warnings but no errors
@@ -60,6 +72,9 @@ fn test_strict_mode_fails_on_warnings() {
     }
 }
 
+/// @demo cli/agent-verify#non_strict_warnings
+/// @title Non-Strict Mode Passes with Warnings
+/// @description Non-strict mode is valid even with warnings if no errors.
 #[test]
 fn test_non_strict_mode_passes_with_warnings() {
     // Content that might produce warnings
@@ -78,6 +93,9 @@ fn test_non_strict_mode_passes_with_warnings() {
 // ============================================================================
 // Completion Tests
 // ============================================================================
+/// @demo cli/agent-verify#completions_defined_tokens
+/// @title Completions Include Defined Tokens
+/// @description Completions include tokens defined in palette.
 #[test]
 fn test_get_completions_includes_defined_tokens() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000", "{blue}": "#0000FF"}}
@@ -92,6 +110,9 @@ fn test_get_completions_includes_defined_tokens() {
     assert!(labels.contains(&"{blue}"), "Should include blue token");
 }
 
+/// @demo cli/agent-verify#completions_builtin_transparent
+/// @title Completions Include Builtin Transparent
+/// @description Completions always include {_} and dot shorthand.
 #[test]
 fn test_get_completions_includes_builtin_transparent() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##;
@@ -105,6 +126,9 @@ fn test_get_completions_includes_builtin_transparent() {
     assert!(labels.contains(&"."), "Should include dot shorthand for transparent");
 }
 
+/// @demo cli/agent-verify#completion_color_details
+/// @title Completion Items Have Color Details
+/// @description Completion items include color value details.
 #[test]
 fn test_completion_items_have_color_details() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{red}": "#FF0000"}}"##;
@@ -126,6 +150,9 @@ fn test_completion_items_have_color_details() {
 // ============================================================================
 // Color Resolution Tests
 // ============================================================================
+/// @demo cli/agent-verify#resolve_css_variables
+/// @title Resolve CSS Variables
+/// @description CSS variables like var(--base) are resolved to actual colors.
 #[test]
 fn test_resolve_css_variables() {
     let content = r##"{"type": "palette", "name": "css", "colors": {"--base": "#FF6347", "{skin}": "var(--base)"}}"##;
@@ -143,6 +170,9 @@ fn test_resolve_css_variables() {
     }
 }
 
+/// @demo cli/agent-verify#resolve_color_mix
+/// @title Resolve Color Mix
+/// @description CSS color-mix() function is resolved to resulting color.
 #[test]
 fn test_resolve_color_mix() {
     let content = r##"{"type": "palette", "name": "mix", "colors": {"{blend}": "color-mix(in srgb, #FF0000, #0000FF)"}}"##;
@@ -160,6 +190,9 @@ fn test_resolve_color_mix() {
     }
 }
 
+/// @demo cli/agent-verify#resolve_marks_variables
+/// @title Resolve Colors Marks Variables
+/// @description CSS variables are distinguished from regular tokens.
 #[test]
 fn test_resolve_colors_marks_variables() {
     let content = r##"{"type": "palette", "name": "vars", "colors": {"--primary": "#FF0000", "{token}": "#00FF00"}}"##;
@@ -183,6 +216,9 @@ fn test_resolve_colors_marks_variables() {
 // ============================================================================
 // Timing Analysis Tests
 // ============================================================================
+/// @demo cli/agent-verify#timing_named_functions
+/// @title Analyze Named Timing Functions
+/// @description Named timing functions like ease-in-out are analyzed.
 #[test]
 fn test_analyze_timing_named_functions() {
     let content = r#"{"type": "animation", "name": "walk", "frames": [{"sprite": "f1"}], "timing_function": "ease-in-out", "fps": 12}"#;
@@ -198,6 +234,9 @@ fn test_analyze_timing_named_functions() {
     assert!(!walk.description.is_empty(), "Should have description");
 }
 
+/// @demo cli/agent-verify#timing_cubic_bezier
+/// @title Analyze Cubic Bezier Timing
+/// @description Custom cubic-bezier timing functions are analyzed.
 #[test]
 fn test_analyze_timing_cubic_bezier() {
     let content = r#"{"type": "animation", "name": "bounce", "frames": [{"sprite": "f1"}], "timing_function": "cubic-bezier(0.68, -0.55, 0.27, 1.55)", "fps": 8}"#;
@@ -214,6 +253,9 @@ fn test_analyze_timing_cubic_bezier() {
     }
 }
 
+/// @demo cli/agent-verify#timing_steps
+/// @title Analyze Steps Timing
+/// @description Steps timing function with jump modes is analyzed.
 #[test]
 fn test_analyze_timing_steps() {
     let content = r#"{"type": "animation", "name": "step_anim", "frames": [{"sprite": "f1"}], "timing_function": "steps(4, end)", "fps": 6}"#;
@@ -233,6 +275,9 @@ fn test_analyze_timing_steps() {
 // ============================================================================
 // JSON Output Tests
 // ============================================================================
+/// @demo cli/agent-verify#json_verify
+/// @title Verify Content JSON Format
+/// @description Verification results can be output as valid JSON.
 #[test]
 fn test_verify_content_json_format() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##;
@@ -249,6 +294,9 @@ fn test_verify_content_json_format() {
     assert!(parsed.get("error_count").is_some(), "Should have 'error_count' field");
 }
 
+/// @demo cli/agent-verify#json_resolve_colors
+/// @title Resolve Colors JSON Format
+/// @description Color resolution results can be output as valid JSON.
 #[test]
 fn test_resolve_colors_json_format() {
     let content = r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##;
@@ -267,6 +315,9 @@ fn test_resolve_colors_json_format() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/agent-verify#empty_content
+/// @title Verify Empty Content
+/// @description Empty content is valid with no errors.
 #[test]
 fn test_verify_empty_content() {
     let client = LspAgentClient::new();
@@ -277,6 +328,9 @@ fn test_verify_empty_content() {
     assert_eq!(result.error_count, 0);
 }
 
+/// @demo cli/agent-verify#completions_empty
+/// @title Completions on Empty Content
+/// @description Empty content still returns built-in completions.
 #[test]
 fn test_completions_on_empty_content() {
     let client = LspAgentClient::new();
@@ -286,6 +340,9 @@ fn test_completions_on_empty_content() {
     assert!(!result.items.is_empty(), "Should have built-in completions");
 }
 
+/// @demo cli/agent-verify#builder_pattern
+/// @title Client Builder Pattern
+/// @description LspAgentClient supports builder pattern configuration.
 #[test]
 fn test_client_builder_pattern() {
     let client = LspAgentClient::new().with_strict(true);

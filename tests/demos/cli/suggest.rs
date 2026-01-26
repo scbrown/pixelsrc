@@ -9,6 +9,9 @@ use std::io::Cursor;
 // ============================================================================
 // Typo Suggestion Tests
 // ============================================================================
+/// @demo cli/suggest#typo_correction
+/// @title Typo Correction Suggestion
+/// @description Suggests similar tokens for likely typos.
 #[test]
 fn test_suggest_typo_correction() {
     let candidates = vec!["skin", "hair", "shirt", "shadow"];
@@ -18,6 +21,10 @@ fn test_suggest_typo_correction() {
 
     assert!(suggestions.contains(&"skin"), "Should suggest 'skin' for typo 'shin'");
 }
+
+/// @demo cli/suggest#distance_threshold
+/// @title Suggestion Distance Threshold
+/// @description Only suggests within specified edit distance.
 #[test]
 fn test_suggest_distance_threshold() {
     let candidates = vec!["red", "green", "blue", "yellow"];
@@ -30,6 +37,10 @@ fn test_suggest_distance_threshold() {
     let far_suggestions = suggest("xyz", &candidates, 2);
     assert!(far_suggestions.is_empty(), "Should not suggest anything for very different input");
 }
+
+/// @demo cli/suggest#format
+/// @title Format Suggestions
+/// @description Formats suggestions for human-readable output.
 #[test]
 fn test_format_suggestions() {
     let candidates = vec!["skin", "shadow"];
@@ -43,13 +54,9 @@ fn test_format_suggestions() {
 }
 
 // ============================================================================
-// Missing Token Detection Tests
-// ============================================================================
-/// @title Missing Token Fix Suggestion
-/// @description Suggests adding the missing token to the palette with a color.// ============================================================================
-// ============================================================================
 // Report Tests
 // ============================================================================
+/// @demo cli/suggest#filter_by_type
 /// @title Filter Suggestions by Type
 /// @description Can filter suggestions to only show specific types.
 #[test]
@@ -72,6 +79,9 @@ fn test_suggest_filter_by_type() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/suggest#no_suggestions
+/// @title No Suggestions for Valid File
+/// @description Valid file produces no suggestions.
 #[test]
 fn test_suggest_no_suggestions_valid_file() {
     let jsonl = r##"{"type": "palette", "name": "colors", "colors": {"{x}": "#FF0000", "{y}": "#00FF00"}}
@@ -83,6 +93,8 @@ fn test_suggest_no_suggestions_valid_file() {
 
     assert!(!report.has_suggestions(), "Valid file should have no suggestions");
 }
+
+/// @demo cli/suggest#line_numbers
 /// @title Suggestion Line Numbers
 /// @description Suggestions include accurate line numbers for locating issues.
 #[test]

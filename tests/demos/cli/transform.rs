@@ -12,18 +12,27 @@ use pixelsrc::transforms::{
 // ============================================================================
 // Transform Parsing Tests
 // ============================================================================
+/// @demo cli/transform#parse_mirror_h
+/// @title Parse Mirror Horizontal
+/// @description Parses mirror-h transform string.
 #[test]
 fn test_parse_mirror_horizontal() {
     let transform = parse_transform_str("mirror-h").unwrap();
     assert_eq!(transform, Transform::MirrorH);
 }
 
+/// @demo cli/transform#parse_mirror_v
+/// @title Parse Mirror Vertical
+/// @description Parses mirror-v transform string.
 #[test]
 fn test_parse_mirror_vertical() {
     let transform = parse_transform_str("mirror-v").unwrap();
     assert_eq!(transform, Transform::MirrorV);
 }
 
+/// @demo cli/transform#parse_rotate
+/// @title Parse Rotate Transform
+/// @description Parses rotate:90, rotate:180, rotate:270 transforms.
 #[test]
 fn test_parse_rotate() {
     let t90 = parse_transform_str("rotate:90").unwrap();
@@ -36,36 +45,54 @@ fn test_parse_rotate() {
     assert_eq!(t270, Transform::Rotate { degrees: 270 });
 }
 
+/// @demo cli/transform#parse_tile
+/// @title Parse Tile Transform
+/// @description Parses tile:WxH transform string.
 #[test]
 fn test_parse_tile() {
     let transform = parse_transform_str("tile:2x3").unwrap();
     assert_eq!(transform, Transform::Tile { w: 2, h: 3 });
 }
 
+/// @demo cli/transform#parse_pad
+/// @title Parse Pad Transform
+/// @description Parses pad:N transform string.
 #[test]
 fn test_parse_pad() {
     let transform = parse_transform_str("pad:4").unwrap();
     assert_eq!(transform, Transform::Pad { size: 4 });
 }
 
+/// @demo cli/transform#parse_crop
+/// @title Parse Crop Transform
+/// @description Parses crop:x,y,w,h transform string.
 #[test]
 fn test_parse_crop() {
     let transform = parse_transform_str("crop:0,0,10,10").unwrap();
     assert_eq!(transform, Transform::Crop { x: 0, y: 0, w: 10, h: 10 });
 }
 
+/// @demo cli/transform#parse_shift
+/// @title Parse Shift Transform
+/// @description Parses shift:x,y transform string.
 #[test]
 fn test_parse_shift() {
     let transform = parse_transform_str("shift:5,-3").unwrap();
     assert_eq!(transform, Transform::Shift { x: 5, y: -3 });
 }
 
+/// @demo cli/transform#parse_scale
+/// @title Parse Scale Transform
+/// @description Parses scale:x,y transform string.
 #[test]
 fn test_parse_scale() {
     let transform = parse_transform_str("scale:2.0,1.5").unwrap();
     assert_eq!(transform, Transform::Scale { x: 2.0, y: 1.5 });
 }
 
+/// @demo cli/transform#parse_flip_aliases
+/// @title Parse Flip Aliases
+/// @description flip-h and flip-v are aliases for mirror transforms.
 #[test]
 fn test_parse_flip_aliases() {
     // flip-h is alias for mirror-h
@@ -80,7 +107,7 @@ fn test_parse_flip_aliases() {
 // ============================================================================
 // Transform Application Tests
 // ============================================================================
-/// Helper to create a simple test image (2x2 with distinct pixel colors)
+/// Helper to create a simple test image (2x2 with distinct pixel colors).
 fn create_test_image() -> RgbaImage {
     let mut img = RgbaImage::new(2, 2);
     img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255])); // Red top-left
@@ -90,6 +117,9 @@ fn create_test_image() -> RgbaImage {
     img
 }
 
+/// @demo cli/transform#apply_mirror_h
+/// @title Apply Mirror Horizontal
+/// @description Flips image left-to-right.
 #[test]
 fn test_apply_mirror_horizontal() {
     let img = create_test_image();
@@ -100,6 +130,9 @@ fn test_apply_mirror_horizontal() {
     assert_eq!(result.get_pixel(1, 0), &image::Rgba([255, 0, 0, 255])); // Was top-left (red)
 }
 
+/// @demo cli/transform#apply_mirror_v
+/// @title Apply Mirror Vertical
+/// @description Flips image top-to-bottom.
 #[test]
 fn test_apply_mirror_vertical() {
     let img = create_test_image();
@@ -110,6 +143,9 @@ fn test_apply_mirror_vertical() {
     assert_eq!(result.get_pixel(0, 1), &image::Rgba([255, 0, 0, 255])); // Was top-left (red)
 }
 
+/// @demo cli/transform#apply_rotate_90
+/// @title Apply Rotate 90 Degrees
+/// @description Rotates image 90 degrees clockwise.
 #[test]
 fn test_apply_rotate_90() {
     let img = create_test_image();
@@ -122,6 +158,9 @@ fn test_apply_rotate_90() {
     assert_eq!(result.get_pixel(1, 0), &image::Rgba([255, 0, 0, 255])); // Was top-left (red)
 }
 
+/// @demo cli/transform#apply_rotate_180
+/// @title Apply Rotate 180 Degrees
+/// @description Rotates image 180 degrees.
 #[test]
 fn test_apply_rotate_180() {
     let img = create_test_image();
@@ -132,6 +171,9 @@ fn test_apply_rotate_180() {
     assert_eq!(result.get_pixel(1, 1), &image::Rgba([255, 0, 0, 255])); // Was top-left (red)
 }
 
+/// @demo cli/transform#apply_tile
+/// @title Apply Tile Transform
+/// @description Tiles image WxH times.
 #[test]
 fn test_apply_tile() {
     let img = create_test_image();
@@ -145,6 +187,9 @@ fn test_apply_tile() {
     assert_eq!(result.get_pixel(0, 0), result.get_pixel(0, 2)); // And vertically
 }
 
+/// @demo cli/transform#apply_pad
+/// @title Apply Pad Transform
+/// @description Adds transparent padding around image.
 #[test]
 fn test_apply_pad() {
     let img = create_test_image();
@@ -160,6 +205,9 @@ fn test_apply_pad() {
     assert_eq!(result.get_pixel(0, 0), &image::Rgba([0, 0, 0, 0]));
 }
 
+/// @demo cli/transform#apply_crop
+/// @title Apply Crop Transform
+/// @description Crops image to specified region.
 #[test]
 fn test_apply_crop() {
     // Create a 4x4 image
@@ -177,6 +225,9 @@ fn test_apply_crop() {
     assert_eq!(result.dimensions(), (2, 2));
 }
 
+/// @demo cli/transform#apply_scale
+/// @title Apply Scale Transform
+/// @description Scales image by factor.
 #[test]
 fn test_apply_scale() {
     let img = create_test_image();
@@ -189,6 +240,9 @@ fn test_apply_scale() {
 // ============================================================================
 // Transform Chain Tests
 // ============================================================================
+/// @demo cli/transform#chain_multiple
+/// @title Apply Multiple Transforms
+/// @description Transforms are applied in sequence.
 #[test]
 fn test_apply_multiple_transforms() {
     let img = create_test_image();
@@ -200,6 +254,9 @@ fn test_apply_multiple_transforms() {
     assert_eq!(result.dimensions(), (2, 2));
 }
 
+/// @demo cli/transform#chain_order
+/// @title Transform Chain Order Matters
+/// @description Different order produces different results.
 #[test]
 fn test_transforms_chain_order_matters() {
     let img = create_test_image();
@@ -229,12 +286,18 @@ fn test_transforms_chain_order_matters() {
 // ============================================================================
 // Transform Explanation Tests
 // ============================================================================
+/// @demo cli/transform#explain_mirror
+/// @title Explain Mirror Transform
+/// @description Human-readable description of mirror transform.
 #[test]
 fn test_explain_transform_mirror() {
     let explanation = explain_transform(&Transform::MirrorH);
     assert!(explanation.contains("horizontally") || explanation.contains("Flip"));
 }
 
+/// @demo cli/transform#explain_rotate
+/// @title Explain Rotate Transform
+/// @description Human-readable description of rotate transform.
 #[test]
 fn test_explain_transform_rotate() {
     let explanation = explain_transform(&Transform::Rotate { degrees: 90 });
@@ -242,6 +305,9 @@ fn test_explain_transform_rotate() {
     assert!(explanation.contains("Rotate") || explanation.contains("clockwise"));
 }
 
+/// @demo cli/transform#explain_tile
+/// @title Explain Tile Transform
+/// @description Human-readable description of tile transform.
 #[test]
 fn test_explain_transform_tile() {
     let explanation = explain_transform(&Transform::Tile { w: 3, h: 2 });
@@ -251,6 +317,9 @@ fn test_explain_transform_tile() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/transform#empty_chain
+/// @title Transform Empty Chain
+/// @description Empty transform list returns unchanged image.
 #[test]
 fn test_transform_empty_chain() {
     let img = create_test_image();
@@ -261,12 +330,18 @@ fn test_transform_empty_chain() {
     assert_eq!(result.get_pixel(0, 0), img.get_pixel(0, 0));
 }
 
+/// @demo cli/transform#invalid_rotation
+/// @title Invalid Rotation Degrees
+/// @description Non-90-degree rotation is rejected.
 #[test]
 fn test_invalid_rotation_degrees() {
     let result = parse_transform_str("rotate:45");
     assert!(result.is_err(), "45° rotation should be invalid");
 }
 
+/// @demo cli/transform#crop_clamp
+/// @title Crop Clamps to Image Bounds
+/// @description Crop larger than image is clamped to bounds.
 #[test]
 fn test_crop_larger_than_image() {
     let img = create_test_image(); // 2x2

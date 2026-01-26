@@ -30,16 +30,7 @@ fn setup_render(jsonl: &str) -> (PaletteRegistry, SpriteRegistry) {
 // ============================================================================
 // Basic Render Tests
 // ============================================================================
-/// @title Render Specific Sprite
-/// @description Render only a named sprite using `pxl render input.jsonl --sprite name`./// @demo cli/render#scale
-/// @title Scaled Render Output
-/// @description Render with integer scaling using `pxl render input.jsonl --scale 4`./// @demo cli/render#spritesheet
-/// @title Spritesheet Render
-/// @description Render animation as spritesheet using `pxl render input.jsonl --spritesheet`./// @demo cli/render#named_palette
-/// @title Render with Named Palette
-/// @description Render sprite that references a named palette definition./// @demo cli/render#inline_palette
-/// @title Render with Inline Palette
-/// @description Render sprite with palette defined inline in the sprite object./// @demo cli/render#output_path
+/// @demo cli/render#output_path
 /// @title Output Path Generation
 /// @description Demonstrates output path patterns: default, explicit file, directory.
 #[test]

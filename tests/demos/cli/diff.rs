@@ -24,6 +24,9 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // No Difference Tests
 // ============================================================================
+/// @demo cli/diff#identical
+/// @title Diff Identical Sprites
+/// @description Identical sprites produce no differences.
 #[test]
 fn test_diff_identical_sprites() {
     let palette = HashMap::from([
@@ -44,6 +47,9 @@ fn test_diff_identical_sprites() {
 // ============================================================================
 // Dimension Change Tests
 // ============================================================================
+/// @demo cli/diff#dimension_change
+/// @title Diff Dimension Change
+/// @description Detects when sprite dimensions change between versions.
 #[test]
 fn test_diff_dimension_change() {
     let palette = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
@@ -65,6 +71,10 @@ fn test_diff_dimension_change() {
     assert_eq!(dim_change.old, (3, 3));
     assert_eq!(dim_change.new, (4, 4));
 }
+
+/// @demo cli/diff#width_change
+/// @title Diff Width Only Change
+/// @description Detects width change with same height.
 #[test]
 fn test_diff_width_only_change() {
     let palette = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
@@ -84,6 +94,9 @@ fn test_diff_width_only_change() {
 // ============================================================================
 // Palette Change Tests
 // ============================================================================
+/// @demo cli/diff#palette_color_changed
+/// @title Diff Palette Color Changed
+/// @description Detects when a palette color is modified.
 #[test]
 fn test_diff_palette_color_changed() {
     let palette_a = HashMap::from([
@@ -110,6 +123,10 @@ fn test_diff_palette_color_changed() {
         _ => panic!("Expected Changed palette change"),
     }
 }
+
+/// @demo cli/diff#palette_token_added
+/// @title Diff Palette Token Added
+/// @description Detects when new tokens are added to palette.
 #[test]
 fn test_diff_palette_token_added() {
     let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
@@ -128,6 +145,10 @@ fn test_diff_palette_token_added() {
 
     assert!(!added_changes.is_empty(), "Should detect added palette token");
 }
+
+/// @demo cli/diff#palette_token_removed
+/// @title Diff Palette Token Removed
+/// @description Detects when tokens are removed from palette.
 #[test]
 fn test_diff_palette_token_removed() {
     let palette_a = HashMap::from([
@@ -154,12 +175,11 @@ fn test_diff_palette_token_removed() {
 }
 
 // ============================================================================
-// Grid Change Tests
-// ============================================================================
-/// @title Diff Single Pixel Changed
-/// @description Detects a single pixel modification within a row.// ============================================================================
 // Format Output Tests
 // ============================================================================
+/// @demo cli/diff#format_output
+/// @title Format Diff Output
+/// @description Diff results are formatted for human-readable display.
 #[test]
 fn test_format_diff_output() {
     let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);
@@ -182,6 +202,9 @@ fn test_format_diff_output() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/diff#empty_to_content
+/// @title Diff Empty to Content
+/// @description Detects changes from minimal to larger sprite.
 #[test]
 fn test_diff_empty_to_content() {
     let palette_a = HashMap::from([("{_}".to_string(), "#0000".to_string())]);
@@ -201,6 +224,10 @@ fn test_diff_empty_to_content() {
         "Should detect changes from empty to content"
     );
 }
+
+/// @demo cli/diff#summary
+/// @title Diff Summary
+/// @description Diff includes a human-readable summary.
 #[test]
 fn test_diff_summary() {
     let palette_a = HashMap::from([("{x}".to_string(), "#FF0000".to_string())]);

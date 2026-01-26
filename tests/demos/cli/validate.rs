@@ -45,6 +45,7 @@ fn validate_with_issues(jsonl: &str) -> Vec<String> {
 // ============================================================================
 // Basic Validation Tests
 // ============================================================================
+/// @demo cli/validate#invalid_json
 /// @title Invalid JSON Detection
 /// @description `pxl validate` reports invalid JSON syntax errors.
 #[test]
@@ -59,6 +60,10 @@ fn test_validate_invalid_json() {
     let issues = validate_with_issues(jsonl);
     assert!(issues.iter().any(|i| i.contains("ERROR")), "Should have error-level issues");
 }
+
+/// @demo cli/validate#missing_type
+/// @title Missing Type Field
+/// @description `pxl validate` reports missing type field errors.
 #[test]
 fn test_validate_missing_type() {
     let jsonl = r##"{"name": "orphan", "colors": {"{x}": "#FF0000"}}"##;
@@ -73,6 +78,10 @@ fn test_validate_missing_type() {
         "Error should mention missing type field"
     );
 }
+
+/// @demo cli/validate#missing_name
+/// @title Missing Name Field
+/// @description `pxl validate` reports missing name field errors.
 #[test]
 fn test_validate_missing_name() {
     let jsonl = r##"{"type": "sprite", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
@@ -81,6 +90,10 @@ fn test_validate_missing_name() {
 
     assert!(errors > 0, "Missing name should produce an error");
 }
+
+/// @demo cli/validate#undefined_palette
+/// @title Undefined Palette Reference
+/// @description `pxl validate` detects undefined palette references.
 #[test]
 fn test_validate_undefined_palette() {
     let jsonl = r##"{"type": "sprite", "name": "orphan", "palette": "nonexistent", "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
@@ -98,6 +111,10 @@ fn test_validate_undefined_palette() {
         "Should warn or error on undefined palette reference"
     );
 }
+
+/// @demo cli/validate#invalid_color
+/// @title Invalid Color Value
+/// @description `pxl validate` reports invalid color format errors.
 #[test]
 fn test_validate_invalid_color() {
     let jsonl = r##"{"type": "palette", "name": "bad", "colors": {"{x}": "not-a-color"}}"##;
@@ -106,6 +123,10 @@ fn test_validate_invalid_color() {
 
     assert!(errors > 0 || warnings > 0, "Invalid color should produce error or warning");
 }
+
+/// @demo cli/validate#strict_mode
+/// @title Strict Mode Validation
+/// @description In strict mode, warnings are treated as failures.
 #[test]
 fn test_validate_strict_mode() {
     // Content that might produce warnings but not errors
@@ -131,6 +152,9 @@ fn test_validate_strict_mode() {
 // ============================================================================
 // Error Reporting Tests
 // ============================================================================
+/// @demo cli/validate#line_numbers
+/// @title Error Line Numbers
+/// @description Errors include accurate line numbers for locating issues.
 #[test]
 fn test_validate_line_numbers() {
     let jsonl = r##"{"type": "palette", "name": "ok", "colors": {"{x}": "#FF0000"}}
@@ -152,6 +176,10 @@ fn test_validate_line_numbers() {
 
     assert!(!line_3_errors.is_empty(), "Should report error on line 3 where invalid JSON is");
 }
+
+/// @demo cli/validate#multiple_errors
+/// @title Multiple Errors Reported
+/// @description All errors are reported, not just the first one.
 #[test]
 fn test_validate_multiple_errors() {
     let jsonl = r##"{bad json 1}
@@ -162,6 +190,10 @@ fn test_validate_multiple_errors() {
 
     assert!(errors >= 3, "Should report errors for all invalid lines");
 }
+
+/// @demo cli/validate#json_output
+/// @title JSON Output Format
+/// @description Validation results can be output as structured JSON.
 #[test]
 fn test_validate_json_output() {
     let jsonl = r##"{"type": "sprite", "name": "test", "palette": {"{x}": "#FF0000"}, "size": [1, 1], "regions": {"x": {"points": [[0,0]]}}}"##;
@@ -198,6 +230,9 @@ fn test_validate_json_output() {
 // ============================================================================
 // Edge Cases
 // ============================================================================
+/// @demo cli/validate#empty_file
+/// @title Empty File Validation
+/// @description Empty file is valid with no errors or warnings.
 #[test]
 fn test_validate_empty_file() {
     let jsonl = "";
@@ -207,6 +242,10 @@ fn test_validate_empty_file() {
     assert_eq!(errors, 0, "Empty file should have no errors");
     assert_eq!(warnings, 0, "Empty file should have no warnings");
 }
+
+/// @demo cli/validate#whitespace_lines
+/// @title Whitespace Lines Ignored
+/// @description Blank lines in JSONL are ignored without errors.
 #[test]
 fn test_validate_whitespace_lines() {
     let jsonl = r##"
@@ -219,6 +258,10 @@ fn test_validate_whitespace_lines() {
 
     assert_eq!(errors, 0, "Whitespace lines should be ignored");
 }
+
+/// @demo cli/validate#no_comments
+/// @title Valid JSONL Without Comments
+/// @description JSONL format does not support comments; valid JSON passes.
 #[test]
 fn test_validate_comment_lines() {
     // Note: JSONL format does not officially support comments, but some parsers
