@@ -73,7 +73,7 @@ pub struct CliOverrides {
 /// ```
 pub fn find_config() -> Option<PathBuf> {
     // First try walking up from current directory
-    if let Some(cwd) = env::current_dir().ok() {
+    if let Ok(cwd) = env::current_dir() {
         if let Some(path) = find_config_from(cwd) {
             return Some(path);
         }

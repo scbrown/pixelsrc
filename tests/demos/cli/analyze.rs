@@ -4,7 +4,7 @@
 //! corpus metrics from pixelsrc files.
 
 use pixelsrc::analyze::{
-    AnalysisReport, CoOccurrenceMatrix, CompressionEstimator, DimensionStats, TokenCounter,
+    AnalysisReport, CoOccurrenceMatrix, DimensionStats, TokenCounter,
 };
 use pixelsrc::models::{PaletteRef, Sprite};
 use std::collections::{HashMap, HashSet};

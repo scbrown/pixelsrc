@@ -160,7 +160,7 @@ pub fn get_cycle_duration(animation: &Animation) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Duration, PaletteRef};
+    use crate::models::Duration;
 
     fn make_palette(colors: &[(&str, &str)]) -> HashMap<String, String> {
         colors.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()

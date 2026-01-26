@@ -729,14 +729,14 @@ mod tests {
     fn test_rasterize_ellipse_circle() {
         let pixels = rasterize_ellipse(5, 5, 3, 3);
         assert!(pixels.contains(&(5, 5))); // Center
-        assert!(pixels.len() > 0);
+        assert!(!pixels.is_empty());
     }
 
     #[test]
     fn test_rasterize_ellipse_horizontal() {
         let pixels = rasterize_ellipse(5, 5, 4, 2);
         assert!(pixels.contains(&(5, 5))); // Center
-        assert!(pixels.len() > 0);
+        assert!(!pixels.is_empty());
     }
 
     #[test]
@@ -753,7 +753,7 @@ mod tests {
         let triangle = vec![(0, 0), (4, 0), (2, 3)];
         let pixels = rasterize_polygon(&triangle);
 
-        assert!(pixels.len() > 0);
+        assert!(!pixels.is_empty());
 
         // Check base
         assert!(pixels.contains(&(0, 0)));
@@ -791,7 +791,7 @@ mod tests {
     fn test_rasterize_polygon_negative_coords() {
         let triangle = vec![(-2, -2), (2, -2), (0, 2)];
         let pixels = rasterize_polygon(&triangle);
-        assert!(pixels.len() > 0);
+        assert!(!pixels.is_empty());
         assert!(pixels.contains(&(0, 0)));
     }
 
@@ -1126,7 +1126,7 @@ mod tests {
         let filled = flood_fill(&boundary, None, 10, 10);
 
         // Should find interior and fill it
-        assert!(filled.len() > 0);
+        assert!(!filled.is_empty());
         assert!(filled.contains(&(3, 3))); // Center of rectangle
     }
 

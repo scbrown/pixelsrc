@@ -3,7 +3,7 @@
 //! Demonstrates the `pxl suggest` command functionality for finding
 //! potential improvements and fixes in pixelsrc files.
 
-use pixelsrc::suggest::{format_suggestion, suggest, Suggester, SuggestionFix, SuggestionType};
+use pixelsrc::suggest::{format_suggestion, suggest, Suggester, SuggestionType};
 use std::io::Cursor;
 
 // ============================================================================

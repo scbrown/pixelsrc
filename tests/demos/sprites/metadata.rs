@@ -2,7 +2,7 @@
 //!
 //! Origin points, collision boxes, and attachment points.
 
-use crate::demos::{assert_dimensions, assert_validates, parse_content};
+use crate::demos::{assert_validates, parse_content};
 #[test]
 fn test_metadata_origin() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");

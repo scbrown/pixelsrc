@@ -2,7 +2,7 @@
 //!
 //! Flipping, rotating, scaling, and recoloring sprites using transform chains.
 
-use crate::demos::{assert_dimensions, assert_validates, capture_render_info, parse_content};
+use crate::demos::parse_content;
 /// @title Rotation Transform
 /// @description Sprite rotated 90 degrees using transform: ["rotate:90"]./// @demo format/sprite#scale
 /// @title Scale Transform

@@ -3,7 +3,7 @@
 //! Demonstrates the `pxl show` command functionality for displaying
 //! sprite information and colored terminal output.
 
-use pixelsrc::terminal::{render_ansi_grid, render_coordinate_grid, ANSI_RESET};
+use pixelsrc::terminal::{render_ansi_grid, render_coordinate_grid};
 use std::collections::HashMap;
 
 // ============================================================================

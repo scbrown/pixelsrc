@@ -2,7 +2,7 @@
 //!
 //! Sprites with inline color definitions embedded directly in the sprite.
 
-use crate::demos::{assert_color_count, assert_dimensions, assert_validates, capture_render_info};
+use crate::demos::{assert_color_count, capture_render_info};
 /// @title Inline Color Count
 /// @description Heart sprite with 3 colors: transparent, red, and orange.
 #[test]
