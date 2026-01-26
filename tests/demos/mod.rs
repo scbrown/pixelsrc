@@ -8,6 +8,7 @@ pub mod cli;
 pub mod composition;
 pub mod css;
 pub mod exports;
+pub mod palette_cycling;
 
 use image::RgbaImage;
 use pixelsrc::models::{Animation, Composition, PaletteRef, TtpObject};
