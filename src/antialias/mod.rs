@@ -3,11 +3,15 @@
 //! Provides optional antialiasing using semantic roles for intelligent smoothing.
 //! By default, antialiasing is disabled to preserve crisp pixel art.
 //!
-//! # Module Structure (planned)
+//! # Module Structure
 //!
-//! - [`algorithms`] - Implementation of antialiasing algorithms (scale2x, hq2x, etc.)
 //! - [`context`] - Semantic context extraction from palette roles/relationships
-//! - [`gradient`] - Gradient smoothing for shadow/highlight transitions
+//! - `algorithms` (planned) - Implementation of antialiasing algorithms (scale2x, hq2x, etc.)
+//! - `gradient` (planned) - Gradient smoothing for shadow/highlight transitions
+
+pub mod context;
+
+pub use context::{AdjacencyInfo, GradientPair, RenderedRegion, SemanticContext};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
