@@ -8,14 +8,16 @@
 //!
 //! - [`blur`] - Gaussian blur with semantic masking (`aa-blur`)
 //! - [`scale2x`] - Scale2x (EPX) edge-aware 2x upscaling
+//! - [`hqx`] - HQ2x/HQ4x lookup table based upscaling with semantic awareness
 //!
 //! # Planned Algorithms
 //!
-//! - `hq2x`/`hq4x` - High-quality 2x/4x upscaling
 //! - `xbr2x`/`xbr4x` - xBR edge-aware 2x/4x upscaling
 
 pub mod blur;
+pub mod hqx;
 pub mod scale2x;
 
 pub use blur::apply_semantic_blur;
+pub use hqx::{hq2x, hq4x};
 pub use scale2x::{scale2x, Scale2xOptions};
