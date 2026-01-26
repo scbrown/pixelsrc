@@ -12,7 +12,7 @@
 pub mod algorithms;
 pub mod context;
 
-pub use algorithms::{apply_semantic_blur, hq2x, hq4x, scale2x, Scale2xOptions};
+pub use algorithms::{apply_semantic_blur, hq2x, hq4x, scale2x, xbr2x, xbr4x, Scale2xOptions};
 pub use context::{AdjacencyInfo, GradientPair, RenderedRegion, SemanticContext};
 
 use clap::ValueEnum;
