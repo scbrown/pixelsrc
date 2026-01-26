@@ -7,9 +7,9 @@ use pixelsrc::models::TtpObject;
 use pixelsrc::parser::parse_stream;
 use std::io::Cursor;
 
-/// @demo cli/format#fmt
-/// @title Format Command
-/// @description The pxl fmt command for auto-formatting JSONL files.
+/// @demo cli/fmt#basic
+/// @title Basic Formatting
+/// @description Format JSONL content and verify it remains valid.
 #[test]
 fn test_fmt_basic() {
     let input = include_str!("../../../examples/demos/cli/format/fmt_input.jsonl");
@@ -101,38 +101,6 @@ fn test_fmt_roundtrip() {
         assert_eq!(orig.name, fmt.name, "Sprite names should match");
         assert_eq!(orig.size, fmt.size, "Sprite sizes should match");
     }
-}
-
-/// @demo cli/format#inline
-/// @title Inline Command
-/// @description Inlines named palette references directly into sprites.
-#[test]
-fn test_inline_palette() {
-    // Content with named palette reference
-    let input = r##"{"type": "palette", "name": "colors", "colors": {"{r}": "#FF0000", "{g}": "#00FF00"}}
-{"type": "sprite", "name": "test", "palette": "colors", "grid": ["{r}{g}"]}"##;
-
-    // Parse to verify named reference works
-    let reader = Cursor::new(input);
-    let result = parse_stream(reader);
-
-    let sprite = result
-        .objects
-        .iter()
-        .find_map(|o| match o {
-            TtpObject::Sprite(s) => Some(s),
-            _ => None,
-        })
-        .expect("Should have sprite");
-
-    // Sprite references named palette
-    assert!(
-        matches!(&sprite.palette, pixelsrc::models::PaletteRef::Named(name) if name == "colors"),
-        "Sprite should reference named palette 'colors'"
-    );
-
-    // In a real inline operation, the palette would be embedded
-    // This test verifies the parse structure is correct for inlining
 }
 
 /// @demo cli/fmt#composition

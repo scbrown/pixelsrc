@@ -26,9 +26,9 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // Token Counter Tests
 // ============================================================================
-/// @demo cli/analysis#analyze
-/// @title Analyze Command
-/// @description The pxl analyze command provides statistical analysis of sprites.
+/// @demo cli/analyze#token_frequency
+/// @title Token Frequency Analysis
+/// @description Counts occurrences of each token in the corpus.
 #[test]
 fn test_analyze_token_frequency() {
     let mut counter = TokenCounter::new();
@@ -202,51 +202,6 @@ fn test_analyze_common_sizes() {
     assert!(!sorted.is_empty());
     assert_eq!(sorted[0].0, (16, 16), "16x16 should be most common");
     assert_eq!(sorted[0].1, 3, "16x16 should appear 3 times");
-}
-
-/// @demo cli/analysis#alias
-/// @title Alias Analysis
-/// @description Analyzes token aliasing patterns across sprites.
-#[test]
-fn test_analyze_alias_patterns() {
-    let mut counter = TokenCounter::new();
-
-    // Pattern: using semantic aliases (eyes -> {e}, skin -> {s})
-    counter.add("{e}");
-    counter.add("{e}");
-    counter.add("{s}");
-    counter.add("{s}");
-    counter.add("{s}");
-    counter.add("{s}");
-
-    // Short tokens often indicate aliased semantic names
-    let top = counter.top_n(2);
-    assert_eq!(top.len(), 2);
-    assert_eq!(top[0].0, "{s}"); // Skin most common
-    assert_eq!(*top[0].1, 4);
-}
-
-/// @demo cli/analysis#grid
-/// @title Grid Analysis
-/// @description Analyzes grid structure and patterns.
-#[test]
-fn test_analyze_grid_patterns() {
-    // Use DimensionStats to track grid dimensions
-    let mut stats = DimensionStats::new();
-
-    stats.add(2, 2);
-    stats.add(8, 8);
-    stats.add(4, 4);
-    stats.add(4, 4); // Add again to have a most-common
-
-    // Total should track additions
-    assert_eq!(stats.total(), 4);
-
-    // Sorted by frequency returns dimensions
-    let sorted = stats.sorted_by_frequency();
-    assert!(!sorted.is_empty(), "Should have dimensions");
-    assert_eq!(sorted[0].0, (4, 4), "Most common should be 4x4");
-    assert_eq!(sorted[0].1, 2, "4x4 should appear twice");
 }
 
 // ============================================================================

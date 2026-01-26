@@ -9,9 +9,9 @@ use std::collections::HashMap;
 // ============================================================================
 // Coordinate Grid Tests
 // ============================================================================
-/// @demo cli/format#show
-/// @title Show Command
-/// @description The pxl show command for displaying sprite information in terminal.
+/// @demo cli/show#coordinates
+/// @title Show with Coordinates
+/// @description Coordinate grid display for debugging positions.
 #[test]
 fn test_show_with_coordinates() {
     let grid = vec!["{a}{b}".to_string(), "{c}{d}".to_string()];

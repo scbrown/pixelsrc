@@ -9,9 +9,9 @@ use std::io::Cursor;
 // ============================================================================
 // Typo Suggestion Tests
 // ============================================================================
-/// @demo cli/analysis#suggest
-/// @title Suggest Command
-/// @description The pxl suggest command offers typo corrections and token suggestions.
+/// @demo cli/suggest#typo_correction
+/// @title Typo Correction Suggestion
+/// @description Suggests similar tokens for likely typos.
 #[test]
 fn test_suggest_typo_correction() {
     let candidates = vec!["skin", "hair", "shirt", "shadow"];

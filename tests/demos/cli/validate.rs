@@ -45,9 +45,9 @@ fn validate_with_issues(jsonl: &str) -> Vec<String> {
 // ============================================================================
 // Basic Validation Tests
 // ============================================================================
-/// @demo cli/core#validate
-/// @title Validate Command
-/// @description The pxl validate command for checking JSONL file correctness.
+/// @demo cli/validate#invalid_json
+/// @title Invalid JSON Detection
+/// @description `pxl validate` reports invalid JSON syntax errors.
 #[test]
 fn test_validate_invalid_json() {
     let jsonl = r##"{not valid json}

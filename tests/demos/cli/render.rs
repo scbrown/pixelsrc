@@ -30,9 +30,9 @@ fn setup_render(jsonl: &str) -> (PaletteRegistry, SpriteRegistry) {
 // ============================================================================
 // Basic Render Tests
 // ============================================================================
-/// @demo cli/core#render
-/// @title Render Command
-/// @description Demonstrates the pxl render command for converting JSONL to PNG output.
+/// @demo cli/render#output_path
+/// @title Output Path Generation
+/// @description Demonstrates output path patterns: default, explicit file, directory.
 #[test]
 fn test_render_output_paths() {
     use pixelsrc::output::generate_output_path;
