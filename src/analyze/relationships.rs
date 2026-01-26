@@ -345,7 +345,8 @@ pub fn infer_relationships_batch(
         }
     }
 
-    relationships.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+    // Sort by confidence descending (total_cmp handles NaN safely)
+    relationships.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
 
     relationships
 }
