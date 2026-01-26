@@ -1,5 +1,6 @@
 //! PNG output and file path generation
 
+use crate::antialias::{AAAlgorithm, AntialiasConfig};
 use image::imageops::FilterType;
 use image::RgbaImage;
 use std::io;
@@ -60,6 +61,94 @@ pub fn scale_image(image: RgbaImage, factor: u8) -> RgbaImage {
     let new_w = w * factor as u32;
     let new_h = h * factor as u32;
     image::imageops::resize(&image, new_w, new_h, FilterType::Nearest)
+}
+
+/// Apply antialiasing to an image using the specified configuration.
+///
+/// This function is the pipeline integration point for antialiasing algorithms.
+/// It should be called between render and scale steps in the render pipeline.
+///
+/// # Pipeline Order
+///
+/// ```text
+/// render_sprite() → apply_antialias() → scale_image() → save_png()
+/// ```
+///
+/// # Algorithm Support
+///
+/// | Algorithm | Status | Scale Factor |
+/// |-----------|--------|--------------|
+/// | `nearest` | ✓ Passthrough | 1x |
+/// | `aa-blur` | Pending (AA-6) | 1x |
+/// | `scale2x` | Pending (AA-7) | 2x |
+/// | `hq2x`    | Pending (AA-8) | 2x |
+/// | `hq4x`    | Pending (AA-8) | 4x |
+/// | `xbr2x`   | Pending (AA-9) | 2x |
+/// | `xbr4x`   | Pending (AA-9) | 4x |
+///
+/// # Arguments
+///
+/// * `image` - The rendered sprite image (before scaling)
+/// * `config` - Antialiasing configuration specifying algorithm and options
+///
+/// # Returns
+///
+/// The processed image. For algorithms that produce scaled output (scale2x, hq4x, etc.),
+/// the returned image will be larger than the input. For passthrough (nearest) or
+/// non-scaling algorithms (aa-blur), the dimensions are unchanged.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::antialias::{AAAlgorithm, AntialiasConfig};
+/// use pixelsrc::output::apply_antialias;
+/// use image::RgbaImage;
+///
+/// let image = RgbaImage::new(16, 16);
+/// let config = AntialiasConfig::with_algorithm(AAAlgorithm::Scale2x);
+///
+/// // Currently returns unchanged (algorithm pending in AA-7)
+/// let result = apply_antialias(image, &config);
+/// ```
+pub fn apply_antialias(image: RgbaImage, config: &AntialiasConfig) -> RgbaImage {
+    // Early return if AA is disabled or algorithm is passthrough
+    if !config.enabled || !config.algorithm.is_enabled() {
+        return image;
+    }
+
+    // Dispatch to algorithm-specific implementation
+    // Note: Actual algorithm implementations are added in follow-up beads:
+    // - AA-6: aa-blur
+    // - AA-7: scale2x
+    // - AA-8: hq2x/hq4x
+    // - AA-9: xBR
+    match config.algorithm {
+        AAAlgorithm::Nearest => image,
+        AAAlgorithm::AaBlur => {
+            // TODO(AA-6): Implement aa-blur algorithm
+            image
+        }
+        AAAlgorithm::Scale2x => {
+            // TODO(AA-7): Implement scale2x algorithm
+            image
+        }
+        AAAlgorithm::Hq2x => {
+            // TODO(AA-8): Implement hq2x algorithm
+            image
+        }
+        AAAlgorithm::Hq4x => {
+            // TODO(AA-8): Implement hq4x algorithm
+            image
+        }
+        AAAlgorithm::Xbr2x => {
+            // TODO(AA-9): Implement xbr2x algorithm
+            image
+        }
+        AAAlgorithm::Xbr4x => {
+            // TODO(AA-9): Implement xbr4x algorithm
+            image
+        }
+    }
 }
 
 /// Apply a skew transform along the X axis (horizontal shear).
@@ -516,6 +605,78 @@ mod tests {
         assert_eq!(*scaled.get_pixel(15, 7), Rgba([200, 200, 200, 255]));
         assert_eq!(*scaled.get_pixel(0, 8), Rgba([50, 50, 50, 255]));
         assert_eq!(*scaled.get_pixel(8, 8), Rgba([150, 150, 150, 255]));
+    }
+
+    #[test]
+    fn test_apply_antialias_disabled() {
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        image.put_pixel(1, 1, Rgba([0, 255, 0, 255]));
+
+        // Disabled config should return image unchanged
+        let config = AntialiasConfig::default();
+        assert!(!config.enabled);
+
+        let result = apply_antialias(image.clone(), &config);
+        assert_eq!(result.width(), 4);
+        assert_eq!(result.height(), 4);
+        assert_eq!(*result.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*result.get_pixel(1, 1), Rgba([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_apply_antialias_nearest_passthrough() {
+        let mut image = RgbaImage::new(4, 4);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+
+        // Nearest algorithm is passthrough even when enabled
+        let config = AntialiasConfig::with_algorithm(AAAlgorithm::Nearest);
+
+        let result = apply_antialias(image.clone(), &config);
+        assert_eq!(result.width(), 4);
+        assert_eq!(result.height(), 4);
+        assert_eq!(*result.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_apply_antialias_scale2x_placeholder() {
+        // Scale2x is a placeholder until AA-7 implements it
+        let image = RgbaImage::new(4, 4);
+        let config = AntialiasConfig::with_algorithm(AAAlgorithm::Scale2x);
+
+        let result = apply_antialias(image, &config);
+        // Currently returns unchanged (implementation pending)
+        assert_eq!(result.width(), 4);
+        assert_eq!(result.height(), 4);
+    }
+
+    #[test]
+    fn test_apply_antialias_hq4x_placeholder() {
+        // Hq4x is a placeholder until AA-8 implements it
+        let image = RgbaImage::new(4, 4);
+        let config = AntialiasConfig::with_algorithm(AAAlgorithm::Hq4x);
+
+        let result = apply_antialias(image, &config);
+        // Currently returns unchanged (implementation pending)
+        assert_eq!(result.width(), 4);
+        assert_eq!(result.height(), 4);
+    }
+
+    #[test]
+    fn test_apply_antialias_preserves_transparency() {
+        let mut image = RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Opaque
+        image.put_pixel(1, 0, Rgba([0, 255, 0, 128])); // Semi-transparent
+        image.put_pixel(0, 1, Rgba([0, 0, 255, 0])); // Transparent
+        image.put_pixel(1, 1, Rgba([255, 255, 0, 255])); // Opaque
+
+        let config = AntialiasConfig::with_algorithm(AAAlgorithm::AaBlur);
+        let result = apply_antialias(image, &config);
+
+        // Currently placeholder - verify transparency preserved
+        assert_eq!(result.get_pixel(0, 0)[3], 255);
+        assert_eq!(result.get_pixel(1, 0)[3], 128);
+        assert_eq!(result.get_pixel(0, 1)[3], 0);
     }
 
     #[test]
