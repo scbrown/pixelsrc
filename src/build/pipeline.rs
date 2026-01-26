@@ -901,6 +901,7 @@ mod tests {
                 padding: Some(0),
                 power_of_two: false,
                 nine_slice: false,
+                antialias: None,
             },
         );
 
