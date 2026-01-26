@@ -112,18 +112,18 @@ fn parse_hex_color(s: &str) -> Result<Rgba<u8>, ColorError> {
         3 => {
             // #RGB -> #RRGGBB (doubled digits), alpha = 255
             let mut chars = hex.chars();
-            let r = parse_hex_digit(chars.next().unwrap())? * 17;
-            let g = parse_hex_digit(chars.next().unwrap())? * 17;
-            let b = parse_hex_digit(chars.next().unwrap())? * 17;
+            let r = parse_hex_digit(chars.next().expect("length verified as 3"))? * 17;
+            let g = parse_hex_digit(chars.next().expect("length verified as 3"))? * 17;
+            let b = parse_hex_digit(chars.next().expect("length verified as 3"))? * 17;
             Ok(Rgba([r, g, b, 255]))
         }
         4 => {
             // #RGBA -> #RRGGBBAA (doubled digits)
             let mut chars = hex.chars();
-            let r = parse_hex_digit(chars.next().unwrap())? * 17;
-            let g = parse_hex_digit(chars.next().unwrap())? * 17;
-            let b = parse_hex_digit(chars.next().unwrap())? * 17;
-            let a = parse_hex_digit(chars.next().unwrap())? * 17;
+            let r = parse_hex_digit(chars.next().expect("length verified as 4"))? * 17;
+            let g = parse_hex_digit(chars.next().expect("length verified as 4"))? * 17;
+            let b = parse_hex_digit(chars.next().expect("length verified as 4"))? * 17;
+            let a = parse_hex_digit(chars.next().expect("length verified as 4"))? * 17;
             Ok(Rgba([r, g, b, a]))
         }
         6 => {
@@ -193,8 +193,8 @@ fn parse_hex_digit(c: char) -> Result<u8, ColorError> {
 /// Parse a two-character hex string to u8 (0-255)
 fn parse_hex_pair(s: &str) -> Result<u8, ColorError> {
     let mut chars = s.chars();
-    let high = parse_hex_digit(chars.next().unwrap())?;
-    let low = parse_hex_digit(chars.next().unwrap())?;
+    let high = parse_hex_digit(chars.next().expect("hex pair has 2 chars"))?;
+    let low = parse_hex_digit(chars.next().expect("hex pair has 2 chars"))?;
     Ok(high * 16 + low)
 }
 
