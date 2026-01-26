@@ -74,9 +74,8 @@ Before contributing, read these:
 ### Rust Style
 
 - Follow standard `rustfmt` formatting
-- Use `clippy` for linting: `cargo clippy`
+- Use `clippy` for linting (see [Clippy](#clippy) section below)
 - Prefer explicit error types over `unwrap()` in library code
-- `unwrap()` is acceptable in tests and examples
 
 ### Error Handling
 
@@ -92,6 +91,200 @@ fn parse_row(...) -> (Vec<Token>, Vec<Warning>) { ... }
 
 // Let the caller decide: warn or fail based on mode
 ```
+
+#### Error Types
+
+Use `thiserror` for defining library error types:
+
+```rust
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("invalid color format: {0}")]
+    InvalidColor(String),
+    #[error("unknown palette reference: {0}")]
+    UnknownPalette(String),
+}
+```
+
+Implement `From` traits for error conversions to enable the `?` operator:
+
+```rust
+impl From<std::io::Error> for ParseError {
+    fn from(err: std::io::Error) -> Self {
+        ParseError::Io(err)
+    }
+}
+```
+
+Define module-level `Result` type aliases for cleaner signatures:
+
+```rust
+pub type Result<T> = std::result::Result<T, ParseError>;
+```
+
+#### When to Use `unwrap()`, `expect()`, and `?`
+
+| Method | When to Use |
+|--------|-------------|
+| `unwrap()` | **Only in tests.** Never in library or application code. |
+| `expect("reason")` | Provably safe cases where failure indicates a bug. Document why it's safe. |
+| `?` | All fallible operations in library code. Propagate errors to callers. |
+
+```rust
+// Bad: unwrap in library code
+let value = map.get("key").unwrap();
+
+// Good: expect with documented reason
+let value = map.get("key").expect("key always present after validation");
+
+// Best: propagate error to caller
+let value = map.get("key").ok_or(ParseError::MissingKey)?;
+```
+
+See [TTP-0gb3](https://github.com/anthropics/pixelsrc/issues/TTP-0gb3) for the `unwrap()` cleanup epic.
+
+### Type Safety
+
+#### Newtypes for Domain Primitives
+
+Wrap primitives in newtypes to prevent mixing up values:
+
+```rust
+// Bad: easy to mix up frame and layer indices
+fn get_pixel(frame: usize, layer: usize, x: usize, y: usize) -> Color;
+
+// Good: type-safe indices
+pub struct FrameIndex(pub usize);
+pub struct LayerIndex(pub usize);
+fn get_pixel(frame: FrameIndex, layer: LayerIndex, x: usize, y: usize) -> Color;
+```
+
+#### Builder Pattern
+
+Use the builder pattern for structs with many optional fields:
+
+```rust
+let sprite = SpriteBuilder::new("hero")
+    .size(16, 16)
+    .palette("gameboy")
+    .build()?;
+```
+
+#### Attributes for Safety
+
+- **`#[must_use]`**: Add to functions where ignoring the return value is likely a bug
+- **`#[non_exhaustive]`**: Add to public enums that may gain variants
+
+```rust
+#[must_use]
+pub fn validate(&self) -> ValidationResult { ... }
+
+#[non_exhaustive]
+pub enum ExportFormat {
+    Png,
+    Gif,
+    Spritesheet,
+}
+```
+
+### Code Organization
+
+#### Module Structure
+
+- Files under 500 lines: single `module.rs` file
+- Files over 500 lines: directory with `mod.rs` and submodules
+
+```
+src/
+├── small_module.rs          # < 500 lines, single file
+└── large_module/            # > 500 lines, directory
+    ├── mod.rs               # Public API, re-exports, tests
+    ├── parser.rs            # Implementation details
+    └── types.rs             # Types used by the module
+```
+
+#### Test Organization
+
+- Keep unit tests in `mod.rs` or the main module file
+- Keep implementation in submodules
+- Re-export public types at module root
+
+```rust
+// In mod.rs
+mod parser;
+mod types;
+
+pub use types::{Sprite, Frame, Animation};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // tests here
+}
+```
+
+### Documentation
+
+#### Doc Comments
+
+All public items need doc comments:
+
+```rust
+/// Parses a JSONL file and returns sprites.
+///
+/// # Arguments
+///
+/// * `input` - The JSONL content to parse
+///
+/// # Errors
+///
+/// Returns `ParseError` if the input is malformed.
+///
+/// # Examples
+///
+/// ```
+/// let sprites = parse_jsonl(r#"{"type":"sprite","name":"dot"}"#)?;
+/// ```
+pub fn parse_jsonl(input: &str) -> Result<Vec<Sprite>> { ... }
+```
+
+#### Module-Level Documentation
+
+Add `//!` docs at the top of each module explaining its purpose:
+
+```rust
+//! # Parser Module
+//!
+//! Handles parsing of JSONL sprite definitions into internal representations.
+//! Supports both lenient and strict parsing modes.
+
+use crate::models::Sprite;
+```
+
+### Clippy
+
+#### Zero Warnings Policy
+
+All code must pass clippy with warnings as errors:
+
+```bash
+cargo clippy -- -D warnings
+```
+
+Run this before committing. CI will fail on clippy warnings.
+
+#### Allowing Lints
+
+If you must suppress a clippy lint, document the reason:
+
+```rust
+#[allow(clippy::too_many_arguments)] // Builder pattern not suitable for hot path
+fn render_frame(/* many args */) { ... }
+```
+
+See [TTP-rkab](https://github.com/anthropics/pixelsrc/issues/TTP-rkab) for the Rust idioms improvement epic.
 
 ### Testing
 
