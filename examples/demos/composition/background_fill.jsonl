@@ -1,0 +1,6 @@
+{"type": "palette", "name": "bg_pal", "colors": {"{_}": "#00000000", "{r}": "#FF0000FF", "{g}": "#00FF00FF", "{b}": "#0000FFFF", "{w}": "#FFFFFFFF", "{k}": "#000000FF"}}
+{"type": "sprite", "name": "small_red", "palette": "bg_pal", "size": [2, 2], "regions": {"r": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "small_blue", "palette": "bg_pal", "size": [2, 2], "regions": {"b": {"rect": [0, 0, 2, 2]}}}
+{"type": "composition", "name": "solid_background", "size": [6, 6], "cell_size": [2, 2], "sprites": {".": null, "R": "small_red"}, "layers": [{"name": "background", "fill": "#000000FF"}, {"name": "content", "map": ["...", ".R.", "..."]}]}
+{"type": "composition", "name": "transparent_background", "size": [6, 6], "cell_size": [2, 2], "sprites": {".": null, "R": "small_red"}, "layers": [{"name": "content", "map": ["...", ".R.", "..."]}]}
+{"type": "composition", "name": "colored_background", "size": [6, 6], "cell_size": [2, 2], "sprites": {".": null, "R": "small_red"}, "layers": [{"name": "background", "fill": "#00FF00FF"}, {"name": "content", "map": ["...", ".R.", "..."]}]}

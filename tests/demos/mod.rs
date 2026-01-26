@@ -6,6 +6,7 @@
 pub mod animation;
 pub mod build;
 pub mod cli;
+pub mod composition;
 pub mod css;
 pub mod exports;
 
