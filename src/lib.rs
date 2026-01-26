@@ -36,6 +36,7 @@
 
 pub mod analyze;
 pub mod animation;
+pub mod antialias;
 pub mod atlas;
 pub mod build;
 pub mod cli;
