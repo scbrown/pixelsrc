@@ -286,9 +286,12 @@ mod tests {
 
     #[test]
     fn test_find_config_in_current_dir() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path).unwrap().write_all(b"[project]\nname = \"test\"").unwrap();
+        File::create(&config_path)
+            .expect("should create config file")
+            .write_all(b"[project]\nname = \"test\"")
+            .expect("should write config content");
 
         let found = find_config_from(temp.path().to_path_buf());
         assert_eq!(found, Some(config_path));
@@ -296,13 +299,16 @@ mod tests {
 
     #[test]
     fn test_find_config_in_parent_dir() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path).unwrap().write_all(b"[project]\nname = \"test\"").unwrap();
+        File::create(&config_path)
+            .expect("should create config file")
+            .write_all(b"[project]\nname = \"test\"")
+            .expect("should write config content");
 
         // Create a subdirectory
         let subdir = temp.path().join("src").join("sprites");
-        fs::create_dir_all(&subdir).unwrap();
+        fs::create_dir_all(&subdir).expect("should create subdirectories");
 
         let found = find_config_from(subdir);
         assert_eq!(found, Some(config_path));
@@ -310,17 +316,17 @@ mod tests {
 
     #[test]
     fn test_find_config_not_found() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let found = find_config_from(temp.path().to_path_buf());
         assert_eq!(found, None);
     }
 
     #[test]
     fn test_load_config_from_file() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("pxl.toml");
         File::create(&config_path)
-            .unwrap()
+            .expect("should create config file")
             .write_all(
                 br#"
 [project]
@@ -336,9 +342,9 @@ sources = ["sprites/**"]
 max_size = [512, 512]
 "#,
             )
-            .unwrap();
+            .expect("should write config content");
 
-        let config = load_config(Some(&config_path)).unwrap();
+        let config = load_config(Some(&config_path)).expect("should load valid config");
         assert_eq!(config.project.name, "test-project");
         assert_eq!(config.project.version, "2.0.0");
         assert_eq!(config.defaults.scale, 3);
@@ -348,7 +354,7 @@ max_size = [512, 512]
 
     #[test]
     fn test_load_config_missing_file_uses_defaults() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("nonexistent.toml");
 
         // When file doesn't exist, load_config with explicit path should error
@@ -359,7 +365,7 @@ max_size = [512, 512]
     #[test]
     fn test_load_config_no_path_no_file_uses_defaults() {
         // When no config is found via find_config_from, default_config() is used
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
 
         // find_config_from returns None when no pxl.toml exists
         let found = find_config_from(temp.path().to_path_buf());
@@ -375,9 +381,12 @@ max_size = [512, 512]
 
     #[test]
     fn test_load_config_invalid_toml() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("pxl.toml");
-        File::create(&config_path).unwrap().write_all(b"this is not valid toml {{{").unwrap();
+        File::create(&config_path)
+            .expect("should create config file")
+            .write_all(b"this is not valid toml {{{")
+            .expect("should write invalid config");
 
         let result = load_config(Some(&config_path));
         assert!(matches!(result, Err(ConfigError::Parse(_))));
@@ -385,10 +394,10 @@ max_size = [512, 512]
 
     #[test]
     fn test_load_config_validation_error() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("should create temp dir");
         let config_path = temp.path().join("pxl.toml");
         File::create(&config_path)
-            .unwrap()
+            .expect("should create config file")
             .write_all(
                 br#"
 [project]
@@ -398,7 +407,7 @@ name = ""
 scale = 0
 "#,
             )
-            .unwrap();
+            .expect("should write invalid config");
 
         let result = load_config(Some(&config_path));
         assert!(matches!(result, Err(ConfigError::Validation(_))));

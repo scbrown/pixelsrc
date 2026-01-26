@@ -586,7 +586,7 @@ mod tests {
 [project]
 name = "test-project"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("minimal config should parse");
         assert_eq!(config.project.name, "test-project");
         assert_eq!(config.project.version, "0.1.0");
         assert_eq!(config.project.src, PathBuf::from("src/pxl"));
@@ -636,14 +636,14 @@ missing_refs = "warn"
 debounce_ms = 200
 clear_screen = false
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("full config should parse");
 
         assert_eq!(config.project.name, "full-project");
         assert_eq!(config.project.version, "1.0.0");
         assert_eq!(config.defaults.scale, 2);
         assert_eq!(config.defaults.padding, 4);
 
-        let chars_atlas = config.atlases.get("characters").unwrap();
+        let chars_atlas = config.atlases.get("characters").expect("characters atlas should exist");
         assert_eq!(chars_atlas.sources.len(), 2);
         assert_eq!(chars_atlas.max_size, [2048, 2048]);
         assert_eq!(chars_atlas.padding, Some(2));
@@ -674,7 +674,7 @@ clear_screen = false
 [project]
 name = ""
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("empty name config should parse");
         let errors = config.validate();
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|e| e.field == "project.name"));
@@ -689,7 +689,7 @@ name = "test"
 [defaults]
 scale = 0
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("zero scale config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "defaults.scale"));
     }
@@ -703,7 +703,7 @@ name = "test"
 [atlases.empty]
 sources = []
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("empty sources config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "atlases.empty.sources"));
     }
@@ -718,7 +718,7 @@ name = "test"
 sources = ["sprites/**"]
 max_size = [0, 1024]
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("zero max_size config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "atlases.bad.max_size"));
     }
@@ -739,10 +739,10 @@ padding = 2
 [atlases.without_padding]
 sources = ["b/**"]
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("padding config should parse");
 
-        let with = config.atlases.get("with_padding").unwrap();
-        let without = config.atlases.get("without_padding").unwrap();
+        let with = config.atlases.get("with_padding").expect("with_padding atlas should exist");
+        let without = config.atlases.get("without_padding").expect("without_padding atlas should exist");
 
         assert_eq!(config.effective_padding(with), 2);
         assert_eq!(config.effective_padding(without), 4);
@@ -758,7 +758,7 @@ name = "test"
 unused_palettes = "error"
 missing_refs = "ignore"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("validation level config should parse");
         assert_eq!(config.validate.unused_palettes, ValidationLevel::Error);
         assert_eq!(config.validate.missing_refs, ValidationLevel::Ignore);
     }
@@ -772,7 +772,7 @@ name = "test"
 [animations]
 sheet_layout = "grid"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("sheet layout config should parse");
         assert_eq!(config.animations.sheet_layout, SheetLayout::Grid);
     }
 
@@ -786,7 +786,7 @@ name = "test"
 enabled = true
 filter_mode = "bilinear"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("filter mode config should parse");
         assert_eq!(config.exports.unity.filter_mode, FilterMode::Bilinear);
     }
 
@@ -796,7 +796,7 @@ filter_mode = "bilinear"
 [project]
 name = "test"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("format defaults config should parse");
         assert_eq!(config.format.version, 2);
     }
 
@@ -809,7 +809,7 @@ name = "test"
 [format]
 version = 3
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("explicit format config should parse");
         assert_eq!(config.format.version, 3);
     }
 
@@ -819,7 +819,7 @@ version = 3
 [project]
 name = "test"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("import defaults config should parse");
         assert!((config.import_config.confidence_threshold - 0.7).abs() < 0.001);
         assert!(config.import_config.role_inference);
     }
@@ -834,7 +834,7 @@ name = "test"
 confidence_threshold = 0.9
 role_inference = false
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("explicit import config should parse");
         assert!((config.import_config.confidence_threshold - 0.9).abs() < 0.001);
         assert!(!config.import_config.role_inference);
     }
@@ -845,7 +845,7 @@ role_inference = false
 [project]
 name = "test"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("telemetry defaults config should parse");
         assert!(!config.telemetry.collect_errors);
         assert_eq!(config.telemetry.error_log, PathBuf::from(".pxl-errors.jsonl"));
     }
@@ -860,7 +860,7 @@ name = "test"
 collect_errors = true
 error_log = "errors/pxl.jsonl"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("explicit telemetry config should parse");
         assert!(config.telemetry.collect_errors);
         assert_eq!(config.telemetry.error_log, PathBuf::from("errors/pxl.jsonl"));
     }
@@ -877,7 +877,7 @@ allow_overflow = true
 allow_orphans = true
 allow_cycles = true
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("validate flags config should parse");
         assert!(config.validate.strict);
         assert!(config.validate.allow_overflow);
         assert!(config.validate.allow_orphans);
@@ -890,7 +890,7 @@ allow_cycles = true
 [project]
 name = "test"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("validate defaults config should parse");
         assert!(!config.validate.allow_overflow);
         assert!(!config.validate.allow_orphans);
         assert!(!config.validate.allow_cycles);
@@ -902,7 +902,7 @@ name = "test"
 [project]
 name = "test"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("antialias defaults config should parse");
         assert!(!config.defaults.antialias.enabled);
         assert_eq!(config.defaults.antialias.mode, AntialiasMode::None);
         assert!((config.defaults.antialias.edge_threshold - 0.5).abs() < 0.001);
@@ -919,7 +919,7 @@ enabled = true
 mode = "semantic"
 edge_threshold = 0.75
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("explicit antialias config should parse");
         assert!(config.defaults.antialias.enabled);
         assert_eq!(config.defaults.antialias.mode, AntialiasMode::Semantic);
         assert!((config.defaults.antialias.edge_threshold - 0.75).abs() < 0.001);
@@ -934,7 +934,7 @@ name = "test"
 [defaults.antialias]
 mode = "edge"
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("antialias mode config should parse");
         assert_eq!(config.defaults.antialias.mode, AntialiasMode::Edge);
     }
 
@@ -952,9 +952,9 @@ enabled = true
 mode = "semantic"
 edge_threshold = 0.6
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
-        let atlas = config.atlases.get("sprites").unwrap();
-        let aa = atlas.antialias.as_ref().unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("atlas antialias config should parse");
+        let atlas = config.atlases.get("sprites").expect("sprites atlas should exist");
+        let aa = atlas.antialias.as_ref().expect("atlas should have antialias config");
         assert!(aa.enabled);
         assert_eq!(aa.mode, AntialiasMode::Semantic);
         assert!((aa.edge_threshold - 0.6).abs() < 0.001);
@@ -982,10 +982,10 @@ edge_threshold = 0.8
 [atlases.without_aa]
 sources = ["b/**"]
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("effective antialias config should parse");
 
-        let with = config.atlases.get("with_aa").unwrap();
-        let without = config.atlases.get("without_aa").unwrap();
+        let with = config.atlases.get("with_aa").expect("with_aa atlas should exist");
+        let without = config.atlases.get("without_aa").expect("without_aa atlas should exist");
 
         let aa_with = config.effective_antialias(with);
         assert_eq!(aa_with.mode, AntialiasMode::Semantic);
@@ -1005,7 +1005,7 @@ name = "test"
 [defaults.antialias]
 edge_threshold = 1.5
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("invalid edge threshold config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "defaults.antialias.edge_threshold"));
     }
@@ -1022,7 +1022,7 @@ sources = ["sprites/**"]
 [atlases.bad.antialias]
 edge_threshold = -0.1
 "#;
-        let config: PxlConfig = toml::from_str(toml).unwrap();
+        let config: PxlConfig = toml::from_str(toml).expect("invalid atlas edge threshold config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "atlases.bad.antialias.edge_threshold"));
     }
