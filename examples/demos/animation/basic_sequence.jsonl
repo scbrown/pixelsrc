@@ -1,0 +1,7 @@
+{"type": "palette", "name": "anim_pal", "colors": {"{_}": "#00000000", "{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF", "{y}": "#FFFF00"}}
+{"type": "sprite", "name": "frame1", "size": [4, 4], "palette": "anim_pal", "regions": {"{r}": {"rect": [0, 0, 4, 4]}}}
+{"type": "sprite", "name": "frame2", "size": [4, 4], "palette": "anim_pal", "regions": {"{g}": {"rect": [0, 0, 4, 4]}}}
+{"type": "sprite", "name": "frame3", "size": [4, 4], "palette": "anim_pal", "regions": {"{b}": {"rect": [0, 0, 4, 4]}}}
+{"type": "sprite", "name": "frame4", "size": [4, 4], "palette": "anim_pal", "regions": {"{y}": {"rect": [0, 0, 4, 4]}}}
+{"type": "animation", "name": "color_cycle", "frames": ["frame1", "frame2", "frame3", "frame4"], "duration": 100, "loop": true}
+{"type": "animation", "name": "two_frame", "frames": ["frame1", "frame2"], "duration": 200}

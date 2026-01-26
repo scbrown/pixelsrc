@@ -1,0 +1,7 @@
+{"type": "palette", "name": "char_pal", "colors": {"{_}": "#00000000", "{s}": "#885544", "{h}": "#FFCC99", "{e}": "#000000"}}
+{"type": "sprite", "name": "idle_1", "size": [8, 8], "palette": "char_pal", "metadata": {"origin": [4, 8]}, "regions": {"{s}": {"rect": [2, 4, 4, 4]}, "{h}": {"rect": [2, 1, 4, 3]}, "{e}": {"points": [[3, 2], [5, 2]]}}}
+{"type": "sprite", "name": "idle_2", "size": [8, 8], "palette": "char_pal", "metadata": {"origin": [4, 8]}, "regions": {"{s}": {"rect": [2, 4, 4, 4]}, "{h}": {"rect": [2, 1, 4, 3]}, "{e}": {"points": [[3, 2], [5, 2]]}}}
+{"type": "sprite", "name": "walk_1", "size": [8, 8], "palette": "char_pal", "metadata": {"origin": [4, 8], "boxes": {"hitbox": {"x": 1, "y": 0, "w": 6, "h": 8}}}, "regions": {"{s}": {"rect": [2, 4, 4, 4]}, "{h}": {"rect": [2, 1, 4, 3]}}}
+{"type": "sprite", "name": "walk_2", "size": [8, 8], "palette": "char_pal", "metadata": {"origin": [4, 8], "boxes": {"hitbox": {"x": 1, "y": 0, "w": 6, "h": 8}}}, "regions": {"{s}": {"rect": [2, 4, 4, 4]}, "{h}": {"rect": [2, 1, 4, 3]}}}
+{"type": "animation", "name": "char_idle", "frames": ["idle_1", "idle_2"], "duration": 500, "loop": true, "tags": {"idle": {"start": 0, "end": 1}}}
+{"type": "animation", "name": "char_walk", "frames": ["walk_1", "walk_2"], "duration": 150, "loop": true, "tags": {"walk": {"start": 0, "end": 1}}}
