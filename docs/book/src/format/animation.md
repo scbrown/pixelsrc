@@ -49,7 +49,7 @@ Each keyframe can specify any combination of these properties:
 | `sprite` | Sprite name to display at this keyframe |
 | `opacity` | Opacity from 0.0 (transparent) to 1.0 (opaque) |
 | `offset` | Position offset `[x, y]` in pixels |
-| `transform` | CSS transform string (e.g., `"rotate(45deg)"`) |
+| `transform` | CSS transform string (e.g., `"rotate(45deg)"`) — see [Transforms](transforms.md#css-transforms-keyframe-animations) |
 
 ### Percentage Keys
 

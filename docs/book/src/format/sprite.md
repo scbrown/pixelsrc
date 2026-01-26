@@ -222,9 +222,9 @@ Render at different sizes:
 pxl render button.pxl --nine-slice 64x32 -o button_wide.png
 ```
 
-## Transforms
+## Transforms (Derived Sprites)
 
-Apply render-time modifications:
+Create derived sprites by applying op-style transforms to an existing sprite:
 
 ```json5
 {
@@ -237,7 +237,11 @@ Apply render-time modifications:
 }
 ```
 
-See [Transforms](transforms.md) for available operations.
+Op-style transforms support both geometric operations (`mirror-h`, `rotate:90`) and effects (`sel-out`, `dither`, `shadow`).
+
+See [Transforms](transforms.md#op-style-transforms-derived-sprites) for the full list of operations.
+
+> **Note:** For animated transforms (in keyframes), use CSS transform strings instead. See [Animation](animation.md).
 
 ## Complete Example
 

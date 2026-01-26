@@ -1,13 +1,23 @@
 # Transforms
 
-Transforms modify sprites at render time without changing the source definition. Pixelsrc supports two transform systems:
+Transforms modify sprites at render time without changing the source definition. Pixelsrc supports two transform systems designed for different use cases.
 
-- **CSS Transforms**: Translate, rotate, scale, and flip with CSS-like syntax (used in keyframe animations)
-- **Effect Transforms**: Dithering, selective outline, squash/stretch (applied via transform arrays)
+## When to Use Which
+
+| Use Case | System | Example |
+|----------|--------|---------|
+| Keyframe animations | **CSS Transforms** | `"transform": "rotate(90deg) scale(2)"` |
+| Derived sprites | **Op-style Transforms** | `"transform": [{"op": "mirror-h"}]` |
+| Geometric only (rotate, flip, scale) | Either | Context determines choice |
+| Effects (dither, outline, shadow) | **Op-style only** | `"transform": [{"op": "sel-out"}]` |
+
+**Rule of thumb:**
+- In an `animation` keyframe → use CSS transform strings
+- In a `sprite` with `source` → use op-style transform arrays
 
 ---
 
-## CSS Transforms
+## CSS Transforms (Keyframe Animations)
 
 CSS transforms use familiar web syntax and are primarily used within keyframe animations. They're designed for pixel art with specific considerations for crisp rendering.
 
@@ -174,9 +184,11 @@ This translates first, then rotates, then scales.
 
 ---
 
-## Sprite Transforms (Derived Sprites)
+## Op-style Transforms (Derived Sprites)
 
 Create new sprites derived from existing ones using transforms. These are specified via the `transform` array on a sprite definition.
+
+> **Note:** Op-style transforms are for sprite derivation, not animations. For animated transforms, see [CSS Transforms](#css-transforms-keyframe-animations) above.
 
 ### String Syntax (Simple Operations)
 
