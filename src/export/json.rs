@@ -43,7 +43,7 @@
 //! ```
 
 use crate::atlas::AtlasMetadata;
-use crate::export::{ExportError, ExportOptions, Exporter};
+use crate::export::{ExportError, ExportOptions, Exporter, Result};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -69,7 +69,7 @@ impl JsonExporter {
         &self,
         metadata: &AtlasMetadata,
         options: &ExportOptions,
-    ) -> Result<String, ExportError> {
+    ) -> Result<String> {
         let json = if options.pretty {
             serde_json::to_string_pretty(metadata)?
         } else {
@@ -85,7 +85,7 @@ impl Exporter for JsonExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         options: &ExportOptions,
-    ) -> Result<(), ExportError> {
+    ) -> Result<()> {
         let json = self.export_to_string(metadata, options)?;
 
         // Ensure parent directory exists
@@ -131,7 +131,7 @@ pub fn export_json(
     metadata: &AtlasMetadata,
     output_path: &Path,
     pretty: bool,
-) -> Result<(), ExportError> {
+) -> Result<()> {
     let exporter = JsonExporter::new();
     let options = ExportOptions { pretty, ..Default::default() };
     exporter.export(metadata, output_path, &options)

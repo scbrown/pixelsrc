@@ -34,3 +34,6 @@ pub use expression::{
 };
 pub use parsing::{parse_token_pair, parse_transform_str, parse_transform_value};
 pub use types::{explain_transform, Transform, TransformError};
+
+/// Result type alias for transform operations.
+pub type Result<T> = std::result::Result<T, TransformError>;

@@ -11,6 +11,18 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use thiserror::Error;
+
+/// Error type for validation operations.
+#[derive(Debug, Error)]
+pub enum ValidateError {
+    /// IO error during file operations
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+/// Result type alias for validation operations.
+pub type Result<T> = std::result::Result<T, ValidateError>;
 
 /// Severity of a validation issue
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -759,7 +771,7 @@ impl Validator {
     /// Validate a file
     ///
     /// Supports both single-line JSONL and multi-line JSON5 formats.
-    pub fn validate_file(&mut self, path: &Path) -> Result<(), std::io::Error> {
+    pub fn validate_file(&mut self, path: &Path) -> Result<()> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 

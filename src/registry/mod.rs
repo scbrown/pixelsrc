@@ -28,6 +28,20 @@ pub use sprite::{ResolvedSprite, SpriteError, SpriteRegistry, SpriteWarning};
 pub use traits::Registry;
 pub use transform::TransformRegistry;
 
+/// Unified error type for registry operations.
+#[derive(Debug, thiserror::Error)]
+pub enum RegistryError {
+    /// Palette-related error
+    #[error("{0}")]
+    Palette(#[from] PaletteError),
+    /// Sprite-related error
+    #[error("{0}")]
+    Sprite(#[from] SpriteError),
+}
+
+/// Result type alias for registry operations.
+pub type Result<T> = std::result::Result<T, RegistryError>;
+
 #[cfg(test)]
 mod tests {
     use super::*;

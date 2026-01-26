@@ -62,7 +62,7 @@
 //! ```
 
 use crate::atlas::AtlasMetadata;
-use crate::export::{ExportError, ExportOptions, Exporter};
+use crate::export::{ExportError, ExportOptions, Exporter, Result};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -146,7 +146,7 @@ impl GodotExporter {
         metadata: &AtlasMetadata,
         output_dir: &Path,
         options: &GodotExportOptions,
-    ) -> Result<Vec<std::path::PathBuf>, ExportError> {
+    ) -> Result<Vec<std::path::PathBuf>> {
         let mut outputs = Vec::new();
 
         // Ensure output directory exists
@@ -417,7 +417,7 @@ impl Exporter for GodotExporter {
         metadata: &AtlasMetadata,
         output_path: &Path,
         options: &ExportOptions,
-    ) -> Result<(), ExportError> {
+    ) -> Result<()> {
         let godot_options = GodotExportOptions {
             base: options.clone(),
             resource_path: self.resource_path.clone(),
@@ -453,7 +453,7 @@ pub fn export_godot(
     metadata: &AtlasMetadata,
     output_dir: &Path,
     resource_path: &str,
-) -> Result<Vec<std::path::PathBuf>, ExportError> {
+) -> Result<Vec<std::path::PathBuf>> {
     let exporter = GodotExporter::new().with_resource_path(resource_path);
     let options =
         GodotExportOptions { resource_path: resource_path.to_string(), ..Default::default() };
