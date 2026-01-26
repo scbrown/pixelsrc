@@ -126,7 +126,7 @@ impl ParallelBuild {
         let failed = Arc::new(Mutex::new(false));
 
         for level in levels {
-            if self.fail_fast && *failed.lock().unwrap() {
+            if self.fail_fast && *failed.lock().expect("failed flag mutex poisoned") {
                 break;
             }
 
@@ -134,7 +134,7 @@ impl ParallelBuild {
 
             for target_result in level_results {
                 if target_result.status.is_failure() && self.fail_fast {
-                    *failed.lock().unwrap() = true;
+                    *failed.lock().expect("failed flag mutex poisoned") = true;
                 }
                 result.add_result(target_result);
             }
@@ -241,7 +241,7 @@ impl ParallelBuild {
         }
 
         // Use atomic for faster fail-fast checking
-        let failed_atomic = AtomicBool::new(*failed.lock().unwrap());
+        let failed_atomic = AtomicBool::new(*failed.lock().expect("failed flag mutex poisoned"));
         let fail_fast = self.fail_fast;
         let context = &self.context;
 
@@ -276,7 +276,7 @@ impl ParallelBuild {
 
         // Update the shared failed state
         if failed_atomic.load(Ordering::Relaxed) {
-            *failed.lock().unwrap() = true;
+            *failed.lock().expect("failed flag mutex poisoned") = true;
         }
 
         // Sort results by original index to maintain deterministic order

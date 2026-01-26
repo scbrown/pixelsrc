@@ -801,7 +801,7 @@ impl LiveProgress {
 
     /// Check if enough time has passed since last update.
     fn should_update(&self) -> bool {
-        let mut last = self.last_update.lock().unwrap();
+        let mut last = self.last_update.lock().expect("last_update mutex poisoned");
         match *last {
             Some(t) if t.elapsed() < self.update_interval => false,
             _ => {
@@ -843,9 +843,9 @@ impl ProgressReporter for LiveProgress {
                 self.succeeded.store(0, Ordering::SeqCst);
                 self.skipped.store(0, Ordering::SeqCst);
                 self.failed.store(0, Ordering::SeqCst);
-                *self.start_time.lock().unwrap() = Some(Instant::now());
-                *self.current_target.lock().unwrap() = None;
-                *self.last_update.lock().unwrap() = None;
+                *self.start_time.lock().expect("start_time mutex poisoned") = Some(Instant::now());
+                *self.current_target.lock().expect("current_target mutex poisoned") = None;
+                *self.last_update.lock().expect("last_update mutex poisoned") = None;
 
                 if total_targets > 0 {
                     if self.is_tty {
@@ -862,7 +862,7 @@ impl ProgressReporter for LiveProgress {
                 }
             }
             ProgressEvent::TargetStarted { target_id } => {
-                *self.current_target.lock().unwrap() = Some(target_id);
+                *self.current_target.lock().expect("current_target mutex poisoned") = Some(target_id);
                 if self.is_tty && self.should_update() {
                     self.update_line(&self.render_progress());
                 }
