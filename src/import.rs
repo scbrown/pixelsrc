@@ -22,6 +22,8 @@ pub struct ImportResult {
     pub palette: HashMap<String, String>,
     /// Grid rows with token sequences.
     pub grid: Vec<String>,
+    /// Detected symmetry type (if any).
+    pub symmetry: Option<String>,
 }
 
 impl ImportResult {
@@ -33,13 +35,26 @@ impl ImportResult {
             "colors": self.palette
         });
 
-        let sprite_json = serde_json::json!({
-            "type": "sprite",
-            "name": self.name,
-            "size": [self.width, self.height],
-            "palette": format!("{}_palette", self.name),
-            "grid": self.grid
-        });
+        let sprite_json = if let Some(ref sym) = self.symmetry {
+            serde_json::json!({
+                "type": "sprite",
+                "name": self.name,
+                "size": [self.width, self.height],
+                "palette": format!("{}_palette", self.name),
+                "grid": self.grid,
+                "metadata": {
+                    "symmetry": sym
+                }
+            })
+        } else {
+            serde_json::json!({
+                "type": "sprite",
+                "name": self.name,
+                "size": [self.width, self.height],
+                "palette": format!("{}_palette", self.name),
+                "grid": self.grid
+            })
+        };
 
         format!("{}\n{}", palette_json, sprite_json)
     }
@@ -319,7 +334,7 @@ pub fn import_png<P: AsRef<Path>>(
         grid.push(row);
     }
 
-    Ok(ImportResult { name: name.to_string(), width, height, palette, grid })
+    Ok(ImportResult { name: name.to_string(), width, height, palette, grid, symmetry: None })
 }
 
 #[cfg(test)]
@@ -402,6 +417,7 @@ mod tests {
             height: 2,
             palette,
             grid: vec!["{c1}{_}".to_string(), "{_}{c1}".to_string()],
+            symmetry: None,
         };
 
         let jsonl = result.to_jsonl();
@@ -409,5 +425,25 @@ mod tests {
         assert!(jsonl.contains("\"type\":\"sprite\""));
         assert!(jsonl.contains("test_sprite_palette"));
         assert!(jsonl.contains("test_sprite"));
+    }
+
+    #[test]
+    fn test_import_result_with_symmetry() {
+        let mut palette = HashMap::new();
+        palette.insert("{_}".to_string(), "#00000000".to_string());
+        palette.insert("{c1}".to_string(), "#FF0000".to_string());
+
+        let result = ImportResult {
+            name: "symmetric_sprite".to_string(),
+            width: 4,
+            height: 2,
+            palette,
+            grid: vec!["{c1}{_}{_}{c1}".to_string(), "{c1}{_}{_}{c1}".to_string()],
+            symmetry: Some("x".to_string()),
+        };
+
+        let jsonl = result.to_jsonl();
+        assert!(jsonl.contains("\"symmetry\":\"x\""));
+        assert!(jsonl.contains("\"metadata\""));
     }
 }

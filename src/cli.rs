@@ -46,8 +46,10 @@ pub fn find_pixelsrc_files(dir: &std::path::Path) -> Vec<PathBuf> {
 
     files
 }
+use crate::analyze::{detect_symmetry, Symmetric};
 use crate::gif::render_gif;
 use crate::import::import_png;
+use crate::tokenizer::tokenize;
 use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
 use crate::lsp_agent_client::LspAgentClient;
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
@@ -162,6 +164,10 @@ pub enum Commands {
         /// Name for the generated sprite (default: derived from filename)
         #[arg(short, long)]
         name: Option<String>,
+
+        /// Detect and annotate symmetry in the imported sprite
+        #[arg(long)]
+        detect_symmetry: bool,
     },
 
     /// Show GenAI prompt templates for sprite generation
@@ -663,8 +669,8 @@ pub fn run() -> ExitCode {
             power_of_two,
             nine_slice.as_deref(),
         ),
-        Commands::Import { input, output, max_colors, name } => {
-            run_import(&input, output.as_deref(), max_colors, name.as_deref())
+        Commands::Import { input, output, max_colors, name, detect_symmetry } => {
+            run_import(&input, output.as_deref(), max_colors, name.as_deref(), detect_symmetry)
         }
         Commands::Prompts { template } => run_prompts(template.as_deref()),
         Commands::Palettes { action } => run_palettes(action),
@@ -2242,6 +2248,7 @@ fn run_import(
     output: Option<&std::path::Path>,
     max_colors: usize,
     sprite_name: Option<&str>,
+    detect_sym: bool,
 ) -> ExitCode {
     // Validate max_colors
     if !(2..=256).contains(&max_colors) {
@@ -2255,13 +2262,32 @@ fn run_import(
         .unwrap_or_else(|| input.file_stem().unwrap_or_default().to_string_lossy().to_string());
 
     // Import the PNG
-    let result = match import_png(input, &name, max_colors) {
+    let mut result = match import_png(input, &name, max_colors) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Error: {}", e);
             return ExitCode::from(EXIT_ERROR);
         }
     };
+
+    // Detect symmetry if requested
+    if detect_sym {
+        // Build flat pixel array from grid
+        let mut pixels: Vec<String> = Vec::new();
+        for row in &result.grid {
+            let (tokens, _) = tokenize(row);
+            pixels.extend(tokens);
+        }
+        let pixel_refs: Vec<&str> = pixels.iter().map(|s| s.as_str()).collect();
+
+        if let Some(sym) = detect_symmetry(&pixel_refs, result.width as usize, result.height as usize) {
+            result.symmetry = Some(match sym {
+                Symmetric::X => "x".to_string(),
+                Symmetric::Y => "y".to_string(),
+                Symmetric::XY => "xy".to_string(),
+            });
+        }
+    }
 
     // Generate output path
     let output_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
@@ -2276,12 +2302,15 @@ fn run_import(
         return ExitCode::from(EXIT_ERROR);
     }
 
+    // Build output message
+    let symmetry_info = result.symmetry.as_ref().map(|s| format!(", symmetry: {}", s)).unwrap_or_default();
     println!(
-        "Imported: {} ({}x{}, {} colors)",
+        "Imported: {} ({}x{}, {} colors{})",
         output_path.display(),
         result.width,
         result.height,
-        result.palette.len()
+        result.palette.len(),
+        symmetry_info
     );
     ExitCode::from(EXIT_SUCCESS)
 }
