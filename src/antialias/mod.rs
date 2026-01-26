@@ -6,11 +6,13 @@
 //! # Module Structure
 //!
 //! - [`context`] - Semantic context extraction from palette roles/relationships
-//! - `algorithms` (planned) - Implementation of antialiasing algorithms (scale2x, hq2x, etc.)
+//! - [`algorithms`] - Implementation of antialiasing algorithms (scale2x, hq2x, etc.)
 //! - `gradient` (planned) - Gradient smoothing for shadow/highlight transitions
 
+pub mod algorithms;
 pub mod context;
 
+pub use algorithms::{scale2x, Scale2xOptions};
 pub use context::{AdjacencyInfo, GradientPair, RenderedRegion, SemanticContext};
 
 use clap::ValueEnum;
