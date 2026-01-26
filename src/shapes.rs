@@ -539,6 +539,12 @@ pub fn rasterize_polygon(vertices: &[(i32, i32)]) -> HashSet<(i32, i32)> {
     let min_y = vertices.iter().map(|(_, y)| *y).min().unwrap();
     let max_y = vertices.iter().map(|(_, y)| *y).max().unwrap();
 
+    // First, add all vertices to ensure they're included
+    // (vertices on the boundary should always be part of the filled polygon)
+    for &(x, y) in vertices {
+        pixels.insert((x, y));
+    }
+
     // Scanline fill
     for y in min_y..=max_y {
         let mut intersections = Vec::new();
@@ -549,15 +555,28 @@ pub fn rasterize_polygon(vertices: &[(i32, i32)]) -> HashSet<(i32, i32)> {
             let (x1, y1) = vertices[i];
             let (x2, y2) = vertices[j];
 
-            // Skip horizontal edges
+            // Skip horizontal edges (handled separately below)
             if y1 == y2 {
+                // For horizontal edges at this y, fill the entire segment
+                if y1 == y {
+                    let x_min = x1.min(x2);
+                    let x_max = x1.max(x2);
+                    for x in x_min..=x_max {
+                        pixels.insert((x, y));
+                    }
+                }
                 continue;
             }
 
-            // Check if scanline intersects this edge (inclusive of both endpoints)
+            // Check if scanline intersects this edge
+            // IMPORTANT: Use exclusive upper bound to avoid double-counting vertices.
+            // When a scanline passes through a vertex where two edges meet, we want
+            // to count that intersection exactly once, not twice.
+            // By excluding the maximum y (upper endpoint), each vertex is counted
+            // only by the edge for which it is the lower endpoint.
             let y_min = y1.min(y2);
             let y_max = y1.max(y2);
-            if y >= y_min && y <= y_max {
+            if y >= y_min && y < y_max {
                 let x = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
                 intersections.push(x);
             }
@@ -771,6 +790,132 @@ mod tests {
         let pixels = rasterize_polygon(&triangle);
         assert!(pixels.len() > 0);
         assert!(pixels.contains(&(0, 0)));
+    }
+
+    #[test]
+    fn test_rasterize_polygon_hexagon_no_gaps() {
+        // Hexagon with 6 vertices - should have no horizontal gaps/stripes
+        // This tests the scanline algorithm's vertex handling
+        let hexagon = vec![
+            (5, 0),   // top
+            (9, 2),   // upper right
+            (9, 6),   // lower right
+            (5, 8),   // bottom
+            (1, 6),   // lower left
+            (1, 2),   // upper left
+        ];
+        let pixels = rasterize_polygon(&hexagon);
+
+        // Check that every row from y=0 to y=8 has at least some pixels
+        // A gap/stripe bug would result in missing rows
+        for y in 0..=8 {
+            let row_pixels: Vec<_> = pixels.iter().filter(|(_, py)| *py == y).collect();
+            assert!(
+                !row_pixels.is_empty(),
+                "Row y={} has no pixels - stripe artifact detected!",
+                y
+            );
+        }
+    }
+
+    #[test]
+    fn test_rasterize_polygon_convex_no_stripes() {
+        // Pentagon (5 vertices) - another test for vertex handling
+        let pentagon = vec![
+            (5, 0),   // top
+            (10, 4),  // right
+            (8, 10),  // bottom right
+            (2, 10),  // bottom left
+            (0, 4),   // left
+        ];
+        let pixels = rasterize_polygon(&pentagon);
+
+        // Every row from min_y to max_y should have pixels
+        for y in 0..=10 {
+            let row_pixels: Vec<_> = pixels.iter().filter(|(_, py)| *py == y).collect();
+            assert!(
+                !row_pixels.is_empty(),
+                "Row y={} has no pixels - stripe artifact detected!",
+                y
+            );
+        }
+    }
+
+    #[test]
+    fn test_rasterize_polygon_vertex_double_count() {
+        // This test checks for the classic scanline bug where vertices
+        // are double-counted (once for each edge meeting at the vertex).
+        // The bug manifests when a scanline passes through a vertex where
+        // edges have different slopes.
+        //
+        // Diamond shape where scanline at y=2 passes through vertex:
+        //     *     (2,0)
+        //    / \
+        //   *   *   (0,2) and (4,2) - these are the critical vertices
+        //    \ /
+        //     *     (2,4)
+        let diamond = vec![
+            (2, 0),  // top
+            (4, 2),  // right
+            (2, 4),  // bottom
+            (0, 2),  // left
+        ];
+        let pixels = rasterize_polygon(&diamond);
+
+        // Row y=2 passes through vertices at (0,2) and (4,2)
+        // With correct handling, pixels should be filled from x=0 to x=4
+        // With double-counting bug, might get no fill or wrong fill
+        let row2_pixels: Vec<_> = pixels.iter().filter(|(_, y)| *y == 2).collect();
+        assert!(
+            row2_pixels.len() >= 5,
+            "Row y=2 should have at least 5 pixels (0..=4), got {} pixels: {:?}",
+            row2_pixels.len(),
+            row2_pixels
+        );
+
+        // Verify specific pixels in row 2
+        assert!(pixels.contains(&(0, 2)), "Missing left vertex pixel at (0,2)");
+        assert!(pixels.contains(&(2, 2)), "Missing center pixel at (2,2)");
+        assert!(pixels.contains(&(4, 2)), "Missing right vertex pixel at (4,2)");
+    }
+
+    #[test]
+    fn test_rasterize_polygon_local_minmax_vertices() {
+        // Test vertices that are local minima/maxima in y-direction
+        // These require special handling in scanline algorithms
+        //
+        //       * (5, 0) - local max
+        //      / \
+        //     /   \
+        //    * (0,5) * (10,5)
+        //     \   /
+        //      \ /
+        //       * (5, 10) - local min
+        let shape = vec![
+            (5, 0),    // top (local max)
+            (10, 5),   // right
+            (5, 10),   // bottom (local min)
+            (0, 5),    // left
+        ];
+        let pixels = rasterize_polygon(&shape);
+
+        // Every row should have pixels
+        for y in 0..=10 {
+            let row_count = pixels.iter().filter(|(_, py)| *py == y).count();
+            assert!(
+                row_count > 0,
+                "Row y={} is empty - scanline vertex handling bug!",
+                y
+            );
+        }
+
+        // The widest row should be y=5 (through both side vertices)
+        let row5_count = pixels.iter().filter(|(_, y)| *y == 5).count();
+        assert!(
+            row5_count >= 11,
+            "Row y=5 should span x=0 to x=10 (11 pixels), got {} pixels",
+            row5_count
+        );
     }
 
     // ========================================================================
