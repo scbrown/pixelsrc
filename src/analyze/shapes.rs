@@ -54,10 +54,11 @@ pub(crate) fn bounding_box(pixels: &HashSet<(i32, i32)>) -> Option<(i32, i32, i3
         return None;
     }
 
-    let min_x = pixels.iter().map(|(x, _)| *x).min().unwrap();
-    let max_x = pixels.iter().map(|(x, _)| *x).max().unwrap();
-    let min_y = pixels.iter().map(|(_, y)| *y).min().unwrap();
-    let max_y = pixels.iter().map(|(_, y)| *y).max().unwrap();
+    // SAFETY: empty check above guarantees at least one element
+    let min_x = pixels.iter().map(|(x, _)| *x).min().expect("non-empty after check");
+    let max_x = pixels.iter().map(|(x, _)| *x).max().expect("non-empty after check");
+    let min_y = pixels.iter().map(|(_, y)| *y).min().expect("non-empty after check");
+    let max_y = pixels.iter().map(|(_, y)| *y).max().expect("non-empty after check");
 
     Some((min_x, min_y, max_x, max_y))
 }
@@ -193,7 +194,8 @@ pub fn detect_line(pixels: &HashSet<(i32, i32)>) -> Option<ShapeDetection<Vec<[i
 
     // For very small pixel sets, they're trivially lines
     if pixels.len() == 1 {
-        let (x, y) = *pixels.iter().next().unwrap();
+        // SAFETY: len() == 1 guarantees at least one element
+        let (x, y) = *pixels.iter().next().expect("non-empty after len check");
         return Some(ShapeDetection::new(vec![[x, y], [x, y]], 1.0));
     }
 
