@@ -81,6 +81,7 @@
 
 # Reference
 
+- [Antialiasing](reference/antialiasing.md)
 - [Built-in Palettes](reference/palettes.md)
 - [Color Formats](reference/colors.md)
 - [Exit Codes](reference/exit-codes.md)
