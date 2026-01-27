@@ -38,6 +38,7 @@ See [personas](../personas.md) for user context on feature complexity.
 
 | Idea | Personas | Description |
 |------|----------|-------------|
+| [Semantic Import](./phase-semantic-import.md) | All | Auto-identify visual components during PNG→pxlsrc using embeddings (CLIP/SAM) |
 | [Nested Compositions](./nested-compositions.md) | Game Dev, Pixel Artist+ | Compositions referencing compositions for hierarchical scenes |
 | [Persona Integration](./persona-integration.md) | All | Personas in `pxl prime`, frontmatter tags in docs |
 | VS Code Extension | All | Syntax highlighting + live preview |
