@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::antialias::AntialiasConfig;
 use super::palette::PaletteRef;
 use super::region::RegionDef;
 use super::transform::TransformSpec;
@@ -109,4 +110,7 @@ pub struct Sprite {
     /// Nine-slice region definition for scalable UI sprites
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub nine_slice: Option<NineSlice>,
+    /// Per-sprite antialiasing configuration (overrides atlas/defaults)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub antialias: Option<AntialiasConfig>,
 }
