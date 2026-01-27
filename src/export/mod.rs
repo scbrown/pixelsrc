@@ -37,6 +37,7 @@ use thiserror::Error;
 
 /// Common error type for export operations.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ExportError {
     /// IO error during file writing
     #[error("IO error: {0}")]

@@ -14,6 +14,7 @@ use crate::parser::parse_stream;
 
 /// Error type for include resolution failures.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum IncludeError {
     /// Circular include detected
     #[error("Circular include detected: {}", .0.display())]

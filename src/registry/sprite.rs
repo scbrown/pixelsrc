@@ -10,6 +10,7 @@ use super::traits::Registry;
 
 /// Error when resolving a sprite or variant.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum SpriteError {
     /// Referenced sprite/variant was not found
     #[error("Sprite or variant '{0}' not found")]

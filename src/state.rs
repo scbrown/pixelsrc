@@ -201,6 +201,7 @@ fn parse_role(s: &str) -> Result<Role, SelectorParseError> {
 
 /// Errors that can occur when parsing selectors
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum SelectorParseError {
     /// Selector string is empty
     Empty,

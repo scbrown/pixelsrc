@@ -235,6 +235,7 @@ impl BuildPlan {
 
 /// Error during build order calculation.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum BuildOrderError {
     /// Circular dependency detected
     #[error("Circular dependency detected involving target '{0}'")]

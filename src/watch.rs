@@ -15,6 +15,7 @@ use crate::config::schema::WatchConfig;
 
 /// Error during watch mode
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum WatchError {
     /// Failed to initialize file watcher
     #[error("Failed to initialize file watcher: {0}")]

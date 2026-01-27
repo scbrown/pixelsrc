@@ -30,6 +30,7 @@ use thiserror::Error;
 
 /// Error during palette parsing
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum PaletteParseError {
     /// Variable resolution failed
     #[error("variable error for '{token}': {error}")]

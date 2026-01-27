@@ -516,9 +516,9 @@ pub fn parse_motion_path(s: &str) -> Option<MotionPath> {
     }
 }
 
-/// Error type for timing function parsing
 /// Error type for timing function parsing failures
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum TimingFunctionError {
     /// Empty input string
     #[error("empty timing function")]

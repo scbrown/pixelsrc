@@ -13,6 +13,7 @@ use thiserror::Error;
 
 /// Error type for path parsing failures
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum PathError {
     /// Path string is empty
     #[error("empty path string")]

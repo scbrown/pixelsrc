@@ -16,6 +16,7 @@ impl Warning {
 
 /// Error when rendering a composition in strict mode.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum CompositionError {
     /// Sprite dimensions exceed cell size
     #[error("Sprite '{sprite_name}' ({sprite_w}x{sprite_h}) exceeds cell size ({cell_w}x{cell_h}) in composition '{composition_name}'", sprite_w = sprite_size.0, sprite_h = sprite_size.1, cell_w = cell_size.0, cell_h = cell_size.1)]

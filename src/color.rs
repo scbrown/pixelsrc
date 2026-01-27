@@ -12,6 +12,7 @@ use thiserror::Error;
 
 /// Error type for color parsing failures
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum ColorError {
     /// Input string was empty
     #[error("empty color string")]
