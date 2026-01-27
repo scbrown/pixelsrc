@@ -7,3 +7,4 @@ pub mod colors;
 pub mod keyframes;
 pub mod timing;
 pub mod transforms;
+pub mod variables;
