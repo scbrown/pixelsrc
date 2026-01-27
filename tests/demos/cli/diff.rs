@@ -24,9 +24,9 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // No Difference Tests
 // ============================================================================
-/// @demo cli/diff#identical
-/// @title Diff Identical Sprites
-/// @description Identical sprites produce no differences.
+/// @demo cli/analysis#diff
+/// @title Diff Command
+/// @description The pxl diff command compares two sprites and shows changes.
 #[test]
 fn test_diff_identical_sprites() {
     let palette = HashMap::from([

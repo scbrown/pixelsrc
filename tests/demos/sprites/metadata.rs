@@ -3,6 +3,10 @@
 //! Origin points, collision boxes, and attachment points.
 
 use crate::demos::{assert_validates, parse_content};
+
+/// @demo format/sprite#origin
+/// @title Origin Point
+/// @description Sprites can define an origin point for positioning and rotation.
 #[test]
 fn test_metadata_origin() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
@@ -23,6 +27,10 @@ fn test_metadata_origin() {
         .resolve("player", &palette_registry, false)
         .expect("Player sprite should resolve");
 }
+
+/// @demo format/sprite#collision
+/// @title Collision Boxes
+/// @description Named collision/hitbox regions for game logic.
 #[test]
 fn test_metadata_collision_boxes() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
@@ -49,6 +57,10 @@ fn test_metadata_collision_boxes() {
     assert_eq!(hit.w, 3, "hit.w should be 3");
     assert_eq!(hit.h, 2, "hit.h should be 2");
 }
+
+/// @demo format/sprite#attachments
+/// @title Attachment Points
+/// @description Points for connecting sprites in chains (arms, chains, etc.).
 #[test]
 fn test_metadata_attachments() {
     let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");

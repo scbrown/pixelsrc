@@ -4,9 +4,9 @@
 
 use pixelsrc::prime::{get_primer, list_sections, PrimerSection};
 
-/// @demo cli/prime#full
-/// @title Full Primer Output
-/// @description Output the complete AI primer for context loading.
+/// @demo cli/info#prime
+/// @title Prime Command
+/// @description The pxl prime command outputs AI primer for context loading.
 #[test]
 fn test_prime_full() {
     let content = get_primer(PrimerSection::Full, false);

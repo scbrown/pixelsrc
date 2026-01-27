@@ -6,9 +6,9 @@ use crate::demos::{
     assert_composition_sprites_resolve, assert_validates, capture_composition_info,
 };
 
-/// @demo format/composition/scene#simple
-/// @title Simple Scene
-/// @description Multi-layer scene with sky, ground, and objects.
+/// @demo format/composition#multi_sprite
+/// @title Multi-Sprite Scenes
+/// @description Multi-layer scene with sky, ground, and multiple sprite types.
 #[test]
 fn test_simple_scene() {
     let jsonl = include_str!("../../../examples/demos/composition/multi_sprite.jsonl");

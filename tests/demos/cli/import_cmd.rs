@@ -75,9 +75,9 @@ fn create_checkerboard_transparent() -> RgbaImage {
 // ============================================================================
 // Basic Import Tests
 // ============================================================================
-/// @demo cli/import#basic
-/// @title Basic PNG Import
-/// @description Imports PNG to JSONL with palette and sprite.
+/// @demo cli/core#import
+/// @title Import Command
+/// @description The pxl import command for converting PNG to JSONL.
 #[test]
 fn test_import_basic() {
     let path = ensure_png("cli_red_square", create_red_square);

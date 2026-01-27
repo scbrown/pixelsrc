@@ -102,8 +102,8 @@ fn create_with_transparency_4x4() -> RgbaImage {
 // Demo Tests
 // ============================================================================
 
-/// @demo import/png#basic
-/// @title Basic PNG to JSONL
+/// @demo cli/import#png
+/// @title PNG to JSONL Conversion
 /// @description Import a simple PNG image and convert to Pixelsrc JSONL format.
 #[test]
 fn test_png_to_jsonl() {
@@ -139,8 +139,8 @@ fn test_png_to_jsonl() {
     assert_eq!(sprite_json["name"], "basic_sprite");
 }
 
-/// @demo import/png#palette_detection
-/// @title Auto-detect Palette from Image
+/// @demo cli/import#palette_detect
+/// @title Palette Detection
 /// @description Import extracts unique colors and generates token mappings automatically.
 #[test]
 fn test_palette_detection() {
@@ -167,8 +167,8 @@ fn test_palette_detection() {
     assert!(quantized.palette.len() <= 4, "Quantization should limit to 4 colors");
 }
 
-/// @demo import/png#multi_frame
-/// @title Import Spritesheet as Animation
+/// @demo cli/import#multi_frame
+/// @title Multi-Frame Import
 /// @description Import a horizontal spritesheet where each frame becomes a sprite.
 #[test]
 fn test_multi_frame_import() {
@@ -195,8 +195,8 @@ fn test_multi_frame_import() {
     }
 }
 
-/// @demo import/png#transparency
-/// @title Preserve/Detect Transparency
+/// @demo cli/import#transparency
+/// @title Transparent Color Handling
 /// @description Import handles transparent pixels with special {_} token.
 #[test]
 fn test_transparency_handling() {

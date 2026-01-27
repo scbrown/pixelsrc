@@ -4,8 +4,8 @@
 
 use crate::demos::{assert_validates, parse_content};
 
-/// @demo format/animation/metadata#sprite_origin
-/// @title Sprite Origin Points
+/// @demo format/animation#frame_metadata
+/// @title Frame-Specific Metadata
 /// @description Per-sprite origin metadata for positioning and rotation anchors.
 #[test]
 fn test_sprite_origins() {
@@ -61,7 +61,7 @@ fn test_sprite_hitbox() {
     assert_eq!(hitbox.h, 8, "hitbox height should be 8");
 }
 
-/// @demo format/animation/metadata#frame_tags
+/// @demo format/animation#tags
 /// @title Animation Frame Tags
 /// @description Named frame ranges for game engine integration (idle, walk, attack phases).
 #[test]
@@ -114,7 +114,28 @@ fn test_state_timing_differences() {
     assert_eq!(walk.duration_ms(), 150, "Walk should be 150ms per frame");
 }
 
-/// @demo format/animation/metadata#consistent_origins
+/// @demo format/animation#attachments
+/// @title Attachment Chains
+/// @description Sprite attachment points for connecting animated segments.
+#[test]
+fn test_attachment_chains() {
+    // Use sprites from metadata.jsonl which has attach_in/attach_out
+    let jsonl = include_str!("../../../examples/demos/sprites/metadata.jsonl");
+    assert_validates(jsonl, true);
+
+    let (_, sprite_registry, _) = parse_content(jsonl);
+
+    let sprite = sprite_registry.get_sprite("player").expect("Sprite 'player' not found");
+    let metadata = sprite.metadata.as_ref().expect("player should have metadata");
+
+    // Verify attachment points for chain connections
+    let attach_in = metadata.attach_in.expect("Should have attach_in point");
+    let attach_out = metadata.attach_out.expect("Should have attach_out point");
+
+    assert_eq!(attach_in, [2, 0], "attach_in should be at top");
+    assert_eq!(attach_out, [2, 4], "attach_out should be at bottom");
+}
+
 /// @title Consistent Origins Across Frames
 /// @description All frames in an animation should have matching origin points.
 #[test]

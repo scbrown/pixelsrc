@@ -1629,7 +1629,7 @@ mod tests {
     // Palette Cycling Tests (DT-20)
     // ========================================================================
 
-    /// @demo format/animation/palette_cycle#single
+    /// @demo format/palette#cycle_single
     /// @title Single Palette Cycle
     /// @description Single color cycling through a sequence of values (classic water/fire shimmer).
     #[test]
@@ -1663,7 +1663,7 @@ mod tests {
         assert_eq!(info.cycle_lengths, vec![4]);
     }
 
-    /// @demo format/animation/palette_cycle#multiple
+    /// @demo format/palette#cycle_multiple
     /// @title Multiple Independent Cycles
     /// @description Multiple palette cycles running simultaneously at different speeds (water + fire).
     #[test]
@@ -1702,7 +1702,7 @@ mod tests {
         assert_eq!(info.cycle_lengths, vec![3, 3]);
     }
 
-    /// @demo format/animation/palette_cycle#timing
+    /// @demo format/palette#cycle_timing
     /// @title Cycle Timing Control
     /// @description Controlling cycle speed with duration field (fast vs slow cycling).
     #[test]
@@ -1740,7 +1740,7 @@ mod tests {
         assert_eq!(slow_info.cycle_durations, vec![Some(500)]);
     }
 
-    /// @demo format/animation/palette_cycle#ping_pong
+    /// @demo format/palette#cycle_pingpong
     /// @title Ping-Pong Cycling
     /// @description Reverse direction cycling using duplicated tokens pattern (forward then backward).
     #[test]
