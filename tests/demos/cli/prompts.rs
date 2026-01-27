@@ -2,9 +2,9 @@
 //!
 //! Demo tests for the `pxl prompts` command that shows LLM prompt templates.
 
-/// @demo cli/prompts#list
-/// @title List Available Prompts
-/// @description Show all available prompt templates for LLM integration.
+/// @demo cli/info#prompts
+/// @title Prompts Command
+/// @description The pxl prompts command shows LLM prompt templates.
 #[test]
 fn test_prompts_list() {
     // These are the available prompt templates

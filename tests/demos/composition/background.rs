@@ -7,9 +7,9 @@ use crate::demos::{
     parse_compositions,
 };
 
-/// @demo format/composition/background#solid
-/// @title Solid Background Fill
-/// @description Layer with solid color background fill (black).
+/// @demo format/composition#fills
+/// @title Background Fills
+/// @description Layer with solid color background fill.
 #[test]
 fn test_solid_background() {
     let jsonl = include_str!("../../../examples/demos/composition/background_fill.jsonl");

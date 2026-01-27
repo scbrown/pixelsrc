@@ -4,9 +4,9 @@
 
 use crate::demos::{assert_validates, capture_gif_info, parse_content};
 
-/// @demo format/animation/loop#forever
-/// @title Loop Forever
-/// @description Animation with loop: true plays continuously.
+/// @demo format/animation#looping
+/// @title Looping Modes
+/// @description Animation with loop: true/false controls playback behavior.
 #[test]
 fn test_loop_forever() {
     let jsonl = include_str!("../../../examples/demos/animation/loop_modes.jsonl");

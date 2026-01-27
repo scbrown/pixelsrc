@@ -27,9 +27,9 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
 // ============================================================================
 // Sprite Explanation Tests
 // ============================================================================
-/// @demo cli/explain#token_usage
-/// @title Explain Token Usage
-/// @description Shows token frequency and percentage of total grid cells.
+/// @demo cli/format#explain
+/// @title Explain Command
+/// @description The pxl explain command for detailed sprite information.
 #[test]
 fn test_explain_token_usage() {
     let sprite = make_sprite(

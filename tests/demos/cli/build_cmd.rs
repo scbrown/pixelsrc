@@ -11,9 +11,9 @@ use std::time::Duration;
 // Build Result Tests
 // ============================================================================
 
-/// @demo cli/build#result_success
-/// @title Successful Build Result
-/// @description Build result tracks successful target completions.
+/// @demo cli/project#build
+/// @title Build Command
+/// @description The pxl build command compiles project targets from pxl.toml.
 #[test]
 fn test_build_result_success() {
     let mut result = BuildResult::new();
@@ -31,9 +31,9 @@ fn test_build_result_success() {
     assert_eq!(result.failed_count(), 0, "Should have 0 failures");
 }
 
-/// @demo cli/build#result_failure
-/// @title Failed Build Result
-/// @description Build result tracks failed targets with error messages.
+/// @demo cli/build#basic
+/// @title Basic pxl.toml Configuration
+/// @description Basic project configuration for build targets.
 #[test]
 fn test_build_result_failure() {
     let mut result = BuildResult::new();
@@ -51,9 +51,9 @@ fn test_build_result_failure() {
     assert_eq!(result.failed_count(), 1, "Should have 1 failure");
 }
 
-/// @demo cli/build#result_mixed
-/// @title Mixed Build Results
-/// @description Build tracks both successful and failed targets.
+/// @demo cli/build#multi_target
+/// @title Multi-Target Builds
+/// @description Building multiple targets in a single build run.
 #[test]
 fn test_build_result_mixed() {
     let mut result = BuildResult::new();
@@ -84,9 +84,9 @@ fn test_build_result_mixed() {
     assert_eq!(result.failed_count(), 1, "Should have 1 failure");
 }
 
-/// @demo cli/build#result_skipped
-/// @title Skipped Build Targets
-/// @description Build can skip targets (e.g., up-to-date, filtered out).
+/// @demo cli/build#incremental
+/// @title Incremental Builds
+/// @description Build can skip up-to-date targets (incremental rebuild).
 #[test]
 fn test_build_result_skipped() {
     let mut result = BuildResult::new();
@@ -101,9 +101,9 @@ fn test_build_result_skipped() {
 // Target Result Tests
 // ============================================================================
 
-/// @demo cli/build#target_success
-/// @title Successful Target Result
-/// @description Target result for successful build with outputs.
+/// @demo cli/build#watch
+/// @title Watch Mode
+/// @description Watch mode rebuilds targets when source files change.
 #[test]
 fn test_target_result_success() {
     let outputs = vec![PathBuf::from("dist/hero.png"), PathBuf::from("dist/hero@2x.png")];
@@ -116,9 +116,9 @@ fn test_target_result_success() {
     assert_eq!(result.outputs, outputs);
 }
 
-/// @demo cli/build#target_failure
-/// @title Failed Target Result
-/// @description Target result for failed build with error message.
+/// @demo cli/build#variants
+/// @title Build Variants
+/// @description Build variants for different output configurations.
 #[test]
 fn test_target_result_failure() {
     let result = TargetResult::failed(

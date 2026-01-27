@@ -16,9 +16,9 @@ fn temp_dir() -> TempDir {
 // Preset Tests
 // ============================================================================
 
-/// @demo cli/init#preset_minimal
-/// @title Minimal Preset Initialization
-/// @description Initialize a minimal project with `pxl init --preset minimal`.
+/// @demo cli/project#init
+/// @title Init Command
+/// @description The pxl init command initializes a new pixelsrc project.
 #[test]
 fn test_init_preset_minimal() {
     let temp = temp_dir();

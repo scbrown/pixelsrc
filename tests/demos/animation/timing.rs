@@ -4,9 +4,9 @@
 
 use crate::demos::{assert_validates, parse_content};
 
-/// @demo format/animation/timing#fast
-/// @title Fast Animation (50ms frames)
-/// @description Animation with short frame duration for rapid cycling.
+/// @demo format/animation#fps
+/// @title Frame Timing (FPS)
+/// @description Animation with configurable frame duration/timing.
 #[test]
 fn test_fast_timing() {
     let jsonl = include_str!("../../../examples/demos/animation/timing.jsonl");

@@ -4,7 +4,7 @@
 
 use crate::demos::{assert_frame_count, assert_validates, capture_spritesheet_info, parse_content};
 
-/// @demo format/animation/basic#frame_sequence
+/// @demo format/animation#basic
 /// @title Basic Frame Sequence
 /// @description Animation defined as a sequence of sprite frames that play in order.
 #[test]

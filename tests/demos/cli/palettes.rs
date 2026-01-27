@@ -4,9 +4,9 @@
 
 use pixelsrc::palettes::{get_builtin, list_builtins};
 
-/// @demo cli/palettes#list
-/// @title List Built-in Palettes
-/// @description Show all available built-in palette names.
+/// @demo cli/info#palettes
+/// @title Palettes Command
+/// @description The pxl palettes command lists and shows built-in palettes.
 #[test]
 fn test_palettes_list() {
     let builtins = list_builtins();

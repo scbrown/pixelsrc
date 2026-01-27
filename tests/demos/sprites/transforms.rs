@@ -3,10 +3,35 @@
 //! Flipping, rotating, scaling, and recoloring sprites using transform chains.
 
 use crate::demos::parse_content;
-/// @title Rotation Transform
-/// @description Sprite rotated 90 degrees using transform: ["rotate:90"]./// @demo format/sprite#scale
-/// @title Scale Transform
-/// @description Sprite scaled 2x using transform: ["scale:2.0,2.0"]./// @demo format/sprite#source_ref
+
+/// @demo format/sprite#recolor
+/// @title Recolor/Palette Swap
+/// @description Palette swap by creating a sprite with different palette reference.
+#[test]
+fn test_recolor_palette_swap() {
+    let jsonl = r##"{"type": "palette", "name": "original", "colors": {"{b}": "#0000FF", "{r}": "#FF0000"}}
+{"type": "palette", "name": "swapped", "colors": {"{b}": "#FF0000", "{r}": "#0000FF"}}
+{"type": "sprite", "name": "hero", "palette": "original", "grid": ["{b}{r}"]}
+{"type": "sprite", "name": "hero_alt", "palette": "swapped", "source": "hero"}"##;
+
+    let (palette_registry, sprite_registry, _) = parse_content(jsonl);
+
+    // Verify hero_alt uses swapped palette
+    let hero_alt = sprite_registry.get_sprite("hero_alt").expect("hero_alt should exist");
+    assert!(
+        matches!(&hero_alt.palette, pixelsrc::models::PaletteRef::Named(name) if name == "swapped"),
+        "hero_alt should use 'swapped' palette for recolor"
+    );
+
+    // Both should resolve (original and swapped)
+    sprite_registry
+        .resolve("hero", &palette_registry, false)
+        .expect("hero should resolve");
+    sprite_registry
+        .resolve("hero_alt", &palette_registry, false)
+        .expect("hero_alt should resolve");
+}
+
 /// @title Source Reference
 /// @description Transformed sprite referencing another sprite via "source" field.
 #[test]

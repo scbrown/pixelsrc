@@ -6,9 +6,9 @@ use crate::demos::{
     assert_composition_sprites_resolve, assert_validates, capture_composition_info,
 };
 
-/// @demo format/composition/basic#two_layer
-/// @title Two Layer Stack
-/// @description Composition with two layers stacked vertically. Top layer obscures bottom.
+/// @demo format/composition#basic
+/// @title Basic Layer Stacking
+/// @description Composition with layers stacked vertically. Top layer obscures bottom.
 #[test]
 fn test_two_layer_stack() {
     let jsonl = include_str!("../../../examples/demos/composition/layer_stacking.jsonl");

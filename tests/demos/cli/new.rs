@@ -47,9 +47,9 @@ where
 // New Sprite Tests
 // ============================================================================
 
-/// @demo cli/new#sprite_basic
-/// @title Create New Sprite
-/// @description Create a new sprite with `pxl new sprite hero`.
+/// @demo cli/project#new
+/// @title New Command
+/// @description The pxl new command creates new sprites, palettes, and animations.
 #[test]
 #[serial]
 fn test_new_sprite_basic() {

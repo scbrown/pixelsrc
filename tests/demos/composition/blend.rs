@@ -7,9 +7,9 @@ use crate::demos::{
     capture_composition_info,
 };
 
-/// @demo format/composition/blend#multiply
-/// @title Multiply Blend Mode
-/// @description Layer blended using multiply mode (darkens).
+/// @demo format/composition#blend
+/// @title Blend Modes
+/// @description Layers blended using various blend modes (multiply, screen, overlay).
 #[test]
 fn test_multiply_blend() {
     let jsonl = include_str!("../../../examples/demos/composition/blend_modes.jsonl");

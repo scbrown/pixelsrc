@@ -6,9 +6,9 @@ use crate::demos::{
     assert_composition_sprites_resolve, assert_validates, capture_composition_info,
 };
 
-/// @demo format/composition/positioning#diagonal
-/// @title Diagonal Placement
-/// @description Sprites placed in a diagonal pattern across the grid.
+/// @demo format/composition#positioning
+/// @title Layer Positioning
+/// @description Sprites placed at specific positions within the composition grid.
 #[test]
 fn test_diagonal_placement() {
     let jsonl = include_str!("../../../examples/demos/composition/positioning.jsonl");
