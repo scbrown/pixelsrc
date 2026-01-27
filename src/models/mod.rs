@@ -1730,4 +1730,162 @@ mod tests {
         let parsed: RegionDef = serde_json::from_str(&json).unwrap();
         assert_eq!(region, parsed);
     }
+
+    // ========================================================================
+    // Per-Sprite Antialias Config Tests (AA-11)
+    // ========================================================================
+
+    #[test]
+    fn test_sprite_with_antialias_config() {
+        use crate::antialias::{AAAlgorithm, AnchorMode, AntialiasConfig};
+
+        let json = r#"{
+            "type": "sprite",
+            "name": "smooth_sprite",
+            "palette": "default",
+            "size": [16, 16],
+            "regions": {"x": {"points": [[0,0]]}},
+            "antialias": {
+                "enabled": true,
+                "algorithm": "hq4x",
+                "strength": 0.8,
+                "anchor_mode": "reduce"
+            }
+        }"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Sprite(sprite) => {
+                assert_eq!(sprite.name, "smooth_sprite");
+                assert!(sprite.antialias.is_some());
+                let aa = sprite.antialias.unwrap();
+                assert!(aa.enabled);
+                assert_eq!(aa.algorithm, AAAlgorithm::Hq4x);
+                assert!((aa.strength - 0.8).abs() < 0.001);
+                assert_eq!(aa.anchor_mode, AnchorMode::Reduce);
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    #[test]
+    fn test_sprite_without_antialias_roundtrip() {
+        // Sprite without antialias should serialize without antialias field
+        let sprite = Sprite {
+            name: "no_aa".to_string(),
+            size: Some([8, 8]),
+            palette: PaletteRef::Named("default".to_string()),
+            antialias: None,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&sprite).unwrap();
+        // Should not contain "antialias" key when None
+        assert!(!json.contains("antialias"));
+        let parsed: Sprite = serde_json::from_str(&json).unwrap();
+        assert_eq!(sprite, parsed);
+    }
+
+    #[test]
+    fn test_sprite_antialias_roundtrip() {
+        use crate::antialias::{AAAlgorithm, AnchorMode, AntialiasConfig};
+
+        let sprite = Sprite {
+            name: "aa_test".to_string(),
+            size: Some([16, 16]),
+            palette: PaletteRef::Named("default".to_string()),
+            antialias: Some(AntialiasConfig {
+                enabled: true,
+                algorithm: AAAlgorithm::Xbr4x,
+                strength: 0.6,
+                anchor_mode: AnchorMode::Normal,
+                gradient_shadows: false,
+                respect_containment: true,
+                semantic_aware: true,
+                regions: None,
+            }),
+            ..Default::default()
+        };
+        let obj = TtpObject::Sprite(sprite.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains("antialias"));
+        assert!(json.contains("xbr4x"));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        match parsed {
+            TtpObject::Sprite(parsed_sprite) => {
+                assert_eq!(sprite.name, parsed_sprite.name);
+                assert!(parsed_sprite.antialias.is_some());
+                let aa = parsed_sprite.antialias.unwrap();
+                assert!(aa.enabled);
+                assert_eq!(aa.algorithm, AAAlgorithm::Xbr4x);
+            }
+            _ => panic!("Expected sprite"),
+        }
+    }
+
+    // ========================================================================
+    // Per-Region Antialias Override Tests (AA-11)
+    // ========================================================================
+
+    #[test]
+    fn test_region_with_antialias_override() {
+        use crate::antialias::{AnchorMode, RegionAAOverride};
+
+        let json = r#"{"rect": [0, 0, 8, 8], "antialias": {"preserve": true}}"#;
+        let region: RegionDef = serde_json::from_str(json).unwrap();
+        assert!(region.antialias.is_some());
+        let aa = region.antialias.unwrap();
+        assert!(aa.should_preserve());
+    }
+
+    #[test]
+    fn test_region_antialias_full_override() {
+        use crate::antialias::{AnchorMode, RegionAAOverride};
+
+        let json = r#"{
+            "rect": [0, 0, 8, 8],
+            "antialias": {
+                "preserve": false,
+                "mode": "reduce",
+                "gradient": true
+            }
+        }"#;
+        let region: RegionDef = serde_json::from_str(json).unwrap();
+        assert!(region.antialias.is_some());
+        let aa = region.antialias.unwrap();
+        assert!(!aa.should_preserve());
+        assert_eq!(aa.mode, Some(AnchorMode::Reduce));
+        assert_eq!(aa.gradient, Some(true));
+    }
+
+    #[test]
+    fn test_region_without_antialias_roundtrip() {
+        let region = RegionDef {
+            rect: Some([0, 0, 16, 16]),
+            antialias: None,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        // Should not contain "antialias" key when None
+        assert!(!json.contains("antialias"));
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
+
+    #[test]
+    fn test_region_antialias_roundtrip() {
+        use crate::antialias::{AnchorMode, RegionAAOverride};
+
+        let region = RegionDef {
+            circle: Some([8, 8, 4]),
+            antialias: Some(RegionAAOverride {
+                preserve: Some(true),
+                mode: None,
+                gradient: Some(false),
+            }),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&region).unwrap();
+        assert!(json.contains("antialias"));
+        let parsed: RegionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(region, parsed);
+    }
 }

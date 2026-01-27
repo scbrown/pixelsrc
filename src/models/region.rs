@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::antialias::RegionAAOverride;
 use super::palette::Role;
 
 /// Jitter specification for controlled randomness.
@@ -168,4 +169,9 @@ pub struct RegionDef {
     /// Semantic role of this region (boundary, fill, shadow, etc.)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub role: Option<Role>,
+
+    // Antialiasing override
+    /// Per-region antialiasing configuration (overrides sprite/atlas/defaults)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub antialias: Option<RegionAAOverride>,
 }
