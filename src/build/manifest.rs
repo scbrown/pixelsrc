@@ -67,6 +67,7 @@ pub const MANIFEST_FILENAME: &str = ".pxl-manifest.json";
 
 /// Error during manifest operations.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ManifestError {
     /// IO error
     #[error("IO error: {0}")]

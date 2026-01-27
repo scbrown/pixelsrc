@@ -22,6 +22,7 @@ pub struct ResolvedPalette {
 
 /// Indicates where the resolved palette came from.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum PaletteSource {
     /// Resolved from a named palette in the registry
     Named(String),
@@ -35,6 +36,7 @@ pub enum PaletteSource {
 
 /// Error when resolving a palette in strict mode.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum PaletteError {
     /// Referenced palette name was not found in registry
     #[error("Palette '{0}' not found")]

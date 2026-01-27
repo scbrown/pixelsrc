@@ -27,6 +27,7 @@ use crate::registry::Registry;
 
 /// Error type for variable resolution failures
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum VariableError {
     /// Variable is not defined and no fallback was provided
     #[error("undefined variable '{0}' with no fallback")]

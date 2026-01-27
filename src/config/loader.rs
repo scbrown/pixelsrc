@@ -14,6 +14,7 @@ use thiserror::Error;
 
 /// Configuration loading error
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ConfigError {
     /// File I/O error
     #[error("Failed to read config: {0}")]

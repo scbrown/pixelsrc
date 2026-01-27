@@ -39,6 +39,7 @@ pub struct CssTransform {
 
 /// Error type for CSS transform parsing failures
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum CssTransformError {
     /// Unknown transform function
     #[error("unknown CSS transform function: {0}")]

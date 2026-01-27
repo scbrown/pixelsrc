@@ -9,6 +9,7 @@ use super::dither::{DitherPattern, GradientDirection};
 
 /// Errors that can occur during transform parsing or application
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum TransformError {
     /// Unknown transform operation
     #[error("unknown transform operation: {0}")]

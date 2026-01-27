@@ -9,6 +9,7 @@ use thiserror::Error;
 
 /// Error type for output operations
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum OutputError {
     /// IO error during file operations
     #[error("IO error: {0}")]

@@ -17,6 +17,7 @@ use std::time::Instant;
 
 /// Error during build execution.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum BuildError {
     /// Discovery error
     #[error("Discovery error: {0}")]

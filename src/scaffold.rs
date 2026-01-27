@@ -10,6 +10,7 @@ use crate::config::loader::find_config;
 
 /// Error during asset scaffolding
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ScaffoldError {
     /// File already exists
     #[error("File already exists: {}", .0.display())]

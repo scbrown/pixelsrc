@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 /// Error during source discovery.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum DiscoveryError {
     /// Invalid glob pattern
     #[error("Invalid glob pattern '{0}': {1}")]

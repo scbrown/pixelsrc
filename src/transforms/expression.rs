@@ -9,6 +9,7 @@ use super::types::{Transform, TransformError};
 
 /// Error type for expression evaluation
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ExpressionError {
     /// Unknown variable in expression
     #[error("unknown variable: {0}")]

@@ -10,6 +10,7 @@ use crate::templates::justfile::{generate_justfile, JustfileTemplate};
 
 /// Error during project initialization
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum InitError {
     /// Directory already exists
     #[error("Directory already exists: {0}")]
