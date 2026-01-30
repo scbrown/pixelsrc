@@ -85,6 +85,9 @@ pub mod watch;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+#[cfg(feature = "python")]
+pub mod python;
+
 // ============================================================================
 // Re-exports for convenience
 // ============================================================================

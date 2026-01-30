@@ -21,6 +21,7 @@ path = "src/main.rs"
 default = ["lsp"]
 lsp = ["tower-lsp", "tokio"]
 wasm = ["wasm-bindgen", "console_error_panic_hook"]
+python = ["pyo3"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -43,6 +44,7 @@ rayon = "1.10"
 thiserror = "1.0"
 tower-lsp = { version = "0.20", optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"], optional = true }
+pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
