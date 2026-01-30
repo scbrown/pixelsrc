@@ -1,0 +1,20 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pixelsrc"
+version = "0.2.0"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+description = "Semantic pixel art format and compiler"
+license = { text = "MIT" }
+
+[tool.maturin]
+manifest-path = "../Cargo.toml"
+features = ["python"]
+module-name = "pixelsrc._native"
