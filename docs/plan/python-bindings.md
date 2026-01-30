@@ -1,6 +1,6 @@
 # Python Bindings (PyO3 + Maturin)
 
-**Goal:** Ship a native Python package (`pixelsrc`) that exposes the core pixelsrc API — parsing, rendering, validation, and registry operations — via PyO3 FFI bindings, published to PyPI with prebuilt wheels.
+**Goal:** Ship a native Python package (`pixelsrc`) that exposes the core pixelsrc API — parsing, rendering, validation, registry operations, and PNG import — via PyO3 FFI bindings, published to PyPI with prebuilt wheels.
 
 **Status:** Planning
 
@@ -17,6 +17,7 @@ Pixelsrc already has WASM bindings for browser/Node.js usage. Python is the domi
 - **Batch process** `.pxl` files with full Rust performance
 - **Use in game toolchains** — Python build scripts that produce sprite atlases
 - **Access validation** — lint `.pxl` files from Python CI/CD
+- **Import existing PNGs** — convert raster pixel art to `.pxl` format with semantic analysis
 
 The WASM bindings (`src/wasm.rs`) already prove the pattern: a thin FFI layer over the core API. The Python bindings mirror that structure using PyO3 instead of `wasm-bindgen`.
 
@@ -34,7 +35,8 @@ Cargo.toml (add pyo3 dep + "python" feature)
 │   ├── render.rs       ← Rendering functions
 │   ├── registry.rs     ← Registry wrappers (stateful)
 │   ├── validate.rs     ← Validation functions
-│   └── color.rs        ← Color utilities
+│   ├── color.rs        ← Color utilities
+│   └── import.rs       ← PNG import + analysis
 │
 ├── python/
 │   ├── pyproject.toml  ← Maturin build config
@@ -47,7 +49,8 @@ Cargo.toml (add pyo3 dep + "python" feature)
 │       ├── test_render.py
 │       ├── test_validate.py
 │       ├── test_registry.py
-│       └── test_color.py
+│       ├── test_color.py
+│       └── test_import.py
 │
 └── .github/workflows/
     └── python.yml      ← CI: build wheels + publish to PyPI
@@ -71,6 +74,8 @@ Tier 1 (Stateless):                    Tier 2 (Stateful):
 │ list_sprites(pxl)   │                │ img = reg.render("hero") │
 │ parse(pxl)          │                │ reg.sprites()            │
 │ format(pxl)         │                │ reg.palettes()           │
+│ import_png(path)    │                │                          │
+│ import_png_analyzed()│                │                          │
 └─────────────────────┘                └──────────────────────────┘
 ```
 
@@ -87,6 +92,12 @@ Tier 1 (Stateless):                    Tier 2 (Stateful):
 | `TtpObject` | `dict` | Serialized via serde |
 | `ParseResult` | `ParseResult` | Custom Python class |
 | `Warning` | `str` | Formatted message |
+| `ImportResult` | `ImportResult` | Custom Python class |
+| `ImportAnalysis` | `dict` | Serialized via serde (roles, relationships, symmetry, etc.) |
+| `ImportOptions` | kwargs | Python keyword arguments mapped to struct fields |
+| `DitherInfo` | `dict` | Detection result |
+| `UpscaleInfo` | `dict` | Detection result |
+| `OutlineInfo` | `dict` | Detection result |
 
 ---
 
@@ -287,7 +298,56 @@ assert len(ramp) == 5
 
 ---
 
-### Task PY-7: Stateful Registry
+### Task PY-7: PNG Import and Analysis
+
+**Wave:** 2 (Core API — parallel with PY-3, PY-4, PY-5, PY-6)
+
+Expose the PNG import pipeline: convert raster pixel art to `.pxl` format, with optional semantic analysis (role inference, symmetry detection, dither/upscale/outline detection, structured region extraction). This wraps `import_png_with_options()` from `src/import/mod.rs`.
+
+**Deliverables:**
+- `src/python/import.rs`:
+  - `import_png(path: &str, name: Option<&str>, max_colors: Option<u32>) -> PyResult<ImportResult>` — basic import
+  - `import_png_analyzed(path: &str, name: Option<&str>, max_colors: Option<u32>, confidence: Option<f64>, hints: Option<bool>, shapes: Option<bool>, detect_upscale: Option<bool>, detect_outlines: Option<bool>, dither_handling: Option<&str>) -> PyResult<ImportResult>` — import with analysis
+- `src/python/types.rs` additions:
+  - `ImportResult` — `#[pyclass]` with:
+    - `name: String` — sprite name
+    - `width: u32`, `height: u32`
+    - `palette: dict[str, str]` — token-to-hex color map
+    - `to_pxl() -> str` — serialize to `.pxl` format (structured JSONL)
+    - `to_jsonl() -> str` — serialize to legacy JSONL
+    - `analysis: Option<dict>` — analysis results if enabled
+  - Analysis dict contains: `roles`, `relationships`, `symmetry`, `naming_hints`, `z_order`, `dither_patterns`, `upscale_info`, `outlines`
+
+**Verification:**
+```bash
+# Create a test PNG first
+python -c "
+from pixelsrc import render_to_png
+png = render_to_png('{ type: \"sprite\", name: \"test\", width: 8, height: 8, regions: [{ shape: \"rect\", x: 0, y: 0, w: 8, h: 8, color: \"#ff0000\" }] }')
+open('/tmp/test_sprite.png', 'wb').write(png)
+"
+
+# Then import it back
+python -c "
+from pixelsrc import import_png, import_png_analyzed
+
+# Basic import
+result = import_png('/tmp/test_sprite.png')
+print(f'Sprite: {result.name}, {result.width}x{result.height}')
+print(f'Palette: {result.palette}')
+print(result.to_pxl())
+
+# Import with analysis
+analyzed = import_png_analyzed('/tmp/test_sprite.png', confidence=0.7, shapes=True)
+print(f'Analysis: {analyzed.analysis}')
+"
+```
+
+**Dependencies:** PY-1
+
+---
+
+### Task PY-8: Stateful Registry
 
 **Wave:** 3 (Advanced API)
 
@@ -326,9 +386,9 @@ assert len(png) > 0
 
 ---
 
-### Task PY-8: Formatting Function
+### Task PY-9: Formatting Function
 
-**Wave:** 3 (Advanced API — parallel with PY-7)
+**Wave:** 3 (Advanced API — parallel with PY-8)
 
 Expose the `.pxl` formatter so Python tools can auto-format pixel art source.
 
@@ -349,7 +409,7 @@ print(formatted)
 
 ---
 
-### Task PY-9: Type Stubs and Documentation
+### Task PY-10: Type Stubs and Documentation
 
 **Wave:** 4 (Polish)
 
@@ -371,13 +431,13 @@ reveal_type(result)  # bytes
 "
 ```
 
-**Dependencies:** PY-3, PY-4, PY-5, PY-6, PY-7, PY-8
+**Dependencies:** PY-3, PY-4, PY-5, PY-6, PY-7, PY-8, PY-9
 
 ---
 
-### Task PY-10: Python Test Suite
+### Task PY-11: Python Test Suite
 
-**Wave:** 4 (Polish — parallel with PY-9)
+**Wave:** 4 (Polish — parallel with PY-10)
 
 Comprehensive Python-side tests using pytest. Mirror the patterns from the existing Rust integration tests.
 
@@ -387,18 +447,19 @@ Comprehensive Python-side tests using pytest. Mirror the patterns from the exist
 - `python/tests/test_validate.py` — validation messages
 - `python/tests/test_registry.py` — stateful registry operations
 - `python/tests/test_color.py` — color parsing and ramps
-- `python/tests/conftest.py` — shared fixtures (sample .pxl strings)
+- `python/tests/test_import.py` — PNG import and analysis roundtrips
+- `python/tests/conftest.py` — shared fixtures (sample .pxl strings, test PNGs)
 
 **Verification:**
 ```bash
 cd python && maturin develop --features python && pytest -v
 ```
 
-**Dependencies:** PY-3, PY-4, PY-5, PY-6, PY-7
+**Dependencies:** PY-3, PY-4, PY-5, PY-6, PY-7, PY-8
 
 ---
 
-### Task PY-11: CI/CD and Wheel Builds
+### Task PY-12: CI/CD and Wheel Builds
 
 **Wave:** 5 (Release)
 
@@ -419,13 +480,13 @@ cd python && maturin build --release --features python
 ls target/wheels/
 ```
 
-**Dependencies:** PY-9, PY-10
+**Dependencies:** PY-10, PY-11
 
 ---
 
-### Task PY-12: Optional NumPy/Pillow Integration
+### Task PY-13: Optional NumPy/Pillow Integration
 
-**Wave:** 5 (Release — parallel with PY-11)
+**Wave:** 5 (Release — parallel with PY-12)
 
 Add optional convenience methods for interop with NumPy arrays and Pillow images — the two most common image representations in Python.
 
@@ -462,28 +523,29 @@ Wave 2 (Core):   │
   PY-3 ◄────────┤  (render)
   PY-4 ◄────────┤  (parse)
   PY-5 ◄────────┤  (validate)
-  PY-6 ◄────────┘  (color)
+  PY-6 ◄────────┤  (color)
+  PY-7 ◄────────┘  (import)
 
 Wave 3 (Advanced):
-  PY-7 ◄──── PY-3, PY-4  (registry)
-  PY-8 ◄──── PY-1        (format)
+  PY-8 ◄──── PY-3, PY-4  (registry)
+  PY-9 ◄──── PY-1        (format)
 
 Wave 4 (Polish):
-  PY-9  ◄──── PY-3..PY-8  (type stubs)
-  PY-10 ◄──── PY-3..PY-7  (tests)
+  PY-10 ◄──── PY-3..PY-9  (type stubs)
+  PY-11 ◄──── PY-3..PY-8  (tests)
 
 Wave 5 (Release):
-  PY-11 ◄──── PY-9, PY-10  (CI/wheels)
-  PY-12 ◄──── PY-3         (numpy/pillow)
+  PY-12 ◄──── PY-10, PY-11  (CI/wheels)
+  PY-13 ◄──── PY-3          (numpy/pillow)
 ```
 
 | Wave | Tasks | Parallelism |
 |------|-------|-------------|
 | 1 | PY-1, PY-2 | 2 tasks in parallel |
-| 2 | PY-3, PY-4, PY-5, PY-6 | 4 tasks in parallel |
-| 3 | PY-7, PY-8 | 2 tasks in parallel |
-| 4 | PY-9, PY-10 | 2 tasks in parallel |
-| 5 | PY-11, PY-12 | 2 tasks in parallel |
+| 2 | PY-3, PY-4, PY-5, PY-6, PY-7 | 5 tasks in parallel |
+| 3 | PY-8, PY-9 | 2 tasks in parallel |
+| 4 | PY-10, PY-11 | 2 tasks in parallel |
+| 5 | PY-12, PY-13 | 2 tasks in parallel |
 
 ---
 
@@ -500,7 +562,7 @@ Wave 5 (Release):
 ## Success Criteria
 
 - [ ] `pip install pixelsrc` works on Linux, macOS, Windows
-- [ ] Stateless API: `render_to_png()`, `validate()`, `list_sprites()` work from Python
+- [ ] Stateless API: `render_to_png()`, `validate()`, `list_sprites()`, `import_png()` work from Python
 - [ ] Stateful API: `Registry` class supports multi-object workflows
 - [ ] Type stubs provide full IDE autocomplete and mypy compatibility
 - [ ] Python test suite passes with pytest
