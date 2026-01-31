@@ -2,6 +2,7 @@
 **/.DS_STORE
 
 # Python
+.venv/
 python/.venv/
 python/pixelsrc/*.so
 python/pixelsrc/__pycache__/
