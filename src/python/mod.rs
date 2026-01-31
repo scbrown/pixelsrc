@@ -6,6 +6,7 @@
 
 use pyo3::prelude::*;
 
+pub mod parse;
 mod render;
 mod types;
 
@@ -16,5 +17,8 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::RenderResult>()?;
     m.add_function(wrap_pyfunction!(render::render_to_png, m)?)?;
     m.add_function(wrap_pyfunction!(render::render_to_rgba, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::list_sprites, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::list_palettes, m)?)?;
     Ok(())
 }
