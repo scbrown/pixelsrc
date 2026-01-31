@@ -1,15 +1,17 @@
-//! Parsing and listing functions for the Python API.
+//! Parsing, listing, and formatting functions for the Python API.
 //!
 //! Exposes `.pxl` content inspection without rendering:
 //! - `parse()` -- returns all parsed objects as Python dicts
 //! - `list_sprites()` -- returns sprite names
 //! - `list_palettes()` -- returns palette names
+//! - `format_pxl()` -- formats `.pxl` content for readability
 
 use std::io::Cursor;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use crate::fmt::format_pixelsrc;
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
 
@@ -69,6 +71,19 @@ pub fn list_palettes(pxl: &str) -> Vec<String> {
             _ => None,
         })
         .collect()
+}
+
+/// Format a `.pxl` string for readability.
+///
+/// Parses the input and reformats each object:
+/// - Sprites: grid arrays expanded to one row per line
+/// - Compositions: layer maps expanded to one row per line
+/// - Palettes, Animations, Variants: kept as single-line JSON
+///
+/// Returns the formatted string, or raises an error on parse failure.
+#[pyfunction]
+pub fn format_pxl(pxl: &str) -> PyResult<String> {
+    format_pixelsrc(pxl).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
 }
 
 /// Convert a `serde_json::Value` into a Python object.

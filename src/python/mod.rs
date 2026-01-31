@@ -26,6 +26,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_sprites, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_palettes, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::format_pxl, m)?)?;
     m.add_function(wrap_pyfunction!(validate::validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate::validate_file, m)?)?;
     m.add_function(wrap_pyfunction!(color::parse_color, m)?)?;
