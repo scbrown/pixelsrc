@@ -2,6 +2,8 @@
 
 import pytest
 
+import pixelsrc
+
 
 @pytest.fixture
 def minimal_sprite():
@@ -21,3 +23,21 @@ def heart_with_palette():
 def empty_sprite():
     """An 8x8 sprite with no regions."""
     return '{ type: "sprite", name: "empty", width: 8, height: 8, regions: [] }'
+
+
+@pytest.fixture
+def tmp_png(tmp_path, minimal_sprite):
+    """A temporary PNG file rendered from minimal_sprite (1x1 red pixel)."""
+    png_bytes = pixelsrc.render_to_png(minimal_sprite)
+    path = tmp_path / "dot.png"
+    path.write_bytes(png_bytes)
+    return path
+
+
+@pytest.fixture
+def tmp_heart_png(tmp_path, heart_with_palette):
+    """A temporary PNG file rendered from heart_with_palette (4x4)."""
+    png_bytes = pixelsrc.render_to_png(heart_with_palette)
+    path = tmp_path / "heart.png"
+    path.write_bytes(png_bytes)
+    return path
