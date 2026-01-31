@@ -7,6 +7,7 @@
 use pyo3::prelude::*;
 
 mod color;
+mod import;
 pub mod parse;
 mod render;
 mod types;
@@ -17,6 +18,9 @@ mod validate;
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<types::RenderResult>()?;
+    m.add_class::<types::ImportResult>()?;
+    m.add_function(wrap_pyfunction!(import::import_png, m)?)?;
+    m.add_function(wrap_pyfunction!(import::import_png_analyzed, m)?)?;
     m.add_function(wrap_pyfunction!(render::render_to_png, m)?)?;
     m.add_function(wrap_pyfunction!(render::render_to_rgba, m)?)?;
     m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
