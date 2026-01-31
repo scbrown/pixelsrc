@@ -6,9 +6,14 @@
 
 use pyo3::prelude::*;
 
+pub mod parse;
+
 /// Native pixelsrc Python module.
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::list_sprites, m)?)?;
+    m.add_function(wrap_pyfunction!(parse::list_palettes, m)?)?;
     Ok(())
 }
