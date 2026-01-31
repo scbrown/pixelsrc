@@ -6,6 +6,7 @@
 
 use pyo3::prelude::*;
 
+mod color;
 pub mod parse;
 mod render;
 mod types;
@@ -20,5 +21,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_sprites, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_palettes, m)?)?;
+    m.add_function(wrap_pyfunction!(color::parse_color, m)?)?;
+    m.add_function(wrap_pyfunction!(color::generate_ramp, m)?)?;
     Ok(())
 }
