@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 pub mod parse;
 mod render;
 mod types;
+mod validate;
 
 /// Native pixelsrc Python module.
 #[pymodule]
@@ -20,5 +21,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse::parse, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_sprites, m)?)?;
     m.add_function(wrap_pyfunction!(parse::list_palettes, m)?)?;
+    m.add_function(wrap_pyfunction!(validate::validate, m)?)?;
+    m.add_function(wrap_pyfunction!(validate::validate_file, m)?)?;
     Ok(())
 }
