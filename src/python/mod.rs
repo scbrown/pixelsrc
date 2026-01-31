@@ -6,9 +6,15 @@
 
 use pyo3::prelude::*;
 
+mod render;
+mod types;
+
 /// Native pixelsrc Python module.
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add_class::<types::RenderResult>()?;
+    m.add_function(wrap_pyfunction!(render::render_to_png, m)?)?;
+    m.add_function(wrap_pyfunction!(render::render_to_rgba, m)?)?;
     Ok(())
 }
