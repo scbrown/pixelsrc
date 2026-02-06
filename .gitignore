@@ -17,3 +17,5 @@ python/tests/__pycache__/
 
 # Gas Town (added by gt)
 .beads/
+# Track metadata.json for Dolt server config (clone and go)
+!.beads/metadata.json
