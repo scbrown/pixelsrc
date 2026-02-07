@@ -18,15 +18,12 @@ The `pxl` command-line interface provides tools for working with Pixelsrc files.
 |---------|-------------|
 | [new](new.md) | Create new assets from templates |
 | [init](init.md) | Initialize a new Pixelsrc project |
-| [sketch](sketch.md) | Create sprites from simple text grids |
 
 ## Inspection & Debugging
 
 | Command | Description |
 |---------|-------------|
 | [show](show.md) | Display sprites with colored terminal output |
-| [grid](grid.md) | Display grid with row/column coordinates |
-| [inline](inline.md) | Expand grid with column-aligned spacing |
 | [explain](explain.md) | Explain objects in human-readable format |
 | [diff](diff.md) | Compare sprites semantically |
 | [analyze](analyze.md) | Extract corpus metrics from files |
@@ -38,7 +35,6 @@ The `pxl` command-line interface provides tools for working with Pixelsrc files.
 | [prime](prime.md) | Print format guide for AI context injection |
 | [prompts](prompts.md) | Show GenAI prompt templates |
 | [suggest](suggest.md) | Suggest fixes for common issues |
-| [alias](alias.md) | Extract repeated patterns into aliases |
 
 ## Reference Data
 

@@ -157,4 +157,3 @@ Object fields are ordered consistently:
 ## See Also
 
 - [validate](validate.md) - Check files for errors
-- [inline](inline.md) - Expand grid spacing for readability

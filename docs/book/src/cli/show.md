@@ -95,6 +95,5 @@ Most modern terminals support this, including:
 
 ## See Also
 
-- [grid](grid.md) - Show grid with coordinates
 - [render](render.md) - Render to image files
-- [inline](inline.md) - Expand grid spacing for readability
+- [explain](explain.md) - Explain objects in human-readable format

@@ -188,7 +188,7 @@ The `nine_slice` attribute on the sprite defines the border widths:
 {"nine_slice": {"left": 4, "right": 4, "top": 4, "bottom": 4}}
 ```
 
-See the [format specification](../../spec/format.md) for complete details on the nine-slice format.
+See the [format specification](../format/sprite.md) for complete details on the nine-slice format.
 
 ## See Also
 

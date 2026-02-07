@@ -208,6 +208,6 @@ Invalid colors in lenient mode render as magenta (`#FF00FF`) to make them visibl
 
 ## Related
 
-- [CSS Variables](css-variables.md) - Custom properties and var()
+- [CSS Variables](../format/css-variables.md) - Custom properties and var()
 - [Built-in Palettes](palettes.md) - Pre-defined color sets
 - [Palette Format](../format/palette.md) - Defining custom palettes
