@@ -7,7 +7,7 @@ use crate::models::Palette;
 use std::collections::HashMap;
 
 /// List of all available built-in palette names.
-const BUILTIN_NAMES: &[&str] = &["gameboy", "nes", "pico8", "grayscale", "1bit", "dracula"];
+const BUILTIN_NAMES: &[&str] = &["gameboy", "nes", "pico8", "grayscale", "1bit", "dracula", "synthwave"];
 
 /// Returns a list of all available built-in palette names.
 pub fn list_builtins() -> Vec<&'static str> {
@@ -23,6 +23,7 @@ pub fn get_builtin(name: &str) -> Option<Palette> {
         "grayscale" => Some(grayscale()),
         "1bit" => Some(one_bit()),
         "dracula" => Some(dracula()),
+        "synthwave" => Some(synthwave()),
         _ => None,
     }
 }
@@ -150,6 +151,25 @@ fn dracula() -> Palette {
     }
 }
 
+/// Synthwave/vaporwave neon palette.
+/// Inspired by 80s retro aesthetics with hot pinks, electric cyans, and vibrant purples.
+fn synthwave() -> Palette {
+    Palette {
+        name: "synthwave".to_string(),
+        colors: HashMap::from([
+            ("{_}".to_string(), "#00000000".to_string()),
+            ("{purple}".to_string(), "#BD93F9".to_string()),
+            ("{pink}".to_string(), "#FF79C6".to_string()),
+            ("{cyan}".to_string(), "#8BE9FD".to_string()),
+            ("{glow}".to_string(), "#E2B3FF".to_string()),
+            ("{hot}".to_string(), "#FF2D95".to_string()),
+            ("{neon}".to_string(), "#00F7FF".to_string()),
+            ("{bg}".to_string(), "#282A36".to_string()),
+        ]),
+        ..Default::default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,7 +183,8 @@ mod tests {
         assert!(builtins.contains(&"grayscale"));
         assert!(builtins.contains(&"1bit"));
         assert!(builtins.contains(&"dracula"));
-        assert_eq!(builtins.len(), 6);
+        assert!(builtins.contains(&"synthwave"));
+        assert_eq!(builtins.len(), 7);
     }
 
     #[test]
@@ -224,6 +245,21 @@ mod tests {
         assert_eq!(palette.colors.get("{background}"), Some(&"#282A36".to_string()));
         assert_eq!(palette.colors.get("{purple}"), Some(&"#BD93F9".to_string()));
         assert_eq!(palette.colors.get("{pink}"), Some(&"#FF79C6".to_string()));
+    }
+
+    #[test]
+    fn test_get_builtin_synthwave() {
+        let palette = get_builtin("synthwave").expect("synthwave palette should exist");
+        assert_eq!(palette.name, "synthwave");
+        // 7 colors + transparent
+        assert_eq!(palette.colors.len(), 8);
+        assert_eq!(palette.colors.get("{purple}"), Some(&"#BD93F9".to_string()));
+        assert_eq!(palette.colors.get("{pink}"), Some(&"#FF79C6".to_string()));
+        assert_eq!(palette.colors.get("{cyan}"), Some(&"#8BE9FD".to_string()));
+        assert_eq!(palette.colors.get("{glow}"), Some(&"#E2B3FF".to_string()));
+        assert_eq!(palette.colors.get("{hot}"), Some(&"#FF2D95".to_string()));
+        assert_eq!(palette.colors.get("{neon}"), Some(&"#00F7FF".to_string()));
+        assert_eq!(palette.colors.get("{bg}"), Some(&"#282A36".to_string()));
     }
 
     #[test]
