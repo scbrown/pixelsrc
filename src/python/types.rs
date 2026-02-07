@@ -151,23 +151,23 @@ impl ImportResult {
                 let mut m = HashMap::new();
                 m.insert(
                     "tokens".to_string(),
-                    d.tokens.clone().into_pyobject(py).unwrap().into_any().unbind(),
+                    d.tokens.clone().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "pattern".to_string(),
-                    d.pattern.to_string().into_pyobject(py).unwrap().into_any().unbind(),
+                    d.pattern.to_string().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "bounds".to_string(),
-                    d.bounds.to_vec().into_pyobject(py).unwrap().into_any().unbind(),
+                    d.bounds.to_vec().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "merged_color".to_string(),
-                    d.merged_color.clone().into_pyobject(py).unwrap().into_any().unbind(),
+                    d.merged_color.clone().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "confidence".to_string(),
-                    d.confidence.into_pyobject(py).unwrap().into_any().unbind(),
+                    d.confidence.into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m
             })
@@ -195,19 +195,19 @@ impl ImportResult {
                 let mut m = HashMap::new();
                 m.insert(
                     "token".to_string(),
-                    o.token.clone().into_pyobject(py).unwrap().into_any().unbind(),
+                    o.token.clone().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "borders".to_string(),
-                    o.borders.clone().into_pyobject(py).unwrap().into_any().unbind(),
+                    o.borders.clone().into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "width".to_string(),
-                    o.width.into_pyobject(py).unwrap().into_any().unbind(),
+                    o.width.into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m.insert(
                     "confidence".to_string(),
-                    o.confidence.into_pyobject(py).unwrap().into_any().unbind(),
+                    o.confidence.into_pyobject(py).expect("PyO3 primitive conversion").into_any().unbind(),
                 );
                 m
             })

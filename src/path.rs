@@ -199,7 +199,7 @@ fn tokenize_path(path: &str) -> Vec<String> {
 /// Parse a coordinate pair (x, y) from tokens
 fn parse_coordinate_pair(tokens: &mut Vec<String>, cmd: &str) -> Result<(f32, f32), PathError> {
     if tokens.len() < 2 {
-        return Err(PathError::NotEnoughCoordinates(cmd.chars().next().unwrap()));
+        return Err(PathError::NotEnoughCoordinates(cmd.chars().next().expect("cmd is a non-empty path command")));
     }
 
     let x_str = tokens.remove(0);
@@ -216,7 +216,7 @@ fn parse_coordinate_pair(tokens: &mut Vec<String>, cmd: &str) -> Result<(f32, f3
 /// Parse a single coordinate from tokens
 fn parse_single_coordinate(tokens: &mut Vec<String>, cmd: &str) -> Result<f32, PathError> {
     if tokens.is_empty() {
-        return Err(PathError::NotEnoughCoordinates(cmd.chars().next().unwrap()));
+        return Err(PathError::NotEnoughCoordinates(cmd.chars().next().expect("cmd is a non-empty path command")));
     }
 
     let num_str = tokens.remove(0);

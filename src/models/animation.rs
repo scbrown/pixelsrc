@@ -217,7 +217,7 @@ impl Animation {
 
     /// Returns whether this animation uses CSS-style keyframes.
     pub fn is_css_keyframes(&self) -> bool {
-        self.keyframes.is_some() && !self.keyframes.as_ref().unwrap().is_empty()
+        self.keyframes.as_ref().is_some_and(|kf| !kf.is_empty())
     }
 
     /// Returns whether this animation uses frame array format.

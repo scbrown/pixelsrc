@@ -282,7 +282,7 @@ pub fn run_render(
             let final_palette = if uses_include_palette {
                 // Handle @include: palette specially
                 let include_path = if let PaletteRef::Named(name) = &sprite.palette {
-                    extract_include_path(name).unwrap()
+                    extract_include_path(name).expect("is_include_ref validated prefix")
                 } else {
                     unreachable!()
                 };
@@ -647,7 +647,7 @@ fn render_composition_to_image(
             if let Some(sprite) = original_sprite {
                 if let PaletteRef::Named(name) = &sprite.palette {
                     if is_include_ref(name) {
-                        let include_path = extract_include_path(name).unwrap();
+                        let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
@@ -819,7 +819,7 @@ fn run_animation_render(
         // Resolve base palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path = extract_include_path(name).unwrap();
+                let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,
@@ -890,7 +890,7 @@ fn run_animation_render(
                 // Resolve palette
                 let resolved = match &sprite.palette {
                     PaletteRef::Named(name) if is_include_ref(name) => {
-                        let include_path = extract_include_path(name).unwrap();
+                        let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
@@ -1081,7 +1081,7 @@ fn run_atlas_render(
         // Resolve palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path = extract_include_path(name).unwrap();
+                let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,
@@ -1202,12 +1202,12 @@ fn run_atlas_render(
 
         // Generate JSON based on format variant
         let json_content = match format {
-            "atlas" => serde_json::to_string_pretty(&metadata).unwrap(),
+            "atlas" => serde_json::to_string_pretty(&metadata).expect("metadata serialization"),
             "atlas-aseprite" => generate_aseprite_json(&metadata),
             "atlas-godot" => generate_godot_json(&metadata),
             "atlas-unity" => generate_unity_json(&metadata),
             "atlas-libgdx" => generate_libgdx_atlas(&metadata),
-            _ => serde_json::to_string_pretty(&metadata).unwrap(),
+            _ => serde_json::to_string_pretty(&metadata).expect("metadata serialization"),
         };
 
         // Determine JSON file extension for libGDX
@@ -1266,7 +1266,7 @@ fn generate_aseprite_json(metadata: &crate::atlas::AtlasMetadata) -> String {
         "frames": frames,
         "meta": meta
     }))
-    .unwrap()
+    .expect("JSON value serialization")
 }
 
 /// Generate Godot-compatible JSON format
@@ -1289,7 +1289,7 @@ fn generate_godot_json(metadata: &crate::atlas::AtlasMetadata) -> String {
             "sprites": textures
         }]
     }))
-    .unwrap()
+    .expect("JSON value serialization")
 }
 
 /// Generate Unity-compatible JSON format
@@ -1316,7 +1316,7 @@ fn generate_unity_json(metadata: &crate::atlas::AtlasMetadata) -> String {
         "textureSize": {"width": metadata.size[0], "height": metadata.size[1]},
         "sprites": sprites
     }))
-    .unwrap()
+    .expect("JSON value serialization")
 }
 
 /// Generate libGDX-compatible atlas format
