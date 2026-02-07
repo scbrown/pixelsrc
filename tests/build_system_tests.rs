@@ -195,7 +195,7 @@ fn test_incremental_build_detects_output_missing() {
     let target = BuildTarget::sprite("test".to_string(), source, output.clone());
 
     let mut build = IncrementalBuild::new(ctx).with_save_manifest(false);
-    build.record_build(&target, &[output.clone()]).unwrap();
+    build.record_build(&target, std::slice::from_ref(&output)).unwrap();
 
     // Delete output
     fs::remove_file(&output).unwrap();
@@ -820,7 +820,7 @@ fn test_incremental_build_workflow() {
 
     // First build
     let mut build = IncrementalBuild::new(ctx);
-    build.record_build(&target, &[output.clone()]).unwrap();
+    build.record_build(&target, std::slice::from_ref(&output)).unwrap();
 
     // Should not need rebuild
     assert!(!build.needs_rebuild(&target).unwrap());

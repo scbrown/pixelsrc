@@ -399,7 +399,7 @@ pub(crate) fn detect_upscale(pixel_data: &[u8], width: u32, height: u32) -> Opti
 
     for scale in scales_to_check {
         // Skip if dimensions aren't divisible by scale
-        if width % scale != 0 || height % scale != 0 {
+        if !width.is_multiple_of(scale) || !height.is_multiple_of(scale) {
             continue;
         }
 

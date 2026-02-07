@@ -533,7 +533,6 @@ fn average_colors(a: &Rgba<u8>, b: &Rgba<u8>) -> Rgba<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
 
     fn create_test_image(width: u32, height: u32) -> RgbaImage {
         let mut img = RgbaImage::new(width, height);

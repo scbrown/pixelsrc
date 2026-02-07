@@ -64,7 +64,8 @@ fn run_pxl_atlas(fixture: &Path, format: &str) -> std::process::Output {
 
 // ============================================================================
 // ATF-3: Palette Cycling Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_atf3_multiple_palette_cycles() {
     let fixture = Path::new("tests/fixtures/valid/atf_multiple_cycles.jsonl");
     let output = run_pxl_render(fixture);
@@ -120,7 +121,8 @@ fn test_atf5_atlas_export_godot() {
 
 // ============================================================================
 // ATF-7: Hit/Hurt Boxes Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_atf7_frame_metadata_validation() {
     // The atf_hit_boxes.jsonl has frame_metadata that matches frame count
     let fixture = Path::new("tests/fixtures/valid/atf_hit_boxes.jsonl");
@@ -245,7 +247,8 @@ fn test_atf11_onion_skinning_with_fade() {
 
 // ============================================================================
 // ATF-14: Secondary Motion Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_atf14_keyframed_attachment() {
     let fixture = Path::new("tests/fixtures/valid/atf_keyframed_attachment.jsonl");
     let output = run_pxl_render(fixture);

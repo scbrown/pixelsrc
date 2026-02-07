@@ -575,7 +575,9 @@ mod tests {
     fn test_expression_evaluator_simple_number() {
         let eval = ExpressionEvaluator::new(HashMap::new());
         assert_eq!(eval.evaluate("42").unwrap(), 42.0);
-        assert_eq!(eval.evaluate("3.14").unwrap(), 3.14);
+        #[allow(clippy::approx_constant)]
+        let expected = 3.14;
+        assert_eq!(eval.evaluate("3.14").unwrap(), expected);
         assert_eq!(eval.evaluate("-5").unwrap(), -5.0);
     }
 

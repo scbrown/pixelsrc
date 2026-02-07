@@ -62,7 +62,7 @@
 //! ```
 
 use crate::atlas::AtlasMetadata;
-use crate::export::{ExportError, ExportOptions, Exporter, Result};
+use crate::export::{ExportOptions, Exporter, Result};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;

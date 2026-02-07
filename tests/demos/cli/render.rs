@@ -8,6 +8,7 @@ use pixelsrc::registry::{PaletteRegistry, SpriteRegistry};
 use std::io::Cursor;
 
 /// Parse JSONL and build registries for rendering.
+#[allow(dead_code)]
 fn setup_render(jsonl: &str) -> (PaletteRegistry, SpriteRegistry) {
     let cursor = Cursor::new(jsonl);
     let parse_result = parse_stream(cursor);

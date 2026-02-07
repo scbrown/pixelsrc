@@ -404,7 +404,7 @@ mod tests {
 
         // Should blend towards midpoint (150, 150, 150)
         // With distance_factor=0.5 and strength=0.5, blend_amount = 0.125
-        assert!(result[0] > current[0] || result[0] == current[0]);
+        assert!(result[0] >= current[0]);
     }
 
     #[test]
@@ -418,6 +418,6 @@ mod tests {
         let result = blend_gradient_pixel(&current, &source, &target, 0.5, 0.5);
 
         // Should blend towards midpoint (150, 150, 150)
-        assert!(result[0] < current[0] || result[0] == current[0]);
+        assert!(result[0] <= current[0]);
     }
 }

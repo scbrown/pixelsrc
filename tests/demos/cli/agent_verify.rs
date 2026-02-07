@@ -350,5 +350,5 @@ fn test_client_builder_pattern() {
         .verify_content(r##"{"type": "palette", "name": "p", "colors": {"{x}": "#FF0000"}}"##);
 
     // Just verify builder pattern works
-    assert!(result.valid || !result.valid); // Always true, just testing it doesn't panic
+    let _ = result.valid; // Just testing builder pattern doesn't panic
 }

@@ -44,6 +44,7 @@ fn run_pxl_render(fixture: &Path) -> std::process::Output {
 }
 
 /// Helper to assert a fixture renders successfully
+#[allow(dead_code)]
 fn assert_renders_successfully(fixture_path: &str) {
     let fixture = Path::new(fixture_path);
     assert!(fixture.exists(), "Fixture not found: {}", fixture_path);
@@ -64,7 +65,8 @@ fn assert_renders_successfully(fixture_path: &str) {
 
 // ============================================================================
 // CSS-12: color-mix() Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_color_mix_produces_valid_output() {
     let fixture = Path::new("tests/fixtures/css/color_mix.jsonl");
     let output_dir = std::env::temp_dir().join("pxl_color_mix_test");
@@ -92,7 +94,8 @@ fn test_color_mix_produces_valid_output() {
 
 // ============================================================================
 // CSS-13: @keyframes Animation Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_keyframes_animation_output() {
     let fixture = Path::new("tests/fixtures/css/keyframes.jsonl");
     let output_dir = std::env::temp_dir().join("pxl_keyframes_test");
@@ -114,7 +117,8 @@ fn test_keyframes_animation_output() {
 
 // ============================================================================
 // CSS-14: Transform Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_transforms_all_rotations() {
     // Verify all rotation variants render correctly
     let fixture = Path::new("tests/fixtures/css/transforms.jsonl");
@@ -144,7 +148,8 @@ fn test_transforms_all_rotations() {
 
 // ============================================================================
 // Integrated CSS Features Tests
-// ============================================================================#[test]
+// ============================================================================
+#[test]
 fn test_integrated_variables_and_color_mix() {
     // Tests that CSS variables work correctly with color-mix()
     let fixture = Path::new("tests/fixtures/css/integrated.jsonl");

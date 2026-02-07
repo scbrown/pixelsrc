@@ -1622,11 +1622,13 @@ mod tests {
     // Atlas Export Tests (DT-22)
     // ========================================================================
 
-    /// @demo export/atlas#aseprite
-    /// @title Aseprite JSON Atlas
-    /// @description Sprite atlas data for Aseprite-compatible JSON export format.    /// @demo export/recolor#palette_swap
-    /// @title Recolor Export with Palette Swap
-    /// @description Export sprites with palette variants applied (color swaps).    // ========================================================================
+    // @demo export/atlas#aseprite
+    // @title Aseprite JSON Atlas
+    // @description Sprite atlas data for Aseprite-compatible JSON export format.
+    // @demo export/recolor#palette_swap
+    // @title Recolor Export with Palette Swap
+    // @description Export sprites with palette variants applied (color swaps).
+    // ========================================================================
     // Palette Cycling Tests (DT-20)
     // ========================================================================
 

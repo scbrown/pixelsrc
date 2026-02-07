@@ -8,6 +8,7 @@ use pixelsrc::models::{PaletteRef, Sprite};
 use std::collections::{HashMap, HashSet};
 
 /// Helper to create a simple sprite for testing
+#[allow(dead_code)]
 fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) -> Sprite {
     // Compute dimensions from grid (for backwards compatibility in tests)
     let height = grid.len() as u32;

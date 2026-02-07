@@ -11,7 +11,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use image::{Rgba, RgbaImage};
 use pixelsrc::atlas::{pack_atlas, AtlasConfig, SpriteInput};
 use pixelsrc::color::parse_color;
-use pixelsrc::models::{PaletteRef, Sprite};
+use pixelsrc::models::{PaletteRef, RegionDef, Sprite};
 use pixelsrc::parser::{parse_line, parse_stream};
 use pixelsrc::registry::ResolvedSprite;
 use pixelsrc::renderer::{render_resolved, render_sprite};
@@ -72,22 +72,29 @@ fn make_jsonl_content(sprite_count: usize, width: usize, height: usize) -> Strin
         .join("\n")
 }
 
-/// Create a test sprite with given dimensions
+/// Create a test sprite with given dimensions using regions
 fn make_test_sprite(width: usize, height: usize) -> Sprite {
     let mut palette_colors = HashMap::new();
     for i in 0..16 {
-        palette_colors.insert(
-            format!("{{t{}}}", i),
-            format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16),
+        palette_colors
+            .insert(format!("t{}", i), format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16));
+    }
+
+    // Create a region for each row using different palette tokens
+    let mut regions = HashMap::new();
+    for row in 0..height {
+        let token = format!("t{}", row % 16);
+        regions.insert(
+            token,
+            RegionDef { rect: Some([0, row as u32, width as u32, 1]), ..Default::default() },
         );
     }
 
     Sprite {
         name: "bench_sprite".to_string(),
         size: Some([width as u32, height as u32]),
-        palette: PaletteRef::Inline(palette_colors.clone()),
-        grid: (0..height).map(|_| make_grid_row(width)).collect(),
-        metadata: None,
+        palette: PaletteRef::Inline(palette_colors),
+        regions: Some(regions),
         ..Default::default()
     }
 }
@@ -96,20 +103,26 @@ fn make_test_sprite(width: usize, height: usize) -> Sprite {
 fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
     let mut palette = HashMap::new();
     for i in 0..16 {
-        palette.insert(
-            format!("{{t{}}}", i),
-            format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16),
+        palette
+            .insert(format!("t{}", i), format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16));
+    }
+
+    let mut regions = HashMap::new();
+    for row in 0..height {
+        let token = format!("t{}", row % 16);
+        regions.insert(
+            token,
+            RegionDef { rect: Some([0, row as u32, width as u32, 1]), ..Default::default() },
         );
     }
 
     ResolvedSprite {
         name: "bench_sprite".to_string(),
         size: Some([width as u32, height as u32]),
-        grid: (0..height).map(|_| make_grid_row(width)).collect(),
         palette,
         warnings: vec![],
         nine_slice: None,
-        regions: None,
+        regions: Some(regions),
     }
 }
 
@@ -261,18 +274,24 @@ fn bench_renderer(c: &mut Criterion) {
     // Benchmark with many unique tokens (stresses color cache)
     let mut wide_palette = HashMap::new();
     for i in 0..256 {
-        wide_palette.insert(format!("{{c{}}}", i), format!("#{:02X}{:02X}{:02X}", i, i, i));
+        wide_palette.insert(format!("c{}", i), format!("#{:02X}{:02X}{:02X}", i, i, i));
     }
-    let wide_grid: Vec<String> = (0..16)
-        .map(|row| (0..16).map(|col| format!("{{c{}}}", row * 16 + col)).collect())
-        .collect();
+    let mut wide_regions = HashMap::new();
+    for row in 0..16 {
+        for col in 0..16 {
+            // Region key = palette token name
+            wide_regions.insert(
+                format!("c{}", row * 16 + col),
+                RegionDef { points: Some(vec![[col as u32, row as u32]]), ..Default::default() },
+            );
+        }
+    }
 
     let wide_sprite = Sprite {
         name: "wide_palette".to_string(),
         size: Some([16, 16]),
         palette: PaletteRef::Inline(wide_palette.clone()),
-        grid: wide_grid,
-        metadata: None,
+        regions: Some(wide_regions),
         ..Default::default()
     };
 

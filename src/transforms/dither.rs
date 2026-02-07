@@ -53,7 +53,7 @@ impl DitherPattern {
         match self {
             DitherPattern::Checker => {
                 // 2x2 checkerboard: alternating 0 and 1
-                if (x + y) % 2 == 0 {
+                if (x + y).is_multiple_of(2) {
                     0.25
                 } else {
                     0.75

@@ -146,6 +146,7 @@ pub fn xbr4x(image: &RgbaImage, context: &SemanticContext, config: &AntialiasCon
 /// P is the center pixel, E/F/G/H are cardinal neighbors,
 /// B/C/D/I are diagonal neighbors.
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 struct Neighborhood5x5 {
     // Row 0 (top)
     a1: Rgba<u8>,

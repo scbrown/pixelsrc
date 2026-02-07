@@ -1737,7 +1737,7 @@ mod tests {
 
     #[test]
     fn test_sprite_with_antialias_config() {
-        use crate::antialias::{AAAlgorithm, AnchorMode, AntialiasConfig};
+        use crate::antialias::{AAAlgorithm, AnchorMode};
 
         let json = r#"{
             "type": "sprite",
@@ -1827,8 +1827,6 @@ mod tests {
 
     #[test]
     fn test_region_with_antialias_override() {
-        use crate::antialias::{AnchorMode, RegionAAOverride};
-
         let json = r#"{"rect": [0, 0, 8, 8], "antialias": {"preserve": true}}"#;
         let region: RegionDef = serde_json::from_str(json).unwrap();
         assert!(region.antialias.is_some());
@@ -1838,7 +1836,7 @@ mod tests {
 
     #[test]
     fn test_region_antialias_full_override() {
-        use crate::antialias::{AnchorMode, RegionAAOverride};
+        use crate::antialias::AnchorMode;
 
         let json = r#"{
             "rect": [0, 0, 8, 8],
@@ -1869,7 +1867,7 @@ mod tests {
 
     #[test]
     fn test_region_antialias_roundtrip() {
-        use crate::antialias::{AnchorMode, RegionAAOverride};
+        use crate::antialias::RegionAAOverride;
 
         let region = RegionDef {
             circle: Some([8, 8, 4]),

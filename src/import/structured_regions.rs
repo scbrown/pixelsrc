@@ -344,8 +344,8 @@ pub fn filter_points_for_half_sprite(
     width: u32,
     height: u32,
 ) -> Vec<[u32; 2]> {
-    let half_width = (width + 1) / 2; // Include center column for odd widths
-    let half_height = (height + 1) / 2; // Include center row for odd heights
+    let half_width = width.div_ceil(2); // Include center column for odd widths
+    let half_height = height.div_ceil(2); // Include center row for odd heights
 
     points
         .iter()
@@ -370,8 +370,8 @@ pub fn filter_structured_region_for_half_sprite(
     width: u32,
     height: u32,
 ) -> StructuredRegion {
-    let half_width = (width + 1) / 2;
-    let half_height = (height + 1) / 2;
+    let half_width = width.div_ceil(2);
+    let half_height = height.div_ceil(2);
 
     match region {
         StructuredRegion::Rect([x, y, w, h]) => {

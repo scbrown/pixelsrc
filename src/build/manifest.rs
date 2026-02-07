@@ -680,7 +680,13 @@ mod tests {
         let output = temp.path().join("build/test.png");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source.clone()], &[output.clone()]).unwrap();
+        manifest
+            .record_build(
+                "sprite:test",
+                std::slice::from_ref(&source),
+                std::slice::from_ref(&output),
+            )
+            .unwrap();
 
         assert_eq!(manifest.len(), 1);
         let target = manifest.get_target("sprite:test").unwrap();
@@ -704,7 +710,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source.clone()], &[output]).unwrap();
+        manifest.record_build("sprite:test", std::slice::from_ref(&source), &[output]).unwrap();
 
         assert!(!manifest.needs_rebuild("sprite:test", &[source]).unwrap());
     }
@@ -716,7 +722,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source.clone()], &[output]).unwrap();
+        manifest.record_build("sprite:test", std::slice::from_ref(&source), &[output]).unwrap();
 
         // Modify source file
         create_test_file(temp.path(), "src/test.pxl", "modified content");
@@ -734,7 +740,13 @@ mod tests {
         create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source.clone()], &[output.clone()]).unwrap();
+        manifest
+            .record_build(
+                "sprite:test",
+                std::slice::from_ref(&source),
+                std::slice::from_ref(&output),
+            )
+            .unwrap();
 
         // Delete output
         fs::remove_file(&output).unwrap();
@@ -750,7 +762,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("atlas:test", &[source1.clone()], &[output]).unwrap();
+        manifest.record_build("atlas:test", std::slice::from_ref(&source1), &[output]).unwrap();
 
         // Now build with additional source
         assert!(manifest.needs_rebuild("atlas:test", &[source1, source2]).unwrap());
@@ -1050,7 +1062,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "original output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source], &[output.clone()]).unwrap();
+        manifest.record_build("sprite:test", &[source], std::slice::from_ref(&output)).unwrap();
 
         // No changes - should return empty
         let changed = manifest.verify_outputs().unwrap();
@@ -1070,7 +1082,7 @@ mod tests {
         let output = create_test_file(temp.path(), "build/test.png", "output");
 
         let mut manifest = BuildManifest::new();
-        manifest.record_build("sprite:test", &[source], &[output.clone()]).unwrap();
+        manifest.record_build("sprite:test", &[source], std::slice::from_ref(&output)).unwrap();
 
         // Delete output
         fs::remove_file(&output).unwrap();

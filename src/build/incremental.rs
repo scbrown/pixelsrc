@@ -501,7 +501,7 @@ mod tests {
         let target = BuildTarget::sprite("test".to_string(), source.clone(), output.clone());
 
         let mut build = IncrementalBuild::new(ctx);
-        build.record_build(&target, &[output.clone()]).unwrap();
+        build.record_build(&target, std::slice::from_ref(&output)).unwrap();
 
         // Delete output
         fs::remove_file(&output).unwrap();
@@ -621,7 +621,7 @@ mod tests {
         // First build - record the target
         {
             let mut build = IncrementalBuild::new(ctx.clone());
-            build.record_build(&target, &[output.clone()]).unwrap();
+            build.record_build(&target, std::slice::from_ref(&output)).unwrap();
             build.save_manifest_to_disk().unwrap();
         }
 
