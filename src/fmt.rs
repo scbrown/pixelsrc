@@ -125,6 +125,31 @@ fn format_sprite(sprite: &Sprite) -> String {
         }
     }
 
+    // Grid (if present, alternative to regions)
+    if let Some(grid) = &sprite.grid {
+        s.push_str(r#", "grid": ["#);
+        if grid.len() <= 1 {
+            // Single row stays inline
+            if let Some(row) = grid.first() {
+                s.push('"');
+                s.push_str(&escape_json_string(row));
+                s.push('"');
+            }
+        } else {
+            // Multiple rows: one per line for visual clarity
+            for (i, row) in grid.iter().enumerate() {
+                if i > 0 {
+                    s.push(',');
+                }
+                s.push_str("\n    \"");
+                s.push_str(&escape_json_string(row));
+                s.push('"');
+            }
+            s.push('\n');
+        }
+        s.push(']');
+    }
+
     s.push('}');
     s
 }
