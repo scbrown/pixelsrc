@@ -66,6 +66,8 @@ pub enum DrawOp {
     Set { x: usize, y: usize, token: String },
     /// Erase a single cell (set to transparent): `--erase x,y`
     Erase { x: usize, y: usize },
+    /// Fill a rectangle: `--rect x,y,w,h="{token}"`
+    Rect { x: usize, y: usize, w: usize, h: usize, token: String },
 }
 
 /// A 2D grid of tokens parsed from `{token}` grid strings.
@@ -187,11 +189,77 @@ impl TokenGrid {
         self.set(x, y, "_".to_string())
     }
 
-    /// Apply a draw operation to the grid.
-    pub fn apply(&mut self, op: &DrawOp) -> Result<(), DrawError> {
+    /// Fill a rectangular region with a token, clamping to sprite bounds.
+    ///
+    /// Returns a list of warnings (e.g. if the rect was clamped or is zero-sized).
+    pub fn rect_fill(
+        &mut self,
+        x: usize,
+        y: usize,
+        w: usize,
+        h: usize,
+        token: String,
+    ) -> Vec<String> {
+        let mut warnings = Vec::new();
+
+        if w == 0 || h == 0 {
+            warnings.push(format!(
+                "zero-size rect {}x{} at ({},{}) is a no-op",
+                w, h, x, y
+            ));
+            return warnings;
+        }
+
+        // Compute the desired end coordinates
+        let end_x = x.saturating_add(w);
+        let end_y = y.saturating_add(h);
+
+        // Clamp to grid bounds
+        let clamped_start_x = x.min(self.width);
+        let clamped_start_y = y.min(self.height);
+        let clamped_end_x = end_x.min(self.width);
+        let clamped_end_y = end_y.min(self.height);
+
+        if clamped_start_x >= clamped_end_x || clamped_start_y >= clamped_end_y {
+            warnings.push(format!(
+                "rect at ({},{}) {}x{} is entirely outside {}x{} grid",
+                x, y, w, h, self.width, self.height
+            ));
+            return warnings;
+        }
+
+        if clamped_end_x < end_x || clamped_end_y < end_y
+            || clamped_start_x > x || clamped_start_y > y
+        {
+            warnings.push(format!(
+                "rect at ({},{}) {}x{} clipped to grid bounds ({}x{})",
+                x, y, w, h, self.width, self.height
+            ));
+        }
+
+        for row in clamped_start_y..clamped_end_y {
+            for col in clamped_start_x..clamped_end_x {
+                self.cells[row][col] = token.clone();
+            }
+        }
+
+        warnings
+    }
+
+    /// Apply a draw operation to the grid. Returns warnings (if any).
+    pub fn apply(&mut self, op: &DrawOp) -> Result<Vec<String>, DrawError> {
         match op {
-            DrawOp::Set { x, y, token } => self.set(*x, *y, token.clone()),
-            DrawOp::Erase { x, y } => self.erase(*x, *y),
+            DrawOp::Set { x, y, token } => {
+                self.set(*x, *y, token.clone())?;
+                Ok(Vec::new())
+            }
+            DrawOp::Erase { x, y } => {
+                self.erase(*x, *y)?;
+                Ok(Vec::new())
+            }
+            DrawOp::Rect { x, y, w, h, token } => {
+                Ok(self.rect_fill(*x, *y, *w, *h, token.clone()))
+            }
         }
     }
 
@@ -328,7 +396,8 @@ impl DrawPipeline {
     pub fn apply_ops(&mut self, ops: &[DrawOp]) -> Result<(), DrawError> {
         let mut grid = self.grid()?;
         for op in ops {
-            grid.apply(op)?;
+            let op_warnings = grid.apply(op)?;
+            self.warnings.extend(op_warnings);
         }
         self.set_grid(&grid)
     }
@@ -845,5 +914,223 @@ mod tests {
         // Re-parse and verify palette is preserved
         let pipeline2 = DrawPipeline::load_from_string(&result.content, None).unwrap();
         assert_eq!(pipeline2.objects.len(), 2); // palette + sprite
+    }
+
+    // =========================================================================
+    // Rect fill tests
+    // =========================================================================
+
+    #[test]
+    fn test_rect_fill_basic() {
+        let rows = vec![
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(0, 0, 4, 2, "sky".to_string());
+        assert!(warnings.is_empty());
+
+        // Top 2 rows filled
+        for y in 0..2 {
+            for x in 0..4 {
+                assert_eq!(grid.get(x, y), Some("sky"), "({},{}) should be sky", x, y);
+            }
+        }
+        // Bottom 2 rows unchanged
+        for y in 2..4 {
+            for x in 0..4 {
+                assert_eq!(grid.get(x, y), Some("_"), "({},{}) should be _", x, y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_rect_fill_partial_overlap() {
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Rect extends beyond grid bounds
+        let warnings = grid.rect_fill(1, 1, 5, 5, "x".to_string());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("clipped"), "Expected clipping warning, got: {}", warnings[0]);
+
+        // Only the part inside the grid should be filled
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(1, 0), Some("_"));
+        assert_eq!(grid.get(0, 1), Some("_"));
+        assert_eq!(grid.get(1, 1), Some("x"));
+        assert_eq!(grid.get(2, 1), Some("x"));
+        assert_eq!(grid.get(1, 2), Some("x"));
+        assert_eq!(grid.get(2, 2), Some("x"));
+    }
+
+    #[test]
+    fn test_rect_fill_zero_width() {
+        let rows = vec!["{_}{_}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(0, 0, 0, 1, "x".to_string());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("zero-size"));
+        // No modification
+        assert_eq!(grid.get(0, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_rect_fill_zero_height() {
+        let rows = vec!["{_}{_}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(0, 0, 2, 0, "x".to_string());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("zero-size"));
+        assert_eq!(grid.get(0, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_rect_fill_entirely_outside() {
+        let rows = vec![
+            "{_}{_}".to_string(),
+            "{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(5, 5, 3, 3, "x".to_string());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("entirely outside"));
+        // No modification
+        assert_eq!(grid.get(0, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_rect_fill_single_cell() {
+        let rows = vec!["{_}{_}".to_string(), "{_}{_}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(1, 0, 1, 1, "dot".to_string());
+        assert!(warnings.is_empty());
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(1, 0), Some("dot"));
+        assert_eq!(grid.get(0, 1), Some("_"));
+        assert_eq!(grid.get(1, 1), Some("_"));
+    }
+
+    #[test]
+    fn test_rect_fill_full_grid() {
+        let rows = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{e}{f}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.rect_fill(0, 0, 3, 2, "fill".to_string());
+        assert!(warnings.is_empty());
+
+        for y in 0..2 {
+            for x in 0..3 {
+                assert_eq!(grid.get(x, y), Some("fill"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_rect_apply_via_draw_op() {
+        let rows = vec![
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+            "{_}{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.apply(&DrawOp::Rect {
+            x: 1, y: 0, w: 2, h: 2, token: "sky".to_string(),
+        }).unwrap();
+        assert!(warnings.is_empty());
+
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(1, 0), Some("sky"));
+        assert_eq!(grid.get(2, 0), Some("sky"));
+        assert_eq!(grid.get(3, 0), Some("_"));
+        assert_eq!(grid.get(1, 1), Some("sky"));
+        assert_eq!(grid.get(2, 1), Some("sky"));
+        assert_eq!(grid.get(1, 2), Some("_"));
+    }
+
+    #[test]
+    fn test_pipeline_rect_fill() {
+        let content = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{sky}": "#87CEEB"}}
+{"type": "sprite", "name": "scene", "size": [4, 4], "palette": "pal", "grid": ["{_}{_}{_}{_}", "{_}{_}{_}{_}", "{_}{_}{_}{_}", "{_}{_}{_}{_}"]}"##;
+
+        let mut pipeline = DrawPipeline::load_from_string(content, Some("scene")).unwrap();
+
+        pipeline
+            .apply_ops(&[DrawOp::Rect { x: 0, y: 0, w: 4, h: 2, token: "sky".to_string() }])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        // Top 2 rows are sky
+        for y in 0..2 {
+            for x in 0..4 {
+                assert_eq!(grid.get(x, y), Some("sky"));
+            }
+        }
+        // Bottom 2 rows unchanged
+        for y in 2..4 {
+            for x in 0..4 {
+                assert_eq!(grid.get(x, y), Some("_"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_pipeline_rect_with_clamp_warning() {
+        let content = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
+{"type": "sprite", "name": "tiny", "size": [2, 2], "palette": "pal", "grid": ["{_}{_}", "{_}{_}"]}"##;
+
+        let mut pipeline = DrawPipeline::load_from_string(content, Some("tiny")).unwrap();
+
+        pipeline
+            .apply_ops(&[DrawOp::Rect { x: 0, y: 0, w: 10, h: 10, token: "x".to_string() }])
+            .unwrap();
+
+        // Should have a clipping warning
+        let result = pipeline.serialize().unwrap();
+        assert!(!result.warnings.is_empty(), "Expected clipping warning");
+
+        // All cells should still be filled (clamped to grid)
+        let grid = pipeline.grid().unwrap();
+        for y in 0..2 {
+            for x in 0..2 {
+                assert_eq!(grid.get(x, y), Some("x"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_pipeline_rect_and_set_combined() {
+        let content = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{sky}": "#87CEEB", "{sun}": "#FFD700"}}
+{"type": "sprite", "name": "scene", "size": [4, 4], "palette": "pal", "grid": ["{_}{_}{_}{_}", "{_}{_}{_}{_}", "{_}{_}{_}{_}", "{_}{_}{_}{_}"]}"##;
+
+        let mut pipeline = DrawPipeline::load_from_string(content, Some("scene")).unwrap();
+
+        // Fill sky, then place a sun pixel
+        pipeline
+            .apply_ops(&[
+                DrawOp::Rect { x: 0, y: 0, w: 4, h: 4, token: "sky".to_string() },
+                DrawOp::Set { x: 1, y: 1, token: "sun".to_string() },
+            ])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.get(0, 0), Some("sky"));
+        assert_eq!(grid.get(1, 1), Some("sun"));
+        assert_eq!(grid.get(2, 2), Some("sky"));
     }
 }

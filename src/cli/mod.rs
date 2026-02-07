@@ -481,6 +481,10 @@ pub enum Commands {
         #[arg(long, value_name = "X,Y")]
         erase: Vec<String>,
 
+        /// Fill rectangle: x,y,w,h="{token}" (e.g. --rect 0,0,16,4="{sky}")
+        #[arg(long, value_name = "X,Y,W,H={TOKEN}")]
+        rect: Vec<String>,
+
         /// Output file (default: overwrite input)
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -631,8 +635,8 @@ pub fn run() -> ExitCode {
         #[cfg(feature = "mcp")]
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
-        Commands::Draw { input, sprite, set, erase, output, dry_run } => {
-            draw::run_draw(&input, sprite.as_deref(), &set, &erase, output.as_deref(), dry_run)
+        Commands::Draw { input, sprite, set, erase, rect, output, dry_run } => {
+            draw::run_draw(&input, sprite.as_deref(), &set, &erase, &rect, output.as_deref(), dry_run)
         }
     }
 }
