@@ -162,6 +162,7 @@
 // FINAL: Iteration Round 2 - 3/4 view (front-left) perspective
 // Reference: skull faces viewer's left. Right side = near (more visible),
 // Left side = far (foreshortened). Light from upper-right.
+// Round 2 changes: brow ridge, angular eye sockets, narrower jaw, teeth character
 {
   "type": "sprite",
   "name": "skull",
@@ -189,10 +190,11 @@
       "z": 1
     },
 
-    // Deep shadow on far left edge - compressed foreshortening
+    // Deep shadow on far left edge + brow ridge overhang (1px line)
     "bone_dark": {
-      "polygon": [
-        [7, 6], [5, 10], [5, 16], [7, 22], [9, 20], [8, 14], [9, 8]
+      "union": [
+        { "polygon": [[7, 6], [5, 10], [5, 16], [7, 22], [9, 20], [8, 14], [9, 8]] },
+        { "polygon": [[7, 13], [17, 12], [28, 13], [28, 14], [7, 14]] }
       ],
       "z": 2
     },
@@ -203,89 +205,95 @@
       "z": 2
     },
 
-    // EYE SOCKETS - right (near) is larger, left (far) is smaller/foreshortened
+    // EYE SOCKETS - angular trapezoids (wider at brow, narrow toward cheek)
+    // Left (far) - smaller, foreshortened
     "cavity_l": {
-      "polygon": [[8, 14], [14, 13], [15, 20], [9, 21]],
+      "polygon": [[8, 15], [15, 14], [14, 20], [9, 21]],
       "z": 3
     },
+    // Right (near) - larger, angular trapezoid converging downward
     "cavity_r": {
-      "polygon": [[18, 12], [27, 13], [27, 21], [18, 20]],
+      "polygon": [[18, 14], [27, 14], [26, 21], [19, 21]],
       "z": 3
     },
 
     // Deeper eye shadows - concentrated at inner/lower areas
     "cavity_deep": {
       "union": [
-        { "polygon": [[10, 16], [13, 15], [14, 18], [11, 19]] },
-        { "polygon": [[20, 14], [25, 15], [24, 19], [19, 18]] }
+        { "polygon": [[9, 16], [13, 15], [13, 19], [10, 20]] },
+        { "polygon": [[20, 15], [25, 15], [25, 19], [21, 20]] }
       ],
       "z": 4
     },
 
-    // NOSE - offset right for 3/4 perspective
+    // NOSE - narrower, offset right for 3/4 perspective
     "cavity_nose": {
-      "polygon": [[15, 21], [20, 21], [19, 24], [17, 27], [16, 24]],
+      "polygon": [[15, 22], [19, 22], [18, 25], [17, 27], [15, 25]],
       "z": 3
     },
 
-    // Nose bone ridge - offset right
+    // Nose bone ridge - offset right, starts below brow
     "bone_shd_nose": {
-      "line": [[17, 12], [17, 21]],
+      "line": [[17, 15], [17, 22]],
       "z": 2
     },
 
-    // CHEEKBONES - left (far) narrower, right (near) wider
+    // CHEEKBONES - pronounced, left (far) narrower, right (near) wider
     "bone_dark_l": {
-      "polygon": [[5, 17], [8, 14], [9, 17], [9, 24], [6, 25]],
+      "polygon": [[5, 18], [8, 15], [9, 18], [9, 24], [5, 25]],
       "z": 1
     },
     "bone_dark_r": {
-      "polygon": [[30, 16], [27, 13], [26, 17], [26, 24], [29, 25]],
+      "polygon": [[29, 17], [27, 14], [26, 18], [26, 24], [29, 25]],
       "z": 1
     },
 
-    // JAW - asymmetric: wider right (near), narrower left (far)
+    // JAW - narrower than cranium, asymmetric 3/4
     "bone_jaw": {
       "polygon": [
-        [7, 24], [27, 24], [29, 26], [29, 33], [25, 37], [10, 37], [6, 33], [5, 26]
+        [8, 24], [26, 24], [28, 26], [28, 33], [24, 37], [11, 37], [7, 33], [6, 26]
       ],
       "z": 0
     },
 
-    // Jaw shading - lit/near side (right, wider)
+    // Jaw shading - lit/near side (right)
     "bone_lit_jaw": {
-      "polygon": [[20, 24], [27, 24], [29, 26], [29, 33], [25, 35], [20, 35]],
+      "polygon": [[20, 24], [26, 24], [28, 26], [28, 33], [24, 35], [20, 35]],
       "z": 1
     },
-    // Jaw shading - shadow/far side (left, narrower)
+    // Jaw shading - shadow/far side (left)
     "bone_shd_jaw": {
-      "polygon": [[7, 24], [13, 24], [13, 35], [10, 37], [6, 33], [5, 26]],
+      "polygon": [[8, 24], [13, 24], [13, 35], [11, 37], [7, 33], [6, 26]],
       "z": 1
     },
 
-    // TEETH - shifted right to match jaw asymmetry
+    // TEETH - narrower to match jaw, with character
     "tooth": {
-      "rect": [9, 26, 18, 7],
+      "rect": [10, 26, 16, 7],
       "z": 2
     },
-    // Teeth gaps - irregular spacing for character
+    // Teeth gaps - clean bite line with varied vertical dividers
     "tooth_gap": {
       "union": [
-        { "line": [[9, 28], [27, 28]] },
-        { "line": [[9, 30], [27, 30]] },
-        // Top row teeth dividers - varied spacing
-        { "points": [[11, 26], [13, 26], [16, 26], [19, 26], [22, 26], [25, 26]] },
-        // Bottom row teeth dividers - offset
-        { "points": [[12, 33], [15, 33], [18, 33], [21, 33], [24, 33]] }
+        // Bite line (main horizontal gap between upper and lower teeth)
+        { "line": [[10, 29], [26, 29]] },
+        // Upper teeth vertical dividers - varied widths for character
+        { "points": [[13, 26], [16, 26], [18, 26], [21, 26], [24, 26]] },
+        { "points": [[13, 27], [16, 27], [18, 27], [21, 27], [24, 27]] },
+        { "points": [[13, 28], [16, 28], [18, 28], [21, 28], [24, 28]] },
+        // Lower teeth vertical dividers - offset for character
+        { "points": [[12, 30], [15, 30], [19, 30], [22, 30]] },
+        { "points": [[12, 31], [15, 31], [19, 31], [22, 31]] },
+        { "points": [[12, 32], [15, 32], [19, 32], [22, 32]] }
       ],
       "z": 3
     },
     // Tooth shading for depth on far/left side
     "tooth_shd": {
       "union": [
-        { "line": [[9, 27], [9, 33]] },
-        { "line": [[10, 27], [10, 33]] },
-        { "line": [[9, 33], [27, 33]] }
+        { "line": [[10, 26], [10, 33]] },
+        { "line": [[11, 26], [11, 33]] },
+        { "line": [[10, 33], [26, 33]] }
       ],
       "z": 3
     }
@@ -416,60 +424,63 @@
     // Cover existing jaw area completely
     "bone": { "rect": [2, 23, 28, 17], "z": 10 },
 
-    // JAW - matches base skull 3/4 perspective
+    // JAW - matches base skull narrower 3/4 perspective
     "bone_jaw": {
       "polygon": [
-        [7, 24], [27, 24], [29, 26], [29, 33], [25, 37], [10, 37], [6, 33], [5, 26]
+        [8, 24], [26, 24], [28, 26], [28, 33], [24, 37], [11, 37], [7, 33], [6, 26]
       ],
       "z": 11
     },
 
     // Jaw shading
     "bone_lit_jaw": {
-      "polygon": [[20, 24], [27, 24], [29, 26], [29, 33], [25, 35], [20, 35]],
+      "polygon": [[20, 24], [26, 24], [28, 26], [28, 33], [24, 35], [20, 35]],
       "z": 12
     },
     "bone_shd_jaw": {
-      "polygon": [[7, 24], [13, 24], [13, 35], [10, 37], [6, 33], [5, 26]],
+      "polygon": [[8, 24], [13, 24], [13, 35], [11, 37], [7, 33], [6, 26]],
       "z": 12
     },
 
-    // TEETH - shifted right to match 3/4 jaw
+    // TEETH - narrower, with character
     "tooth": {
-      "rect": [9, 26, 18, 7],
+      "rect": [10, 26, 16, 7],
       "z": 13
     },
     "tooth_gap": {
       "union": [
-        { "line": [[9, 28], [27, 28]] },
-        { "line": [[9, 30], [27, 30]] },
-        { "points": [[11, 26], [13, 26], [16, 26], [19, 26], [22, 26], [25, 26]] },
-        { "points": [[12, 33], [15, 33], [18, 33], [21, 33], [24, 33]] }
+        { "line": [[10, 29], [26, 29]] },
+        { "points": [[13, 26], [16, 26], [18, 26], [21, 26], [24, 26]] },
+        { "points": [[13, 27], [16, 27], [18, 27], [21, 27], [24, 27]] },
+        { "points": [[13, 28], [16, 28], [18, 28], [21, 28], [24, 28]] },
+        { "points": [[12, 30], [15, 30], [19, 30], [22, 30]] },
+        { "points": [[12, 31], [15, 31], [19, 31], [22, 31]] },
+        { "points": [[12, 32], [15, 32], [19, 32], [22, 32]] }
       ],
       "z": 14
     },
     "tooth_shd": {
       "union": [
-        { "line": [[9, 27], [9, 33]] },
-        { "line": [[10, 27], [10, 33]] },
-        { "line": [[9, 33], [27, 33]] }
+        { "line": [[10, 26], [10, 33]] },
+        { "line": [[11, 26], [11, 33]] },
+        { "line": [[10, 33], [26, 33]] }
       ],
       "z": 14
     },
 
     // Cheekbone structure - matches base skull 3/4
     "bone_dark_l": {
-      "polygon": [[5, 17], [8, 14], [9, 17], [9, 24], [6, 25]],
+      "polygon": [[5, 18], [8, 15], [9, 18], [9, 24], [5, 25]],
       "z": 12
     },
     "bone_dark_r": {
-      "polygon": [[30, 16], [27, 13], [26, 17], [26, 24], [29, 25]],
+      "polygon": [[29, 17], [27, 14], [26, 18], [26, 24], [29, 25]],
       "z": 12
     }
   }
 }
 
-// MOUTH SMALL OPEN - slight jaw drop (2px), gap between upper and lower teeth
+// MOUTH SMALL OPEN - slight jaw drop (3px), gap between upper and lower teeth
 {
   "type": "sprite",
   "name": "skull_mouth_small",
@@ -481,79 +492,83 @@
 
     // Dark cavity behind teeth (mouth interior)
     "cavity": {
-      "rect": [9, 30, 18, 3],
+      "rect": [10, 30, 16, 3],
       "z": 11
     },
 
-    // UPPER JAW - stays in place, 3/4 perspective
+    // UPPER JAW - stays in place, narrower 3/4 perspective
     "bone_jaw": {
       "polygon": [
-        [7, 24], [27, 24], [29, 26], [29, 30], [5, 30], [5, 26]
+        [8, 24], [26, 24], [28, 26], [28, 30], [6, 30], [6, 26]
       ],
       "z": 12
     },
 
     // Upper jaw shading
     "bone_lit_jaw": {
-      "polygon": [[20, 24], [27, 24], [29, 26], [29, 30], [20, 30]],
+      "polygon": [[20, 24], [26, 24], [28, 26], [28, 30], [20, 30]],
       "z": 13
     },
     "bone_shd_jaw": {
-      "polygon": [[7, 24], [13, 24], [13, 30], [5, 30], [5, 26]],
+      "polygon": [[8, 24], [13, 24], [13, 30], [6, 30], [6, 26]],
       "z": 13
     },
 
-    // UPPER TEETH - 2 rows, shifted right
+    // UPPER TEETH - narrower, with character
     "tooth": {
-      "rect": [9, 26, 18, 4],
+      "rect": [10, 26, 16, 3],
       "z": 14
     },
     "tooth_gap": {
       "union": [
-        { "line": [[9, 28], [27, 28]] },
-        { "points": [[11, 26], [13, 26], [16, 26], [19, 26], [22, 26], [25, 26]] }
+        { "points": [[13, 26], [16, 26], [18, 26], [21, 26], [24, 26]] },
+        { "points": [[13, 27], [16, 27], [18, 27], [21, 27], [24, 27]] },
+        { "points": [[13, 28], [16, 28], [18, 28], [21, 28], [24, 28]] }
       ],
       "z": 15
     },
 
-    // LOWER JAW - dropped 3px, 3/4 perspective
+    // LOWER JAW - dropped 3px, narrower 3/4 perspective
     "bone_dark": {
       "polygon": [
-        [7, 33], [27, 33], [29, 35], [25, 39], [10, 39], [6, 35]
+        [8, 33], [26, 33], [28, 35], [24, 39], [11, 39], [7, 35]
       ],
       "z": 12
     },
 
     // Lower jaw shading
     "bone_lit": {
-      "polygon": [[20, 33], [27, 33], [29, 35], [25, 37], [20, 37]],
+      "polygon": [[20, 33], [26, 33], [28, 35], [24, 37], [20, 37]],
       "z": 13
     },
     "bone_shd": {
-      "polygon": [[7, 33], [13, 33], [13, 37], [10, 39], [6, 35]],
+      "polygon": [[8, 33], [13, 33], [13, 37], [11, 39], [7, 35]],
       "z": 13
     },
 
-    // LOWER TEETH - dropped, 2 rows visible
+    // LOWER TEETH - dropped, with character
     "tooth_shd": {
-      "rect": [9, 33, 18, 4],
+      "rect": [10, 33, 16, 4],
       "z": 14
     },
     "cavity_deep": {
       "union": [
-        { "line": [[9, 35], [27, 35]] },
-        { "points": [[12, 33], [15, 33], [18, 33], [21, 33], [24, 33]] }
+        { "line": [[10, 35], [26, 35]] },
+        { "points": [[12, 33], [15, 33], [19, 33], [22, 33]] },
+        { "points": [[12, 34], [15, 34], [19, 34], [22, 34]] },
+        { "points": [[12, 35], [15, 35], [19, 35], [22, 35]] },
+        { "points": [[12, 36], [15, 36], [19, 36], [22, 36]] }
       ],
       "z": 15
     },
 
-    // Cheekbones - 3/4 perspective
+    // Cheekbones - matches base skull
     "bone_dark_l": {
-      "polygon": [[5, 17], [8, 14], [9, 17], [9, 24], [6, 25]],
+      "polygon": [[5, 18], [8, 15], [9, 18], [9, 24], [5, 25]],
       "z": 13
     },
     "bone_dark_r": {
-      "polygon": [[30, 16], [27, 13], [26, 17], [26, 24], [29, 25]],
+      "polygon": [[29, 17], [27, 14], [26, 18], [26, 24], [29, 25]],
       "z": 13
     }
   }
@@ -571,83 +586,87 @@
 
     // Dark cavity behind teeth (larger mouth interior)
     "cavity": {
-      "rect": [8, 30, 20, 6],
+      "rect": [9, 30, 18, 6],
       "z": 11
     },
     "cavity_deep": {
-      "rect": [10, 31, 16, 4],
+      "rect": [11, 31, 14, 4],
       "z": 12
     },
 
-    // UPPER JAW - stays in place, 3/4 perspective
+    // UPPER JAW - stays in place, narrower 3/4 perspective
     "bone_jaw": {
       "polygon": [
-        [7, 24], [27, 24], [29, 26], [29, 30], [5, 30], [5, 26]
+        [8, 24], [26, 24], [28, 26], [28, 30], [6, 30], [6, 26]
       ],
       "z": 13
     },
 
     // Upper jaw shading
     "bone_lit_jaw": {
-      "polygon": [[20, 24], [27, 24], [29, 26], [29, 30], [20, 30]],
+      "polygon": [[20, 24], [26, 24], [28, 26], [28, 30], [20, 30]],
       "z": 14
     },
     "bone_shd_jaw": {
-      "polygon": [[7, 24], [13, 24], [13, 30], [5, 30], [5, 26]],
+      "polygon": [[8, 24], [13, 24], [13, 30], [6, 30], [6, 26]],
       "z": 14
     },
 
-    // UPPER TEETH - 2 rows, shifted right
+    // UPPER TEETH - narrower, with character
     "tooth": {
-      "rect": [9, 26, 18, 4],
+      "rect": [10, 26, 16, 3],
       "z": 15
     },
     "tooth_gap": {
       "union": [
-        { "line": [[9, 28], [27, 28]] },
-        { "points": [[11, 26], [13, 26], [16, 26], [19, 26], [22, 26], [25, 26]] }
+        { "points": [[13, 26], [16, 26], [18, 26], [21, 26], [24, 26]] },
+        { "points": [[13, 27], [16, 27], [18, 27], [21, 27], [24, 27]] },
+        { "points": [[13, 28], [16, 28], [18, 28], [21, 28], [24, 28]] }
       ],
       "z": 16
     },
 
-    // LOWER JAW - dropped 5px, 3/4 perspective
+    // LOWER JAW - dropped 5px, narrower 3/4 perspective
     "bone_dark": {
       "polygon": [
-        [7, 36], [27, 36], [29, 38], [25, 42], [10, 42], [6, 38]
+        [8, 36], [26, 36], [28, 38], [24, 42], [11, 42], [7, 38]
       ],
       "z": 13
     },
 
     // Lower jaw shading
     "bone_lit": {
-      "polygon": [[20, 36], [27, 36], [29, 38], [25, 40], [20, 40]],
+      "polygon": [[20, 36], [26, 36], [28, 38], [24, 40], [20, 40]],
       "z": 14
     },
     "bone_shd": {
-      "polygon": [[7, 36], [13, 36], [13, 40], [10, 42], [6, 38]],
+      "polygon": [[8, 36], [13, 36], [13, 40], [11, 42], [7, 38]],
       "z": 14
     },
 
-    // LOWER TEETH - dropped further, 2 rows
+    // LOWER TEETH - dropped further, with character
     "tooth_shd": {
-      "rect": [9, 36, 18, 4],
+      "rect": [10, 36, 16, 4],
       "z": 15
     },
     "bone_shd_nose": {
       "union": [
-        { "line": [[9, 38], [27, 38]] },
-        { "points": [[12, 36], [15, 36], [18, 36], [21, 36], [24, 36]] }
+        { "line": [[10, 38], [26, 38]] },
+        { "points": [[12, 36], [15, 36], [19, 36], [22, 36]] },
+        { "points": [[12, 37], [15, 37], [19, 37], [22, 37]] },
+        { "points": [[12, 38], [15, 38], [19, 38], [22, 38]] },
+        { "points": [[12, 39], [15, 39], [19, 39], [22, 39]] }
       ],
       "z": 16
     },
 
-    // Cheekbones - 3/4 perspective
+    // Cheekbones - matches base skull
     "bone_dark_l": {
-      "polygon": [[5, 17], [8, 14], [9, 17], [9, 24], [6, 25]],
+      "polygon": [[5, 18], [8, 15], [9, 18], [9, 24], [5, 25]],
       "z": 14
     },
     "bone_dark_r": {
-      "polygon": [[30, 16], [27, 13], [26, 17], [26, 24], [29, 25]],
+      "polygon": [[29, 17], [27, 14], [26, 18], [26, 24], [29, 25]],
       "z": 14
     }
   }
