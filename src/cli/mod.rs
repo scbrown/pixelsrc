@@ -5,6 +5,7 @@
 
 mod agent;
 mod build;
+mod draw;
 mod explain;
 mod import;
 mod info;
@@ -462,6 +463,24 @@ pub enum Commands {
         #[command(subcommand)]
         action: AgentAction,
     },
+
+    /// Modify sprites in a .pxl file using coordinate-based operations
+    Draw {
+        /// Input .pxl file to modify
+        input: PathBuf,
+
+        /// Sprite name to modify
+        #[arg(short, long)]
+        sprite: Option<String>,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Show what would change without writing
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 /// Run the CLI application
@@ -604,6 +623,9 @@ pub fn run() -> ExitCode {
         #[cfg(feature = "mcp")]
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
+        Commands::Draw { input, sprite, output, dry_run } => {
+            draw::run_draw(&input, sprite.as_deref(), output.as_deref(), dry_run)
+        }
     }
 }
 

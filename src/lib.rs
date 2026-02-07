@@ -44,6 +44,7 @@ pub mod color;
 pub mod composition;
 pub mod config;
 pub mod diff;
+pub mod draw;
 pub mod emoji;
 pub mod explain;
 pub mod export;
