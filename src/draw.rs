@@ -32,6 +32,10 @@ pub enum DrawError {
     ParseError(String),
     /// Format error during reserialization.
     FormatError(String),
+    /// Coordinate out of bounds.
+    OutOfBounds { x: usize, y: usize, width: usize, height: usize },
+    /// Sprite has no grid data.
+    NoGrid(String),
 }
 
 impl std::fmt::Display for DrawError {
@@ -41,6 +45,10 @@ impl std::fmt::Display for DrawError {
             DrawError::SpriteNotFound(name) => write!(f, "sprite '{}' not found", name),
             DrawError::ParseError(msg) => write!(f, "parse error: {}", msg),
             DrawError::FormatError(msg) => write!(f, "format error: {}", msg),
+            DrawError::OutOfBounds { x, y, width, height } => {
+                write!(f, "coordinates ({}, {}) out of bounds for {}x{} grid", x, y, width, height)
+            }
+            DrawError::NoGrid(name) => write!(f, "sprite '{}' has no grid data", name),
         }
     }
 }
@@ -48,6 +56,151 @@ impl std::fmt::Display for DrawError {
 impl From<std::io::Error> for DrawError {
     fn from(e: std::io::Error) -> Self {
         DrawError::Io(e)
+    }
+}
+
+/// A draw operation to apply to a sprite's grid.
+#[derive(Debug, Clone)]
+pub enum DrawOp {
+    /// Set a single cell: `--set x,y="{token}"`
+    Set { x: usize, y: usize, token: String },
+    /// Erase a single cell (set to transparent): `--erase x,y`
+    Erase { x: usize, y: usize },
+}
+
+/// A 2D grid of tokens parsed from `{token}` grid strings.
+///
+/// Each cell holds a token name (without braces). The grid uses (x, y) coordinates
+/// where (0,0) is top-left, x is the column, and y is the row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenGrid {
+    /// 2D array indexed as `cells[y][x]`.
+    cells: Vec<Vec<String>>,
+    width: usize,
+    height: usize,
+}
+
+impl TokenGrid {
+    /// Parse grid strings into a 2D token array.
+    ///
+    /// Each row string contains `{token}` patterns, e.g. `"{skin}{eye}{skin}"`.
+    /// Returns an error if any row is malformed or rows have inconsistent widths.
+    pub fn parse(rows: &[String]) -> Result<Self, DrawError> {
+        if rows.is_empty() {
+            return Ok(TokenGrid { cells: Vec::new(), width: 0, height: 0 });
+        }
+
+        let mut cells = Vec::with_capacity(rows.len());
+        let mut expected_width: Option<usize> = None;
+
+        for (row_idx, row) in rows.iter().enumerate() {
+            let tokens = Self::parse_row(row).map_err(|msg| {
+                DrawError::ParseError(format!("row {}: {}", row_idx, msg))
+            })?;
+
+            if let Some(w) = expected_width {
+                if tokens.len() != w {
+                    return Err(DrawError::ParseError(format!(
+                        "row {} has {} tokens, expected {} (rows must have consistent width)",
+                        row_idx,
+                        tokens.len(),
+                        w
+                    )));
+                }
+            } else {
+                expected_width = Some(tokens.len());
+            }
+
+            cells.push(tokens);
+        }
+
+        let width = expected_width.unwrap_or(0);
+        let height = cells.len();
+        Ok(TokenGrid { cells, width, height })
+    }
+
+    /// Parse a single row of `{token}` patterns into token names.
+    fn parse_row(row: &str) -> Result<Vec<String>, String> {
+        let mut tokens = Vec::new();
+        let mut chars = row.chars().peekable();
+
+        while chars.peek().is_some() {
+            match chars.next() {
+                Some('{') => {
+                    let mut token = String::new();
+                    loop {
+                        match chars.next() {
+                            Some('}') => break,
+                            Some(c) => token.push(c),
+                            None => return Err("unterminated token (missing '}')".to_string()),
+                        }
+                    }
+                    if token.is_empty() {
+                        return Err("empty token '{}'".to_string());
+                    }
+                    tokens.push(token);
+                }
+                Some(c) if c.is_whitespace() => {
+                    // Skip whitespace between tokens
+                }
+                Some(c) => {
+                    return Err(format!("unexpected character '{}', expected '{{token}}'", c));
+                }
+                None => break,
+            }
+        }
+
+        Ok(tokens)
+    }
+
+    /// Grid width (number of columns).
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Grid height (number of rows).
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    /// Get the token at (x, y). Returns `None` if out of bounds.
+    pub fn get(&self, x: usize, y: usize) -> Option<&str> {
+        self.cells.get(y).and_then(|row| row.get(x)).map(|s| s.as_str())
+    }
+
+    /// Set the token at (x, y). Returns error if out of bounds.
+    pub fn set(&mut self, x: usize, y: usize, token: String) -> Result<(), DrawError> {
+        if x >= self.width || y >= self.height {
+            return Err(DrawError::OutOfBounds {
+                x,
+                y,
+                width: self.width,
+                height: self.height,
+            });
+        }
+        self.cells[y][x] = token;
+        Ok(())
+    }
+
+    /// Erase the cell at (x, y) by setting it to `_` (transparent).
+    pub fn erase(&mut self, x: usize, y: usize) -> Result<(), DrawError> {
+        self.set(x, y, "_".to_string())
+    }
+
+    /// Apply a draw operation to the grid.
+    pub fn apply(&mut self, op: &DrawOp) -> Result<(), DrawError> {
+        match op {
+            DrawOp::Set { x, y, token } => self.set(*x, *y, token.clone()),
+            DrawOp::Erase { x, y } => self.erase(*x, *y),
+        }
+    }
+
+    /// Reserialize the grid back to `{token}` strings.
+    pub fn to_grid_strings(&self) -> Vec<String> {
+        self.cells
+            .iter()
+            .map(|row| row.iter().map(|t| format!("{{{}}}", t)).collect::<String>())
+            .collect()
     }
 }
 
@@ -146,6 +299,40 @@ impl DrawPipeline {
         Ok(DrawResult { content: formatted, modified: true, warnings: self.warnings.clone() })
     }
 
+    /// Extract the target sprite's grid as a TokenGrid for editing.
+    ///
+    /// Returns an error if no sprite is selected or the sprite has no grid data.
+    pub fn grid(&self) -> Result<TokenGrid, DrawError> {
+        let sprite = self.sprite().ok_or_else(|| {
+            DrawError::ParseError("no sprite selected".to_string())
+        })?;
+        let grid_rows = sprite.grid.as_ref().ok_or_else(|| {
+            DrawError::NoGrid(sprite.name.clone())
+        })?;
+        TokenGrid::parse(grid_rows)
+    }
+
+    /// Set the target sprite's grid from a TokenGrid.
+    ///
+    /// Also updates the sprite's size to match the grid dimensions.
+    pub fn set_grid(&mut self, grid: &TokenGrid) -> Result<(), DrawError> {
+        let sprite = self.sprite_mut().ok_or_else(|| {
+            DrawError::ParseError("no sprite selected".to_string())
+        })?;
+        sprite.grid = Some(grid.to_grid_strings());
+        sprite.size = Some([grid.width() as u32, grid.height() as u32]);
+        Ok(())
+    }
+
+    /// Apply a sequence of draw operations to the target sprite's grid.
+    pub fn apply_ops(&mut self, ops: &[DrawOp]) -> Result<(), DrawError> {
+        let mut grid = self.grid()?;
+        for op in ops {
+            grid.apply(op)?;
+        }
+        self.set_grid(&grid)
+    }
+
     /// Write the serialized content to a file.
     pub fn write_to(&self, path: &Path) -> Result<DrawResult, DrawError> {
         let result = self.serialize()?;
@@ -160,6 +347,9 @@ mod tests {
 
     const SIMPLE_PXL: &str = r##"{"type": "palette", "name": "colors", "colors": {"_": "#00000000", "x": "#FF0000"}}
 {"type": "sprite", "name": "dot", "size": [4, 4], "palette": "colors", "regions": {"x": {"rect": [1, 1, 2, 2], "z": 0}}}"##;
+
+    const GRID_PXL: &str = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{skin}": "#FFCC99", "{eye}": "#000000", "{hair}": "#8B4513"}}
+{"type": "sprite", "name": "face", "size": [3, 3], "palette": "pal", "grid": ["{hair}{hair}{hair}", "{skin}{eye}{skin}", "{skin}{skin}{skin}"]}"##;
 
     const TWO_SPRITES: &str = r##"{"type": "palette", "name": "colors", "colors": {"_": "#00000000", "x": "#FF0000", "y": "#00FF00"}}
 {"type": "sprite", "name": "first", "size": [4, 4], "palette": "colors", "regions": {"x": {"rect": [0, 0, 4, 4], "z": 0}}}
@@ -322,5 +512,338 @@ mod tests {
         assert!(has_sprite, "sprite should be preserved");
         assert!(has_animation, "animation should be preserved");
         assert!(has_composition, "composition should be preserved");
+    }
+
+    // =========================================================================
+    // TokenGrid tests
+    // =========================================================================
+
+    #[test]
+    fn test_grid_parse_simple() {
+        let rows = vec![
+            "{hair}{hair}{hair}".to_string(),
+            "{skin}{eye}{skin}".to_string(),
+            "{skin}{skin}{skin}".to_string(),
+        ];
+        let grid = TokenGrid::parse(&rows).unwrap();
+        assert_eq!(grid.width(), 3);
+        assert_eq!(grid.height(), 3);
+    }
+
+    #[test]
+    fn test_grid_parse_single_row() {
+        let rows = vec!["{a}{b}{c}".to_string()];
+        let grid = TokenGrid::parse(&rows).unwrap();
+        assert_eq!(grid.width(), 3);
+        assert_eq!(grid.height(), 1);
+    }
+
+    #[test]
+    fn test_grid_parse_empty() {
+        let grid = TokenGrid::parse(&[]).unwrap();
+        assert_eq!(grid.width(), 0);
+        assert_eq!(grid.height(), 0);
+    }
+
+    #[test]
+    fn test_grid_parse_inconsistent_width() {
+        let rows = vec!["{a}{b}{c}".to_string(), "{d}{e}".to_string()];
+        let result = TokenGrid::parse(&rows);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::ParseError(msg) => assert!(msg.contains("consistent width"), "got: {}", msg),
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_grid_parse_unterminated_token() {
+        let rows = vec!["{a}{b".to_string()];
+        let result = TokenGrid::parse(&rows);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::ParseError(msg) => assert!(msg.contains("unterminated")),
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_grid_parse_empty_token() {
+        let rows = vec!["{a}{}{c}".to_string()];
+        let result = TokenGrid::parse(&rows);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::ParseError(msg) => assert!(msg.contains("empty token")),
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_grid_parse_unexpected_char() {
+        let rows = vec!["x{a}{b}".to_string()];
+        let result = TokenGrid::parse(&rows);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::ParseError(msg) => assert!(msg.contains("unexpected character")),
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_grid_get() {
+        let rows = vec![
+            "{hair}{hair}{hair}".to_string(),
+            "{skin}{eye}{skin}".to_string(),
+        ];
+        let grid = TokenGrid::parse(&rows).unwrap();
+
+        // (0,0) is top-left
+        assert_eq!(grid.get(0, 0), Some("hair"));
+        assert_eq!(grid.get(1, 0), Some("hair"));
+        assert_eq!(grid.get(2, 0), Some("hair"));
+        // Row 1
+        assert_eq!(grid.get(0, 1), Some("skin"));
+        assert_eq!(grid.get(1, 1), Some("eye"));
+        assert_eq!(grid.get(2, 1), Some("skin"));
+        // Out of bounds
+        assert_eq!(grid.get(3, 0), None);
+        assert_eq!(grid.get(0, 2), None);
+    }
+
+    #[test]
+    fn test_grid_set() {
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.set(1, 0, "eye".to_string()).unwrap();
+        assert_eq!(grid.get(1, 0), Some("eye"));
+        assert_eq!(grid.get(0, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_grid_set_out_of_bounds() {
+        let rows = vec!["{_}{_}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let result = grid.set(2, 0, "x".to_string());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::OutOfBounds { x, y, width, height } => {
+                assert_eq!((x, y, width, height), (2, 0, 2, 1));
+            }
+            other => panic!("Expected OutOfBounds, got: {:?}", other),
+        }
+
+        let result = grid.set(0, 1, "x".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_grid_erase() {
+        let rows = vec!["{skin}{eye}{skin}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.erase(1, 0).unwrap();
+        assert_eq!(grid.get(1, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_grid_to_strings() {
+        let rows = vec![
+            "{hair}{hair}{hair}".to_string(),
+            "{skin}{eye}{skin}".to_string(),
+        ];
+        let grid = TokenGrid::parse(&rows).unwrap();
+        let output = grid.to_grid_strings();
+
+        assert_eq!(output, vec![
+            "{hair}{hair}{hair}",
+            "{skin}{eye}{skin}",
+        ]);
+    }
+
+    #[test]
+    fn test_grid_roundtrip() {
+        let rows = vec![
+            "{_}{skin}{_}".to_string(),
+            "{skin}{eye}{skin}".to_string(),
+            "{_}{skin}{_}".to_string(),
+        ];
+        let grid = TokenGrid::parse(&rows).unwrap();
+        let output = grid.to_grid_strings();
+        assert_eq!(output, rows);
+    }
+
+    #[test]
+    fn test_grid_set_and_roundtrip() {
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.set(1, 1, "eye".to_string()).unwrap();
+        grid.set(0, 0, "hair".to_string()).unwrap();
+        grid.set(2, 0, "hair".to_string()).unwrap();
+
+        let output = grid.to_grid_strings();
+        assert_eq!(output, vec![
+            "{hair}{_}{hair}",
+            "{_}{eye}{_}",
+            "{_}{_}{_}",
+        ]);
+    }
+
+    #[test]
+    fn test_grid_apply_set_op() {
+        let rows = vec!["{_}{_}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.apply(&DrawOp::Set { x: 1, y: 0, token: "x".to_string() }).unwrap();
+        assert_eq!(grid.get(1, 0), Some("x"));
+    }
+
+    #[test]
+    fn test_grid_apply_erase_op() {
+        let rows = vec!["{skin}{eye}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.apply(&DrawOp::Erase { x: 1, y: 0 }).unwrap();
+        assert_eq!(grid.get(1, 0), Some("_"));
+    }
+
+    #[test]
+    fn test_grid_multichar_tokens() {
+        let rows = vec!["{dark_skin}{light_hair}".to_string()];
+        let grid = TokenGrid::parse(&rows).unwrap();
+        assert_eq!(grid.get(0, 0), Some("dark_skin"));
+        assert_eq!(grid.get(1, 0), Some("light_hair"));
+    }
+
+    #[test]
+    fn test_grid_single_cell() {
+        let rows = vec!["{x}".to_string()];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+        assert_eq!(grid.width(), 1);
+        assert_eq!(grid.height(), 1);
+        assert_eq!(grid.get(0, 0), Some("x"));
+
+        grid.set(0, 0, "y".to_string()).unwrap();
+        assert_eq!(grid.get(0, 0), Some("y"));
+        assert_eq!(grid.to_grid_strings(), vec!["{y}"]);
+    }
+
+    // =========================================================================
+    // DrawPipeline grid integration tests
+    // =========================================================================
+
+    #[test]
+    fn test_pipeline_grid_load_and_edit() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+
+        // Extract grid
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.width(), 3);
+        assert_eq!(grid.height(), 3);
+        assert_eq!(grid.get(1, 1), Some("eye"));
+
+        // Apply a set operation
+        pipeline
+            .apply_ops(&[DrawOp::Set { x: 1, y: 1, token: "skin".to_string() }])
+            .unwrap();
+
+        // Verify modification
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.get(1, 1), Some("skin"));
+    }
+
+    #[test]
+    fn test_pipeline_grid_roundtrip() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+
+        // Modify and serialize
+        pipeline
+            .apply_ops(&[DrawOp::Set { x: 0, y: 2, token: "eye".to_string() }])
+            .unwrap();
+
+        let result = pipeline.serialize().unwrap();
+
+        // Re-parse and verify
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, Some("face")).unwrap();
+        let grid = pipeline2.grid().unwrap();
+        assert_eq!(grid.get(0, 2), Some("eye"));
+        // Unmodified cells preserved
+        assert_eq!(grid.get(1, 1), Some("eye"));
+        assert_eq!(grid.get(0, 0), Some("hair"));
+    }
+
+    #[test]
+    fn test_pipeline_no_grid_error() {
+        let pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        let result = pipeline.grid();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::NoGrid(name) => assert_eq!(name, "dot"),
+            other => panic!("Expected NoGrid, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_pipeline_erase_sets_transparent() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+
+        pipeline.apply_ops(&[DrawOp::Erase { x: 1, y: 1 }]).unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.get(1, 1), Some("_"));
+    }
+
+    #[test]
+    fn test_pipeline_multiple_ops() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+
+        pipeline
+            .apply_ops(&[
+                DrawOp::Set { x: 0, y: 0, token: "eye".to_string() },
+                DrawOp::Set { x: 2, y: 0, token: "eye".to_string() },
+                DrawOp::Erase { x: 1, y: 0 },
+            ])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.get(0, 0), Some("eye"));
+        assert_eq!(grid.get(1, 0), Some("_"));
+        assert_eq!(grid.get(2, 0), Some("eye"));
+    }
+
+    #[test]
+    fn test_pipeline_out_of_bounds_error() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+
+        let result = pipeline.apply_ops(&[DrawOp::Set { x: 10, y: 10, token: "x".to_string() }]);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::OutOfBounds { x, y, .. } => {
+                assert_eq!((x, y), (10, 10));
+            }
+            other => panic!("Expected OutOfBounds, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_pipeline_grid_preserves_palette() {
+        let mut pipeline = DrawPipeline::load_from_string(GRID_PXL, Some("face")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "skin".to_string() }])
+            .unwrap();
+        let result = pipeline.serialize().unwrap();
+
+        // Re-parse and verify palette is preserved
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, None).unwrap();
+        assert_eq!(pipeline2.objects.len(), 2); // palette + sprite
     }
 }

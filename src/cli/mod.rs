@@ -473,6 +473,14 @@ pub enum Commands {
         #[arg(short, long)]
         sprite: Option<String>,
 
+        /// Set pixel: x,y="{token}" (e.g. --set 5,10="{eye}")
+        #[arg(long, value_name = "X,Y={TOKEN}")]
+        set: Vec<String>,
+
+        /// Erase pixel at coordinates (set to transparent): x,y (e.g. --erase 5,10)
+        #[arg(long, value_name = "X,Y")]
+        erase: Vec<String>,
+
         /// Output file (default: overwrite input)
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -623,8 +631,8 @@ pub fn run() -> ExitCode {
         #[cfg(feature = "mcp")]
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
-        Commands::Draw { input, sprite, output, dry_run } => {
-            draw::run_draw(&input, sprite.as_deref(), output.as_deref(), dry_run)
+        Commands::Draw { input, sprite, set, erase, output, dry_run } => {
+            draw::run_draw(&input, sprite.as_deref(), &set, &erase, output.as_deref(), dry_run)
         }
     }
 }

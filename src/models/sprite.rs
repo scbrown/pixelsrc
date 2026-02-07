@@ -113,4 +113,10 @@ pub struct Sprite {
     /// Per-sprite antialiasing configuration (overrides atlas/defaults)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub antialias: Option<AntialiasConfig>,
+    /// Grid-based pixel data (alternative to `regions`).
+    ///
+    /// Each string is one row of `{token}` patterns, e.g. `"{skin}{eye}{skin}"`.
+    /// Mutually exclusive with `regions`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub grid: Option<Vec<String>>,
 }

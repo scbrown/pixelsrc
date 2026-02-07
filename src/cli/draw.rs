@@ -5,17 +5,92 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use crate::draw::{DrawError, DrawPipeline};
+use crate::draw::{DrawError, DrawOp, DrawPipeline};
 
 use super::{EXIT_ERROR, EXIT_INVALID_ARGS, EXIT_SUCCESS};
+
+/// Parse a `--set` argument: `x,y="{token}"` or `x,y={token}`.
+///
+/// The token may optionally be wrapped in braces: `5,10="{eye}"` or `5,10={eye}`.
+fn parse_set_arg(arg: &str) -> Result<DrawOp, String> {
+    let (coords, token_part) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("invalid --set format '{}', expected x,y={{token}}", arg))?;
+
+    let (x, y) = parse_coords(coords)?;
+    let token = parse_token(token_part)?;
+
+    Ok(DrawOp::Set { x, y, token })
+}
+
+/// Parse an `--erase` argument: `x,y`.
+fn parse_erase_arg(arg: &str) -> Result<DrawOp, String> {
+    let (x, y) = parse_coords(arg)?;
+    Ok(DrawOp::Erase { x, y })
+}
+
+/// Parse `x,y` coordinate string.
+fn parse_coords(s: &str) -> Result<(usize, usize), String> {
+    let (x_str, y_str) = s
+        .split_once(',')
+        .ok_or_else(|| format!("invalid coordinates '{}', expected x,y", s))?;
+
+    let x: usize = x_str
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid x coordinate '{}'", x_str.trim()))?;
+    let y: usize = y_str
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid y coordinate '{}'", y_str.trim()))?;
+
+    Ok((x, y))
+}
+
+/// Parse a token from `"{token}"` or `{token}` format, returning just the name.
+fn parse_token(s: &str) -> Result<String, String> {
+    let s = s.trim();
+    // Strip surrounding quotes if present
+    let s = s.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(s);
+    // Strip braces if present
+    let s = s.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(s);
+
+    if s.is_empty() {
+        return Err("empty token".to_string());
+    }
+    Ok(s.to_string())
+}
+
+/// Collect all draw operations from CLI args.
+fn collect_ops(set_args: &[String], erase_args: &[String]) -> Result<Vec<DrawOp>, String> {
+    let mut ops = Vec::new();
+    for arg in set_args {
+        ops.push(parse_set_arg(arg)?);
+    }
+    for arg in erase_args {
+        ops.push(parse_erase_arg(arg)?);
+    }
+    Ok(ops)
+}
 
 /// Execute the draw command.
 pub fn run_draw(
     input: &Path,
     sprite: Option<&str>,
+    set_args: &[String],
+    erase_args: &[String],
     output: Option<&Path>,
     dry_run: bool,
 ) -> ExitCode {
+    // Parse operations first (fail fast on bad args)
+    let ops = match collect_ops(set_args, erase_args) {
+        Ok(ops) => ops,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
     // Sprite name is required
     let sprite_name = match sprite {
         Some(name) => name,
@@ -42,7 +117,7 @@ pub fn run_draw(
     };
 
     // Load the file and find the sprite
-    let pipeline: DrawPipeline = match DrawPipeline::load(input, Some(sprite_name)) {
+    let mut pipeline: DrawPipeline = match DrawPipeline::load(input, Some(sprite_name)) {
         Ok(p) => p,
         Err(e) => {
             match &e {
@@ -64,6 +139,14 @@ pub fn run_draw(
             return ExitCode::from(EXIT_ERROR);
         }
     };
+
+    // Apply draw operations (if any)
+    if !ops.is_empty() {
+        if let Err(e) = pipeline.apply_ops(&ops) {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    }
 
     if dry_run {
         // Dry run: serialize and print diff
