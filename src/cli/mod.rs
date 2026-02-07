@@ -89,8 +89,8 @@ pub enum Commands {
         #[arg(long)]
         strict: bool,
 
-        /// Scale output by integer factor (1-16, default: 1)
-        #[arg(long, default_value = "1", value_parser = clap::value_parser!(u8).range(1..=16))]
+        /// Scale output by integer factor (1-128, default: 1)
+        #[arg(long, default_value = "1", value_parser = clap::value_parser!(u8).range(1..=128))]
         scale: u8,
 
         /// Output as animated GIF (requires animation in input)
