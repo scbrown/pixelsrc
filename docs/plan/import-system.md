@@ -6,7 +6,7 @@
 
 **Depends on:** Phase 20 (Build System), Phase 16 (pxl.toml)
 
-**Related beads:** TTP-5odz
+**Related beads:** TTP-5odz (planning), label:`import-system` (11 implementation beads)
 
 ---
 
@@ -350,53 +350,53 @@ Collisions at the same level: warn in lenient mode, error in strict mode.
 
 ### Level 1: Project Namespace + Qualified References
 
-#### IMP-1: Project-Wide Registry Loading
+#### IMP-1: Project-Wide Registry Loading (`TTP-w0sf`)
 
 New `src/build/project_registry.rs` — parse all project files into shared registries with qualified names.
 
-#### IMP-2: Build Pipeline Two-Pass Architecture
+#### IMP-2: Build Pipeline Two-Pass Architecture (`TTP-c1gr`)
 
 Restructure build: pass 1 parses all files into ProjectRegistry, pass 2 resolves and renders using shared registries.
 
-#### IMP-3: Project Context for `pxl render`
+#### IMP-3: Project Context for `pxl render` (`TTP-dt5b`)
 
 Auto-detect `pxl.toml`, load ProjectRegistry for single-file render. Add `--no-project` flag.
 
 ### Level 2: Explicit Import System
 
-#### IMP-4: Import Object Type
+#### IMP-4: Import Object Type (`TTP-olst`)
 
 New `Import` model + parser support for `{"type":"import",...}`.
 
-#### IMP-5: Import Resolution
+#### IMP-5: Import Resolution (`TTP-bj1o`)
 
 Resolve import declarations during parsing. Handle relative/root-relative/external paths.
 
-#### IMP-6: Extend @include (#name syntax)
+#### IMP-6: Extend @include (#name syntax) (`TTP-hgvw`)
 
 Backward-compatible: `@include:path#palette_name` for specific palette selection.
 
 ### Level 3: Tooling
 
-#### IMP-7: LSP Cross-File Support
+#### IMP-7: LSP Cross-File Support (`TTP-3orc`)
 
 ProjectRegistry for completions, go-to-definition, hover info across files.
 
-#### IMP-8: Validate & Suggest
+#### IMP-8: Validate & Suggest (`TTP-vnvl`)
 
 Cross-file reference checking, unused import detection, `@include:` → import migration suggestions.
 
 ### Level 4: Library System (Future)
 
-#### IMP-9: pxl.toml [dependencies]
+#### IMP-9: pxl.toml [dependencies] (`TTP-e0m7`)
 
 Path and git-based dependency declarations.
 
-#### IMP-10: Dependency Fetching (`pxl install`)
+#### IMP-10: Dependency Fetching (`pxl install`) (`TTP-10qq`)
 
 Fetch, cache in `.pxl/deps/`, resolve external references.
 
-#### IMP-11: Namespaced External References
+#### IMP-11: Namespaced External References (`TTP-bwz7`)
 
 `"depname/path:item"` resolution through installed dependencies.
 
