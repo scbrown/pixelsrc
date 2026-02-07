@@ -7,6 +7,43 @@ use image::RgbaImage;
 use super::anchor::scale_image;
 use super::types::{Transform, TransformError};
 
+/// Resolve a palette token to an RGBA color.
+///
+/// Looks up the token in the palette and parses the resulting color string.
+/// If the token is None, returns the default color (opaque black).
+fn resolve_token_color(
+    token: Option<&str>,
+    palette: Option<&std::collections::HashMap<String, String>>,
+    default: image::Rgba<u8>,
+) -> Result<image::Rgba<u8>, TransformError> {
+    let token = match token {
+        Some(t) => t,
+        None => return Ok(default),
+    };
+
+    let palette = palette.ok_or_else(|| TransformError::InvalidParameter {
+        op: "color_resolve".to_string(),
+        message: "palette required for token-based transforms".to_string(),
+    })?;
+
+    // Try exact match first, then without braces
+    let color_str = palette
+        .get(token)
+        .or_else(|| {
+            let stripped = token.strip_prefix('{').and_then(|s| s.strip_suffix('}'))?;
+            palette.get(stripped)
+        })
+        .ok_or_else(|| TransformError::InvalidParameter {
+            op: "color_resolve".to_string(),
+            message: format!("token '{}' not found in palette", token),
+        })?;
+
+    crate::color::parse_color(color_str).map_err(|e| TransformError::InvalidParameter {
+        op: "color_resolve".to_string(),
+        message: format!("invalid color '{}' for token '{}': {}", color_str, token, e),
+    })
+}
+
 /// Apply a single transform to an image.
 ///
 /// Handles geometric and spatial transforms that operate on pixel data:
@@ -26,7 +63,7 @@ use super::types::{Transform, TransformError};
 pub fn apply_image_transform(
     image: &RgbaImage,
     transform: &Transform,
-    _palette: Option<&std::collections::HashMap<String, String>>,
+    palette: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<RgbaImage, TransformError> {
     match transform {
         Transform::MirrorH => Ok(image::imageops::flip_horizontal(image)),
@@ -115,10 +152,24 @@ pub fn apply_image_transform(
             op: "image_transform".to_string(),
             message: "animation transforms cannot be applied to images".to_string(),
         }),
-        // Color-based transforms are not yet implemented for images
-        Transform::Outline { .. }
-        | Transform::Shadow { .. }
-        | Transform::SelOut { .. }
+        Transform::Outline { token, width } => {
+            let color = resolve_token_color(
+                token.as_deref(),
+                palette,
+                image::Rgba([0, 0, 0, 255]),
+            )?;
+            Ok(apply_outline(image, color, *width))
+        }
+        Transform::Shadow { x, y, token } => {
+            let color = resolve_token_color(
+                token.as_deref(),
+                palette,
+                image::Rgba([0, 0, 0, 128]),
+            )?;
+            Ok(apply_shadow(image, *x, *y, color))
+        }
+        // Color-based transforms not yet implemented
+        Transform::SelOut { .. }
         | Transform::Dither { .. }
         | Transform::DitherGradient { .. }
         | Transform::Subpixel { .. } => Err(TransformError::InvalidParameter {
@@ -126,6 +177,122 @@ pub fn apply_image_transform(
             message: "color-based transforms require palette context".to_string(),
         }),
     }
+}
+
+/// Apply an outline around non-transparent pixels.
+///
+/// Expands the canvas by `width` pixels on each side and places outline-colored pixels
+/// at positions that are within `width` distance (Chebyshev/chessboard distance) of any
+/// opaque source pixel but are themselves transparent in the source.
+fn apply_outline(image: &RgbaImage, color: image::Rgba<u8>, width: u32) -> RgbaImage {
+    let (w, h) = image.dimensions();
+    let new_w = w + width * 2;
+    let new_h = h + width * 2;
+    let mut result = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+
+    // First pass: place outline pixels
+    let wi = width as i32;
+    for y in 0..new_h {
+        for x in 0..new_w {
+            // Check if any source pixel within `width` distance is opaque
+            let src_x = x as i32 - wi;
+            let src_y = y as i32 - wi;
+
+            let mut near_opaque = false;
+            for dy in -wi..=wi {
+                for dx in -wi..=wi {
+                    let sx = src_x + dx;
+                    let sy = src_y + dy;
+                    if sx >= 0 && sx < w as i32 && sy >= 0 && sy < h as i32 {
+                        if image.get_pixel(sx as u32, sy as u32)[3] > 0 {
+                            near_opaque = true;
+                            break;
+                        }
+                    }
+                }
+                if near_opaque {
+                    break;
+                }
+            }
+
+            if near_opaque {
+                // Check if the source pixel at this position is transparent
+                let is_transparent = if src_x >= 0
+                    && src_x < w as i32
+                    && src_y >= 0
+                    && src_y < h as i32
+                {
+                    image.get_pixel(src_x as u32, src_y as u32)[3] == 0
+                } else {
+                    true
+                };
+
+                if is_transparent {
+                    result.put_pixel(x, y, color);
+                }
+            }
+        }
+    }
+
+    // Second pass: place original image on top
+    for y in 0..h {
+        for x in 0..w {
+            let pixel = *image.get_pixel(x, y);
+            if pixel[3] > 0 {
+                result.put_pixel(x + width, y + width, pixel);
+            }
+        }
+    }
+
+    result
+}
+
+/// Apply a drop shadow behind the image.
+///
+/// Creates an expanded canvas to accommodate the shadow offset, draws the shadow
+/// (opaque source pixels shifted by (dx, dy) filled with the shadow color), then
+/// composites the original image on top.
+fn apply_shadow(image: &RgbaImage, dx: i32, dy: i32, color: image::Rgba<u8>) -> RgbaImage {
+    let (w, h) = image.dimensions();
+
+    // Calculate canvas expansion needed to fit both original and shadow
+    let expand_left = if dx < 0 { (-dx) as u32 } else { 0 };
+    let expand_right = if dx > 0 { dx as u32 } else { 0 };
+    let expand_top = if dy < 0 { (-dy) as u32 } else { 0 };
+    let expand_bottom = if dy > 0 { dy as u32 } else { 0 };
+
+    let new_w = w + expand_left + expand_right;
+    let new_h = h + expand_top + expand_bottom;
+    let mut result = RgbaImage::from_pixel(new_w, new_h, image::Rgba([0, 0, 0, 0]));
+
+    // Original image offset within the expanded canvas
+    let orig_x = expand_left;
+    let orig_y = expand_top;
+
+    // Shadow offset within the expanded canvas
+    let shadow_x = (orig_x as i32 + dx) as u32;
+    let shadow_y = (orig_y as i32 + dy) as u32;
+
+    // First pass: draw shadow pixels
+    for y in 0..h {
+        for x in 0..w {
+            if image.get_pixel(x, y)[3] > 0 {
+                result.put_pixel(shadow_x + x, shadow_y + y, color);
+            }
+        }
+    }
+
+    // Second pass: draw original image on top
+    for y in 0..h {
+        for x in 0..w {
+            let pixel = *image.get_pixel(x, y);
+            if pixel[3] > 0 {
+                result.put_pixel(orig_x + x, orig_y + y, pixel);
+            }
+        }
+    }
+
+    result
 }
 
 /// Apply a sequence of transforms to an image.
@@ -519,5 +686,262 @@ mod tests {
         let frames = vec!["A", "B", "C"];
         let result = apply_animation_transform(&Transform::MirrorH, &frames);
         assert!(result.is_err());
+    }
+
+    // --- Outline tests ---
+
+    #[test]
+    fn test_apply_outline_default_color() {
+        // 2x2 image: top-left opaque red, rest transparent
+        let mut img = RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 0, 0]));
+        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Outline { token: None, width: 1 },
+            None,
+        )
+        .unwrap();
+
+        // Canvas expands by 1 on each side: 2+2=4 x 2+2=4
+        assert_eq!(result.dimensions(), (4, 4));
+
+        // Original pixel at (0+1, 0+1) = (1, 1) should be red
+        assert_eq!(result.get_pixel(1, 1), &image::Rgba([255, 0, 0, 255]));
+
+        // Outline pixel at (0, 0) should be black (near the red pixel)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([0, 0, 0, 255]));
+
+        // Outline pixel at (2, 1) should be black (right neighbor of red)
+        assert_eq!(result.get_pixel(2, 1), &image::Rgba([0, 0, 0, 255]));
+
+        // Far corner (3, 3) should be transparent (not near any opaque pixel)
+        assert_eq!(result.get_pixel(3, 3), &image::Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_apply_outline_with_palette_token() {
+        let img = RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
+
+        let mut palette = std::collections::HashMap::new();
+        palette.insert("border".to_string(), "#00FF00".to_string());
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Outline { token: Some("{border}".to_string()), width: 1 },
+            Some(&palette),
+        )
+        .unwrap();
+
+        // 1x1 + 1 padding each side = 3x3
+        assert_eq!(result.dimensions(), (3, 3));
+
+        // Center pixel should be the original red
+        assert_eq!(result.get_pixel(1, 1), &image::Rgba([255, 0, 0, 255]));
+
+        // All surrounding pixels should be green (outline)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(1, 0), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(2, 0), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(0, 1), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(2, 1), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(0, 2), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(1, 2), &image::Rgba([0, 255, 0, 255]));
+        assert_eq!(result.get_pixel(2, 2), &image::Rgba([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn test_apply_outline_width_2() {
+        let img = RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Outline { token: None, width: 2 },
+            None,
+        )
+        .unwrap();
+
+        // 1x1 + 2 padding each side = 5x5
+        assert_eq!(result.dimensions(), (5, 5));
+
+        // Center pixel should be red
+        assert_eq!(result.get_pixel(2, 2), &image::Rgba([255, 0, 0, 255]));
+
+        // Corner at (0, 0) is within Chebyshev distance 2 of center, so outline
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([0, 0, 0, 255]));
+
+        // All pixels except center should be outline (all within distance 2)
+        for y in 0..5u32 {
+            for x in 0..5u32 {
+                if x == 2 && y == 2 {
+                    assert_eq!(result.get_pixel(x, y), &image::Rgba([255, 0, 0, 255]));
+                } else {
+                    assert_eq!(result.get_pixel(x, y), &image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_apply_outline_fully_transparent_image() {
+        let img = RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 0, 0]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Outline { token: None, width: 1 },
+            None,
+        )
+        .unwrap();
+
+        // Canvas expands but no outline pixels (no opaque source pixels)
+        assert_eq!(result.dimensions(), (4, 4));
+        for y in 0..4u32 {
+            for x in 0..4u32 {
+                assert_eq!(result.get_pixel(x, y)[3], 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_apply_outline_missing_token_errors() {
+        let img = RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
+
+        let palette = std::collections::HashMap::new();
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Outline { token: Some("{missing}".to_string()), width: 1 },
+            Some(&palette),
+        );
+
+        assert!(result.is_err());
+    }
+
+    // --- Shadow tests ---
+
+    #[test]
+    fn test_apply_shadow_positive_offset() {
+        // 2x2 fully opaque red image
+        let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Shadow { x: 1, y: 1, token: None },
+            None,
+        )
+        .unwrap();
+
+        // Expand right by 1, down by 1: 3x3
+        assert_eq!(result.dimensions(), (3, 3));
+
+        // Original pixels at (0,0)..(1,1)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([255, 0, 0, 255]));
+        assert_eq!(result.get_pixel(1, 0), &image::Rgba([255, 0, 0, 255]));
+        assert_eq!(result.get_pixel(0, 1), &image::Rgba([255, 0, 0, 255]));
+        assert_eq!(result.get_pixel(1, 1), &image::Rgba([255, 0, 0, 255]));
+
+        // Shadow pixel at (2, 2) - only shadow visible (bottom-right corner)
+        assert_eq!(result.get_pixel(2, 2), &image::Rgba([0, 0, 0, 128]));
+
+        // Shadow pixel at (2, 1) - shadow visible (right edge)
+        assert_eq!(result.get_pixel(2, 1), &image::Rgba([0, 0, 0, 128]));
+
+        // Shadow pixel at (1, 2) - shadow visible (bottom edge)
+        assert_eq!(result.get_pixel(1, 2), &image::Rgba([0, 0, 0, 128]));
+    }
+
+    #[test]
+    fn test_apply_shadow_negative_offset() {
+        let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Shadow { x: -1, y: -1, token: None },
+            None,
+        )
+        .unwrap();
+
+        // Expand left by 1, up by 1: 3x3
+        assert_eq!(result.dimensions(), (3, 3));
+
+        // Original at offset (1,1): pixels at (1,1)..(2,2) should be red
+        assert_eq!(result.get_pixel(1, 1), &image::Rgba([255, 0, 0, 255]));
+        assert_eq!(result.get_pixel(2, 2), &image::Rgba([255, 0, 0, 255]));
+
+        // Shadow at (0,0) - shadow visible (top-left)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([0, 0, 0, 128]));
+    }
+
+    #[test]
+    fn test_apply_shadow_with_palette_token() {
+        let img = RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
+
+        let mut palette = std::collections::HashMap::new();
+        palette.insert("shadow".to_string(), "#0000FF80".to_string());
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Shadow { x: 1, y: 0, token: Some("{shadow}".to_string()) },
+            Some(&palette),
+        )
+        .unwrap();
+
+        // 1x1 + 1 right = 2x1
+        assert_eq!(result.dimensions(), (2, 1));
+
+        // Original at (0, 0)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([255, 0, 0, 255]));
+
+        // Shadow at (1, 0) - blue with 50% alpha
+        assert_eq!(result.get_pixel(1, 0), &image::Rgba([0, 0, 255, 128]));
+    }
+
+    #[test]
+    fn test_apply_shadow_transparent_pixels_not_shadowed() {
+        // 2x1: left pixel opaque, right pixel transparent
+        let mut img = RgbaImage::from_pixel(2, 1, image::Rgba([0, 0, 0, 0]));
+        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Shadow { x: 1, y: 0, token: None },
+            None,
+        )
+        .unwrap();
+
+        // 2+1 = 3x1
+        assert_eq!(result.dimensions(), (3, 1));
+
+        // Original red at (0, 0)
+        assert_eq!(result.get_pixel(0, 0), &image::Rgba([255, 0, 0, 255]));
+
+        // Shadow of red pixel at (1, 0) - but original transparent pixel is there,
+        // and original image has alpha=0 at (1,0), so shadow shows through
+        assert_eq!(result.get_pixel(1, 0), &image::Rgba([0, 0, 0, 128]));
+
+        // (2, 0) - no shadow here (transparent pixel doesn't cast shadow)
+        assert_eq!(result.get_pixel(2, 0), &image::Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_apply_shadow_zero_offset() {
+        let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
+
+        let result = apply_image_transform(
+            &img,
+            &Transform::Shadow { x: 0, y: 0, token: None },
+            None,
+        )
+        .unwrap();
+
+        // No expansion needed
+        assert_eq!(result.dimensions(), (2, 2));
+
+        // All pixels should be original (shadow hidden behind original)
+        for y in 0..2u32 {
+            for x in 0..2u32 {
+                assert_eq!(result.get_pixel(x, y), &image::Rgba([255, 0, 0, 255]));
+            }
+        }
     }
 }
