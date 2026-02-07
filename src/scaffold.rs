@@ -199,10 +199,10 @@ fn generate_animation_template(name: &str, palette: &str) -> String {
 // Scaffold generators (for `pxl scaffold` CLI)
 // ============================================================================
 
-/// Generate a complete sprite scaffold with palette and grid.
+/// Generate a sprite scaffold with palette and regions.
 ///
 /// Produces a self-contained .pxl string with a palette definition followed by
-/// a sprite definition with an all-transparent grid.
+/// a sprite definition with a transparent fill region.
 pub fn generate_sprite(
     name: &str,
     width: u32,
@@ -241,14 +241,10 @@ pub fn generate_sprite(
         color_entries.join(",\n")
     );
 
-    // Build grid (all transparent)
-    let row = format!("\"{}\"", "{_}".repeat(width as usize));
-    let rows: Vec<String> = (0..height).map(|_| format!("    {}", row)).collect();
-
+    // Build regions (transparent fill covering entire sprite)
     let sprite_json = format!(
-        "{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"grid\": [\n{}\n  ]\n}}",
-        name, width, height, pal_name,
-        rows.join(",\n")
+        "{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"regions\": {{\n    \"_\": {{\"rect\": [0, 0, {}, {}]}}\n  }}\n}}",
+        name, width, height, pal_name, width, height
     );
 
     format!("{}\n\n{}\n", palette_json, sprite_json)
@@ -291,13 +287,7 @@ pub fn generate_composition(
         pal_name
     ));
 
-    // Generate tile sprites
-    let transparent_row = format!("\"{}\"", "{_}".repeat(cell_w as usize));
-    let grid_rows: Vec<String> = (0..cell_h)
-        .map(|_| format!("    {}", transparent_row))
-        .collect();
-    let grid_str = grid_rows.join(",\n");
-
+    // Generate tile sprites with transparent fill region
     let mut sprite_map = Vec::new();
     for row in 0..rows {
         for col in 0..cols {
@@ -306,8 +296,8 @@ pub fn generate_composition(
             let tile_name = format!("tile_{}_{}", col, row);
 
             output.push_str(&format!(
-                "\n{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"grid\": [\n{}\n  ]\n}}\n",
-                tile_name, cell_w, cell_h, pal_name, grid_str
+                "\n{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"regions\": {{\n    \"_\": {{\"rect\": [0, 0, {}, {}]}}\n  }}\n}}\n",
+                tile_name, cell_w, cell_h, pal_name, cell_w, cell_h
             ));
 
             sprite_map.push((symbol, tile_name));

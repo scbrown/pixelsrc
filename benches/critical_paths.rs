@@ -22,27 +22,33 @@ use std::io::Cursor;
 // Test Data Generators
 // =============================================================================
 
-/// Generate a grid row with n tokens
-fn make_grid_row(n: usize) -> String {
-    (0..n).map(|i| format!("{{t{}}}", i % 16)).collect()
-}
-
-/// Generate a sprite JSON line with given dimensions
+/// Generate a sprite JSON line with given dimensions using regions
 fn make_sprite_json(width: usize, height: usize) -> String {
     let palette: Vec<String> = (0..16)
         .map(|i| format!("\"{{t{}}}\": \"#{:02X}{:02X}{:02X}\"", i, i * 16, i * 8, 255 - i * 16))
         .collect();
 
-    let grid: Vec<String> = (0..height).map(|_| format!("\"{}\"", make_grid_row(width))).collect();
+    let regions: Vec<String> = (0..height.min(16))
+        .map(|row| {
+            format!(
+                "\"t{}\": {{\"rect\": [0, {}, {}, 1]}}",
+                row % 16,
+                row,
+                width
+            )
+        })
+        .collect();
 
     format!(
-        r#"{{"type": "sprite", "name": "bench_sprite", "palette": {{{}}}, "grid": [{}]}}"#,
+        r#"{{"type": "sprite", "name": "bench_sprite", "size": [{}, {}], "palette": {{{}}}, "regions": {{{}}}}}"#,
+        width,
+        height,
         palette.join(", "),
-        grid.join(", ")
+        regions.join(", ")
     )
 }
 
-/// Generate JSONL content with multiple sprites
+/// Generate JSONL content with multiple sprites using regions
 fn make_jsonl_content(sprite_count: usize, width: usize, height: usize) -> String {
     (0..sprite_count)
         .map(|i| {
@@ -58,14 +64,24 @@ fn make_jsonl_content(sprite_count: usize, width: usize, height: usize) -> Strin
                 })
                 .collect();
 
-            let grid: Vec<String> =
-                (0..height).map(|_| format!("\"{}\"", make_grid_row(width))).collect();
+            let regions: Vec<String> = (0..height.min(16))
+                .map(|row| {
+                    format!(
+                        "\"t{}\": {{\"rect\": [0, {}, {}, 1]}}",
+                        row % 16,
+                        row,
+                        width
+                    )
+                })
+                .collect();
 
             format!(
-                r#"{{"type": "sprite", "name": "sprite_{}", "palette": {{{}}}, "grid": [{}]}}"#,
+                r#"{{"type": "sprite", "name": "sprite_{}", "size": [{}, {}], "palette": {{{}}}, "regions": {{{}}}}}"#,
                 i,
+                width,
+                height,
                 palette.join(", "),
-                grid.join(", ")
+                regions.join(", ")
             )
         })
         .collect::<Vec<_>>()

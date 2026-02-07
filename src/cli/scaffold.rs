@@ -20,7 +20,7 @@ pub enum ScaffoldFormat {
 
 #[derive(Subcommand)]
 pub enum ScaffoldAction {
-    /// Generate an empty sprite with palette and grid
+    /// Generate an empty sprite with palette and regions
     ///
     /// Examples:
     ///   pxl scaffold sprite --name hero --size 16x16
