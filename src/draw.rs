@@ -71,6 +71,8 @@ pub enum DrawOp {
     Rect { x: usize, y: usize, w: usize, h: usize, token: String },
     /// Draw a line between two points: `--line x1,y1,x2,y2="{token}"`
     Line { x0: usize, y0: usize, x1: usize, y1: usize, token: String },
+    /// Flood fill from a seed point: `--flood x,y="{token}"`
+    Flood { x: usize, y: usize, token: String },
 }
 
 /// A 2D grid of tokens parsed from `{token}` grid strings.
@@ -249,6 +251,58 @@ impl TokenGrid {
         warnings
     }
 
+    /// Flood fill from a seed point using iterative BFS.
+    ///
+    /// Fills all 4-connected pixels matching the original token at (x, y) with
+    /// the new token. Returns warnings (e.g. if filling with same token).
+    pub fn flood_fill(&mut self, x: usize, y: usize, token: String) -> Result<Vec<String>, DrawError> {
+        if x >= self.width || y >= self.height {
+            return Err(DrawError::OutOfBounds {
+                x,
+                y,
+                width: self.width,
+                height: self.height,
+            });
+        }
+
+        let original = self.cells[y][x].clone();
+        let mut warnings = Vec::new();
+
+        // Filling with the same token is a no-op
+        if original == token {
+            warnings.push(format!(
+                "flood fill at ({},{}) with '{{{}}}' is a no-op (already that token)",
+                x, y, token
+            ));
+            return Ok(warnings);
+        }
+
+        // Iterative BFS
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back((x, y));
+        // Mark visited by filling as we go — no separate visited set needed
+        self.cells[y][x] = token.clone();
+
+        while let Some((cx, cy)) = queue.pop_front() {
+            // Check 4-connected neighbors
+            let neighbors: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
+            for (dx, dy) in &neighbors {
+                let nx = cx as isize + dx;
+                let ny = cy as isize + dy;
+                if nx >= 0 && (nx as usize) < self.width && ny >= 0 && (ny as usize) < self.height {
+                    let nx = nx as usize;
+                    let ny = ny as usize;
+                    if self.cells[ny][nx] == original {
+                        self.cells[ny][nx] = token.clone();
+                        queue.push_back((nx, ny));
+                    }
+                }
+            }
+        }
+
+        Ok(warnings)
+    }
+
     /// Apply a draw operation to the grid. Returns warnings (if any).
     pub fn apply(&mut self, op: &DrawOp) -> Result<Vec<String>, DrawError> {
         match op {
@@ -278,6 +332,9 @@ impl TokenGrid {
                     }
                 }
                 Ok(Vec::new())
+            }
+            DrawOp::Flood { x, y, token } => {
+                self.flood_fill(*x, *y, token.clone())
             }
         }
     }
@@ -1316,5 +1373,212 @@ mod tests {
         assert_eq!(grid.get(0, 0), Some("x"));
         assert_eq!(grid.get(1, 1), Some("x"));
         assert_eq!(grid.get(2, 2), Some("x"));
+    }
+
+    // =========================================================================
+    // Flood fill tests
+    // =========================================================================
+
+    #[test]
+    fn test_flood_fill_basic() {
+        // Fill a connected region of transparent pixels
+        let rows = vec![
+            "{_}{_}{_}{x}{_}".to_string(),
+            "{_}{_}{_}{x}{_}".to_string(),
+            "{_}{_}{_}{x}{_}".to_string(),
+            "{x}{x}{x}{x}{_}".to_string(),
+            "{_}{_}{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Flood fill the top-left region
+        let warnings = grid.flood_fill(0, 0, "water".to_string()).unwrap();
+        assert!(warnings.is_empty());
+
+        // Top-left 3x3 region should be filled
+        for y in 0..3 {
+            for x in 0..3 {
+                assert_eq!(grid.get(x, y), Some("water"), "({},{}) should be water", x, y);
+            }
+        }
+        // The x-boundary should remain
+        assert_eq!(grid.get(3, 0), Some("x"));
+        assert_eq!(grid.get(3, 1), Some("x"));
+        assert_eq!(grid.get(3, 2), Some("x"));
+        // Right column should NOT be filled (separated by x wall)
+        assert_eq!(grid.get(4, 0), Some("_"));
+        assert_eq!(grid.get(4, 1), Some("_"));
+        // Bottom row should NOT be filled (separated by x wall)
+        assert_eq!(grid.get(0, 4), Some("_"));
+    }
+
+    #[test]
+    fn test_flood_fill_same_token_noop() {
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.flood_fill(0, 0, "_".to_string()).unwrap();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("no-op"));
+
+        // Grid unchanged
+        for y in 0..2 {
+            for x in 0..3 {
+                assert_eq!(grid.get(x, y), Some("_"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_flood_fill_out_of_bounds() {
+        let rows = vec!["{_}{_}".to_string()];
+        let grid_result = TokenGrid::parse(&rows);
+        let mut grid = grid_result.unwrap();
+
+        let result = grid.flood_fill(5, 5, "x".to_string());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DrawError::OutOfBounds { x, y, .. } => {
+                assert_eq!((x, y), (5, 5));
+            }
+            other => panic!("Expected OutOfBounds, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_flood_fill_single_pixel() {
+        // Seed surrounded by different tokens — only seed changes
+        let rows = vec![
+            "{a}{b}{c}".to_string(),
+            "{d}{_}{f}".to_string(),
+            "{g}{h}{i}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.flood_fill(1, 1, "fill".to_string()).unwrap();
+        assert!(warnings.is_empty());
+
+        assert_eq!(grid.get(1, 1), Some("fill"));
+        // All neighbors unchanged (different tokens)
+        assert_eq!(grid.get(0, 0), Some("a"));
+        assert_eq!(grid.get(1, 0), Some("b"));
+        assert_eq!(grid.get(2, 0), Some("c"));
+        assert_eq!(grid.get(0, 1), Some("d"));
+        assert_eq!(grid.get(2, 1), Some("f"));
+    }
+
+    #[test]
+    fn test_flood_fill_entire_grid() {
+        // All same token → flood fills everything
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.flood_fill(1, 1, "fill".to_string()).unwrap();
+        assert!(warnings.is_empty());
+
+        for y in 0..3 {
+            for x in 0..3 {
+                assert_eq!(grid.get(x, y), Some("fill"), "({},{}) should be fill", x, y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_flood_fill_no_diagonal_leak() {
+        // Diagonal-only connection should NOT fill (4-connected only)
+        let rows = vec![
+            "{_}{x}{_}".to_string(),
+            "{x}{_}{x}".to_string(),
+            "{_}{x}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Fill the center — only the center should change (surrounded by x on 4 sides)
+        // Wait, the center at (1,1) is "_" and neighbors (0,1),(2,1),(1,0),(1,2) are all "x"
+        let warnings = grid.flood_fill(1, 1, "fill".to_string()).unwrap();
+        assert!(warnings.is_empty());
+
+        assert_eq!(grid.get(1, 1), Some("fill"));
+        // Corners are "_" but NOT connected via 4-connectivity
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(2, 0), Some("_"));
+        assert_eq!(grid.get(0, 2), Some("_"));
+        assert_eq!(grid.get(2, 2), Some("_"));
+    }
+
+    #[test]
+    fn test_flood_fill_l_shape() {
+        // L-shaped region should all fill
+        let rows = vec![
+            "{_}{x}{x}".to_string(),
+            "{_}{x}{x}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.flood_fill(0, 0, "water".to_string()).unwrap();
+        assert!(warnings.is_empty());
+
+        // The L-shape: (0,0), (0,1), (0,2), (1,2), (2,2)
+        assert_eq!(grid.get(0, 0), Some("water"));
+        assert_eq!(grid.get(0, 1), Some("water"));
+        assert_eq!(grid.get(0, 2), Some("water"));
+        assert_eq!(grid.get(1, 2), Some("water"));
+        assert_eq!(grid.get(2, 2), Some("water"));
+        // x-cells unchanged
+        assert_eq!(grid.get(1, 0), Some("x"));
+        assert_eq!(grid.get(2, 0), Some("x"));
+        assert_eq!(grid.get(1, 1), Some("x"));
+        assert_eq!(grid.get(2, 1), Some("x"));
+    }
+
+    #[test]
+    fn test_flood_fill_via_draw_op() {
+        let rows = vec![
+            "{_}{_}{_}".to_string(),
+            "{_}{_}{_}".to_string(),
+        ];
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        let warnings = grid.apply(&DrawOp::Flood { x: 0, y: 0, token: "fill".to_string() }).unwrap();
+        assert!(warnings.is_empty());
+
+        for y in 0..2 {
+            for x in 0..3 {
+                assert_eq!(grid.get(x, y), Some("fill"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_flood_fill_pipeline_integration() {
+        let content = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{water}": "#0000FF", "{x}": "#FF0000"}}
+{"type": "sprite", "name": "pool", "size": [4, 4], "palette": "pal", "grid": ["{x}{_}{_}{x}", "{x}{_}{_}{x}", "{x}{_}{_}{x}", "{x}{x}{x}{x}"]}"##;
+
+        let mut pipeline = DrawPipeline::load_from_string(content, Some("pool")).unwrap();
+
+        pipeline
+            .apply_ops(&[DrawOp::Flood { x: 1, y: 0, token: "water".to_string() }])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        // Inner pool area should be filled
+        assert_eq!(grid.get(1, 0), Some("water"));
+        assert_eq!(grid.get(2, 0), Some("water"));
+        assert_eq!(grid.get(1, 1), Some("water"));
+        assert_eq!(grid.get(2, 1), Some("water"));
+        assert_eq!(grid.get(1, 2), Some("water"));
+        assert_eq!(grid.get(2, 2), Some("water"));
+        // Walls unchanged
+        assert_eq!(grid.get(0, 0), Some("x"));
+        assert_eq!(grid.get(3, 0), Some("x"));
+        assert_eq!(grid.get(0, 3), Some("x"));
     }
 }
