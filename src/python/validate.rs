@@ -143,9 +143,9 @@ pub fn validate_file(path: &str) -> PyResult<Vec<String>> {
     let mut validator = Validator::new();
     let file_path = std::path::Path::new(path);
 
-    validator.validate_file(file_path).map_err(|e| {
-        pyo3::exceptions::PyOSError::new_err(format!("{}", e))
-    })?;
+    validator
+        .validate_file(file_path)
+        .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("{}", e)))?;
 
     Ok(validator.into_issues().iter().map(format_issue).collect())
 }

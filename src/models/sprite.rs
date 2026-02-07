@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::antialias::AntialiasConfig;
 use super::palette::PaletteRef;
 use super::region::RegionDef;
 use super::transform::TransformSpec;
+use crate::antialias::AntialiasConfig;
 
 /// Nine-slice region definition for scalable sprites.
 ///

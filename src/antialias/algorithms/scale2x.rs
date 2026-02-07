@@ -64,11 +64,7 @@ pub struct Scale2xOptions {
 
 impl Default for Scale2xOptions {
     fn default() -> Self {
-        Self {
-            anchor_mode: AnchorMode::Preserve,
-            respect_containment: true,
-            strength: 1.0,
-        }
+        Self { anchor_mode: AnchorMode::Preserve, respect_containment: true, strength: 1.0 }
     }
 }
 
@@ -80,11 +76,7 @@ impl Scale2xOptions {
 
     /// Create options with no semantic awareness (pure Scale2x).
     pub fn pure() -> Self {
-        Self {
-            anchor_mode: AnchorMode::Normal,
-            respect_containment: false,
-            strength: 1.0,
-        }
+        Self { anchor_mode: AnchorMode::Normal, respect_containment: false, strength: 1.0 }
     }
 }
 
@@ -102,7 +94,11 @@ impl Scale2xOptions {
 /// # Returns
 ///
 /// A new image with dimensions 2x the input.
-pub fn scale2x(input: &RgbaImage, context: &SemanticContext, options: &Scale2xOptions) -> RgbaImage {
+pub fn scale2x(
+    input: &RgbaImage,
+    context: &SemanticContext,
+    options: &Scale2xOptions,
+) -> RgbaImage {
     let (width, height) = input.dimensions();
     let mut output = RgbaImage::new(width * 2, height * 2);
 
@@ -130,7 +126,18 @@ pub fn scale2x(input: &RgbaImage, context: &SemanticContext, options: &Scale2xOp
                     get_valid_neighbors(pos, context, options);
 
                 // Apply Scale2x rules with containment awareness
-                compute_scale2x_block(p, a, b, c, d, a_valid, b_valid, c_valid, d_valid, options.strength)
+                compute_scale2x_block(
+                    p,
+                    a,
+                    b,
+                    c,
+                    d,
+                    a_valid,
+                    b_valid,
+                    c_valid,
+                    d_valid,
+                    options.strength,
+                )
             };
 
             // Write output pixels
@@ -208,25 +215,45 @@ fn compute_scale2x_block(
     strength: f32,
 ) -> (Rgba<u8>, Rgba<u8>, Rgba<u8>, Rgba<u8>) {
     // Standard Scale2x rules with validity checks
-    let e0 = if a_valid && b_valid && colors_equal(&a, &b) && !colors_equal(&a, &c) && !colors_equal(&b, &d) {
+    let e0 = if a_valid
+        && b_valid
+        && colors_equal(&a, &b)
+        && !colors_equal(&a, &c)
+        && !colors_equal(&b, &d)
+    {
         blend_colors(&p, &a, strength)
     } else {
         p
     };
 
-    let e1 = if a_valid && c_valid && colors_equal(&a, &c) && !colors_equal(&a, &b) && !colors_equal(&c, &d) {
+    let e1 = if a_valid
+        && c_valid
+        && colors_equal(&a, &c)
+        && !colors_equal(&a, &b)
+        && !colors_equal(&c, &d)
+    {
         blend_colors(&p, &c, strength)
     } else {
         p
     };
 
-    let e2 = if b_valid && d_valid && colors_equal(&b, &d) && !colors_equal(&b, &a) && !colors_equal(&d, &c) {
+    let e2 = if b_valid
+        && d_valid
+        && colors_equal(&b, &d)
+        && !colors_equal(&b, &a)
+        && !colors_equal(&d, &c)
+    {
         blend_colors(&p, &b, strength)
     } else {
         p
     };
 
-    let e3 = if c_valid && d_valid && colors_equal(&c, &d) && !colors_equal(&c, &a) && !colors_equal(&d, &b) {
+    let e3 = if c_valid
+        && d_valid
+        && colors_equal(&c, &d)
+        && !colors_equal(&c, &a)
+        && !colors_equal(&d, &b)
+    {
         blend_colors(&p, &c, strength)
     } else {
         p
@@ -397,10 +424,7 @@ mod tests {
         let mut context = SemanticContext::empty();
         context.anchor_pixels.insert((1, 1));
 
-        let options = Scale2xOptions {
-            anchor_mode: AnchorMode::Preserve,
-            ..Default::default()
-        };
+        let options = Scale2xOptions { anchor_mode: AnchorMode::Preserve, ..Default::default() };
 
         let output = scale2x(&input, &context, &options);
 
@@ -434,10 +458,7 @@ mod tests {
         context.containment_edges.insert((1, 1));
         context.containment_edges.insert((2, 1));
 
-        let options = Scale2xOptions {
-            respect_containment: true,
-            ..Default::default()
-        };
+        let options = Scale2xOptions { respect_containment: true, ..Default::default() };
 
         let output = scale2x(&input, &context, &options);
 
@@ -459,10 +480,7 @@ mod tests {
         input.put_pixel(1, 1, black);
 
         let context = SemanticContext::empty();
-        let options = Scale2xOptions {
-            strength: 0.0,
-            ..Default::default()
-        };
+        let options = Scale2xOptions { strength: 0.0, ..Default::default() };
 
         let output = scale2x(&input, &context, &options);
 
@@ -576,10 +594,7 @@ mod tests {
         let mut context = SemanticContext::empty();
         context.anchor_pixels.insert((1, 1));
 
-        let options = Scale2xOptions {
-            anchor_mode: AnchorMode::Normal,
-            ..Default::default()
-        };
+        let options = Scale2xOptions { anchor_mode: AnchorMode::Normal, ..Default::default() };
 
         // Should still apply interpolation even though pixel is marked as anchor
         let output = scale2x(&input, &context, &options);

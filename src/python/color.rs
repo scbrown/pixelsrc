@@ -176,7 +176,7 @@ mod tests {
         assert_eq!(ramp[0], "#ff000000");
         // Midpoint alpha: 128
         assert_eq!(ramp[1], "#ff000080");
-        assert_eq!(ramp[2], "#ff0000");  // alpha 255 -> 6-digit form
+        assert_eq!(ramp[2], "#ff0000"); // alpha 255 -> 6-digit form
     }
 
     #[test]

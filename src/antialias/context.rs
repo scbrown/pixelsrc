@@ -3,9 +3,9 @@
 //! This module provides the `SemanticContext` struct which extracts semantic
 //! information from rendered sprite regions to guide antialiasing decisions.
 
-use crate::models::{Palette, RegionDef, RelationshipType, Role};
 #[cfg(test)]
 use crate::models::Relationship;
+use crate::models::{Palette, RegionDef, RelationshipType, Role};
 use crate::transforms::AnchorBounds;
 use image::Rgba;
 use std::collections::{HashMap, HashSet};
@@ -130,9 +130,7 @@ impl SemanticContext {
 
     /// Get gradient pair information for a pixel, if it's at a gradient boundary.
     pub fn get_gradient_at(&self, pos: (i32, i32)) -> Option<&GradientPair> {
-        self.gradient_pairs
-            .iter()
-            .find(|gradient| gradient.boundary_pixels.contains(&pos))
+        self.gradient_pairs.iter().find(|gradient| gradient.boundary_pixels.contains(&pos))
     }
 
     /// Check if a pixel is at an adjacency boundary between two regions.
@@ -287,7 +285,8 @@ pub fn extract_semantic_context(
                     if let (Some(source_region), Some(target_region)) =
                         (regions.get(source_token), regions.get(target_token))
                     {
-                        let boundary = find_boundary_pixels(&source_region.pixels, &target_region.pixels);
+                        let boundary =
+                            find_boundary_pixels(&source_region.pixels, &target_region.pixels);
                         if !boundary.is_empty() {
                             ctx.gradient_pairs.push(GradientPair {
                                 source_token: source_token.clone(),
@@ -304,7 +303,8 @@ pub fn extract_semantic_context(
                     if let (Some(inner_region), Some(outer_region)) =
                         (regions.get(source_token), regions.get(target_token))
                     {
-                        let boundary = find_boundary_pixels(&inner_region.pixels, &outer_region.pixels);
+                        let boundary =
+                            find_boundary_pixels(&inner_region.pixels, &outer_region.pixels);
                         ctx.containment_edges.extend(boundary.iter().copied());
                     }
                 }

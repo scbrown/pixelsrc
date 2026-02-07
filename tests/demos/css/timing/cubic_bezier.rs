@@ -23,10 +23,7 @@ fn test_bounce_fall() {
 
     let bounce = animations.get("bounce_fall").expect("Animation 'bounce_fall' not found");
     assert!(bounce.is_css_keyframes(), "bounce_fall should use CSS keyframes");
-    assert_eq!(
-        bounce.timing_function.as_deref(),
-        Some("cubic-bezier(0.5, 0, 0.5, 1)")
-    );
+    assert_eq!(bounce.timing_function.as_deref(), Some("cubic-bezier(0.5, 0, 0.5, 1)"));
     assert_eq!(bounce.duration_ms(), 800);
 
     // Verify keyframes
@@ -49,10 +46,7 @@ fn test_snap_ease() {
 
     let snap = animations.get("snap_ease").expect("Animation 'snap_ease' not found");
     assert!(snap.is_css_keyframes(), "snap_ease should use CSS keyframes");
-    assert_eq!(
-        snap.timing_function.as_deref(),
-        Some("cubic-bezier(0.68, -0.55, 0.27, 1.55)")
-    );
+    assert_eq!(snap.timing_function.as_deref(), Some("cubic-bezier(0.68, -0.55, 0.27, 1.55)"));
     assert_eq!(snap.duration_ms(), 500);
 
     // Verify keyframes
@@ -72,10 +66,7 @@ fn test_smooth_decel() {
 
     let smooth = animations.get("smooth_decel").expect("Animation 'smooth_decel' not found");
     assert!(smooth.is_css_keyframes(), "smooth_decel should use CSS keyframes");
-    assert_eq!(
-        smooth.timing_function.as_deref(),
-        Some("cubic-bezier(0.25, 0.1, 0.25, 1.0)")
-    );
+    assert_eq!(smooth.timing_function.as_deref(), Some("cubic-bezier(0.25, 0.1, 0.25, 1.0)"));
     assert_eq!(smooth.duration_ms(), 500);
 }
 

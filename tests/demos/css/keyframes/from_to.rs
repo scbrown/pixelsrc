@@ -15,9 +15,7 @@ fn test_from_to_keyframes() {
     let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
 
     // Verify sprite can be resolved
-    sprite_registry
-        .resolve("dot", &palette_registry, false)
-        .expect("Sprite 'dot' should resolve");
+    sprite_registry.resolve("dot", &palette_registry, false).expect("Sprite 'dot' should resolve");
 
     let anim = animations.get("fade_in").expect("Animation 'fade_in' not found");
 

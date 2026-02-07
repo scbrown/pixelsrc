@@ -15,9 +15,7 @@ fn test_css_transforms_scale() {
     let (palette_registry, sprite_registry, animations) = parse_content(jsonl);
 
     // Verify sprites can be resolved
-    sprite_registry
-        .resolve("dot", &palette_registry, false)
-        .expect("Sprite 'dot' should resolve");
+    sprite_registry.resolve("dot", &palette_registry, false).expect("Sprite 'dot' should resolve");
     sprite_registry
         .resolve("square", &palette_registry, false)
         .expect("Sprite 'square' should resolve");

@@ -3,8 +3,8 @@
 use pyo3::prelude::*;
 use std::path::Path;
 
-use crate::import::{self, DitherHandling, ImportOptions};
 use super::types::ImportResult;
+use crate::import::{self, DitherHandling, ImportOptions};
 
 /// Import a PNG file and convert it to Pixelsrc format.
 ///
@@ -23,12 +23,8 @@ pub fn import_png(
     max_colors: Option<usize>,
 ) -> PyResult<ImportResult> {
     let file_path = Path::new(path);
-    let sprite_name = name.unwrap_or_else(|| {
-        file_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("sprite")
-    });
+    let sprite_name =
+        name.unwrap_or_else(|| file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("sprite"));
     let colors = max_colors.unwrap_or(16);
 
     let result = import::import_png(file_path, sprite_name, colors)
@@ -67,12 +63,8 @@ pub fn import_png_analyzed(
     dither_handling: Option<&str>,
 ) -> PyResult<ImportResult> {
     let file_path = Path::new(path);
-    let sprite_name = name.unwrap_or_else(|| {
-        file_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("sprite")
-    });
+    let sprite_name =
+        name.unwrap_or_else(|| file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("sprite"));
     let colors = max_colors.unwrap_or(16);
 
     let dither = match dither_handling {

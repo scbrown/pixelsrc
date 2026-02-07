@@ -167,7 +167,11 @@ pub fn hq4x(image: &RgbaImage, context: &SemanticContext, config: &AntialiasConf
 }
 
 /// Check if a pixel should be preserved without interpolation.
-fn should_preserve_pixel(pos: (i32, i32), context: &SemanticContext, config: &AntialiasConfig) -> bool {
+fn should_preserve_pixel(
+    pos: (i32, i32),
+    context: &SemanticContext,
+    config: &AntialiasConfig,
+) -> bool {
     // Check anchor pixels
     if context.is_anchor(pos) {
         return matches!(config.anchor_mode, AnchorMode::Preserve);
@@ -916,7 +920,8 @@ mod tests {
         let edge1 = Rgba([150, 150, 150, 255]);
         let edge2 = Rgba([180, 180, 180, 255]);
 
-        let result = interpolate_corner(&center, &diagonal, &edge1, &edge2, false, false, false, 1.0);
+        let result =
+            interpolate_corner(&center, &diagonal, &edge1, &edge2, false, false, false, 1.0);
         assert_eq!(result, center);
     }
 
@@ -938,11 +943,7 @@ mod tests {
         let mut image = RgbaImage::new(4, 4);
         for y in 0..4 {
             for x in 0..4 {
-                let color = if x < 2 {
-                    Rgba([0, 0, 0, 255])
-                } else {
-                    Rgba([255, 255, 255, 255])
-                };
+                let color = if x < 2 { Rgba([0, 0, 0, 255]) } else { Rgba([255, 255, 255, 255]) };
                 image.put_pixel(x, y, color);
             }
         }

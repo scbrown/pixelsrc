@@ -14,13 +14,8 @@ fn test_basic_chaining() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("basic_chain")
-        .expect("basic_chain palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + bc)"
-    );
+    let palette = palette_registry.get("basic_chain").expect("basic_chain palette should exist");
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + bc)");
 }
 
 /// @demo format/css/variables#chaining_deep
@@ -33,13 +28,8 @@ fn test_deep_chaining() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("deep_chain")
-        .expect("deep_chain palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + dc)"
-    );
+    let palette = palette_registry.get("deep_chain").expect("deep_chain palette should exist");
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + dc)");
 }
 
 /// @demo format/css/variables#chaining_color_mix
@@ -52,13 +42,9 @@ fn test_color_mix_chaining() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("color_mix_chain")
-        .expect("color_mix_chain palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + mc)"
-    );
+    let palette =
+        palette_registry.get("color_mix_chain").expect("color_mix_chain palette should exist");
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + mc)");
 }
 
 /// @demo format/css/variables#chaining_basic_sprite
@@ -71,9 +57,8 @@ fn test_basic_chain_sprite() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("chain_result")
-        .expect("chain_result sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("chain_result").expect("chain_result sprite should exist");
     let size = sprite.size.expect("sprite should have size");
     assert_eq!(size[0], 2, "Sprite width should be 2");
     assert_eq!(size[1], 2, "Sprite height should be 2");
@@ -107,9 +92,7 @@ fn test_mix_chain_sprite() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("shaded_box")
-        .expect("shaded_box sprite should exist");
+    let sprite = sprite_registry.get_sprite("shaded_box").expect("shaded_box sprite should exist");
     let size = sprite.size.expect("sprite should have size");
     assert_eq!(size[0], 2, "Sprite width should be 2");
     assert_eq!(size[1], 2, "Sprite height should be 2");

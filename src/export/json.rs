@@ -127,11 +127,7 @@ impl Exporter for JsonExporter {
 /// let metadata = AtlasMetadata { /* ... */ };
 /// export_json(&metadata, "atlas.json", true)?;
 /// ```
-pub fn export_json(
-    metadata: &AtlasMetadata,
-    output_path: &Path,
-    pretty: bool,
-) -> Result<()> {
+pub fn export_json(metadata: &AtlasMetadata, output_path: &Path, pretty: bool) -> Result<()> {
     let exporter = JsonExporter::new();
     let options = ExportOptions { pretty, ..Default::default() };
     exporter.export(metadata, output_path, &options)

@@ -90,7 +90,9 @@ pub fn format_pxl(pxl: &str) -> PyResult<String> {
 fn json_value_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<PyObject> {
     match value {
         serde_json::Value::Null => Ok(py.None()),
-        serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, *b).to_owned().into_any().unbind()),
+        serde_json::Value::Bool(b) => {
+            Ok(pyo3::types::PyBool::new(py, *b).to_owned().into_any().unbind())
+        }
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 Ok(i.into_pyobject(py)?.into_any().unbind())

@@ -24,12 +24,8 @@ fn test_recolor_palette_swap() {
     );
 
     // Both should resolve (original and swapped)
-    sprite_registry
-        .resolve("hero", &palette_registry, false)
-        .expect("hero should resolve");
-    sprite_registry
-        .resolve("hero_alt", &palette_registry, false)
-        .expect("hero_alt should resolve");
+    sprite_registry.resolve("hero", &palette_registry, false).expect("hero should resolve");
+    sprite_registry.resolve("hero_alt", &palette_registry, false).expect("hero_alt should resolve");
 }
 
 /// @title Source Reference

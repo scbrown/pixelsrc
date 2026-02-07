@@ -64,8 +64,7 @@ fn test_steps_jump_end() {
 
     let (_, _, animations) = parse_content(jsonl);
 
-    let jump_end =
-        animations.get("steps_jump_end").expect("Animation 'steps_jump_end' not found");
+    let jump_end = animations.get("steps_jump_end").expect("Animation 'steps_jump_end' not found");
     assert!(jump_end.is_css_keyframes(), "steps_jump_end should use CSS keyframes");
     assert_eq!(jump_end.timing_function.as_deref(), Some("steps(4, jump-end)"));
     assert_eq!(jump_end.duration_ms(), 1000);

@@ -14,13 +14,9 @@ fn test_simple_fallback() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("simple_fallback")
-        .expect("simple_fallback palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + fb)"
-    );
+    let palette =
+        palette_registry.get("simple_fallback").expect("simple_fallback palette should exist");
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + fb)");
 }
 
 /// @demo format/css/variables#fallback_nested
@@ -33,13 +29,9 @@ fn test_nested_fallback() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("nested_fallback")
-        .expect("nested_fallback palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + nf)"
-    );
+    let palette =
+        palette_registry.get("nested_fallback").expect("nested_fallback palette should exist");
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + nf)");
 }
 
 /// @demo format/css/variables#fallback_color_mix
@@ -55,10 +47,7 @@ fn test_color_mix_fallback() {
     let palette = palette_registry
         .get("color_mix_fallback")
         .expect("color_mix_fallback palette should exist");
-    assert!(
-        palette.colors.len() >= 2,
-        "Should have at least 2 colors (transparent + mf)"
-    );
+    assert!(palette.colors.len() >= 2, "Should have at least 2 colors (transparent + mf)");
 }
 
 /// @demo format/css/variables#fallback_sprite
@@ -71,9 +60,8 @@ fn test_fallback_sprite() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("fallback_demo")
-        .expect("fallback_demo sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("fallback_demo").expect("fallback_demo sprite should exist");
     let size = sprite.size.expect("sprite should have size");
     assert_eq!(size[0], 2, "Sprite width should be 2");
     assert_eq!(size[1], 2, "Sprite height should be 2");

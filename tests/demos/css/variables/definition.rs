@@ -14,9 +14,7 @@ fn test_variable_definition_palette() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("theme_colors")
-        .expect("theme_colors palette should exist");
+    let palette = palette_registry.get("theme_colors").expect("theme_colors palette should exist");
     assert!(
         palette.colors.len() >= 3,
         "Should have at least 3 colors (transparent + primary + secondary)"
@@ -33,9 +31,8 @@ fn test_variable_definition_sprite() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("theme_example")
-        .expect("theme_example sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("theme_example").expect("theme_example sprite should exist");
     let size = sprite.size.expect("sprite should have size");
     assert_eq!(size[0], 2, "Sprite width should be 2");
     assert_eq!(size[1], 2, "Sprite height should be 2");
@@ -51,13 +48,9 @@ fn test_variable_definition_regions() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("theme_example")
-        .expect("theme_example sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("theme_example").expect("theme_example sprite should exist");
     let regions = sprite.regions.as_ref().expect("sprite should have regions");
     assert!(regions.contains_key("primary"), "Should have primary region");
-    assert!(
-        regions.contains_key("secondary"),
-        "Should have secondary region"
-    );
+    assert!(regions.contains_key("secondary"), "Should have secondary region");
 }

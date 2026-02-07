@@ -258,11 +258,7 @@ fn get_threshold(pos: (i32, i32), context: &SemanticContext, config: &AntialiasC
 ///
 /// This implements the core xBR algorithm which analyzes edge directions
 /// to determine how to interpolate each corner of the output block.
-fn compute_xbr2x_block(
-    n: &Neighborhood5x5,
-    threshold: f32,
-    strength: f32,
-) -> [Rgba<u8>; 4] {
+fn compute_xbr2x_block(n: &Neighborhood5x5, threshold: f32, strength: f32) -> [Rgba<u8>; 4] {
     // Output block positions:
     // [0][1]  (top-left, top-right)
     // [2][3]  (bottom-left, bottom-right)
@@ -362,15 +358,15 @@ enum EdgeCorner {
 #[allow(clippy::too_many_arguments)]
 fn compute_corner_pixel(
     center: Rgba<u8>,
-    edge1: Rgba<u8>,        // Primary edge neighbor
-    edge2: Rgba<u8>,        // Secondary edge neighbor
-    diagonal: Rgba<u8>,     // Diagonal neighbor
-    opposite1: Rgba<u8>,    // Opposite of edge1
-    opposite2: Rgba<u8>,    // Opposite of edge2
-    far_edge1: Rgba<u8>,    // Far neighbor along edge1 direction
-    far_diag: Rgba<u8>,     // Far diagonal neighbor
-    far_edge2: Rgba<u8>,    // Far neighbor along edge2 direction
-    far_corner: Rgba<u8>,   // Far corner neighbor
+    edge1: Rgba<u8>,      // Primary edge neighbor
+    edge2: Rgba<u8>,      // Secondary edge neighbor
+    diagonal: Rgba<u8>,   // Diagonal neighbor
+    opposite1: Rgba<u8>,  // Opposite of edge1
+    opposite2: Rgba<u8>,  // Opposite of edge2
+    far_edge1: Rgba<u8>,  // Far neighbor along edge1 direction
+    far_diag: Rgba<u8>,   // Far diagonal neighbor
+    far_edge2: Rgba<u8>,  // Far neighbor along edge2 direction
+    far_corner: Rgba<u8>, // Far corner neighbor
     threshold: f32,
     strength: f32,
     _corner: EdgeCorner,
@@ -381,26 +377,12 @@ fn compute_corner_pixel(
 
     // Weight contributions for direction 1 (along the edge)
     let weight1 = compute_edge_weight(
-        center,
-        edge1,
-        edge2,
-        diagonal,
-        opposite1,
-        far_edge1,
-        far_corner,
-        threshold,
+        center, edge1, edge2, diagonal, opposite1, far_edge1, far_corner, threshold,
     );
 
     // Weight contributions for direction 2 (across the edge)
     let weight2 = compute_edge_weight(
-        center,
-        diagonal,
-        edge1,
-        edge2,
-        opposite2,
-        far_diag,
-        far_edge2,
-        threshold,
+        center, diagonal, edge1, edge2, opposite2, far_diag, far_edge2, threshold,
     );
 
     // Determine if there's a dominant edge direction
@@ -415,7 +397,9 @@ fn compute_corner_pixel(
     if weight1 > weight2 {
         // Edge runs along direction 1 - blend towards diagonal
         let blend_factor = calculate_blend_factor(edge_strength, threshold, strength);
-        if colors_similar(&edge1, &diagonal, threshold) && colors_similar(&edge2, &diagonal, threshold) {
+        if colors_similar(&edge1, &diagonal, threshold)
+            && colors_similar(&edge2, &diagonal, threshold)
+        {
             blend_colors(&center, &diagonal, blend_factor * 0.5)
         } else if colors_similar(&edge1, &diagonal, threshold) {
             blend_colors(&center, &edge1, blend_factor * 0.25)

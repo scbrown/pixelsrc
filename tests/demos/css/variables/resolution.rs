@@ -14,13 +14,9 @@ fn test_var_resolution_palette() {
 
     let (palette_registry, _, _) = parse_content(jsonl);
 
-    let palette = palette_registry
-        .get("var_resolution")
-        .expect("var_resolution palette should exist");
-    assert!(
-        palette.colors.len() >= 3,
-        "Should have at least 3 colors (transparent + a + b)"
-    );
+    let palette =
+        palette_registry.get("var_resolution").expect("var_resolution palette should exist");
+    assert!(palette.colors.len() >= 3, "Should have at least 3 colors (transparent + a + b)");
 }
 
 /// @demo format/css/variables#resolution_sprite
@@ -33,9 +29,8 @@ fn test_var_resolution_sprite() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("resolved_colors")
-        .expect("resolved_colors sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("resolved_colors").expect("resolved_colors sprite should exist");
     let size = sprite.size.expect("sprite should have size");
     assert_eq!(size[0], 2, "Sprite width should be 2");
     assert_eq!(size[1], 2, "Sprite height should be 2");
@@ -51,9 +46,8 @@ fn test_var_resolution_regions() {
 
     let (_, sprite_registry, _) = parse_content(jsonl);
 
-    let sprite = sprite_registry
-        .get_sprite("resolved_colors")
-        .expect("resolved_colors sprite should exist");
+    let sprite =
+        sprite_registry.get_sprite("resolved_colors").expect("resolved_colors sprite should exist");
     let regions = sprite.regions.as_ref().expect("sprite should have regions");
     assert!(regions.contains_key("a"), "Should have region a");
     assert!(regions.contains_key("b"), "Should have region b");

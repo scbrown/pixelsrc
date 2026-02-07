@@ -159,10 +159,7 @@ mod config_resolution {
 
         assert!(!config.enabled, "AA should be disabled by default");
         assert_eq!(config.algorithm, AAAlgorithm::Nearest, "Default algorithm should be Nearest");
-        assert!(
-            (config.strength - 0.5).abs() < 0.001,
-            "Default strength should be 0.5"
-        );
+        assert!((config.strength - 0.5).abs() < 0.001, "Default strength should be 0.5");
         assert_eq!(
             config.anchor_mode,
             AnchorMode::Preserve,
@@ -240,16 +237,12 @@ mod config_resolution {
     #[test]
     fn test_config_merge_regions_additive() {
         let mut base = AntialiasConfig {
-            regions: Some(HashMap::from([
-                ("eye".to_string(), RegionAAOverride::preserved()),
-            ])),
+            regions: Some(HashMap::from([("eye".to_string(), RegionAAOverride::preserved())])),
             ..Default::default()
         };
 
         let override_config = AntialiasConfig {
-            regions: Some(HashMap::from([
-                ("mouth".to_string(), RegionAAOverride::preserved()),
-            ])),
+            regions: Some(HashMap::from([("mouth".to_string(), RegionAAOverride::preserved())])),
             ..Default::default()
         };
 
@@ -268,7 +261,11 @@ mod config_resolution {
         assert_eq!(disabled.scale_factor(), 1);
 
         // Enabled with Nearest returns 1
-        let nearest = AntialiasConfig { enabled: true, algorithm: AAAlgorithm::Nearest, ..Default::default() };
+        let nearest = AntialiasConfig {
+            enabled: true,
+            algorithm: AAAlgorithm::Nearest,
+            ..Default::default()
+        };
         assert_eq!(nearest.scale_factor(), 1);
 
         // Enabled with Scale2x returns 2
@@ -332,17 +329,19 @@ mod config_resolution {
             gradient_shadows: false,
             respect_containment: true,
             semantic_aware: true,
-            regions: Some(HashMap::from([
-                ("eye".to_string(), RegionAAOverride {
+            regions: Some(HashMap::from([(
+                "eye".to_string(),
+                RegionAAOverride {
                     preserve: Some(true),
                     mode: Some(AnchorMode::Preserve),
                     gradient: Some(false),
-                }),
-            ])),
+                },
+            )])),
         };
 
         let json = serde_json::to_string(&original).expect("serialization should succeed");
-        let parsed: AntialiasConfig = serde_json::from_str(&json).expect("deserialization should succeed");
+        let parsed: AntialiasConfig =
+            serde_json::from_str(&json).expect("deserialization should succeed");
 
         assert_eq!(original.enabled, parsed.enabled);
         assert_eq!(original.algorithm, parsed.algorithm);
@@ -357,7 +356,8 @@ mod config_resolution {
     #[test]
     fn test_minimal_json_config() {
         let json = r#"{"enabled": true, "algorithm": "scale2x"}"#;
-        let config: AntialiasConfig = serde_json::from_str(json).expect("minimal JSON should parse");
+        let config: AntialiasConfig =
+            serde_json::from_str(json).expect("minimal JSON should parse");
 
         assert!(config.enabled);
         assert_eq!(config.algorithm, AAAlgorithm::Scale2x);
@@ -955,9 +955,18 @@ mod visual_regression {
         let checkerboard_hash = hash_image(&hq2x(&checkerboard, &context, &config));
         let diagonal_hash = hash_image(&hq2x(&diagonal, &context, &config));
 
-        assert_ne!(quadrant_hash, checkerboard_hash, "Different inputs should produce different hashes");
-        assert_ne!(checkerboard_hash, diagonal_hash, "Different inputs should produce different hashes");
-        assert_ne!(quadrant_hash, diagonal_hash, "Different inputs should produce different hashes");
+        assert_ne!(
+            quadrant_hash, checkerboard_hash,
+            "Different inputs should produce different hashes"
+        );
+        assert_ne!(
+            checkerboard_hash, diagonal_hash,
+            "Different inputs should produce different hashes"
+        );
+        assert_ne!(
+            quadrant_hash, diagonal_hash,
+            "Different inputs should produce different hashes"
+        );
     }
 
     /// Test that different strength values produce different results.
@@ -1075,11 +1084,7 @@ mod edge_cases {
         // Left half black, right half white
         for y in 0..4 {
             for x in 0..4 {
-                let color = if x < 2 {
-                    Rgba([0, 0, 0, 255])
-                } else {
-                    Rgba([255, 255, 255, 255])
-                };
+                let color = if x < 2 { Rgba([0, 0, 0, 255]) } else { Rgba([255, 255, 255, 255]) };
                 image.put_pixel(x, y, color);
             }
         }
@@ -1101,18 +1106,12 @@ mod edge_cases {
     /// Test AnchorMode variations.
     #[test]
     fn test_anchor_modes() {
-        let config_preserve = AntialiasConfig {
-            anchor_mode: AnchorMode::Preserve,
-            ..Default::default()
-        };
-        let config_reduce = AntialiasConfig {
-            anchor_mode: AnchorMode::Reduce,
-            ..Default::default()
-        };
-        let config_normal = AntialiasConfig {
-            anchor_mode: AnchorMode::Normal,
-            ..Default::default()
-        };
+        let config_preserve =
+            AntialiasConfig { anchor_mode: AnchorMode::Preserve, ..Default::default() };
+        let config_reduce =
+            AntialiasConfig { anchor_mode: AnchorMode::Reduce, ..Default::default() };
+        let config_normal =
+            AntialiasConfig { anchor_mode: AnchorMode::Normal, ..Default::default() };
 
         // Verify they're different
         assert_ne!(config_preserve.anchor_mode, config_reduce.anchor_mode);

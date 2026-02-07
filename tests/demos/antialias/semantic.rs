@@ -285,14 +285,8 @@ fn test_gradient_pair_detection() {
     });
 
     // Verify gradient is detected at boundary pixels
-    assert!(
-        context.get_gradient_at((3, 3)).is_some(),
-        "Should detect gradient at boundary"
-    );
-    assert!(
-        context.get_gradient_at((3, 4)).is_some(),
-        "Should detect gradient at boundary"
-    );
+    assert!(context.get_gradient_at((3, 3)).is_some(), "Should detect gradient at boundary");
+    assert!(context.get_gradient_at((3, 4)).is_some(), "Should detect gradient at boundary");
     assert!(
         context.get_gradient_at((0, 0)).is_none(),
         "Should not detect gradient away from boundary"
@@ -503,16 +497,8 @@ fn test_full_sprite_semantic_processing() {
     let eye = *input.get_pixel(2, 2);
     for dy in 0..2 {
         for dx in 0..2 {
-            assert_eq!(
-                *output.get_pixel(4 + dx, 4 + dy),
-                eye,
-                "Left eye should be preserved"
-            );
-            assert_eq!(
-                *output.get_pixel(10 + dx, 4 + dy),
-                eye,
-                "Right eye should be preserved"
-            );
+            assert_eq!(*output.get_pixel(4 + dx, 4 + dy), eye, "Left eye should be preserved");
+            assert_eq!(*output.get_pixel(10 + dx, 4 + dy), eye, "Right eye should be preserved");
         }
     }
 

@@ -104,16 +104,13 @@ fn test_all_named_timing_functions() {
 
     // Verify all five named timing functions exist
     let timing_funcs = ["linear", "ease", "ease-in", "ease-out", "ease-in-out"];
-    let anim_names = [
-        "linear_slide",
-        "ease_slide",
-        "ease_in_slide",
-        "ease_out_slide",
-        "ease_in_out_slide",
-    ];
+    let anim_names =
+        ["linear_slide", "ease_slide", "ease_in_slide", "ease_out_slide", "ease_in_out_slide"];
 
     for (timing_func, anim_name) in timing_funcs.iter().zip(anim_names.iter()) {
-        let anim = animations.get(*anim_name).unwrap_or_else(|| panic!("Animation '{anim_name}' not found"));
+        let anim = animations
+            .get(*anim_name)
+            .unwrap_or_else(|| panic!("Animation '{anim_name}' not found"));
         assert!(anim.is_css_keyframes(), "{anim_name} should use CSS keyframes");
         assert_eq!(
             anim.timing_function.as_deref(),

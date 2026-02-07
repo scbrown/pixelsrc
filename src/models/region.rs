@@ -2,8 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::antialias::RegionAAOverride;
 use super::palette::Role;
+use crate::antialias::RegionAAOverride;
 
 /// Jitter specification for controlled randomness.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

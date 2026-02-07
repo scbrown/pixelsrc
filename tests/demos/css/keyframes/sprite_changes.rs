@@ -77,10 +77,7 @@ fn test_all_sprites_resolve() {
     let keyframes = anim.keyframes.as_ref().unwrap();
 
     // Collect all unique sprites from keyframes
-    let sprites: Vec<&str> = keyframes
-        .values()
-        .filter_map(|kf| kf.sprite.as_deref())
-        .collect();
+    let sprites: Vec<&str> = keyframes.values().filter_map(|kf| kf.sprite.as_deref()).collect();
 
     // Verify each sprite resolves
     for sprite_name in sprites {

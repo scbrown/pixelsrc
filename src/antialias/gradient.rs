@@ -201,12 +201,7 @@ fn color_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> f32 {
 }
 
 /// Interpolate between current color and a gradient between two colors.
-fn interpolate_colors(
-    current: &Rgba<u8>,
-    from: &Rgba<u8>,
-    to: &Rgba<u8>,
-    amount: f32,
-) -> Rgba<u8> {
+fn interpolate_colors(current: &Rgba<u8>, from: &Rgba<u8>, to: &Rgba<u8>, amount: f32) -> Rgba<u8> {
     // First, calculate the gradient midpoint between from and to
     let mid_r = (from[0] as f32 + to[0] as f32) / 2.0;
     let mid_g = (from[1] as f32 + to[1] as f32) / 2.0;

@@ -16,10 +16,7 @@ fn test_named_palette() {
     assert_uses_palette(jsonl, "tile", "gameboy");
 
     let (palette_registry, _, _) = parse_content(jsonl);
-    assert!(
-        palette_registry.contains("gameboy"),
-        "Palette 'gameboy' should be registered"
-    );
+    assert!(palette_registry.contains("gameboy"), "Palette 'gameboy' should be registered");
 
     let info = capture_render_info(jsonl, "tile");
     assert_eq!(info.width, 2);

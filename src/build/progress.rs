@@ -862,7 +862,8 @@ impl ProgressReporter for LiveProgress {
                 }
             }
             ProgressEvent::TargetStarted { target_id } => {
-                *self.current_target.lock().expect("current_target mutex poisoned") = Some(target_id);
+                *self.current_target.lock().expect("current_target mutex poisoned") =
+                    Some(target_id);
                 if self.is_tty && self.should_update() {
                     self.update_line(&self.render_progress());
                 }

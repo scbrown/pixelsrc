@@ -31,10 +31,7 @@ fn test_palette_cycle_timing() {
     // Both have same number of frames (3 tokens each)
     let fast_info = capture_palette_cycle_info(jsonl, "fast_cycle");
     let slow_info = capture_palette_cycle_info(jsonl, "slow_cycle");
-    assert_eq!(
-        fast_info.total_frames, slow_info.total_frames,
-        "Same token count = same frames"
-    );
+    assert_eq!(fast_info.total_frames, slow_info.total_frames, "Same token count = same frames");
     assert_eq!(fast_info.total_frames, 3);
 
     // But different durations

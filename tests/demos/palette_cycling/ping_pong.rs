@@ -55,7 +55,7 @@ fn test_ping_pong_token_pattern() {
     // Full token sequence: forward to peak, then reverse (skipping endpoints to avoid double)
     let expected_tokens = vec![
         "{p1}", "{p2}", "{p3}", "{p4}", "{p5}", // Forward
-        "{p4}", "{p3}", "{p2}",                 // Reverse (skip p1 to avoid double)
+        "{p4}", "{p3}", "{p2}", // Reverse (skip p1 to avoid double)
     ];
     assert_eq!(info.cycle_tokens[0], expected_tokens);
 }

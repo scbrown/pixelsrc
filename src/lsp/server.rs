@@ -217,7 +217,9 @@ impl LanguageServer for PixelsrcLanguageServer {
                 Err(_) => true,
             };
             if lock_failed {
-                self.client.log_message(MessageType::ERROR, "Failed to acquire document lock").await;
+                self.client
+                    .log_message(MessageType::ERROR, "Failed to acquire document lock")
+                    .await;
                 return;
             }
 

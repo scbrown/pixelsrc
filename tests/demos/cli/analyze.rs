@@ -3,9 +3,7 @@
 //! Demonstrates the `pxl analyze` command functionality for extracting
 //! corpus metrics from pixelsrc files.
 
-use pixelsrc::analyze::{
-    AnalysisReport, CoOccurrenceMatrix, DimensionStats, TokenCounter,
-};
+use pixelsrc::analyze::{AnalysisReport, CoOccurrenceMatrix, DimensionStats, TokenCounter};
 use pixelsrc::models::{PaletteRef, Sprite};
 use std::collections::{HashMap, HashSet};
 

@@ -35,11 +35,7 @@ fn create_edge_pattern(width: u32, height: u32) -> RgbaImage {
     let mid = width / 2;
     for y in 0..height {
         for x in 0..width {
-            let color = if x < mid {
-                Rgba([0, 0, 0, 255])
-            } else {
-                Rgba([255, 255, 255, 255])
-            };
+            let color = if x < mid { Rgba([0, 0, 0, 255]) } else { Rgba([255, 255, 255, 255]) };
             img.put_pixel(x, y, color);
         }
     }

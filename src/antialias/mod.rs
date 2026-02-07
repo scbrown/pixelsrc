@@ -397,10 +397,7 @@ mod tests {
             gradient_shadows: false,
             respect_containment: true,
             semantic_aware: true,
-            regions: Some(HashMap::from([(
-                "eye".to_string(),
-                RegionAAOverride::preserved(),
-            )])),
+            regions: Some(HashMap::from([("eye".to_string(), RegionAAOverride::preserved())])),
         };
 
         base.merge(&override_config);
@@ -457,8 +454,11 @@ mod tests {
 
     #[test]
     fn test_region_aa_override_serialization() {
-        let override_config =
-            RegionAAOverride { preserve: Some(true), mode: Some(AnchorMode::Reduce), gradient: Some(false) };
+        let override_config = RegionAAOverride {
+            preserve: Some(true),
+            mode: Some(AnchorMode::Reduce),
+            gradient: Some(false),
+        };
 
         let json = serde_json::to_string(&override_config).unwrap();
         let parsed: RegionAAOverride = serde_json::from_str(&json).unwrap();

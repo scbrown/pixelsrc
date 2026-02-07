@@ -45,10 +45,7 @@ impl PyRegistry {
     /// Create a new empty registry.
     #[new]
     fn new() -> Self {
-        Self {
-            palette_registry: PaletteRegistry::new(),
-            sprite_registry: SpriteRegistry::new(),
-        }
+        Self { palette_registry: PaletteRegistry::new(), sprite_registry: SpriteRegistry::new() }
     }
 
     /// Load PXL/JSONL content from a string into the registry.
@@ -77,9 +74,8 @@ impl PyRegistry {
     ///
     /// Raises `OSError` if the file cannot be read.
     fn load_file(&mut self, path: &str) -> PyResult<()> {
-        let content = std::fs::read_to_string(path).map_err(|e| {
-            pyo3::exceptions::PyOSError::new_err(format!("{}", e))
-        })?;
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| pyo3::exceptions::PyOSError::new_err(format!("{}", e)))?;
         self.load(&content);
         Ok(())
     }
@@ -105,16 +101,15 @@ impl PyRegistry {
     ///
     /// Raises `ValueError` if the sprite is not found.
     fn render(&self, name: &str) -> PyResult<RenderResult> {
-        let resolved = self.sprite_registry.resolve(name, &self.palette_registry, false)
+        let resolved = self
+            .sprite_registry
+            .resolve(name, &self.palette_registry, false)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{}", e)))?;
 
         let (image, render_warnings) = crate::renderer::render_resolved(&resolved);
 
-        let mut warnings: Vec<String> = resolved
-            .warnings
-            .iter()
-            .map(|w| w.message.clone())
-            .collect();
+        let mut warnings: Vec<String> =
+            resolved.warnings.iter().map(|w| w.message.clone()).collect();
         for w in render_warnings {
             warnings.push(w.message);
         }
@@ -131,7 +126,9 @@ impl PyRegistry {
     ///
     /// Raises `ValueError` if the sprite is not found.
     fn render_to_png<'py>(&self, py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyBytes>> {
-        let resolved = self.sprite_registry.resolve(name, &self.palette_registry, false)
+        let resolved = self
+            .sprite_registry
+            .resolve(name, &self.palette_registry, false)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{}", e)))?;
 
         let (image, _) = crate::renderer::render_resolved(&resolved);
@@ -141,12 +138,7 @@ impl PyRegistry {
             use image::ImageEncoder;
             let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
             encoder
-                .write_image(
-                    image.as_raw(),
-                    image.width(),
-                    image.height(),
-                    image::ColorType::Rgba8,
-                )
+                .write_image(image.as_raw(), image.width(), image.height(), image::ColorType::Rgba8)
                 .map_err(|e| {
                     pyo3::exceptions::PyRuntimeError::new_err(format!("PNG encoding failed: {}", e))
                 })?;
@@ -161,7 +153,9 @@ impl PyRegistry {
         let names: Vec<String> = self.sprite_registry.names().cloned().collect();
 
         for name in &names {
-            let resolved = self.sprite_registry.resolve(name, &self.palette_registry, false)
+            let resolved = self
+                .sprite_registry
+                .resolve(name, &self.palette_registry, false)
                 .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{}", e)))?;
 
             let (image, _) = crate::renderer::render_resolved(&resolved);
@@ -255,8 +249,10 @@ mod tests {
     #[test]
     fn test_palettes_sorted() {
         let mut reg = PyRegistry::new();
-        reg.load(r##"{"type": "palette", "name": "warm", "colors": {"x": "#FF0000"}}
-{"type": "palette", "name": "cool", "colors": {"x": "#0000FF"}}"##);
+        reg.load(
+            r##"{"type": "palette", "name": "warm", "colors": {"x": "#FF0000"}}
+{"type": "palette", "name": "cool", "colors": {"x": "#0000FF"}}"##,
+        );
         assert_eq!(reg.palettes(), vec!["cool", "warm"]);
     }
 }

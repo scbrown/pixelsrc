@@ -1858,11 +1858,8 @@ mod tests {
 
     #[test]
     fn test_region_without_antialias_roundtrip() {
-        let region = RegionDef {
-            rect: Some([0, 0, 16, 16]),
-            antialias: None,
-            ..Default::default()
-        };
+        let region =
+            RegionDef { rect: Some([0, 0, 16, 16]), antialias: None, ..Default::default() };
         let json = serde_json::to_string(&region).unwrap();
         // Should not contain "antialias" key when None
         assert!(!json.contains("antialias"));
