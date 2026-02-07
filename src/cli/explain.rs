@@ -236,7 +236,10 @@ pub fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: 
 
     if filtered_diffs.is_empty() {
         if sprite.is_some() {
-            eprintln!("Error: Sprite '{}' not found in either file", sprite.expect("sprite is Some in this branch"));
+            eprintln!(
+                "Error: Sprite '{}' not found in either file",
+                sprite.expect("sprite is Some in this branch")
+            );
             return ExitCode::from(EXIT_ERROR);
         }
         println!("No sprites found to compare.");
@@ -289,20 +292,6 @@ pub fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: 
                         })
                         .collect();
                     obj["palette_changes"] = serde_json::json!(palette_changes);
-                }
-
-                if !diff.grid_changes.is_empty() {
-                    let grid_changes: Vec<_> = diff
-                        .grid_changes
-                        .iter()
-                        .map(|c| {
-                            serde_json::json!({
-                                "row": c.row,
-                                "description": c.description,
-                            })
-                        })
-                        .collect();
-                    obj["grid_changes"] = serde_json::json!(grid_changes);
                 }
 
                 obj

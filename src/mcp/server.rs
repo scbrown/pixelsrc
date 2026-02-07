@@ -16,9 +16,7 @@ pub struct PixelsrcMcpServer {
 #[tool_router]
 impl PixelsrcMcpServer {
     pub fn new() -> Self {
-        Self {
-            tool_router: Self::tool_router(),
-        }
+        Self { tool_router: Self::tool_router() }
     }
 }
 

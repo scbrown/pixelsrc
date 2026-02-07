@@ -7,7 +7,8 @@ use crate::models::Palette;
 use std::collections::HashMap;
 
 /// List of all available built-in palette names.
-const BUILTIN_NAMES: &[&str] = &["gameboy", "nes", "pico8", "grayscale", "1bit", "dracula", "synthwave"];
+const BUILTIN_NAMES: &[&str] =
+    &["gameboy", "nes", "pico8", "grayscale", "1bit", "dracula", "synthwave"];
 
 /// Returns a list of all available built-in palette names.
 pub fn list_builtins() -> Vec<&'static str> {

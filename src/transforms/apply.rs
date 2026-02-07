@@ -153,19 +153,13 @@ pub fn apply_image_transform(
             message: "animation transforms cannot be applied to images".to_string(),
         }),
         Transform::Outline { token, width } => {
-            let color = resolve_token_color(
-                token.as_deref(),
-                palette,
-                image::Rgba([0, 0, 0, 255]),
-            )?;
+            let color =
+                resolve_token_color(token.as_deref(), palette, image::Rgba([0, 0, 0, 255]))?;
             Ok(apply_outline(image, color, *width))
         }
         Transform::Shadow { x, y, token } => {
-            let color = resolve_token_color(
-                token.as_deref(),
-                palette,
-                image::Rgba([0, 0, 0, 128]),
-            )?;
+            let color =
+                resolve_token_color(token.as_deref(), palette, image::Rgba([0, 0, 0, 128]))?;
             Ok(apply_shadow(image, *x, *y, color))
         }
         // Color-based transforms not yet implemented
@@ -216,15 +210,12 @@ fn apply_outline(image: &RgbaImage, color: image::Rgba<u8>, width: u32) -> RgbaI
 
             if near_opaque {
                 // Check if the source pixel at this position is transparent
-                let is_transparent = if src_x >= 0
-                    && src_x < w as i32
-                    && src_y >= 0
-                    && src_y < h as i32
-                {
-                    image.get_pixel(src_x as u32, src_y as u32)[3] == 0
-                } else {
-                    true
-                };
+                let is_transparent =
+                    if src_x >= 0 && src_x < w as i32 && src_y >= 0 && src_y < h as i32 {
+                        image.get_pixel(src_x as u32, src_y as u32)[3] == 0
+                    } else {
+                        true
+                    };
 
                 if is_transparent {
                     result.put_pixel(x, y, color);
@@ -695,12 +686,9 @@ mod tests {
         let mut img = RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 0, 0]));
         img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Outline { token: None, width: 1 },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Outline { token: None, width: 1 }, None)
+                .unwrap();
 
         // Canvas expands by 1 on each side: 2+2=4 x 2+2=4
         assert_eq!(result.dimensions(), (4, 4));
@@ -753,12 +741,9 @@ mod tests {
     fn test_apply_outline_width_2() {
         let img = RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Outline { token: None, width: 2 },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Outline { token: None, width: 2 }, None)
+                .unwrap();
 
         // 1x1 + 2 padding each side = 5x5
         assert_eq!(result.dimensions(), (5, 5));
@@ -785,12 +770,9 @@ mod tests {
     fn test_apply_outline_fully_transparent_image() {
         let img = RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 0, 0]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Outline { token: None, width: 1 },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Outline { token: None, width: 1 }, None)
+                .unwrap();
 
         // Canvas expands but no outline pixels (no opaque source pixels)
         assert_eq!(result.dimensions(), (4, 4));
@@ -823,12 +805,9 @@ mod tests {
         // 2x2 fully opaque red image
         let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Shadow { x: 1, y: 1, token: None },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Shadow { x: 1, y: 1, token: None }, None)
+                .unwrap();
 
         // Expand right by 1, down by 1: 3x3
         assert_eq!(result.dimensions(), (3, 3));
@@ -853,12 +832,9 @@ mod tests {
     fn test_apply_shadow_negative_offset() {
         let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Shadow { x: -1, y: -1, token: None },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Shadow { x: -1, y: -1, token: None }, None)
+                .unwrap();
 
         // Expand left by 1, up by 1: 3x3
         assert_eq!(result.dimensions(), (3, 3));
@@ -901,12 +877,9 @@ mod tests {
         let mut img = RgbaImage::from_pixel(2, 1, image::Rgba([0, 0, 0, 0]));
         img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Shadow { x: 1, y: 0, token: None },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Shadow { x: 1, y: 0, token: None }, None)
+                .unwrap();
 
         // 2+1 = 3x1
         assert_eq!(result.dimensions(), (3, 1));
@@ -926,12 +899,9 @@ mod tests {
     fn test_apply_shadow_zero_offset() {
         let img = RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
 
-        let result = apply_image_transform(
-            &img,
-            &Transform::Shadow { x: 0, y: 0, token: None },
-            None,
-        )
-        .unwrap();
+        let result =
+            apply_image_transform(&img, &Transform::Shadow { x: 0, y: 0, token: None }, None)
+                .unwrap();
 
         // No expansion needed
         assert_eq!(result.dimensions(), (2, 2));

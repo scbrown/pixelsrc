@@ -649,7 +649,16 @@ pub fn run() -> ExitCode {
         Commands::Agent { action } => agent::run_agent(action),
         Commands::Scaffold { action } => scaffold::run_scaffold(action),
         Commands::Draw { input, sprite, set, erase, rect, line, output, dry_run } => {
-            draw::run_draw(&input, sprite.as_deref(), &set, &erase, &rect, &line, output.as_deref(), dry_run)
+            draw::run_draw(
+                &input,
+                sprite.as_deref(),
+                &set,
+                &erase,
+                &rect,
+                &line,
+                output.as_deref(),
+                dry_run,
+            )
         }
     }
 }

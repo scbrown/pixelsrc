@@ -328,7 +328,10 @@ pub fn run_agent_verify(
             let error_json = serde_json::json!({
                 "error": format!("Failed to read from stdin: {}", e)
             });
-            println!("{}", serde_json::to_string_pretty(&error_json).expect("JSON value serialization"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&error_json).expect("JSON value serialization")
+            );
             return ExitCode::from(EXIT_ERROR);
         }
         buffer
@@ -336,7 +339,10 @@ pub fn run_agent_verify(
         let error_json = serde_json::json!({
             "error": "No content provided. Use --content or provide input via stdin."
         });
-        println!("{}", serde_json::to_string_pretty(&error_json).expect("JSON value serialization"));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&error_json).expect("JSON value serialization")
+        );
         return ExitCode::from(EXIT_INVALID_ARGS);
     };
 
@@ -494,7 +500,11 @@ pub fn run_agent_verify(
     }
 
     // Output JSON result
-    println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(result)).expect("JSON value serialization"));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::Value::Object(result))
+            .expect("JSON value serialization")
+    );
 
     if verification.valid {
         ExitCode::from(EXIT_SUCCESS)

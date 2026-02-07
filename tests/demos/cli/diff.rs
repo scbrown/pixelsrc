@@ -221,7 +221,7 @@ fn test_diff_empty_to_content() {
 
     // Should detect both dimension and content changes
     assert!(
-        diff.dimension_change.is_some() || !diff.grid_changes.is_empty(),
+        diff.dimension_change.is_some() || !diff.palette_changes.is_empty(),
         "Should detect changes from empty to content"
     );
 }

@@ -647,7 +647,8 @@ fn render_composition_to_image(
             if let Some(sprite) = original_sprite {
                 if let PaletteRef::Named(name) = &sprite.palette {
                     if is_include_ref(name) {
-                        let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
+                        let include_path =
+                            extract_include_path(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
@@ -819,7 +820,8 @@ fn run_animation_render(
         // Resolve base palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
+                let include_path =
+                    extract_include_path(name).expect("is_include_ref validated prefix");
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,
@@ -890,7 +892,8 @@ fn run_animation_render(
                 // Resolve palette
                 let resolved = match &sprite.palette {
                     PaletteRef::Named(name) if is_include_ref(name) => {
-                        let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
+                        let include_path =
+                            extract_include_path(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
@@ -1081,7 +1084,8 @@ fn run_atlas_render(
         // Resolve palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path = extract_include_path(name).expect("is_include_ref validated prefix");
+                let include_path =
+                    extract_include_path(name).expect("is_include_ref validated prefix");
                 match resolve_include_with_detection(include_path, input_dir, include_visited) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,

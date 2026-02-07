@@ -3,7 +3,6 @@
 //! Provides tools for comparing sprites and detecting differences in:
 //! - Dimensions (width, height)
 //! - Palette colors (added, removed, changed tokens)
-//! - Grid content (row-by-row changes)
 
 use crate::models::{PaletteRef, Sprite, TtpObject};
 use crate::parser::parse_stream;
@@ -19,8 +18,6 @@ pub struct SpriteDiff {
     pub dimension_change: Option<DimensionChange>,
     /// Changes to palette colors
     pub palette_changes: Vec<PaletteChange>,
-    /// Changes to grid content
-    pub grid_changes: Vec<GridChange>,
     /// Human-readable summary of the diff
     pub summary: String,
 }
@@ -28,9 +25,7 @@ pub struct SpriteDiff {
 impl SpriteDiff {
     /// Returns true if there are no differences
     pub fn is_empty(&self) -> bool {
-        self.dimension_change.is_none()
-            && self.palette_changes.is_empty()
-            && self.grid_changes.is_empty()
+        self.dimension_change.is_none() && self.palette_changes.is_empty()
     }
 }
 
@@ -52,15 +47,6 @@ pub enum PaletteChange {
     Removed { token: String },
     /// Token color was changed
     Changed { token: String, old_color: String, new_color: String },
-}
-
-/// A change to a grid row
-#[derive(Debug, Clone)]
-pub struct GridChange {
-    /// Row number (0-indexed)
-    pub row: usize,
-    /// Human-readable description of the change
-    pub description: String,
 }
 
 /// Context for sprite comparison, containing resolved palettes
@@ -97,7 +83,6 @@ pub fn diff_sprites(
     palette_b: &HashMap<String, String>,
 ) -> SpriteDiff {
     let mut palette_changes = Vec::new();
-    let grid_changes = Vec::new();
 
     // Compare dimensions
     let dim_a = get_sprite_dimensions(a);
@@ -152,13 +137,10 @@ pub fn diff_sprites(
         token_a.cmp(token_b)
     });
 
-    // Grid comparison is no longer available (grid format deprecated)
-    // grid_changes will always be empty
-
     // Generate summary
-    let summary = generate_summary(&dimension_change, &palette_changes, &grid_changes);
+    let summary = generate_summary(&dimension_change, &palette_changes);
 
-    SpriteDiff { dimension_change, palette_changes, grid_changes, summary }
+    SpriteDiff { dimension_change, palette_changes, summary }
 }
 
 /// Get sprite dimensions from size field
@@ -175,7 +157,6 @@ fn get_sprite_dimensions(sprite: &Sprite) -> (u32, u32) {
 fn generate_summary(
     dimension_change: &Option<DimensionChange>,
     palette_changes: &[PaletteChange],
-    grid_changes: &[GridChange],
 ) -> String {
     let mut parts = Vec::new();
 
@@ -203,10 +184,6 @@ fn generate_summary(
             palette_parts.push(format!("~{} color(s)", changed_count));
         }
         parts.push(format!("Palette: {}", palette_parts.join(", ")));
-    }
-
-    if !grid_changes.is_empty() {
-        parts.push(format!("Grid: {} row(s) changed", grid_changes.len()));
     }
 
     if parts.is_empty() {
@@ -287,7 +264,7 @@ pub fn diff_files(path_a: &Path, path_b: &Path) -> Result<Vec<(String, SpriteDif
                     SpriteDiff {
                         dimension_change: None,
                         palette_changes: Vec::new(),
-                        grid_changes: Vec::new(),
+
                         summary: format!("Sprite '{}' removed in second file", name),
                     },
                 ));
@@ -299,7 +276,7 @@ pub fn diff_files(path_a: &Path, path_b: &Path) -> Result<Vec<(String, SpriteDif
                     SpriteDiff {
                         dimension_change: None,
                         palette_changes: Vec::new(),
-                        grid_changes: Vec::new(),
+
                         summary: format!("Sprite '{}' added in second file", name),
                     },
                 ));
@@ -348,15 +325,6 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
         }
     }
 
-    // Grid changes
-    if !diff.grid_changes.is_empty() {
-        output.push(String::new());
-        output.push("Grid changes:".to_string());
-        for change in &diff.grid_changes {
-            output.push(format!("  Row {}: {}", change.row + 1, change.description));
-        }
-    }
-
     // Summary
     output.push(String::new());
     output.push(format!("Summary: {}", diff.summary));
@@ -396,7 +364,7 @@ mod tests {
         assert!(diff.is_empty());
         assert!(diff.dimension_change.is_none());
         assert!(diff.palette_changes.is_empty());
-        assert!(diff.grid_changes.is_empty());
+        assert!(diff.palette_changes.is_empty());
     }
 
     #[test]

@@ -274,7 +274,8 @@ impl ImportResult {
                     .filter_map(|(token, region)| {
                         // Apply half-sprite filtering if enabled
                         let filtered_region = if apply_half_sprite {
-                            let sym = symmetry.expect("symmetry is Some when apply_half_sprite is true");
+                            let sym =
+                                symmetry.expect("symmetry is Some when apply_half_sprite is true");
                             let filtered = filter_structured_region_for_half_sprite(
                                 region,
                                 sym,
@@ -308,7 +309,8 @@ impl ImportResult {
                     .filter_map(|(token, points)| {
                         // Apply half-sprite filtering if enabled
                         let filtered_points = if apply_half_sprite {
-                            let sym = symmetry.expect("symmetry is Some when apply_half_sprite is true");
+                            let sym =
+                                symmetry.expect("symmetry is Some when apply_half_sprite is true");
                             let pts =
                                 filter_points_for_half_sprite(points, sym, self.width, self.height);
                             // Skip empty regions

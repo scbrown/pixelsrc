@@ -43,10 +43,12 @@ fn parse_rect_arg(arg: &str) -> Result<DrawOp, String> {
         ));
     }
 
-    let x: usize = parts[0].trim().parse().map_err(|_| format!("invalid x '{}'", parts[0].trim()))?;
-    let y: usize = parts[1].trim().parse().map_err(|_| format!("invalid y '{}'", parts[1].trim()))?;
-    let w: usize = parts[2].trim().parse().map_err(|_| format!("invalid width '{}'", parts[2].trim()))?;
-    let h: usize = parts[3].trim().parse().map_err(|_| format!("invalid height '{}'", parts[3].trim()))?;
+    let x: u32 = parts[0].trim().parse().map_err(|_| format!("invalid x '{}'", parts[0].trim()))?;
+    let y: u32 = parts[1].trim().parse().map_err(|_| format!("invalid y '{}'", parts[1].trim()))?;
+    let w: u32 =
+        parts[2].trim().parse().map_err(|_| format!("invalid width '{}'", parts[2].trim()))?;
+    let h: u32 =
+        parts[3].trim().parse().map_err(|_| format!("invalid height '{}'", parts[3].trim()))?;
 
     let token = parse_token(token_part)?;
 
@@ -54,19 +56,14 @@ fn parse_rect_arg(arg: &str) -> Result<DrawOp, String> {
 }
 
 /// Parse `x,y` coordinate string.
-fn parse_coords(s: &str) -> Result<(usize, usize), String> {
-    let (x_str, y_str) = s
-        .split_once(',')
-        .ok_or_else(|| format!("invalid coordinates '{}', expected x,y", s))?;
+fn parse_coords(s: &str) -> Result<(u32, u32), String> {
+    let (x_str, y_str) =
+        s.split_once(',').ok_or_else(|| format!("invalid coordinates '{}', expected x,y", s))?;
 
-    let x: usize = x_str
-        .trim()
-        .parse()
-        .map_err(|_| format!("invalid x coordinate '{}'", x_str.trim()))?;
-    let y: usize = y_str
-        .trim()
-        .parse()
-        .map_err(|_| format!("invalid y coordinate '{}'", y_str.trim()))?;
+    let x: u32 =
+        x_str.trim().parse().map_err(|_| format!("invalid x coordinate '{}'", x_str.trim()))?;
+    let y: u32 =
+        y_str.trim().parse().map_err(|_| format!("invalid y coordinate '{}'", y_str.trim()))?;
 
     Ok((x, y))
 }
@@ -87,9 +84,9 @@ fn parse_token(s: &str) -> Result<String, String> {
 
 /// Parse a `--line` argument: `x1,y1,x2,y2="{token}"` or `x1,y1,x2,y2={token}`.
 fn parse_line_arg(arg: &str) -> Result<DrawOp, String> {
-    let (coords, token_part) = arg
-        .split_once('=')
-        .ok_or_else(|| format!("invalid --line format '{}', expected x1,y1,x2,y2={{token}}", arg))?;
+    let (coords, token_part) = arg.split_once('=').ok_or_else(|| {
+        format!("invalid --line format '{}', expected x1,y1,x2,y2={{token}}", arg)
+    })?;
 
     let parts: Vec<&str> = coords.split(',').collect();
     if parts.len() != 4 {
@@ -99,19 +96,19 @@ fn parse_line_arg(arg: &str) -> Result<DrawOp, String> {
         ));
     }
 
-    let x0: usize = parts[0]
+    let x0: u32 = parts[0]
         .trim()
         .parse()
         .map_err(|_| format!("invalid x1 coordinate '{}'", parts[0].trim()))?;
-    let y0: usize = parts[1]
+    let y0: u32 = parts[1]
         .trim()
         .parse()
         .map_err(|_| format!("invalid y1 coordinate '{}'", parts[1].trim()))?;
-    let x1: usize = parts[2]
+    let x1: u32 = parts[2]
         .trim()
         .parse()
         .map_err(|_| format!("invalid x2 coordinate '{}'", parts[2].trim()))?;
-    let y1: usize = parts[3]
+    let y1: u32 = parts[3]
         .trim()
         .parse()
         .map_err(|_| format!("invalid y2 coordinate '{}'", parts[3].trim()))?;
@@ -122,7 +119,12 @@ fn parse_line_arg(arg: &str) -> Result<DrawOp, String> {
 }
 
 /// Collect all draw operations from CLI args.
-fn collect_ops(set_args: &[String], erase_args: &[String], rect_args: &[String], line_args: &[String]) -> Result<Vec<DrawOp>, String> {
+fn collect_ops(
+    set_args: &[String],
+    erase_args: &[String],
+    rect_args: &[String],
+    line_args: &[String],
+) -> Result<Vec<DrawOp>, String> {
     let mut ops = Vec::new();
     for arg in set_args {
         ops.push(parse_set_arg(arg)?);
