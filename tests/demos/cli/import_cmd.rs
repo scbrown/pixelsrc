@@ -75,6 +75,7 @@ fn create_checkerboard_transparent() -> RgbaImage {
 // ============================================================================
 // Basic Import Tests
 // ============================================================================
+/// @demo cli/core#import
 /// @demo cli/import#basic
 /// @title Basic PNG Import
 /// @description Imports PNG to JSONL with palette and sprite.

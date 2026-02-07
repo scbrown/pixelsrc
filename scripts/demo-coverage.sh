@@ -26,12 +26,12 @@
 #   85%  - Target for Wave 3 completion
 #   95%  - Full feature coverage goal
 #
-# Feature Categories (84 total):
+# Feature Categories (81 total):
 #   Core Format:    sprites(8), transforms(6), animation(6), composition(5)
 #   Palette:        palette-cycling(4)
 #   I/O:            imports(4), exports(10)
 #   Build:          build-system(5)
-#   CLI:            cli-core(3), cli-format(4), cli-analysis(5),
+#   CLI:            cli-core(3), cli-format(3), cli-analysis(3),
 #                   cli-project(3), cli-info(3)
 #   CSS:            css-colors(7), css-variables(4), css-timing(3),
 #                   css-keyframes(4)
@@ -183,13 +183,10 @@ cli-core|validate command|cli/core#validate
 cli-format|fmt command|cli/format#fmt
 cli-format|show command|cli/format#show
 cli-format|explain command|cli/format#explain
-cli-format|inline command|cli/format#inline
 
 # CLI Analysis
 cli-analysis|diff command|cli/analysis#diff
 cli-analysis|suggest command|cli/analysis#suggest
-cli-analysis|alias command|cli/analysis#alias
-cli-analysis|grid command|cli/analysis#grid
 cli-analysis|analyze command|cli/analysis#analyze
 
 # CLI Project

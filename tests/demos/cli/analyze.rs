@@ -25,6 +25,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // Token Counter Tests
 // ============================================================================
+/// @demo cli/analysis#analyze
 /// @demo cli/analyze#token_frequency
 /// @title Token Frequency Analysis
 /// @description Counts occurrences of each token in the corpus.

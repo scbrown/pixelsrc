@@ -30,7 +30,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 20](./build-system.md) | **Build System** (`pxl.toml`, `pxl init`, `pxl build`) | Complete |
 | [Phase 21](./mdbook.md) | **mdbook Documentation** (exhaustive docs, WASM demos, playground) | Complete |
 | [Phase 22](./css.md) | **CSS Integration** (colors, variables, easing, keyframes, transforms) | Complete |
-| [Phase 23](./demo-tests.md) | **Demo Tests** (integration tests as docs, feature coverage, regression prevention) | In Progress |
+| [Phase 23](./demo-tests.md) | **Demo Tests** (integration tests as docs, feature coverage, regression prevention) | Complete |
 | [Phase 24](./lsp.md) | **LSP Support** (diagnostics, completions, hover, symbols, agent client) | Complete |
 | [Python Bindings](./python-bindings.md) | **Python Package** (PyO3 + maturin, PyPI wheels, type stubs) | Complete |
 | [Antialiasing](./phase-semantic-antialiasing.md) | **Semantic Antialiasing** (HQx, xBR, Scale2x, gradient-aware upscaling) | Complete |

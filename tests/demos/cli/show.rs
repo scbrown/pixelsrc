@@ -9,6 +9,7 @@ use std::collections::HashMap;
 // ============================================================================
 // Coordinate Grid Tests
 // ============================================================================
+/// @demo cli/format#show
 /// @demo cli/show#coordinates
 /// @title Show with Coordinates
 /// @description Coordinate grid display for debugging positions.

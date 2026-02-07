@@ -45,6 +45,7 @@ fn validate_with_issues(jsonl: &str) -> Vec<String> {
 // ============================================================================
 // Basic Validation Tests
 // ============================================================================
+/// @demo cli/core#validate
 /// @demo cli/validate#invalid_json
 /// @title Invalid JSON Detection
 /// @description `pxl validate` reports invalid JSON syntax errors.
