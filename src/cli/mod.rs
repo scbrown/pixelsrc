@@ -451,6 +451,11 @@ pub enum Commands {
     #[command(hide = true)]
     Lsp,
 
+    /// Start the MCP (Model Context Protocol) server (for AI tool integration)
+    #[cfg(feature = "mcp")]
+    #[command(hide = true)]
+    Mcp,
+
     /// Agent-mode validation and diagnostics (for AI/CLI integration)
     Agent {
         /// Subcommand: verify, completions, position
@@ -596,6 +601,8 @@ pub fn run() -> ExitCode {
         }
         #[cfg(feature = "lsp")]
         Commands::Lsp => agent::run_lsp(),
+        #[cfg(feature = "mcp")]
+        Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
     }
 }
