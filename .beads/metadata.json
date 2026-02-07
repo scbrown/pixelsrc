@@ -4,5 +4,7 @@
   "backend": "dolt",
   "dolt_server_host": "dolt.lan",
   "dolt_server_port": 3306,
-  "dolt_database": "beads"
+  "dolt_database": "beads",
+  "prefix": "TTP-",
+  "role": "pixelsrc/crew/goldblum"
 }

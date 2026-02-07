@@ -35,6 +35,9 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Python Bindings](./python-bindings.md) | **Python Package** (PyO3 + maturin, PyPI wheels, type stubs) | Complete |
 | [Antialiasing](./phase-semantic-antialiasing.md) | **Semantic Antialiasing** (HQx, xBR, Scale2x, gradient-aware upscaling) | Complete |
 | [crates.io](n/a) | **Cargo Publish** (CI workflow, trusted publisher) | Complete |
+| [DT: Scaffold](./drafting-table-scaffold.md) | **`pxl scaffold`** (generate skeleton .pxl structures) | Planning |
+| [DT: Draw](./drafting-table-draw.md) | **`pxl draw`** (coordinate-based sprite editing) | Planning |
+| [DT: Mask](./drafting-table-mask.md) | **`pxl mask`** (read-only sprite state queries) | Planning |
 
 ### Future Ideas
 
