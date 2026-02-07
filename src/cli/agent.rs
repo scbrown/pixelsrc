@@ -74,6 +74,28 @@ pub fn run_lsp() -> ExitCode {
     ExitCode::from(EXIT_SUCCESS)
 }
 
+/// Execute the MCP server command
+#[cfg(feature = "mcp")]
+pub fn run_mcp() -> ExitCode {
+    use tokio::runtime::Runtime;
+
+    let rt = match Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Error: Failed to create async runtime: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    match rt.block_on(crate::mcp::run_server()) {
+        Ok(()) => ExitCode::from(EXIT_SUCCESS),
+        Err(e) => {
+            eprintln!("Error: MCP server failed: {}", e);
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
+}
+
 /// Execute agent command (verify, completions, position)
 pub fn run_agent(action: AgentAction) -> ExitCode {
     use crate::lsp_agent_client::LspAgentClient;
