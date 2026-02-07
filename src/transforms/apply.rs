@@ -203,11 +203,10 @@ fn apply_outline(image: &RgbaImage, color: image::Rgba<u8>, width: u32) -> RgbaI
                 for dx in -wi..=wi {
                     let sx = src_x + dx;
                     let sy = src_y + dy;
-                    if sx >= 0 && sx < w as i32 && sy >= 0 && sy < h as i32 {
-                        if image.get_pixel(sx as u32, sy as u32)[3] > 0 {
+                    if sx >= 0 && sx < w as i32 && sy >= 0 && sy < h as i32
+                        && image.get_pixel(sx as u32, sy as u32)[3] > 0 {
                             near_opaque = true;
                             break;
-                        }
                     }
                 }
                 if near_opaque {

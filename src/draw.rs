@@ -381,7 +381,7 @@ impl DrawPipeline {
 
         // Run through the formatter for canonical output
         let formatted = format_pixelsrc(&raw_content)
-            .map_err(|e| DrawError::FormatError(e))?;
+            .map_err(DrawError::FormatError)?;
 
         Ok(DrawResult { content: formatted, modified: true, warnings: self.warnings.clone() })
     }
