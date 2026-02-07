@@ -1,0 +1,7 @@
+{"type": "palette", "name": "banner", "colors": {"{_}": "#00000000", "{c}": "#8BE9FD", "{p}": "#BD93F9", "{x}": "#50FA7B", "{l}": "#FFB86C", "{k}": "#FF79C6"}}
+{"type": "sprite", "name": "bracket_l", "size": [3, 8], "palette": "banner", "regions": {"{k}": {"points": [[1,1],[2,1],[1,2],[0,3],[1,3],[1,4],[1,5],[1,6],[2,6]]}}}
+{"type": "sprite", "name": "letter_p", "size": [3, 8], "palette": "banner", "regions": {"{p}": {"points": [[0,1],[1,1],[0,2],[2,2],[0,3],[1,3],[0,4],[0,5]]}}}
+{"type": "sprite", "name": "letter_x", "size": [3, 8], "palette": "banner", "regions": {"{x}": {"points": [[0,1],[2,1],[0,2],[2,2],[1,3],[0,4],[2,4],[0,5],[2,5]]}}}
+{"type": "sprite", "name": "letter_l", "size": [3, 8], "palette": "banner", "regions": {"{l}": {"points": [[0,1],[0,2],[0,3],[0,4],[0,5],[1,5],[2,5]]}}}
+{"type": "sprite", "name": "bracket_r", "size": [2, 8], "palette": "banner", "regions": {"{k}": {"points": [[0,1],[1,2],[0,3],[1,4],[1,5],[0,6]]}}}
+{"type": "composition", "name": "banner_pxl", "size": [18, 8], "cell_size": [2, 8], "sprites": {"{": "bracket_l", "p": "letter_p", "x": "letter_x", "l": "letter_l", "}": "bracket_r", ".": null}, "layers": [{"map": ["{.p.x.l.}"]}]}
