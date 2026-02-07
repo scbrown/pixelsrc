@@ -195,6 +195,257 @@ fn generate_animation_template(name: &str, palette: &str) -> String {
     )
 }
 
+// ============================================================================
+// Scaffold generators (for `pxl scaffold` CLI)
+// ============================================================================
+
+/// Generate a complete sprite scaffold with palette and grid.
+///
+/// Produces a self-contained .pxl string with a palette definition followed by
+/// a sprite definition with an all-transparent grid.
+pub fn generate_sprite(
+    name: &str,
+    width: u32,
+    height: u32,
+    palette_name: Option<&str>,
+    tokens: &[String],
+) -> String {
+    let pal_name = palette_name
+        .map(|p| format!("{}_palette", p))
+        .unwrap_or_else(|| format!("{}_palette", name));
+
+    // Build palette colors
+    let mut colors = Vec::new();
+    colors.push(("_".to_string(), "#00000000".to_string()));
+
+    if tokens.is_empty() {
+        // Minimal palette with just transparency
+    } else {
+        // Generate colors spread across the hue wheel
+        for (i, token) in tokens.iter().enumerate() {
+            let hue = (i as f64 / tokens.len() as f64) * 360.0;
+            let color = hsl_to_hex(hue, 0.7, 0.5);
+            colors.push((token.clone(), color));
+        }
+    }
+
+    // Build palette JSON
+    let color_entries: Vec<String> = colors
+        .iter()
+        .map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex))
+        .collect();
+
+    let palette_json = format!(
+        "{{\n  \"type\": \"palette\",\n  \"name\": \"{}\",\n  \"colors\": {{\n{}\n  }}\n}}",
+        pal_name,
+        color_entries.join(",\n")
+    );
+
+    // Build grid (all transparent)
+    let row = format!("\"{}\"", "{_}".repeat(width as usize));
+    let rows: Vec<String> = (0..height).map(|_| format!("    {}", row)).collect();
+
+    let sprite_json = format!(
+        "{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"grid\": [\n{}\n  ]\n}}",
+        name, width, height, pal_name,
+        rows.join(",\n")
+    );
+
+    format!("{}\n\n{}\n", palette_json, sprite_json)
+}
+
+/// Generate a composition scaffold with tile sprites.
+///
+/// Returns an error if the number of required tiles exceeds 62 (A-Z + a-z + 0-9).
+pub fn generate_composition(
+    name: &str,
+    total_w: u32,
+    total_h: u32,
+    cell_w: u32,
+    cell_h: u32,
+    palette_name: Option<&str>,
+) -> Result<String, String> {
+    let cols = total_w / cell_w;
+    let rows = total_h / cell_h;
+    let tile_count = cols * rows;
+
+    if tile_count > 62 {
+        return Err(format!(
+            "composition requires {} tiles but maximum is 62 (A-Z + a-z + 0-9)",
+            tile_count
+        ));
+    }
+
+    let pal_name = palette_name
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("{}_palette", name));
+
+    // Symbol assignment: A-Z, a-z, 0-9
+    let symbols: Vec<char> = ('A'..='Z').chain('a'..='z').chain('0'..='9').collect();
+
+    let mut output = String::new();
+
+    // Palette
+    output.push_str(&format!(
+        "{{\n  \"type\": \"palette\",\n  \"name\": \"{}\",\n  \"colors\": {{\n    \"{{_}}\": \"#00000000\"\n  }}\n}}\n",
+        pal_name
+    ));
+
+    // Generate tile sprites
+    let transparent_row = format!("\"{}\"", "{_}".repeat(cell_w as usize));
+    let grid_rows: Vec<String> = (0..cell_h)
+        .map(|_| format!("    {}", transparent_row))
+        .collect();
+    let grid_str = grid_rows.join(",\n");
+
+    let mut sprite_map = Vec::new();
+    for row in 0..rows {
+        for col in 0..cols {
+            let idx = (row * cols + col) as usize;
+            let symbol = symbols[idx];
+            let tile_name = format!("tile_{}_{}", col, row);
+
+            output.push_str(&format!(
+                "\n{{\n  \"type\": \"sprite\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"palette\": \"{}\",\n  \"grid\": [\n{}\n  ]\n}}\n",
+                tile_name, cell_w, cell_h, pal_name, grid_str
+            ));
+
+            sprite_map.push((symbol, tile_name));
+        }
+    }
+
+    // Build sprites map entries
+    let sprite_entries: Vec<String> = sprite_map
+        .iter()
+        .map(|(sym, name)| format!("    \"{}\": \"{}\"", sym, name))
+        .collect();
+
+    // Build character map
+    let mut map_rows = Vec::new();
+    for row in 0..rows {
+        let mut map_row = String::new();
+        for col in 0..cols {
+            let idx = (row * cols + col) as usize;
+            map_row.push(symbols[idx]);
+        }
+        map_rows.push(format!("      \"{}\"", map_row));
+    }
+
+    output.push_str(&format!(
+        "\n{{\n  \"type\": \"composition\",\n  \"name\": \"{}\",\n  \"size\": [{}, {}],\n  \"cell_size\": [{}, {}],\n  \"sprites\": {{\n{}\n  }},\n  \"layers\": [{{\n    \"map\": [\n{}\n    ]\n  }}]\n}}\n",
+        name, total_w, total_h, cell_w, cell_h,
+        sprite_entries.join(",\n"),
+        map_rows.join(",\n")
+    ));
+
+    Ok(output)
+}
+
+/// Generate a palette scaffold from a preset name or color list.
+pub fn generate_palette_scaffold(
+    name: &str,
+    preset: Option<&str>,
+    colors: Option<&str>,
+    token_prefix: &str,
+) -> Result<String, String> {
+    let mut color_map: Vec<(String, String)> = Vec::new();
+    color_map.push(("_".to_string(), "#00000000".to_string()));
+
+    if let Some(preset_name) = preset {
+        let preset_colors = get_preset_colors(preset_name)?;
+        color_map.extend(preset_colors);
+    } else if let Some(color_list) = colors {
+        let hex_colors: Vec<&str> = color_list.split(',').map(|s| s.trim()).collect();
+        for (i, hex) in hex_colors.iter().enumerate() {
+            // Validate hex color
+            if !hex.starts_with('#') || (hex.len() != 7 && hex.len() != 9) {
+                return Err(format!("invalid hex color '{}', expected #RRGGBB or #RRGGBBAA", hex));
+            }
+            let token = format!("{}{}", token_prefix, i + 1);
+            color_map.push((token, hex.to_string()));
+        }
+    }
+
+    let color_entries: Vec<String> = color_map
+        .iter()
+        .map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex))
+        .collect();
+
+    let output = format!(
+        "{{\n  \"type\": \"palette\",\n  \"name\": \"{}\",\n  \"colors\": {{\n{}\n  }}\n}}\n",
+        name,
+        color_entries.join(",\n")
+    );
+
+    Ok(output)
+}
+
+/// Get colors for a built-in palette preset.
+fn get_preset_colors(name: &str) -> Result<Vec<(String, String)>, String> {
+    match name {
+        "forest" => Ok(vec![
+            ("trunk".into(), "#8B4513".into()),
+            ("bark".into(), "#654321".into()),
+            ("leaf".into(), "#228B22".into()),
+            ("moss".into(), "#6B8E23".into()),
+            ("sky".into(), "#87CEEB".into()),
+            ("earth".into(), "#8B7355".into()),
+        ]),
+        "medieval" => Ok(vec![
+            ("stone".into(), "#808080".into()),
+            ("iron".into(), "#434343".into()),
+            ("gold".into(), "#FFD700".into()),
+            ("leather".into(), "#8B4513".into()),
+            ("cloth".into(), "#800020".into()),
+            ("skin".into(), "#FFCC99".into()),
+        ]),
+        "synthwave" => Ok(vec![
+            ("neon_pink".into(), "#FF1493".into()),
+            ("neon_blue".into(), "#00BFFF".into()),
+            ("purple".into(), "#9400D3".into()),
+            ("dark_bg".into(), "#1A0033".into()),
+            ("grid".into(), "#FF00FF".into()),
+            ("sun".into(), "#FF6347".into()),
+        ]),
+        "ocean" => Ok(vec![
+            ("deep".into(), "#003366".into()),
+            ("water".into(), "#0077BE".into()),
+            ("wave".into(), "#00CED1".into()),
+            ("foam".into(), "#F0F8FF".into()),
+            ("sand".into(), "#F4A460".into()),
+            ("coral".into(), "#FF7F50".into()),
+        ]),
+        _ => {
+            Err(format!(
+                "unknown preset '{}'. Available presets: forest, medieval, synthwave, ocean",
+                name
+            ))
+        }
+    }
+}
+
+/// Convert HSL to hex color string.
+fn hsl_to_hex(hue: f64, saturation: f64, lightness: f64) -> String {
+    let c = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let x = c * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+    let m = lightness - c / 2.0;
+
+    let (r, g, b) = match hue as u32 {
+        0..=59 => (c, x, 0.0),
+        60..=119 => (x, c, 0.0),
+        120..=179 => (0.0, c, x),
+        180..=239 => (0.0, x, c),
+        240..=299 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+
+    let r = ((r + m) * 255.0).round() as u8;
+    let g = ((g + m) * 255.0).round() as u8;
+    let b = ((b + m) * 255.0).round() as u8;
+
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
+}
+
 /// Generate palette template content.
 fn generate_palette_template(name: &str) -> String {
     format!(

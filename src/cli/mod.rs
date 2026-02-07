@@ -10,6 +10,7 @@ mod explain;
 mod import;
 mod info;
 mod render;
+pub mod scaffold;
 mod show;
 mod validate;
 
@@ -22,6 +23,7 @@ use glob::glob;
 // Re-export subcommand types used in Commands enum
 pub use agent::AgentAction;
 pub use info::PaletteAction;
+pub use scaffold::ScaffoldAction;
 
 /// Exit codes per Pixelsrc spec
 pub(crate) const EXIT_SUCCESS: u8 = 0;
@@ -464,6 +466,12 @@ pub enum Commands {
         action: AgentAction,
     },
 
+    /// Generate valid skeleton .pxl structures (sprites, compositions, palettes)
+    Scaffold {
+        #[command(subcommand)]
+        action: ScaffoldAction,
+    },
+
     /// Modify sprites in a .pxl file using coordinate-based operations
     Draw {
         /// Input .pxl file to modify
@@ -639,6 +647,7 @@ pub fn run() -> ExitCode {
         #[cfg(feature = "mcp")]
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
+        Commands::Scaffold { action } => scaffold::run_scaffold(action),
         Commands::Draw { input, sprite, set, erase, rect, line, output, dry_run } => {
             draw::run_draw(&input, sprite.as_deref(), &set, &erase, &rect, &line, output.as_deref(), dry_run)
         }
