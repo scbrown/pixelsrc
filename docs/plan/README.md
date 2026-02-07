@@ -24,11 +24,11 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Phase 14](./phase-14-analyze.md) | **Corpus Analysis** (`pxl analyze` for usage metrics) | Complete |
 | [Phase 15](./phase-15-ai-tools.md) | **AI Assistance Tools** (`pxl prime`, `validate`, `suggest`) | Complete |
 | [Phase 16](./phase-16-pxl-format.md) | **.pxl Format** (multi-line JSON, `pxl fmt`) | Complete |
-| [Phase 17](./colored-grid-display.md) | **Colored Terminal Output** (`pxl show`, coordinate grids, alias management) | In Progress |
-| [Phase 18](./transforms.md) | **Sprite Transforms** (mirror, rotate, tile, outline, crop) | In Progress |
-| [Phase 19](./advanced-transforms.md) | **Advanced Texture Features** (palette cycling, color ramps, atlas export) | In Progress |
-| [Phase 20](./build-system.md) | **Build System** (`pxl.toml`, `pxl init`, `pxl build`) | In Progress |
-| [Phase 21](./mdbook.md) | **mdbook Documentation** (exhaustive docs, WASM demos, playground) | Not Started |
+| [Phase 17](./colored-grid-display.md) | **Colored Terminal Output** (`pxl show`, coordinate grids, alias management) | Obsolete (WONT-DO) |
+| [Phase 18](./transforms.md) | **Sprite Transforms** (mirror, rotate, tile, outline, crop) | Complete |
+| [Phase 19](./advanced-transforms.md) | **Advanced Texture Features** (palette cycling, color ramps, atlas export) | Complete |
+| [Phase 20](./build-system.md) | **Build System** (`pxl.toml`, `pxl init`, `pxl build`) | Complete |
+| [Phase 21](./mdbook.md) | **mdbook Documentation** (exhaustive docs, WASM demos, playground) | Complete |
 | [Phase 22](./css.md) | **CSS Integration** (colors, variables, easing, keyframes, transforms) | Complete |
 | [Phase 23](./demo-tests.md) | **Demo Tests** (integration tests as docs, feature coverage, regression prevention) | In Progress |
 
