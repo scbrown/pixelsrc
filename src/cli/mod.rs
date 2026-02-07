@@ -481,6 +481,10 @@ pub enum Commands {
         #[arg(long, value_name = "X,Y")]
         erase: Vec<String>,
 
+        /// Draw a line between two points: x1,y1,x2,y2="{token}" (e.g. --line 0,0,15,15="{rope}")
+        #[arg(long, value_name = "X1,Y1,X2,Y2={TOKEN}")]
+        line: Vec<String>,
+
         /// Output file (default: overwrite input)
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -631,8 +635,8 @@ pub fn run() -> ExitCode {
         #[cfg(feature = "mcp")]
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
-        Commands::Draw { input, sprite, set, erase, output, dry_run } => {
-            draw::run_draw(&input, sprite.as_deref(), &set, &erase, output.as_deref(), dry_run)
+        Commands::Draw { input, sprite, set, erase, line, output, dry_run } => {
+            draw::run_draw(&input, sprite.as_deref(), &set, &erase, &line, output.as_deref(), dry_run)
         }
     }
 }

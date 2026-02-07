@@ -61,14 +61,57 @@ fn parse_token(s: &str) -> Result<String, String> {
     Ok(s.to_string())
 }
 
+/// Parse a `--line` argument: `x1,y1,x2,y2="{token}"` or `x1,y1,x2,y2={token}`.
+fn parse_line_arg(arg: &str) -> Result<DrawOp, String> {
+    let (coords, token_part) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("invalid --line format '{}', expected x1,y1,x2,y2={{token}}", arg))?;
+
+    let parts: Vec<&str> = coords.split(',').collect();
+    if parts.len() != 4 {
+        return Err(format!(
+            "invalid --line coordinates '{}', expected x1,y1,x2,y2 (4 values)",
+            coords
+        ));
+    }
+
+    let x0: usize = parts[0]
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid x1 coordinate '{}'", parts[0].trim()))?;
+    let y0: usize = parts[1]
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid y1 coordinate '{}'", parts[1].trim()))?;
+    let x1: usize = parts[2]
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid x2 coordinate '{}'", parts[2].trim()))?;
+    let y1: usize = parts[3]
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid y2 coordinate '{}'", parts[3].trim()))?;
+
+    let token = parse_token(token_part)?;
+
+    Ok(DrawOp::Line { x0, y0, x1, y1, token })
+}
+
 /// Collect all draw operations from CLI args.
-fn collect_ops(set_args: &[String], erase_args: &[String]) -> Result<Vec<DrawOp>, String> {
+fn collect_ops(
+    set_args: &[String],
+    erase_args: &[String],
+    line_args: &[String],
+) -> Result<Vec<DrawOp>, String> {
     let mut ops = Vec::new();
     for arg in set_args {
         ops.push(parse_set_arg(arg)?);
     }
     for arg in erase_args {
         ops.push(parse_erase_arg(arg)?);
+    }
+    for arg in line_args {
+        ops.push(parse_line_arg(arg)?);
     }
     Ok(ops)
 }
@@ -79,11 +122,12 @@ pub fn run_draw(
     sprite: Option<&str>,
     set_args: &[String],
     erase_args: &[String],
+    line_args: &[String],
     output: Option<&Path>,
     dry_run: bool,
 ) -> ExitCode {
     // Parse operations first (fail fast on bad args)
-    let ops = match collect_ops(set_args, erase_args) {
+    let ops = match collect_ops(set_args, erase_args, line_args) {
         Ok(ops) => ops,
         Err(e) => {
             eprintln!("Error: {}", e);

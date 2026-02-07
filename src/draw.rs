@@ -7,6 +7,7 @@
 use crate::fmt::format_pixelsrc;
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
+use crate::shapes::rasterize_line;
 use std::io::Cursor;
 use std::path::Path;
 
@@ -66,6 +67,8 @@ pub enum DrawOp {
     Set { x: usize, y: usize, token: String },
     /// Erase a single cell (set to transparent): `--erase x,y`
     Erase { x: usize, y: usize },
+    /// Draw a line between two points: `--line x1,y1,x2,y2="{token}"`
+    Line { x0: usize, y0: usize, x1: usize, y1: usize, token: String },
 }
 
 /// A 2D grid of tokens parsed from `{token}` grid strings.
@@ -192,6 +195,22 @@ impl TokenGrid {
         match op {
             DrawOp::Set { x, y, token } => self.set(*x, *y, token.clone()),
             DrawOp::Erase { x, y } => self.erase(*x, *y),
+            DrawOp::Line { x0, y0, x1, y1, token } => {
+                let pixels = rasterize_line(
+                    (*x0 as i32, *y0 as i32),
+                    (*x1 as i32, *y1 as i32),
+                );
+                for (px, py) in pixels {
+                    if px >= 0
+                        && (px as usize) < self.width
+                        && py >= 0
+                        && (py as usize) < self.height
+                    {
+                        self.set(px as usize, py as usize, token.clone())?;
+                    }
+                }
+                Ok(())
+            }
         }
     }
 
@@ -845,5 +864,170 @@ mod tests {
         // Re-parse and verify palette is preserved
         let pipeline2 = DrawPipeline::load_from_string(&result.content, None).unwrap();
         assert_eq!(pipeline2.objects.len(), 2); // palette + sprite
+    }
+
+    // =========================================================================
+    // Line drawing tests
+    // =========================================================================
+
+    /// A 5x5 grid of transparent pixels for line drawing tests.
+    const LINE_GRID_PXL: &str = r##"{"type": "palette", "name": "pal", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}
+{"type": "sprite", "name": "canvas", "size": [5, 5], "palette": "pal", "grid": ["{_}{_}{_}{_}{_}", "{_}{_}{_}{_}{_}", "{_}{_}{_}{_}{_}", "{_}{_}{_}{_}{_}", "{_}{_}{_}{_}{_}"]}"##;
+
+    #[test]
+    fn test_line_horizontal() {
+        let rows: Vec<String> = (0..5).map(|_| "{_}{_}{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.apply(&DrawOp::Line { x0: 0, y0: 2, x1: 4, y1: 2, token: "x".to_string() })
+            .unwrap();
+
+        // Entire row 2 should be filled
+        for col in 0..5 {
+            assert_eq!(grid.get(col, 2), Some("x"), "col {} should be 'x'", col);
+        }
+        // Other rows untouched
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(0, 4), Some("_"));
+    }
+
+    #[test]
+    fn test_line_vertical() {
+        let rows: Vec<String> = (0..5).map(|_| "{_}{_}{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.apply(&DrawOp::Line { x0: 2, y0: 0, x1: 2, y1: 4, token: "x".to_string() })
+            .unwrap();
+
+        // Entire column 2 should be filled
+        for row in 0..5 {
+            assert_eq!(grid.get(2, row), Some("x"), "row {} should be 'x'", row);
+        }
+        // Other columns untouched
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(4, 4), Some("_"));
+    }
+
+    #[test]
+    fn test_line_diagonal() {
+        let rows: Vec<String> = (0..5).map(|_| "{_}{_}{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        grid.apply(&DrawOp::Line { x0: 0, y0: 0, x1: 4, y1: 4, token: "x".to_string() })
+            .unwrap();
+
+        // Diagonal should be filled
+        for i in 0..5 {
+            assert_eq!(grid.get(i, i), Some("x"), "({},{}) should be 'x'", i, i);
+        }
+        // Off-diagonal untouched
+        assert_eq!(grid.get(1, 0), Some("_"));
+        assert_eq!(grid.get(0, 1), Some("_"));
+    }
+
+    #[test]
+    fn test_line_single_pixel() {
+        let rows: Vec<String> = (0..3).map(|_| "{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Same start and end → single pixel
+        grid.apply(&DrawOp::Line { x0: 1, y0: 1, x1: 1, y1: 1, token: "x".to_string() })
+            .unwrap();
+
+        assert_eq!(grid.get(1, 1), Some("x"));
+        // Neighbors untouched
+        assert_eq!(grid.get(0, 0), Some("_"));
+        assert_eq!(grid.get(2, 2), Some("_"));
+    }
+
+    #[test]
+    fn test_line_reverse_direction() {
+        let rows: Vec<String> = (0..5).map(|_| "{_}{_}{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Draw from bottom-right to top-left
+        grid.apply(&DrawOp::Line { x0: 4, y0: 4, x1: 0, y1: 0, token: "x".to_string() })
+            .unwrap();
+
+        // Same diagonal as top-left to bottom-right
+        for i in 0..5 {
+            assert_eq!(grid.get(i, i), Some("x"), "({},{}) should be 'x'", i, i);
+        }
+    }
+
+    #[test]
+    fn test_line_anti_diagonal() {
+        let rows: Vec<String> = (0..5).map(|_| "{_}{_}{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Top-right to bottom-left
+        grid.apply(&DrawOp::Line { x0: 4, y0: 0, x1: 0, y1: 4, token: "x".to_string() })
+            .unwrap();
+
+        for i in 0..5 {
+            assert_eq!(grid.get(4 - i, i), Some("x"), "({},{}) should be 'x'", 4 - i, i);
+        }
+    }
+
+    #[test]
+    fn test_line_pipeline_integration() {
+        let mut pipeline =
+            DrawPipeline::load_from_string(LINE_GRID_PXL, Some("canvas")).unwrap();
+
+        pipeline
+            .apply_ops(&[DrawOp::Line {
+                x0: 0,
+                y0: 0,
+                x1: 4,
+                y1: 0,
+                token: "x".to_string(),
+            }])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        // Top row all filled
+        for col in 0..5 {
+            assert_eq!(grid.get(col, 0), Some("x"));
+        }
+        // Second row untouched
+        for col in 0..5 {
+            assert_eq!(grid.get(col, 1), Some("_"));
+        }
+    }
+
+    #[test]
+    fn test_line_combined_with_set() {
+        let mut pipeline =
+            DrawPipeline::load_from_string(LINE_GRID_PXL, Some("canvas")).unwrap();
+
+        // Draw a line, then overwrite one pixel
+        pipeline
+            .apply_ops(&[
+                DrawOp::Line { x0: 0, y0: 2, x1: 4, y1: 2, token: "x".to_string() },
+                DrawOp::Set { x: 2, y: 2, token: "_".to_string() },
+            ])
+            .unwrap();
+
+        let grid = pipeline.grid().unwrap();
+        assert_eq!(grid.get(0, 2), Some("x"));
+        assert_eq!(grid.get(1, 2), Some("x"));
+        assert_eq!(grid.get(2, 2), Some("_")); // overwritten
+        assert_eq!(grid.get(3, 2), Some("x"));
+        assert_eq!(grid.get(4, 2), Some("x"));
+    }
+
+    #[test]
+    fn test_line_out_of_bounds_clips() {
+        // Line that extends beyond grid bounds should draw visible portion only
+        let rows: Vec<String> = (0..3).map(|_| "{_}{_}{_}".to_string()).collect();
+        let mut grid = TokenGrid::parse(&rows).unwrap();
+
+        // Line from (0,0) to (2,2) — fully in-bounds, should work fine
+        grid.apply(&DrawOp::Line { x0: 0, y0: 0, x1: 2, y1: 2, token: "x".to_string() })
+            .unwrap();
+
+        assert_eq!(grid.get(0, 0), Some("x"));
+        assert_eq!(grid.get(1, 1), Some("x"));
+        assert_eq!(grid.get(2, 2), Some("x"));
     }
 }
