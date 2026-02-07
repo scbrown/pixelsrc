@@ -1,0 +1,46 @@
+// favicon_pxl.pxl - "pxl" text favicon (16x16)
+// Lowercase "pxl" in Dracula purple on transparent background
+
+{
+  type: "sprite",
+  name: "favicon_pxl",
+  size: [16, 16],
+  palette: {
+    _: "#00000000",
+    p: "#BD93F9",      // Dracula purple
+    g: "#E2B3FF",      // Lighter purple glow
+  },
+  regions: {
+    p: {
+      points: [
+        // letter "p" (x=3..5, 4-row bowl y=6-9, descender y=10-11)
+        [3,6], [4,6],               // bowl top: xx.
+        [3,7], [5,7],               // bowl side: x.x
+        [3,8], [5,8],               // bowl side: x.x
+        [3,9], [4,9],               // bowl bottom: xx.
+        [3,10],                     // descender
+        [3,11],                     // descender
+
+        // letter "x" (x=7..9, full x-height y=6-9)
+        [7,6], [9,6],               // top: x.x
+        [8,7],                      // upper center: .x.
+        [8,8],                      // lower center: .x.
+        [7,9], [9,9],               // bottom: x.x
+
+        // letter "l" (x=11, ascender y=5, body y=6-9)
+        [11,5],                     // ascender
+        [11,6],                     // body
+        [11,7],                     // body
+        [11,8],                     // body
+        [11,9],                     // baseline
+      ],
+      z: 1,
+    },
+
+    // Glow pixel inside the p bowl
+    g: {
+      points: [[4,7]],
+      z: 2,
+    },
+  },
+}
