@@ -15,6 +15,11 @@ just status           # Git + issue status
 ```
 
 
+## Required Reading
+
+Before working on this codebase, read **CONTRIBUTING.md**. It documents CI requirements
+including demo documentation regeneration, clippy rules, and feature flags.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.

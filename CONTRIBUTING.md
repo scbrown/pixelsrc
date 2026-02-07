@@ -331,7 +331,24 @@ Coverage reports are automatically generated in CI and uploaded to Codecov.
 4. Implement the feature
 5. Ensure `cargo test` passes
 6. Run `cargo clippy` and fix warnings
-7. Submit PR
+7. If you changed any demo tests in `tests/demos/`, regenerate demo docs (see [Demo Documentation](#demo-documentation) below)
+8. Submit PR
+
+### Demo Documentation
+
+Demo tests in `tests/demos/` are the source of truth for the generated book documentation in `docs/book/src/demos/`. CI enforces that these stay in sync.
+
+**If you add or modify any file under `tests/demos/`**, you must regenerate the docs:
+
+```bash
+# Regenerate demo documentation
+./scripts/generate-demos.sh --book
+
+# Verify it's up to date (this is what CI runs)
+./scripts/generate-demos.sh --book --check
+```
+
+Commit the regenerated docs alongside your test changes. CI will fail if demo docs are stale.
 
 ### Modifying the Spec
 
