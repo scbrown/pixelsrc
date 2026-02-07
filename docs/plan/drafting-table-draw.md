@@ -1,8 +1,15 @@
 # Drafting Table: `pxl draw`
 
+> **DEPRECATED (v1 grid references):** This plan was written targeting the v1
+> grid-based sprite format (`"grid": ["{a}{b}...", ...]`), which was removed in
+> the v2 structured-regions migration (TTP-2p3d / TTP-7i4v / TTP-159v). The
+> implementation now operates on v2 `regions` using `RegionEditor` (TTP-oa2yn).
+> Grid references below are preserved for historical context only — do NOT use
+> them as implementation guidance.
+
 **Goal:** Coordinate-based sprite editing that moves spatial logic from the LLM to the Rust binary. Modifies files in-place by default.
 
-**Status:** Planning
+**Status:** Implemented (regions-based, see TTP-oa2yn)
 
 **Epic:** TTP-xxby
 

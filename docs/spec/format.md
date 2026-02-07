@@ -23,10 +23,11 @@ Pixelsrc is a structured text format for defining pixel art using geometric regi
 The v2 format replaces pixel grids with geometric regions:
 
 ```json5
-// v1 (removed): pixel-by-pixel grid
+// v1 (REMOVED — do not implement): pixel-by-pixel grid
 // "grid": ["{o}{o}{o}", "{o}{s}{o}", "{o}{o}{o}"]
+// The grid field was removed in TTP-2p3d/TTP-7i4v/TTP-159v.
 
-// v2: semantic regions
+// v2 (current): semantic regions
 regions: {
   outline: { stroke: [0, 0, 3, 3] },
   skin: { fill: "inside(outline)" }

@@ -99,7 +99,9 @@ pub struct CompletionItem {
     pub kind: Option<String>,
 }
 
-/// Grid position information for hover
+/// Grid position information for hover.
+/// DEPRECATED: Grid format was removed (TTP-oa2yn). This struct is retained
+/// for API compatibility but `get_grid_position` always returns None.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GridPosition {
     /// Column index (0-indexed)
@@ -313,10 +315,10 @@ impl LspAgentClient {
         CompletionResult { items }
     }
 
-    /// Get grid position information at a specific location
+    /// Get grid position information at a specific location.
     ///
-    /// Returns information about the grid position if the cursor is within
-    /// a sprite's grid array.
+    /// DEPRECATED: Grid format was removed (TTP-oa2yn). Always returns None.
+    /// Retained for API compatibility.
     ///
     /// # Arguments
     ///
@@ -326,7 +328,7 @@ impl LspAgentClient {
     ///
     /// # Returns
     ///
-    /// `Some(GridPosition)` if the cursor is in a grid, `None` otherwise.
+    /// Always returns `None` (grid format removed).
     pub fn get_grid_position(
         &self,
         content: &str,
@@ -690,9 +692,10 @@ impl LspAgentClient {
         }
     }
 
-    /// Check if a line appears to be a sprite (with grid or regions)
+    /// Check if a line appears to be a sprite (with regions).
+    /// Note: Grid format was removed (TTP-oa2yn). The `grid` key check is
+    /// retained only for backward-compatible parsing of legacy files.
     fn is_grid_context(line: &str) -> bool {
-        // Quick check: does this line look like a sprite?
         if let Ok(obj) = serde_json::from_str::<Value>(line) {
             if let Some(obj) = obj.as_object() {
                 return obj.get("type").and_then(|t| t.as_str()) == Some("sprite")

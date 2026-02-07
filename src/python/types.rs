@@ -260,6 +260,8 @@ impl ImportResult {
     }
 
     /// Convert to PXL grid format string (palette definition + grid rows).
+    /// DEPRECATED: Uses v1 grid format from ImportResult intermediate representation.
+    /// Prefer `to_jsonl()` which outputs v2 regions format.
     fn to_pxl(&self) -> String {
         let mut lines = Vec::new();
 
