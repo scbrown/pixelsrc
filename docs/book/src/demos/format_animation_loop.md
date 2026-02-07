@@ -3,28 +3,6 @@
 
 # loop Demos
 
-## Loop Forever
-
-Animation with loop: true plays continuously.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "loop_pal", "colors": {"{_}": "#00000000", "{1}": "#FF0000", "{2}": "#FF8800", "{3}": "#FFFF00", "{4}": "#00FF00"}}
-{"type": "sprite", "name": "l1", "size": [3, 3], "palette": "loop_pal", "regions": {"{1}": {"rect": [0, 0, 3, 3]}}}
-{"type": "sprite", "name": "l2", "size": [3, 3], "palette": "loop_pal", "regions": {"{2}": {"rect": [0, 0, 3, 3]}}}
-{"type": "sprite", "name": "l3", "size": [3, 3], "palette": "loop_pal", "regions": {"{3}": {"rect": [0, 0, 3, 3]}}}
-{"type": "sprite", "name": "l4", "size": [3, 3], "palette": "loop_pal", "regions": {"{4}": {"rect": [0, 0, 3, 3]}}}
-{"type": "animation", "name": "loop_forever", "frames": ["l1", "l2", "l3", "l4"], "duration": 100, "loop": true}
-{"type": "animation", "name": "play_once", "frames": ["l1", "l2", "l3", "l4"], "duration": 100, "loop": false}
-{"type": "animation", "name": "default_loop", "frames": ["l1", "l2", "l3"], "duration": 100}
-```
-
-</div>
-
-<div class="demo-container" data-demo="forever">
-</div>
-
 ## Play Once
 
 Animation with loop: false plays once and stops on last frame.

@@ -3,6 +3,342 @@
 
 # CSS Variable Demos
 
+## Basic Variable Chaining
+
+CSS variables can reference other variables, forming a chain.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_basic">
+</div>
+
+## Deep Variable Chaining
+
+Multiple levels of variable references resolve correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_deep">
+</div>
+
+## Color-Mix Variable Chaining
+
+Variables chained through color-mix() function calls.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_color_mix">
+</div>
+
+## Basic Chain Sprite
+
+Sprite using basic chained variable palette renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_basic_sprite">
+</div>
+
+## Deep Chain Sprite
+
+Sprite using deeply chained variable palette renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_deep_sprite">
+</div>
+
+## Color-Mix Chain Sprite
+
+Sprite using color-mix chained variable palette renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "basic_chain", "colors": {"{_}": "#00000000", "{bc}": "#FF0000"}}
+{"type": "palette", "name": "deep_chain", "colors": {"{_}": "#00000000", "{dc}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_chain", "colors": {"{_}": "#00000000", "{mc}": "#0000FF"}}
+{"type": "sprite", "name": "chain_result", "palette": "basic_chain", "size": [2, 2], "regions": {"bc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "deep_chain_result", "palette": "deep_chain", "size": [2, 2], "regions": {"dc": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "shaded_box", "palette": "color_mix_chain", "size": [2, 2], "regions": {"mc": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="chaining_mix_sprite">
+</div>
+
+## Variable Definition in Palette
+
+CSS custom properties define named color variables in palettes.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "theme_colors", "colors": {"{_}": "#00000000", "{primary}": "#FF0000", "{secondary}": "#00FF00"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "size": [2, 2], "regions": {"primary": {"rect": [0, 0, 1, 2]}, "secondary": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="definition_palette">
+</div>
+
+## Sprite Using Variable Palette
+
+Sprites reference palettes with CSS variable-defined colors.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "theme_colors", "colors": {"{_}": "#00000000", "{primary}": "#FF0000", "{secondary}": "#00FF00"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "size": [2, 2], "regions": {"primary": {"rect": [0, 0, 1, 2]}, "secondary": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="definition_sprite">
+</div>
+
+## Variable-Named Regions
+
+Sprite regions map to CSS variable names for semantic coloring.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "theme_colors", "colors": {"{_}": "#00000000", "{primary}": "#FF0000", "{secondary}": "#00FF00"}}
+{"type": "sprite", "name": "theme_example", "palette": "theme_colors", "size": [2, 2], "regions": {"primary": {"rect": [0, 0, 1, 2]}, "secondary": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="definition_regions">
+</div>
+
+## Simple Variable Fallback
+
+Fallback value used when a CSS variable is undefined.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_simple">
+</div>
+
+## Nested Variable Fallback
+
+Nested fallbacks resolve through multiple levels of var() references.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_nested">
+</div>
+
+## Color-Mix Fallback
+
+Fallback using color-mix() function for computed fallback values.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_color_mix">
+</div>
+
+## Fallback Sprite Rendering
+
+Sprites render correctly using fallback-resolved colors.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_sprite">
+</div>
+
+## Nested Fallback Sprite
+
+Sprite using nested fallback palette renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_nested_sprite">
+</div>
+
+## Color-Mix Fallback Sprite
+
+Sprite using color-mix fallback palette renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "simple_fallback", "colors": {"{_}": "#00000000", "{fb}": "#FF0000"}}
+{"type": "palette", "name": "nested_fallback", "colors": {"{_}": "#00000000", "{nf}": "#00FF00"}}
+{"type": "palette", "name": "color_mix_fallback", "colors": {"{_}": "#00000000", "{mf}": "#0000FF"}}
+{"type": "sprite", "name": "fallback_demo", "palette": "simple_fallback", "size": [2, 2], "regions": {"fb": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "nested_fallback_result", "palette": "nested_fallback", "size": [2, 2], "regions": {"nf": {"rect": [0, 0, 2, 2]}}}
+{"type": "sprite", "name": "mix_fallback_result", "palette": "color_mix_fallback", "size": [2, 2], "regions": {"mf": {"rect": [0, 0, 2, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="fallback_mix_sprite">
+</div>
+
+## var() Resolution Palette
+
+CSS var() function resolves variable references to color values.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "var_resolution", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 1, 2]}, "b": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="resolution_palette">
+</div>
+
+## Resolved Variable Sprite
+
+Sprite using resolved CSS variables renders correctly.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "var_resolution", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 1, 2]}, "b": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="resolution_sprite">
+</div>
+
+## Variable Resolution Regions
+
+Regions reference resolved variable names.
+
+<div class="demo-source">
+
+```jsonl
+{"type": "palette", "name": "var_resolution", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
+{"type": "sprite", "name": "resolved_colors", "palette": "var_resolution", "size": [2, 2], "regions": {"a": {"rect": [0, 0, 1, 2]}, "b": {"rect": [1, 0, 1, 2]}}}
+```
+
+</div>
+
+<div class="demo-container" data-demo="resolution_regions">
+</div>
+
 ## Tests CSS custom property definition syntax (--name: value)
 
 <div class="demo-source">

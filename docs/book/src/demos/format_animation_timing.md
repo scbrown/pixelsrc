@@ -3,28 +3,6 @@
 
 # timing Demos
 
-## Fast Animation (50ms frames)
-
-Animation with short frame duration for rapid cycling.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "timing_pal", "colors": {"{_}": "#00000000", "{a}": "#FF0000", "{b}": "#00FF00"}}
-{"type": "sprite", "name": "t1", "size": [2, 2], "palette": "timing_pal", "regions": {"{a}": {"rect": [0, 0, 2, 2]}}}
-{"type": "sprite", "name": "t2", "size": [2, 2], "palette": "timing_pal", "regions": {"{b}": {"rect": [0, 0, 2, 2]}}}
-{"type": "animation", "name": "fast_blink", "frames": ["t1", "t2"], "duration": 50, "loop": true}
-{"type": "animation", "name": "slow_blink", "frames": ["t1", "t2"], "duration": 500, "loop": true}
-{"type": "animation", "name": "duration_ms", "frames": ["t1", "t2"], "duration": "250ms", "loop": true}
-{"type": "animation", "name": "duration_1s", "frames": ["t1", "t2", "t1", "t2"], "duration": "1s", "loop": true}
-{"type": "animation", "name": "default_duration", "frames": ["t1", "t2"], "loop": true}
-```
-
-</div>
-
-<div class="demo-container" data-demo="fast">
-</div>
-
 ## Slow Animation (500ms frames)
 
 Animation with longer frame duration for slower, more deliberate movement.

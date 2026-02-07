@@ -3,26 +3,6 @@
 
 # basic Demos
 
-## Two Layer Stack
-
-Composition with two layers stacked vertically. Top layer obscures bottom.
-
-<div class="demo-source">
-
-```jsonl
-{"type": "palette", "name": "stacking_pal", "colors": {"{_}": "#00000000", "{r}": "#FF0000FF", "{g}": "#00FF00FF", "{b}": "#0000FFFF"}}
-{"type": "sprite", "name": "red_square", "palette": "stacking_pal", "size": [4, 4], "regions": {"r": {"rect": [0, 0, 4, 4]}}}
-{"type": "sprite", "name": "green_square", "palette": "stacking_pal", "size": [4, 4], "regions": {"g": {"rect": [0, 0, 4, 4]}}}
-{"type": "sprite", "name": "blue_square", "palette": "stacking_pal", "size": [4, 4], "regions": {"b": {"rect": [0, 0, 4, 4]}}}
-{"type": "composition", "name": "two_layer_stack", "size": [4, 4], "cell_size": [4, 4], "sprites": {"R": "red_square", "G": "green_square"}, "layers": [{"name": "bottom", "map": ["R"]}, {"name": "top", "map": ["G"]}]}
-{"type": "composition", "name": "three_layer_stack", "size": [4, 4], "cell_size": [4, 4], "sprites": {"R": "red_square", "G": "green_square", "B": "blue_square"}, "layers": [{"name": "layer1", "map": ["R"]}, {"name": "layer2", "map": ["G"]}, {"name": "layer3", "map": ["B"]}]}
-```
-
-</div>
-
-<div class="demo-container" data-demo="two_layer">
-</div>
-
 ## Three Layer Stack
 
 Composition with three layers. Demonstrates stacking order.
