@@ -3,7 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pixelsrc - Pixel Art Editor</title>
+    <title>pixelsrc - GenAI-native pixel art format</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="pixelsrc">
+    <meta property="og:description" content="GenAI-native pixel art format">
+    <meta property="og:image" content="https://pixelsrc.dev/og-image.png">
+    <meta property="og:url" content="https://pixelsrc.dev">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="pixelsrc">
+    <meta name="twitter:description" content="GenAI-native pixel art format">
+    <meta name="twitter:image" content="https://pixelsrc.dev/og-image.png">
+
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -14,7 +35,7 @@
       <div class="loading-content">
         <div class="loading-logo">
           <span class="pixel-icon">▣</span>
-          <span class="loading-title">Pixelsrc</span>
+          <span class="loading-title">pixelsrc</span>
         </div>
         <div class="loading-spinner"></div>
         <p class="loading-text">Initializing...</p>
@@ -31,7 +52,7 @@
             <span class="logo-pixel p4"></span>
           </div>
           <div class="brand-text">
-            <h1>Pixel<span class="accent">src</span></h1>
+            <h1>pixel<span class="accent">src</span></h1>
             <p class="tagline">GenAI-native pixel art format</p>
           </div>
         </div>
@@ -51,8 +72,8 @@
             <h2 id="editor-heading">Editor</h2>
           </div>
           <div class="panel-content">
-            <label for="editor" class="visually-hidden">Pixelsrc JSONL code editor</label>
-            <textarea id="editor" placeholder="Enter your Pixelsrc JSONL here..." aria-describedby="editor-hint"></textarea>
+            <label for="editor" class="visually-hidden">pixelsrc JSONL code editor</label>
+            <textarea id="editor" placeholder="Enter your pixelsrc JSONL here..." aria-describedby="editor-hint"></textarea>
             <span id="editor-hint" class="visually-hidden">Press Ctrl+Enter or Cmd+Enter to render</span>
           </div>
         </section>
@@ -74,7 +95,7 @@
                 <p class="empty-text">Your pixel art will appear here</p>
                 <p class="empty-hint">
                   Click an example below to get started,<br>
-                  or paste Pixelsrc JSONL in the editor
+                  or paste pixelsrc JSONL in the editor
                 </p>
                 <button class="empty-cta" id="load-first-example">
                   Try the Heart example
