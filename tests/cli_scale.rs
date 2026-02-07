@@ -137,22 +137,22 @@ fn test_scale_max_16x() {
     assert_eq!((w, h), (16, 16), "Scale 16 should produce 16x16 from 1x1");
 }
 
-/// Test that scale factor above 16 is rejected
+/// Test that scale factor above 128 is rejected
 #[test]
 fn test_scale_invalid_too_high() {
     let output = Command::new(pxl_binary())
         .arg("render")
         .arg("tests/fixtures/valid/minimal_dot.jsonl")
         .arg("--scale")
-        .arg("17")
+        .arg("129")
         .output()
         .expect("Failed to execute pxl");
 
-    assert!(!output.status.success(), "Scale 17 should be rejected");
+    assert!(!output.status.success(), "Scale 129 should be rejected");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("17") || stderr.contains("invalid") || stderr.contains("error"),
+        stderr.contains("129") || stderr.contains("invalid") || stderr.contains("error"),
         "Expected error message about invalid scale value, got: {stderr}"
     );
 }
