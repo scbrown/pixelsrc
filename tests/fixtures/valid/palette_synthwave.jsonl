@@ -1,0 +1,2 @@
+{"type": "palette", "name": "synthwave", "colors": {"{_}": "#00000000", "{purple}": "#BD93F9", "{pink}": "#FF79C6", "{cyan}": "#8BE9FD", "{glow}": "#E2B3FF", "{hot}": "#FF2D95", "{neon}": "#00F7FF", "{bg}": "#282A36"}}
+{"type": "sprite", "name": "neon_bar", "palette": "synthwave", "size": [4, 1], "regions": {"purple": {"points": [[0, 0]], "z": 0}, "pink": {"points": [[1, 0]], "z": 0}, "cyan": {"points": [[2, 0]], "z": 0}, "neon": {"points": [[3, 0]], "z": 0}}}

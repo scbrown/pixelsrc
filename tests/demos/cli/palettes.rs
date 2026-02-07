@@ -92,6 +92,21 @@ fn test_palettes_show_dracula() {
     assert!(!palette.colors.is_empty(), "Dracula palette should have colors");
 }
 
+/// @demo cli/palettes#show_synthwave
+/// @title Show Synthwave Palette
+/// @description Display the synthwave/vaporwave neon palette with hot pinks, cyans, and purples.
+#[test]
+fn test_palettes_show_synthwave() {
+    let palette = get_builtin("synthwave").expect("synthwave palette should exist");
+
+    // Synthwave has 7 colors + transparent
+    assert_eq!(palette.colors.len(), 8, "Synthwave palette should have 8 colors");
+    assert!(palette.colors.contains_key("{pink}"), "Should have {{pink}} token");
+    assert!(palette.colors.contains_key("{cyan}"), "Should have {{cyan}} token");
+    assert!(palette.colors.contains_key("{purple}"), "Should have {{purple}} token");
+    assert!(palette.colors.contains_key("{neon}"), "Should have {{neon}} token");
+}
+
 /// @demo cli/palettes#not_found
 /// @title Palette Not Found
 /// @description Handle unknown palette names gracefully.
