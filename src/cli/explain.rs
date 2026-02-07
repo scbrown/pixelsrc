@@ -193,9 +193,9 @@ pub fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> Ex
             .collect();
 
         let output = if json_explanations.len() == 1 {
-            serde_json::to_string_pretty(&json_explanations[0]).unwrap()
+            serde_json::to_string_pretty(&json_explanations[0]).expect("JSON value serialization")
         } else {
-            serde_json::to_string_pretty(&json_explanations).unwrap()
+            serde_json::to_string_pretty(&json_explanations).expect("JSON value serialization")
         };
         println!("{}", output);
     } else {
@@ -236,7 +236,7 @@ pub fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: 
 
     if filtered_diffs.is_empty() {
         if sprite.is_some() {
-            eprintln!("Error: Sprite '{}' not found in either file", sprite.unwrap());
+            eprintln!("Error: Sprite '{}' not found in either file", sprite.expect("sprite is Some in this branch"));
             return ExitCode::from(EXIT_ERROR);
         }
         println!("No sprites found to compare.");
@@ -309,7 +309,7 @@ pub fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: 
             })
             .collect();
 
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        println!("{}", serde_json::to_string_pretty(&output).expect("JSON value serialization"));
     } else {
         // Text output
         for (i, (name, diff)) in filtered_diffs.iter().enumerate() {
@@ -389,7 +389,7 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
             "suggestion_count": suggestions.len(),
             "suggestions": suggestions,
         });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        println!("{}", serde_json::to_string_pretty(&output).expect("JSON value serialization"));
     } else {
         // Text output
         if suggestions.is_empty() {

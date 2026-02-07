@@ -475,10 +475,10 @@ fn find_interior_seed(
     }
 
     // Find bounding box of boundary
-    let min_x = boundary.iter().map(|(x, _)| *x).min().unwrap();
-    let max_x = boundary.iter().map(|(x, _)| *x).max().unwrap();
-    let min_y = boundary.iter().map(|(_, y)| *y).min().unwrap();
-    let max_y = boundary.iter().map(|(_, y)| *y).max().unwrap();
+    let min_x = boundary.iter().map(|(x, _)| *x).min().expect("boundary is non-empty");
+    let max_x = boundary.iter().map(|(x, _)| *x).max().expect("boundary is non-empty");
+    let min_y = boundary.iter().map(|(_, y)| *y).min().expect("boundary is non-empty");
+    let max_y = boundary.iter().map(|(_, y)| *y).max().expect("boundary is non-empty");
 
     // Start from center of bounding box
     let center_x = (min_x + max_x) / 2;
@@ -539,8 +539,8 @@ pub fn rasterize_polygon(vertices: &[(i32, i32)]) -> HashSet<(i32, i32)> {
     }
 
     // Find bounding box
-    let min_y = vertices.iter().map(|(_, y)| *y).min().unwrap();
-    let max_y = vertices.iter().map(|(_, y)| *y).max().unwrap();
+    let min_y = vertices.iter().map(|(_, y)| *y).min().expect("vertices has >= 3 elements");
+    let max_y = vertices.iter().map(|(_, y)| *y).max().expect("vertices has >= 3 elements");
 
     // First, add all vertices to ensure they're included
     // (vertices on the boundary should always be part of the filled polygon)

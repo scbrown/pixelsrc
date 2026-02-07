@@ -153,7 +153,7 @@ pub fn run_agent(action: AgentAction) -> ExitCode {
 
             let client = LspAgentClient::new();
             if let Some(pos) = client.get_grid_position(&content, line, character) {
-                println!("{}", serde_json::to_string_pretty(&pos).unwrap());
+                println!("{}", serde_json::to_string_pretty(&pos).expect("JSON value serialization"));
             } else {
                 println!("null");
             }

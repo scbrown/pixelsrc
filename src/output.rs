@@ -49,7 +49,7 @@ pub fn save_png(image: &RgbaImage, path: &Path) -> Result<(), OutputError> {
 /// # Arguments
 ///
 /// * `image` - The image to scale
-/// * `factor` - Scale factor (1-16, where 1 means no scaling)
+/// * `factor` - Scale factor (1-128, where 1 means no scaling)
 ///
 /// # Returns
 ///

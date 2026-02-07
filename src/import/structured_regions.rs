@@ -84,7 +84,7 @@ pub fn extract_structured_regions(
 
     // Return single region or union
     if structured.len() == 1 {
-        structured.pop().unwrap()
+        structured.pop().expect("structured has exactly one element")
     } else {
         StructuredRegion::Union(structured)
     }
@@ -96,7 +96,7 @@ fn find_connected_components(points: &HashSet<(u32, u32)>) -> Vec<HashSet<(u32, 
     let mut components = Vec::new();
 
     while !remaining.is_empty() {
-        let start = *remaining.iter().next().unwrap();
+        let start = *remaining.iter().next().expect("remaining is non-empty");
         let mut component = HashSet::new();
         let mut queue = vec![start];
 
@@ -131,10 +131,10 @@ fn try_extract_rect(component: &HashSet<(u32, u32)>) -> Option<[u32; 4]> {
         return None;
     }
 
-    let min_x = component.iter().map(|(x, _)| *x).min().unwrap();
-    let max_x = component.iter().map(|(x, _)| *x).max().unwrap();
-    let min_y = component.iter().map(|(_, y)| *y).min().unwrap();
-    let max_y = component.iter().map(|(_, y)| *y).max().unwrap();
+    let min_x = component.iter().map(|(x, _)| *x).min().expect("component is non-empty");
+    let max_x = component.iter().map(|(x, _)| *x).max().expect("component is non-empty");
+    let min_y = component.iter().map(|(_, y)| *y).min().expect("component is non-empty");
+    let max_y = component.iter().map(|(_, y)| *y).max().expect("component is non-empty");
 
     let width = max_x - min_x + 1;
     let height = max_y - min_y + 1;
@@ -156,8 +156,8 @@ fn extract_polygon_boundary(component: &HashSet<(u32, u32)>) -> Option<Vec<[i32;
     }
 
     // Find bounding box
-    let min_y = component.iter().map(|(_, y)| *y).min().unwrap();
-    let max_y = component.iter().map(|(_, y)| *y).max().unwrap();
+    let min_y = component.iter().map(|(_, y)| *y).min().expect("component has >= 3 elements");
+    let max_y = component.iter().map(|(_, y)| *y).max().expect("component has >= 3 elements");
 
     // Group points by y coordinate to find left and right edges
     let mut by_y: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -171,8 +171,8 @@ fn extract_polygon_boundary(component: &HashSet<(u32, u32)>) -> Option<Vec<[i32;
 
     for y in min_y..=max_y {
         if let Some(xs) = by_y.get(&y) {
-            let min_x = *xs.iter().min().unwrap();
-            let max_x = *xs.iter().max().unwrap();
+            let min_x = *xs.iter().min().expect("xs is non-empty from by_y");
+            let max_x = *xs.iter().max().expect("xs is non-empty from by_y");
             left_edge.push([min_x as i32, y as i32]);
             right_edge.push([max_x as i32, y as i32]);
         }
@@ -274,8 +274,8 @@ pub(crate) fn rasterize_polygon(polygon: &[[i32; 2]]) -> HashSet<(u32, u32)> {
     }
 
     // Find bounding box
-    let min_y = polygon.iter().map(|p| p[1]).min().unwrap();
-    let max_y = polygon.iter().map(|p| p[1]).max().unwrap();
+    let min_y = polygon.iter().map(|p| p[1]).min().expect("polygon has >= 3 vertices");
+    let max_y = polygon.iter().map(|p| p[1]).max().expect("polygon has >= 3 vertices");
 
     // Scanline fill
     for y in min_y..=max_y {
@@ -419,7 +419,7 @@ pub fn filter_structured_region_for_half_sprite(
             if filtered.is_empty() {
                 StructuredRegion::Points(vec![])
             } else if filtered.len() == 1 {
-                filtered.into_iter().next().unwrap()
+                filtered.into_iter().next().expect("filtered has exactly one element")
             } else {
                 StructuredRegion::Union(filtered)
             }
