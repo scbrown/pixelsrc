@@ -9,6 +9,7 @@ use std::io::Cursor;
 // ============================================================================
 // Typo Suggestion Tests
 // ============================================================================
+/// @demo cli/analysis#suggest
 /// @demo cli/suggest#typo_correction
 /// @title Typo Correction Suggestion
 /// @description Suggests similar tokens for likely typos.

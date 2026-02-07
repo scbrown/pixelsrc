@@ -31,6 +31,7 @@ fn setup_render(jsonl: &str) -> (PaletteRegistry, SpriteRegistry) {
 // ============================================================================
 // Basic Render Tests
 // ============================================================================
+/// @demo cli/core#render
 /// @demo cli/render#output_path
 /// @title Output Path Generation
 /// @description Demonstrates output path patterns: default, explicit file, directory.

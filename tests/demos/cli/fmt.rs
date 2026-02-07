@@ -7,6 +7,7 @@ use pixelsrc::models::TtpObject;
 use pixelsrc::parser::parse_stream;
 use std::io::Cursor;
 
+/// @demo cli/format#fmt
 /// @demo cli/fmt#basic
 /// @title Basic Formatting
 /// @description Format JSONL content and verify it remains valid.

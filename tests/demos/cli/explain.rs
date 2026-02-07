@@ -27,6 +27,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: PaletteRef) -> Sprite {
 // ============================================================================
 // Sprite Explanation Tests
 // ============================================================================
+/// @demo cli/format#explain
 /// @demo cli/explain#token_usage
 /// @title Explain Token Usage
 /// @description Shows token frequency and percentage of total grid cells.

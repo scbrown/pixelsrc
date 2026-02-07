@@ -24,6 +24,7 @@ fn make_sprite(name: &str, grid: Vec<&str>, palette: HashMap<String, String>) ->
 // ============================================================================
 // No Difference Tests
 // ============================================================================
+/// @demo cli/analysis#diff
 /// @demo cli/diff#identical
 /// @title Diff Identical Sprites
 /// @description Identical sprites produce no differences.

@@ -8,6 +8,7 @@
 //! Each demo parses sprite/animation JSONL fixtures and exports atlas
 //! metadata in the target engine's format.
 
+mod atlas_aseprite;
 mod atlas_godot;
 mod atlas_libgdx;
 mod atlas_unity;
