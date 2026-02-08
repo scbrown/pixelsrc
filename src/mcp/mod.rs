@@ -6,5 +6,6 @@
 //! Start the server with `pxl mcp` (hidden command, feature-gated).
 
 mod server;
+mod tools;
 
 pub use server::{run_server, PixelsrcMcpServer};
