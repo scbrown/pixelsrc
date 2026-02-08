@@ -7,6 +7,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use crate::mask::{BoundsResult, MaskPipeline, QueryResult, TokenGrid};
+use crate::models::{PaletteRef, TtpObject};
 
 use super::{EXIT_ERROR, EXIT_INVALID_ARGS, EXIT_SUCCESS};
 
@@ -25,7 +26,13 @@ pub fn run_mask(
     json: bool,
     query: Option<&str>,
     bounds: Option<&str>,
+    list: bool,
 ) -> ExitCode {
+    // --list is a file-level query that doesn't require --sprite
+    if list {
+        return run_list(input, json);
+    }
+
     // Sprite name is required for grid extraction
     let sprite_name = match sprite {
         Some(name) => name,
@@ -315,4 +322,228 @@ fn print_grid_text(grid: &TokenGrid, sprite_name: &str) {
         let line = row.iter().map(|t| format!("{{{}}}", t)).collect::<Vec<_>>().join("");
         println!("  {}", line);
     }
+}
+
+// --- List output (DT-M5) ---
+
+/// Execute --list operation: enumerate all sprites, compositions, animations.
+fn run_list(input: &Path, json: bool) -> ExitCode {
+    let pipeline = match MaskPipeline::load(input, None) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+
+    let objects = pipeline.objects();
+
+    let mut sprites: Vec<SpriteInfo> = Vec::new();
+    let mut compositions: Vec<CompositionInfo> = Vec::new();
+    let mut animations: Vec<AnimationInfo> = Vec::new();
+
+    for obj in objects {
+        match obj {
+            TtpObject::Sprite(s) => {
+                let size = s.size;
+                let palette_name = match &s.palette {
+                    PaletteRef::Named(n) if !n.is_empty() => Some(n.clone()),
+                    PaletteRef::Inline(_) => Some("(inline)".to_string()),
+                    _ => None,
+                };
+                let format = if s.regions.is_some() {
+                    "regions"
+                } else if s.source.is_some() {
+                    "source"
+                } else {
+                    "grid"
+                };
+                let region_count = s.regions.as_ref().map(|r| r.len());
+                sprites.push(SpriteInfo {
+                    name: s.name.clone(),
+                    size,
+                    palette: palette_name,
+                    format: format.to_string(),
+                    region_count,
+                });
+            }
+            TtpObject::Composition(c) => {
+                compositions.push(CompositionInfo {
+                    name: c.name.clone(),
+                    size: c.size,
+                    layer_count: c.layers.len(),
+                });
+            }
+            TtpObject::Animation(a) => {
+                let frame_count = if a.is_frame_based() {
+                    a.frames.len()
+                } else if a.is_css_keyframes() {
+                    a.css_keyframes().map(|kf| kf.len()).unwrap_or(0)
+                } else {
+                    0
+                };
+                let duration_ms = a.duration_ms();
+                let total_ms =
+                    if a.is_frame_based() { duration_ms * frame_count as u32 } else { duration_ms };
+                animations.push(AnimationInfo {
+                    name: a.name.clone(),
+                    frame_count,
+                    duration_ms: total_ms,
+                    format: if a.is_css_keyframes() {
+                        "keyframes".to_string()
+                    } else {
+                        "frames".to_string()
+                    },
+                });
+            }
+            _ => {}
+        }
+    }
+
+    if json {
+        print_list_json(&sprites, &compositions, &animations);
+    } else {
+        print_list_text(input, &sprites, &compositions, &animations);
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+struct SpriteInfo {
+    name: String,
+    size: Option<[u32; 2]>,
+    palette: Option<String>,
+    format: String,
+    region_count: Option<usize>,
+}
+
+struct CompositionInfo {
+    name: String,
+    size: Option<[u32; 2]>,
+    layer_count: usize,
+}
+
+struct AnimationInfo {
+    name: String,
+    frame_count: usize,
+    duration_ms: u32,
+    format: String,
+}
+
+fn print_list_text(
+    input: &Path,
+    sprites: &[SpriteInfo],
+    compositions: &[CompositionInfo],
+    animations: &[AnimationInfo],
+) {
+    let filename = input.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
+
+    if !sprites.is_empty() {
+        println!("Sprites in {}:", filename);
+        for s in sprites {
+            let size_str = match s.size {
+                Some([w, h]) => format!("{}x{}", w, h),
+                None => "?x?".to_string(),
+            };
+            let palette_str = match &s.palette {
+                Some(p) => format!("  palette: {}", p),
+                None => String::new(),
+            };
+            let region_str = match s.region_count {
+                Some(n) => format!("  {} regions", n),
+                None => String::new(),
+            };
+            println!(
+                "  {:<16}{:<8}{}  ({}){}",
+                s.name, size_str, palette_str, s.format, region_str
+            );
+        }
+    }
+
+    if !compositions.is_empty() {
+        if !sprites.is_empty() {
+            println!();
+        }
+        println!("Compositions:");
+        for c in compositions {
+            let size_str = match c.size {
+                Some([w, h]) => format!("{}x{}", w, h),
+                None => "?x?".to_string(),
+            };
+            println!("  {:<16}{}  {} layers", c.name, size_str, c.layer_count);
+        }
+    }
+
+    if !animations.is_empty() {
+        if !sprites.is_empty() || !compositions.is_empty() {
+            println!();
+        }
+        println!("Animations:");
+        for a in animations {
+            println!("  {:<16}{} {}, {}ms", a.name, a.frame_count, a.format, a.duration_ms);
+        }
+    }
+
+    if sprites.is_empty() && compositions.is_empty() && animations.is_empty() {
+        println!("No sprites, compositions, or animations found in {}", filename);
+    }
+}
+
+fn print_list_json(
+    sprites: &[SpriteInfo],
+    compositions: &[CompositionInfo],
+    animations: &[AnimationInfo],
+) {
+    let sprites_json: Vec<serde_json::Value> = sprites
+        .iter()
+        .map(|s| {
+            let mut obj = serde_json::json!({
+                "name": s.name,
+                "format": s.format,
+            });
+            if let Some([w, h]) = s.size {
+                obj["size"] = serde_json::json!([w, h]);
+            }
+            if let Some(ref p) = s.palette {
+                obj["palette"] = serde_json::json!(p);
+            }
+            if let Some(n) = s.region_count {
+                obj["region_count"] = serde_json::json!(n);
+            }
+            obj
+        })
+        .collect();
+
+    let compositions_json: Vec<serde_json::Value> = compositions
+        .iter()
+        .map(|c| {
+            let mut obj = serde_json::json!({
+                "name": c.name,
+                "layer_count": c.layer_count,
+            });
+            if let Some([w, h]) = c.size {
+                obj["size"] = serde_json::json!([w, h]);
+            }
+            obj
+        })
+        .collect();
+
+    let animations_json: Vec<serde_json::Value> = animations
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "name": a.name,
+                "frame_count": a.frame_count,
+                "duration_ms": a.duration_ms,
+                "format": a.format,
+            })
+        })
+        .collect();
+
+    let output = serde_json::json!({
+        "sprites": sprites_json,
+        "compositions": compositions_json,
+        "animations": animations_json,
+    });
+    println!("{}", serde_json::to_string(&output).unwrap());
 }

@@ -539,6 +539,10 @@ pub enum Commands {
         /// Show bounding box of a token (e.g. --bounds "{skin}")
         #[arg(long, value_name = "TOKEN")]
         bounds: Option<String>,
+
+        /// List all sprites, compositions, and animations in the file
+        #[arg(long)]
+        list: bool,
     },
 }
 
@@ -696,15 +700,18 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds } => mask::run_mask(
-            &input,
-            sprite.as_deref(),
-            sample.as_deref(),
-            neighbors.as_deref(),
-            json,
-            query.as_deref(),
-            bounds.as_deref(),
-        ),
+        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds, list } => {
+            mask::run_mask(
+                &input,
+                sprite.as_deref(),
+                sample.as_deref(),
+                neighbors.as_deref(),
+                json,
+                query.as_deref(),
+                bounds.as_deref(),
+                list,
+            )
+        }
     }
 }
 

@@ -160,8 +160,7 @@ impl TokenGrid {
         } else {
             None
         };
-        let left =
-            if x > 0 { Some(self.grid[y as usize][(x - 1) as usize].clone()) } else { None };
+        let left = if x > 0 { Some(self.grid[y as usize][(x - 1) as usize].clone()) } else { None };
         let right = if x + 1 < self.width {
             Some(self.grid[y as usize][(x + 1) as usize].clone())
         } else {
