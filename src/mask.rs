@@ -128,6 +128,32 @@ pub struct NeighborResult {
     pub right: Option<String>,
 }
 
+/// Result of a --region operation: tokens in a rectangular slice.
+#[derive(Debug)]
+pub struct RegionResult {
+    /// Origin x of the region.
+    pub x: u32,
+    /// Origin y of the region.
+    pub y: u32,
+    /// Width of the region (clamped to grid bounds).
+    pub width: u32,
+    /// Height of the region (clamped to grid bounds).
+    pub height: u32,
+    /// 2D grid of tokens in the region, indexed as grid[y][x].
+    pub grid: Vec<Vec<String>>,
+    /// Whether the requested region was clamped to fit the sprite.
+    pub clamped: bool,
+}
+
+/// Result of a --count operation: token frequency map.
+#[derive(Debug)]
+pub struct CountResult {
+    /// Token counts sorted by count descending.
+    pub tokens: Vec<(String, u32)>,
+    /// Total number of pixels.
+    pub total: u32,
+}
+
 impl TokenGrid {
     /// Return the token at the given coordinate.
     ///
@@ -160,8 +186,7 @@ impl TokenGrid {
         } else {
             None
         };
-        let left =
-            if x > 0 { Some(self.grid[y as usize][(x - 1) as usize].clone()) } else { None };
+        let left = if x > 0 { Some(self.grid[y as usize][(x - 1) as usize].clone()) } else { None };
         let right = if x + 1 < self.width {
             Some(self.grid[y as usize][(x + 1) as usize].clone())
         } else {
@@ -255,6 +280,47 @@ impl TokenGrid {
             }
         }
         QueryResult { token: token.to_string(), coords }
+    }
+
+    /// Extract a rectangular region of tokens from the grid.
+    ///
+    /// Clamps the requested rectangle to the grid bounds. If the region
+    /// extends beyond the sprite, the result contains only the portion
+    /// that fits and `clamped` is set to true.
+    pub fn region(&self, x: u32, y: u32, w: u32, h: u32) -> RegionResult {
+        let clamp_x = x.min(self.width);
+        let clamp_y = y.min(self.height);
+        let clamp_w = w.min(self.width.saturating_sub(clamp_x));
+        let clamp_h = h.min(self.height.saturating_sub(clamp_y));
+        let clamped = clamp_x != x || clamp_y != y || clamp_w != w || clamp_h != h;
+
+        let mut grid = Vec::with_capacity(clamp_h as usize);
+        for row_idx in clamp_y..(clamp_y + clamp_h) {
+            let row = &self.grid[row_idx as usize];
+            let slice: Vec<String> = row[clamp_x as usize..(clamp_x + clamp_w) as usize].to_vec();
+            grid.push(slice);
+        }
+
+        RegionResult { x: clamp_x, y: clamp_y, width: clamp_w, height: clamp_h, grid, clamped }
+    }
+
+    /// Build a frequency map of all tokens in the grid.
+    ///
+    /// Returns tokens sorted by count descending. The total equals
+    /// width * height.
+    pub fn count(&self) -> CountResult {
+        let mut freq: HashMap<String, u32> = HashMap::new();
+        for row in &self.grid {
+            for cell in row {
+                *freq.entry(cell.clone()).or_insert(0) += 1;
+            }
+        }
+
+        let mut tokens: Vec<(String, u32)> = freq.into_iter().collect();
+        tokens.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        let total = self.width * self.height;
+        CountResult { tokens, total }
     }
 
     /// Compute the bounding box of a token's extent.
@@ -646,5 +712,124 @@ mod tests {
 
         assert!(grid.neighbors(4, 0).is_err());
         assert!(grid.neighbors(0, 4).is_err());
+    }
+
+    // --- Region tests ---
+
+    #[test]
+    fn test_region_full_grid() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.region(0, 0, 4, 4);
+        assert_eq!(result.width, 4);
+        assert_eq!(result.height, 4);
+        assert!(!result.clamped);
+        assert_eq!(result.grid.len(), 4);
+        assert_eq!(result.grid[1][1], "x");
+        assert_eq!(result.grid[0][0], "_");
+    }
+
+    #[test]
+    fn test_region_subslice() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Slice only the inner 2x2 rect
+        let result = grid.region(1, 1, 2, 2);
+        assert_eq!(result.width, 2);
+        assert_eq!(result.height, 2);
+        assert!(!result.clamped);
+        assert_eq!(result.grid, vec![vec!["x", "x"], vec!["x", "x"]]);
+    }
+
+    #[test]
+    fn test_region_clamped() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Request extends beyond sprite bounds
+        let result = grid.region(2, 2, 10, 10);
+        assert_eq!(result.x, 2);
+        assert_eq!(result.y, 2);
+        assert_eq!(result.width, 2);
+        assert_eq!(result.height, 2);
+        assert!(result.clamped);
+    }
+
+    #[test]
+    fn test_region_out_of_bounds_origin() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Origin beyond sprite
+        let result = grid.region(10, 10, 2, 2);
+        assert_eq!(result.width, 0);
+        assert_eq!(result.height, 0);
+        assert!(result.clamped);
+        assert!(result.grid.is_empty());
+    }
+
+    // --- Count tests ---
+
+    #[test]
+    fn test_count_simple() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.count();
+        assert_eq!(result.total, 16);
+        // Sorted by count descending: "_" (12) then "x" (4)
+        assert_eq!(result.tokens.len(), 2);
+        assert_eq!(result.tokens[0], ("_".to_string(), 12));
+        assert_eq!(result.tokens[1], ("x".to_string(), 4));
+    }
+
+    #[test]
+    fn test_count_with_z_ordering() {
+        let content = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000", "a": "#F00", "b": "#0F0"}}
+{"type": "sprite", "name": "s", "size": [4, 4], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4], "z": 0}, "b": {"rect": [1, 1, 2, 2], "z": 1}}}"##;
+
+        let pipeline = MaskPipeline::load_from_string(content, Some("s")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.count();
+        assert_eq!(result.total, 16);
+        // "a" covers 16 but "b" overwrites 4 → a=12, b=4
+        assert_eq!(result.tokens.len(), 2);
+        assert_eq!(result.tokens[0], ("a".to_string(), 12));
+        assert_eq!(result.tokens[1], ("b".to_string(), 4));
+    }
+
+    #[test]
+    fn test_count_empty_sprite() {
+        let content = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000"}}
+{"type": "sprite", "name": "empty", "size": [3, 3], "palette": "p"}"##;
+
+        let pipeline = MaskPipeline::load_from_string(content, Some("empty")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.count();
+        assert_eq!(result.total, 9);
+        assert_eq!(result.tokens.len(), 1);
+        assert_eq!(result.tokens[0], ("_".to_string(), 9));
+    }
+
+    #[test]
+    fn test_count_percentages_sum() {
+        let pipeline = MaskPipeline::load_from_string(MULTI_REGION, Some("s")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.count();
+        let sum: u32 = result.tokens.iter().map(|(_, c)| c).sum();
+        assert_eq!(sum, result.total);
     }
 }

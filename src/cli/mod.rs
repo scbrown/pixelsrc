@@ -539,6 +539,14 @@ pub enum Commands {
         /// Show bounding box of a token (e.g. --bounds "{skin}")
         #[arg(long, value_name = "TOKEN")]
         bounds: Option<String>,
+
+        /// Dump tokens in a rectangle (e.g. --region 4,2,4,4)
+        #[arg(long, value_name = "X,Y,W,H")]
+        region: Option<String>,
+
+        /// Show token frequency counts
+        #[arg(long)]
+        count: bool,
     },
 }
 
@@ -696,15 +704,19 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds } => mask::run_mask(
-            &input,
-            sprite.as_deref(),
-            sample.as_deref(),
-            neighbors.as_deref(),
-            json,
-            query.as_deref(),
-            bounds.as_deref(),
-        ),
+        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds, region, count } => {
+            mask::run_mask(
+                &input,
+                sprite.as_deref(),
+                sample.as_deref(),
+                neighbors.as_deref(),
+                json,
+                query.as_deref(),
+                bounds.as_deref(),
+                region.as_deref(),
+                count,
+            )
+        }
     }
 }
 
