@@ -31,6 +31,7 @@ pub mod manifest;
 pub mod parallel;
 pub mod pipeline;
 pub mod progress;
+pub mod project_registry;
 pub mod result;
 pub mod target;
 
