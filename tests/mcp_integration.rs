@@ -194,8 +194,8 @@ fn test_mcp_tools_list() {
     let result = resp.get("result").expect("tools/list should return result");
     let tools = result["tools"].as_array().expect("tools should be an array");
 
-    // We have 7 implemented tools
-    assert_eq!(tools.len(), 7, "expected 7 tools, got {}", tools.len());
+    // We have 9 implemented tools
+    assert_eq!(tools.len(), 9, "expected 9 tools, got {}", tools.len());
 
     // Collect tool names
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
@@ -207,6 +207,8 @@ fn test_mcp_tools_list() {
         "pixelsrc_analyze",
         "pixelsrc_scaffold",
         "pixelsrc_import",
+        "pixelsrc_explain",
+        "pixelsrc_diff",
     ];
     for name in &expected {
         assert!(names.contains(name), "missing tool: {}", name);

@@ -12,8 +12,9 @@ use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler
 use super::prompts;
 use super::resources;
 use super::tools::{
-    analyze::AnalyzeInput, format::FormatInput, import::ImportInput, palettes::PalettesInput,
-    prime::PrimeInput, render::RenderInput, scaffold::ScaffoldInput,
+    analyze::AnalyzeInput, diff::DiffInput, explain::ExplainInput, format::FormatInput,
+    import::ImportInput, palettes::PalettesInput, prime::PrimeInput, render::RenderInput,
+    scaffold::ScaffoldInput,
 };
 use crate::analyze::{collect_files, AnalysisReport};
 use crate::palettes;
@@ -363,6 +364,32 @@ impl PixelsrcMcpServer {
         Parameters(input): Parameters<ImportInput>,
     ) -> Result<String, String> {
         super::tools::import::run_import(input)
+    }
+
+    // ── pixelsrc_explain ──────────────────────────────────────────────
+
+    /// Describe .pxl source objects in human-readable JSON. Returns structure,
+    /// dimensions, palette info, and token usage for sprites, palettes, animations,
+    /// and other object types.
+    #[tool(
+        description = "Describe .pxl source objects in human-readable JSON. Returns structure, dimensions, palette info, and token usage. Use name to target a specific object."
+    )]
+    fn pixelsrc_explain(
+        &self,
+        Parameters(input): Parameters<ExplainInput>,
+    ) -> Result<String, String> {
+        super::tools::explain::run_explain(input)
+    }
+
+    // ── pixelsrc_diff ─────────────────────────────────────────────────
+
+    /// Compare two .pxl sources and return semantic differences. Detects added,
+    /// removed, and changed palette tokens, plus dimension changes.
+    #[tool(
+        description = "Compare two .pxl sources and return semantic differences as JSON. Detects added/removed/changed palette tokens and dimension changes. Use sprite to compare a specific sprite."
+    )]
+    fn pixelsrc_diff(&self, Parameters(input): Parameters<DiffInput>) -> Result<String, String> {
+        super::tools::diff::run_diff(input)
     }
 }
 

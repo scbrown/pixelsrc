@@ -4,6 +4,8 @@
 //! MCP tool that AI models can call.
 
 pub mod analyze;
+pub mod diff;
+pub mod explain;
 pub mod format;
 pub mod import;
 pub mod palettes;
