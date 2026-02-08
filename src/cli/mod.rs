@@ -523,6 +523,14 @@ pub enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Find all coordinates of a token (e.g. --query "{eye}")
+        #[arg(long, value_name = "TOKEN")]
+        query: Option<String>,
+
+        /// Show bounding box of a token (e.g. --bounds "{skin}")
+        #[arg(long, value_name = "TOKEN")]
+        bounds: Option<String>,
     },
 }
 
@@ -680,7 +688,9 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, json } => mask::run_mask(&input, sprite.as_deref(), json),
+        Commands::Mask { input, sprite, json, query, bounds } => {
+            mask::run_mask(&input, sprite.as_deref(), json, query.as_deref(), bounds.as_deref())
+        }
     }
 }
 

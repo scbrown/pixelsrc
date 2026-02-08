@@ -94,6 +94,26 @@ pub struct TokenGrid {
     pub height: u32,
 }
 
+/// Result of a --query operation: all coordinates where a token appears.
+#[derive(Debug)]
+pub struct QueryResult {
+    /// The token that was queried (bare name, no braces).
+    pub token: String,
+    /// All (x, y) coordinates where this token appears, sorted.
+    pub coords: Vec<(u32, u32)>,
+}
+
+/// Result of a --bounds operation: bounding box of a token's extent.
+#[derive(Debug)]
+pub struct BoundsResult {
+    /// The token that was queried (bare name, no braces).
+    pub token: String,
+    /// Bounding box as [x, y, w, h], or None if token not found.
+    pub bounds: Option<[u32; 4]>,
+    /// Number of pixels containing this token.
+    pub pixel_count: u32,
+}
+
 impl TokenGrid {
     /// Build a token grid from a sprite's regions.
     ///
@@ -163,6 +183,56 @@ impl TokenGrid {
         }
 
         Ok(TokenGrid { grid, width, height })
+    }
+
+    /// Find all coordinates where a token appears.
+    ///
+    /// The `token` parameter is the bare token name (e.g. "skin", "_").
+    /// Coordinates are returned sorted by (y, x) order.
+    pub fn query(&self, token: &str) -> QueryResult {
+        let mut coords = Vec::new();
+        for (y, row) in self.grid.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                if cell == token {
+                    coords.push((x as u32, y as u32));
+                }
+            }
+        }
+        QueryResult { token: token.to_string(), coords }
+    }
+
+    /// Compute the bounding box of a token's extent.
+    ///
+    /// Returns [x, y, w, h] where (x,y) is the top-left corner
+    /// and (w,h) are the dimensions. Returns None bounds if the token
+    /// is not found anywhere in the grid.
+    pub fn bounds(&self, token: &str) -> BoundsResult {
+        let mut min_x: Option<u32> = None;
+        let mut min_y: Option<u32> = None;
+        let mut max_x: u32 = 0;
+        let mut max_y: u32 = 0;
+        let mut pixel_count: u32 = 0;
+
+        for (y, row) in self.grid.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                if cell == token {
+                    let x = x as u32;
+                    let y = y as u32;
+                    pixel_count += 1;
+                    min_x = Some(min_x.map_or(x, |m: u32| m.min(x)));
+                    min_y = Some(min_y.map_or(y, |m: u32| m.min(y)));
+                    max_x = max_x.max(x);
+                    max_y = max_y.max(y);
+                }
+            }
+        }
+
+        let bounds = min_x.map(|mx| {
+            let my = min_y.unwrap();
+            [mx, my, max_x - mx + 1, max_y - my + 1]
+        });
+
+        BoundsResult { token: token.to_string(), bounds, pixel_count }
     }
 }
 
@@ -296,5 +366,126 @@ mod tests {
         // Inner area should be "b" (higher z)
         assert_eq!(grid.grid[1][1], "b");
         assert_eq!(grid.grid[2][2], "b");
+    }
+
+    // --- Query tests ---
+
+    #[test]
+    fn test_query_finds_all_coords() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.query("x");
+        assert_eq!(result.token, "x");
+        assert_eq!(result.coords.len(), 4);
+        assert!(result.coords.contains(&(1, 1)));
+        assert!(result.coords.contains(&(2, 1)));
+        assert!(result.coords.contains(&(1, 2)));
+        assert!(result.coords.contains(&(2, 2)));
+    }
+
+    #[test]
+    fn test_query_transparent_token() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // 4x4 grid with 4 "x" pixels = 12 "_" pixels
+        let result = grid.query("_");
+        assert_eq!(result.coords.len(), 12);
+    }
+
+    #[test]
+    fn test_query_not_found() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.query("nonexistent");
+        assert_eq!(result.coords.len(), 0);
+    }
+
+    #[test]
+    fn test_query_sorted_by_y_then_x() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.query("x");
+        // Should be in row-major order: (1,1), (2,1), (1,2), (2,2)
+        assert_eq!(result.coords, vec![(1, 1), (2, 1), (1, 2), (2, 2)]);
+    }
+
+    // --- Bounds tests ---
+
+    #[test]
+    fn test_bounds_simple_rect() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.bounds("x");
+        assert_eq!(result.token, "x");
+        assert_eq!(result.bounds, Some([1, 1, 2, 2])); // x=1, y=1, w=2, h=2
+        assert_eq!(result.pixel_count, 4);
+    }
+
+    #[test]
+    fn test_bounds_not_found() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.bounds("nonexistent");
+        assert_eq!(result.bounds, None);
+        assert_eq!(result.pixel_count, 0);
+    }
+
+    #[test]
+    fn test_bounds_full_grid() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.bounds("_");
+        assert_eq!(result.bounds, Some([0, 0, 4, 4])); // fills entire 4x4 grid
+        assert_eq!(result.pixel_count, 12);
+    }
+
+    #[test]
+    fn test_bounds_with_z_ordering() {
+        // Two overlapping regions — higher z wins
+        let content = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000", "a": "#F00", "b": "#0F0"}}
+{"type": "sprite", "name": "s", "size": [4, 4], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4], "z": 0}, "b": {"rect": [1, 1, 2, 2], "z": 1}}}"##;
+
+        let pipeline = MaskPipeline::load_from_string(content, Some("s")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // "b" occupies 2x2 at (1,1)
+        let result = grid.bounds("b");
+        assert_eq!(result.bounds, Some([1, 1, 2, 2]));
+        assert_eq!(result.pixel_count, 4);
+
+        // "a" occupies the L-shaped border (16 - 4 = 12 pixels)
+        let result = grid.bounds("a");
+        assert_eq!(result.bounds, Some([0, 0, 4, 4]));
+        assert_eq!(result.pixel_count, 12);
+    }
+
+    #[test]
+    fn test_bounds_single_pixel() {
+        // Single pixel token should have w=1, h=1
+        let content = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000", "x": "#F00"}}
+{"type": "sprite", "name": "s", "size": [4, 4], "palette": "p", "regions": {"x": {"rect": [2, 3, 1, 1], "z": 0}}}"##;
+
+        let pipeline = MaskPipeline::load_from_string(content, Some("s")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        let result = grid.bounds("x");
+        assert_eq!(result.bounds, Some([2, 3, 1, 1]));
+        assert_eq!(result.pixel_count, 1);
     }
 }
