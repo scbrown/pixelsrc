@@ -1,6 +1,7 @@
 //! External palette file inclusion support
 //!
 //! Supports the `@include:path` syntax for including palettes from external files.
+//! Supports `@include:path#name` for selecting a specific palette by name.
 //! Paths are resolved relative to the including file's directory.
 
 use std::collections::HashSet;
@@ -25,6 +26,9 @@ pub enum IncludeError {
     /// No palette found in included file
     #[error("No palette found in included file: {}", .0.display())]
     NoPaletteFound(PathBuf),
+    /// Named palette not found in included file
+    #[error("Palette '{}' not found in included file: {}", .1, .0.display())]
+    NamedPaletteNotFound(PathBuf, String),
     /// IO error reading file
     #[error("Error reading include file '{}': {1}", .0.display())]
     IoError(PathBuf, String),
@@ -38,35 +42,55 @@ pub fn is_include_ref(palette_ref: &str) -> bool {
     palette_ref.starts_with(INCLUDE_PREFIX)
 }
 
-/// Extract the path from an include reference.
+/// Extract the file path from an include reference, stripping any `#name` suffix.
 ///
 /// Returns `None` if the reference is not an include reference.
 pub fn extract_include_path(palette_ref: &str) -> Option<&str> {
-    palette_ref.strip_prefix(INCLUDE_PREFIX)
+    let after_prefix = palette_ref.strip_prefix(INCLUDE_PREFIX)?;
+    // Strip #name suffix if present
+    Some(after_prefix.split_once('#').map_or(after_prefix, |(path, _)| path))
+}
+
+/// Parse an include reference into its file path and optional palette name.
+///
+/// Returns `None` if the reference is not an include reference.
+/// Returns `Some((path, None))` for `@include:path` (first palette).
+/// Returns `Some((path, Some(name)))` for `@include:path#name` (named palette).
+pub fn parse_include_ref(palette_ref: &str) -> Option<(&str, Option<&str>)> {
+    let after_prefix = palette_ref.strip_prefix(INCLUDE_PREFIX)?;
+    match after_prefix.split_once('#') {
+        Some((path, name)) => Some((path, Some(name))),
+        None => Some((after_prefix, None)),
+    }
 }
 
 /// Resolve an include reference to a Palette.
 ///
 /// # Arguments
 ///
-/// * `include_path` - The path string after `@include:` (e.g., "./shared/colors.jsonl")
+/// * `include_path` - The file path (e.g., "./shared/colors.jsonl"), without `#name` suffix
 /// * `base_path` - The directory containing the file with the @include reference
+/// * `palette_name` - Optional palette name to select (from `#name` syntax)
 ///
 /// # Returns
 ///
-/// The first palette found in the included file, or an error.
+/// The matching palette from the included file, or an error.
+/// If `palette_name` is `None`, returns the first palette (backward compat).
+/// If `palette_name` is `Some(name)`, returns the palette with that name.
 ///
 /// # Example
 ///
 /// ```ignore
-/// // Given: file at /project/sprites.jsonl with "@include:shared/palette.jsonl"
-/// // base_path would be /project/
-/// // include_path would be "shared/palette.jsonl"
-/// // Resolves to: /project/shared/palette.jsonl
+/// // @include:shared/palette.jsonl → resolve_include("shared/palette.jsonl", base, None)
+/// // @include:shared/palette.jsonl#gameboy → resolve_include("shared/palette.jsonl", base, Some("gameboy"))
 /// ```
-pub fn resolve_include(include_path: &str, base_path: &Path) -> Result<Palette, IncludeError> {
+pub fn resolve_include(
+    include_path: &str,
+    base_path: &Path,
+    palette_name: Option<&str>,
+) -> Result<Palette, IncludeError> {
     let mut visited = HashSet::new();
-    resolve_include_with_detection(include_path, base_path, &mut visited)
+    resolve_include_with_detection(include_path, base_path, &mut visited, palette_name)
 }
 
 /// Resolve a path, trying alternate extensions if the exact path doesn't exist.
@@ -96,10 +120,13 @@ fn resolve_path_with_extensions(path: &Path) -> Option<PathBuf> {
 /// Resolve an include reference with circular include detection.
 ///
 /// This is the internal implementation that tracks visited files to detect cycles.
+/// If `palette_name` is `Some(name)`, searches for a palette with that specific name.
+/// If `palette_name` is `None`, returns the first palette found (backward compat).
 pub fn resolve_include_with_detection(
     include_path: &str,
     base_path: &Path,
     visited: &mut HashSet<PathBuf>,
+    palette_name: Option<&str>,
 ) -> Result<Palette, IncludeError> {
     // Resolve the include path relative to the base path
     let resolved_path = base_path.join(include_path);
@@ -136,16 +163,28 @@ pub fn resolve_include_with_detection(
     // (reserved for future nested include support)
     let _include_dir = canonical_path.parent().unwrap_or(Path::new("."));
 
-    // Find the first palette in the included file
+    // Find the matching palette in the included file
     for obj in parse_result.objects {
         if let TtpObject::Palette(palette) = obj {
-            return Ok(palette);
+            match palette_name {
+                Some(name) => {
+                    if palette.name == name {
+                        return Ok(palette);
+                    }
+                    // Continue searching for the named palette
+                }
+                None => {
+                    // No name specified: return first palette (backward compat)
+                    return Ok(palette);
+                }
+            }
         }
-        // Handle sprites that might have @include palette refs
-        // (but we're looking for palette objects, not sprite palette refs)
     }
 
-    Err(IncludeError::NoPaletteFound(canonical_path))
+    match palette_name {
+        Some(name) => Err(IncludeError::NamedPaletteNotFound(canonical_path, name.to_string())),
+        None => Err(IncludeError::NoPaletteFound(canonical_path)),
+    }
 }
 
 #[cfg(test)]
@@ -182,7 +221,7 @@ mod tests {
         let content = r##"{"type": "palette", "name": "test", "colors": {"{_}": "#00000000", "{x}": "#FF0000"}}"##;
         writeln!(file, "{}", content).unwrap();
 
-        let result = resolve_include("palette.jsonl", temp_dir.path());
+        let result = resolve_include("palette.jsonl", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -194,7 +233,7 @@ mod tests {
     fn test_resolve_include_file_not_found() {
         let temp_dir = TempDir::new().unwrap();
 
-        let result = resolve_include("nonexistent.jsonl", temp_dir.path());
+        let result = resolve_include("nonexistent.jsonl", temp_dir.path(), None);
         assert!(result.is_err());
 
         match result.unwrap_err() {
@@ -213,7 +252,7 @@ mod tests {
         let content = r##"{"type": "sprite", "name": "test", "size": [1, 1], "palette": {"x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}"##;
         writeln!(file, "{}", content).unwrap();
 
-        let result = resolve_include("sprite.jsonl", temp_dir.path());
+        let result = resolve_include("sprite.jsonl", temp_dir.path(), None);
         assert!(result.is_err());
 
         match result.unwrap_err() {
@@ -236,12 +275,12 @@ mod tests {
 
         // First resolution should succeed
         let result1 =
-            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited, None);
         assert!(result1.is_ok());
 
         // Second resolution of same file should detect circular include
         let result2 =
-            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited);
+            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited, None);
         assert!(result2.is_err());
 
         match result2.unwrap_err() {
@@ -265,7 +304,7 @@ mod tests {
         writeln!(file, "{}", content).unwrap();
 
         // Resolve from parent directory
-        let result = resolve_include("shared/colors.jsonl", temp_dir.path());
+        let result = resolve_include("shared/colors.jsonl", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -283,7 +322,7 @@ mod tests {
         writeln!(file, "{}", content).unwrap();
 
         // Resolve with explicit .pxl extension
-        let result = resolve_include("palette.pxl", temp_dir.path());
+        let result = resolve_include("palette.pxl", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -302,7 +341,7 @@ mod tests {
         writeln!(file, "{}", content).unwrap();
 
         // Resolve without extension - should find .pxl
-        let result = resolve_include("colors", temp_dir.path());
+        let result = resolve_include("colors", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -321,7 +360,7 @@ mod tests {
         writeln!(file, "{}", content).unwrap();
 
         // Resolve without extension - should find .jsonl
-        let result = resolve_include("colors", temp_dir.path());
+        let result = resolve_include("colors", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -344,7 +383,7 @@ mod tests {
             .unwrap();
 
         // Resolve without extension - .pxl should be preferred
-        let result = resolve_include("colors", temp_dir.path());
+        let result = resolve_include("colors", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
@@ -366,15 +405,113 @@ mod tests {
         writeln!(file, "{}", content).unwrap();
 
         // Resolve with .pxl extension
-        let result = resolve_include("shared/colors.pxl", temp_dir.path());
+        let result = resolve_include("shared/colors.pxl", temp_dir.path(), None);
         assert!(result.is_ok());
 
         let palette = result.unwrap();
         assert_eq!(palette.name, "shared_pxl");
 
         // Also test without extension
-        let result2 = resolve_include("shared/colors", temp_dir.path());
+        let result2 = resolve_include("shared/colors", temp_dir.path(), None);
         assert!(result2.is_ok());
         assert_eq!(result2.unwrap().name, "shared_pxl");
+    }
+
+    // --- #name syntax tests ---
+
+    #[test]
+    fn test_parse_include_ref() {
+        // Basic path without #name
+        assert_eq!(
+            parse_include_ref("@include:shared/palette.jsonl"),
+            Some(("shared/palette.jsonl", None))
+        );
+
+        // Path with #name
+        assert_eq!(
+            parse_include_ref("@include:shared/palettes.pxl#gameboy"),
+            Some(("shared/palettes.pxl", Some("gameboy")))
+        );
+
+        // Not an include ref
+        assert_eq!(parse_include_ref("@gameboy"), None);
+        assert_eq!(parse_include_ref("regular"), None);
+    }
+
+    #[test]
+    fn test_extract_include_path_strips_name() {
+        // Without #name - unchanged behavior
+        assert_eq!(
+            extract_include_path("@include:shared/palette.jsonl"),
+            Some("shared/palette.jsonl")
+        );
+
+        // With #name - strips the fragment
+        assert_eq!(
+            extract_include_path("@include:shared/palettes.pxl#gameboy"),
+            Some("shared/palettes.pxl")
+        );
+    }
+
+    #[test]
+    fn test_resolve_include_named_palette() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("palettes.jsonl");
+
+        // Create a file with multiple palettes
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let p1 = r##"{"type": "palette", "name": "first", "colors": {"{x}": "#FF0000"}}"##;
+        let p2 = r##"{"type": "palette", "name": "gameboy", "colors": {"{x}": "#00FF00"}}"##;
+        let p3 = r##"{"type": "palette", "name": "third", "colors": {"{x}": "#0000FF"}}"##;
+        writeln!(file, "{}", p1).unwrap();
+        writeln!(file, "{}", p2).unwrap();
+        writeln!(file, "{}", p3).unwrap();
+
+        // Select by name: should get "gameboy" (not first)
+        let result = resolve_include("palettes.jsonl", temp_dir.path(), Some("gameboy"));
+        assert!(result.is_ok());
+        let palette = result.unwrap();
+        assert_eq!(palette.name, "gameboy");
+        assert_eq!(palette.colors.get("{x}"), Some(&"#00FF00".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_include_named_palette_first() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("palettes.jsonl");
+
+        // Create a file with multiple palettes
+        let mut file = fs::File::create(&palette_path).unwrap();
+        let p1 = r##"{"type": "palette", "name": "alpha", "colors": {"{x}": "#FF0000"}}"##;
+        let p2 = r##"{"type": "palette", "name": "beta", "colors": {"{x}": "#00FF00"}}"##;
+        writeln!(file, "{}", p1).unwrap();
+        writeln!(file, "{}", p2).unwrap();
+
+        // Without name: backward compat, returns first
+        let result = resolve_include("palettes.jsonl", temp_dir.path(), None);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "alpha");
+    }
+
+    #[test]
+    fn test_resolve_include_named_palette_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let palette_path = temp_dir.path().join("palettes.jsonl");
+
+        // Create a file with palettes
+        let mut file = fs::File::create(&palette_path).unwrap();
+        writeln!(file, r##"{{"type": "palette", "name": "alpha", "colors": {{}}}}"##).unwrap();
+        writeln!(file, r##"{{"type": "palette", "name": "beta", "colors": {{}}}}"##).unwrap();
+
+        // Request a name that doesn't exist
+        let result = resolve_include("palettes.jsonl", temp_dir.path(), Some("nonexistent"));
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            IncludeError::NamedPaletteNotFound(_, name) => {
+                assert_eq!(name, "nonexistent");
+            }
+            other => panic!("Expected NamedPaletteNotFound, got {:?}", other),
+        }
     }
 }

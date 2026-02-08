@@ -10,7 +10,7 @@ use crate::antialias::{AAAlgorithm, AnchorMode};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::composition::render_composition;
 use crate::gif::render_gif;
-use crate::include::{extract_include_path, is_include_ref, resolve_include_with_detection};
+use crate::include::{is_include_ref, parse_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{generate_output_path, save_png, scale_image};
 use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
@@ -281,14 +281,19 @@ pub fn run_render(
             // For normal palettes, use sprite_registry.resolve() which handles both
             let final_palette = if uses_include_palette {
                 // Handle @include: palette specially
-                let include_path = if let PaletteRef::Named(name) = &sprite.palette {
-                    extract_include_path(name).expect("is_include_ref validated prefix")
+                let (include_path, palette_name) = if let PaletteRef::Named(name) = &sprite.palette
+                {
+                    parse_include_ref(name).expect("is_include_ref validated prefix")
                 } else {
                     unreachable!()
                 };
 
-                match resolve_include_with_detection(include_path, input_dir, &mut include_visited)
-                {
+                match resolve_include_with_detection(
+                    include_path,
+                    input_dir,
+                    &mut include_visited,
+                    palette_name,
+                ) {
                     Ok(palette) => palette.colors,
                     Err(e) => {
                         if strict {
@@ -647,12 +652,13 @@ fn render_composition_to_image(
             if let Some(sprite) = original_sprite {
                 if let PaletteRef::Named(name) = &sprite.palette {
                     if is_include_ref(name) {
-                        let include_path =
-                            extract_include_path(name).expect("is_include_ref validated prefix");
+                        let (include_path, palette_name) =
+                            parse_include_ref(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
                             include_visited,
+                            palette_name,
                         ) {
                             Ok(palette) => palette.colors,
                             Err(e) => {
@@ -820,12 +826,17 @@ fn run_animation_render(
         // Resolve base palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path =
-                    extract_include_path(name).expect("is_include_ref validated prefix");
-                match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                let (include_path, palette_name) =
+                    parse_include_ref(name).expect("is_include_ref validated prefix");
+                match resolve_include_with_detection(
+                    include_path,
+                    input_dir,
+                    include_visited,
+                    palette_name,
+                ) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,
-                        source: PaletteSource::Named(format!("@include:{}", include_path)),
+                        source: PaletteSource::Named(name.clone()),
                     },
                     Err(e) => {
                         if strict {
@@ -892,16 +903,17 @@ fn run_animation_render(
                 // Resolve palette
                 let resolved = match &sprite.palette {
                     PaletteRef::Named(name) if is_include_ref(name) => {
-                        let include_path =
-                            extract_include_path(name).expect("is_include_ref validated prefix");
+                        let (include_path, palette_name) =
+                            parse_include_ref(name).expect("is_include_ref validated prefix");
                         match resolve_include_with_detection(
                             include_path,
                             input_dir,
                             include_visited,
+                            palette_name,
                         ) {
                             Ok(palette) => ResolvedPalette {
                                 colors: palette.colors,
-                                source: PaletteSource::Named(format!("@include:{}", include_path)),
+                                source: PaletteSource::Named(name.clone()),
                             },
                             Err(e) => {
                                 if strict {
@@ -1084,12 +1096,17 @@ fn run_atlas_render(
         // Resolve palette
         let resolved = match &sprite.palette {
             PaletteRef::Named(name) if is_include_ref(name) => {
-                let include_path =
-                    extract_include_path(name).expect("is_include_ref validated prefix");
-                match resolve_include_with_detection(include_path, input_dir, include_visited) {
+                let (include_path, palette_name) =
+                    parse_include_ref(name).expect("is_include_ref validated prefix");
+                match resolve_include_with_detection(
+                    include_path,
+                    input_dir,
+                    include_visited,
+                    palette_name,
+                ) {
                     Ok(palette) => ResolvedPalette {
                         colors: palette.colors,
-                        source: PaletteSource::Named(format!("@include:{}", include_path)),
+                        source: PaletteSource::Named(name.clone()),
                     },
                     Err(e) => {
                         if strict {
