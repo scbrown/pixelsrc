@@ -721,9 +721,7 @@ mod tests {
     #[test]
     fn test_flood_creates_region() {
         let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
-        pipeline
-            .apply_ops(&[DrawOp::Flood { x: 1, y: 1, token: "water".to_string() }])
-            .unwrap();
+        pipeline.apply_ops(&[DrawOp::Flood { x: 1, y: 1, token: "water".to_string() }]).unwrap();
 
         let sprite = pipeline.sprite().unwrap();
         let regions = sprite.regions.as_ref().unwrap();

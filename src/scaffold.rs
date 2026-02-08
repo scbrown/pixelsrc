@@ -230,10 +230,8 @@ pub fn generate_sprite(
     }
 
     // Build palette JSON
-    let color_entries: Vec<String> = colors
-        .iter()
-        .map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex))
-        .collect();
+    let color_entries: Vec<String> =
+        colors.iter().map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex)).collect();
 
     let palette_json = format!(
         "{{\n  \"type\": \"palette\",\n  \"name\": \"{}\",\n  \"colors\": {{\n{}\n  }}\n}}",
@@ -272,9 +270,8 @@ pub fn generate_composition(
         ));
     }
 
-    let pal_name = palette_name
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("{}_palette", name));
+    let pal_name =
+        palette_name.map(|s| s.to_string()).unwrap_or_else(|| format!("{}_palette", name));
 
     // Symbol assignment: A-Z, a-z, 0-9
     let symbols: Vec<char> = ('A'..='Z').chain('a'..='z').chain('0'..='9').collect();
@@ -305,10 +302,8 @@ pub fn generate_composition(
     }
 
     // Build sprites map entries
-    let sprite_entries: Vec<String> = sprite_map
-        .iter()
-        .map(|(sym, name)| format!("    \"{}\": \"{}\"", sym, name))
-        .collect();
+    let sprite_entries: Vec<String> =
+        sprite_map.iter().map(|(sym, name)| format!("    \"{}\": \"{}\"", sym, name)).collect();
 
     // Build character map
     let mut map_rows = Vec::new();
@@ -356,10 +351,8 @@ pub fn generate_palette_scaffold(
         }
     }
 
-    let color_entries: Vec<String> = color_map
-        .iter()
-        .map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex))
-        .collect();
+    let color_entries: Vec<String> =
+        color_map.iter().map(|(tok, hex)| format!("    \"{{{}}}\": \"{}\"", tok, hex)).collect();
 
     let output = format!(
         "{{\n  \"type\": \"palette\",\n  \"name\": \"{}\",\n  \"colors\": {{\n{}\n  }}\n}}\n",
@@ -405,12 +398,10 @@ fn get_preset_colors(name: &str) -> Result<Vec<(String, String)>, String> {
             ("sand".into(), "#F4A460".into()),
             ("coral".into(), "#FF7F50".into()),
         ]),
-        _ => {
-            Err(format!(
-                "unknown preset '{}'. Available presets: forest, medieval, synthwave, ocean",
-                name
-            ))
-        }
+        _ => Err(format!(
+            "unknown preset '{}'. Available presets: forest, medieval, synthwave, ocean",
+            name
+        )),
     }
 }
 

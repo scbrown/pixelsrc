@@ -496,8 +496,7 @@ mod tests {
     #[test]
     fn test_color_mix_oklch_basic() {
         // color-mix in oklch with 50/50 split (default)
-        let color = parse_color("color-mix(in oklch, red, blue)")
-            .expect("color-mix in oklch");
+        let color = parse_color("color-mix(in oklch, red, blue)").expect("color-mix in oklch");
         // Should be a purple-ish color (mixing red and blue)
         assert!(color.0[0] > 100, "Should have significant red component");
         assert!(color.0[2] > 100, "Should have significant blue component");
@@ -506,14 +505,12 @@ mod tests {
     #[test]
     fn test_color_mix_oklch_percentages() {
         // 70% red, 30% blue
-        let color = parse_color("color-mix(in oklch, red 70%, blue)")
-            .expect("color-mix 70% red");
+        let color = parse_color("color-mix(in oklch, red 70%, blue)").expect("color-mix 70% red");
         // Should be more red than blue
         assert!(color.0[0] > color.0[2], "70% red should dominate");
 
         // 30% red, 70% blue
-        let color2 = parse_color("color-mix(in oklch, red 30%, blue)")
-            .expect("color-mix 30% red");
+        let color2 = parse_color("color-mix(in oklch, red 30%, blue)").expect("color-mix 30% red");
         // Should be more blue than red
         assert!(color2.0[2] > color2.0[0], "70% blue should dominate");
     }
@@ -521,8 +518,8 @@ mod tests {
     #[test]
     fn test_color_mix_srgb() {
         // color-mix in sRGB color space
-        let color = parse_color("color-mix(in srgb, #ff0000 50%, #0000ff)")
-            .expect("color-mix in srgb");
+        let color =
+            parse_color("color-mix(in srgb, #ff0000 50%, #0000ff)").expect("color-mix in srgb");
         // In sRGB, 50/50 red and blue should give purple with equal R and B
         assert!(color.0[0] > 100, "Should have red component");
         assert!(color.0[2] > 100, "Should have blue component");
@@ -562,8 +559,8 @@ mod tests {
     #[test]
     fn test_color_mix_white_black() {
         // Mixing white and black should give gray
-        let color = parse_color("color-mix(in oklch, white, black)")
-            .expect("color-mix white+black");
+        let color =
+            parse_color("color-mix(in oklch, white, black)").expect("color-mix white+black");
         // Should be grayish (R, G, B roughly equal)
         let diff_rg = (color.0[0] as i16 - color.0[1] as i16).abs();
         let diff_rb = (color.0[0] as i16 - color.0[2] as i16).abs();
@@ -574,8 +571,7 @@ mod tests {
     #[test]
     fn test_color_mix_100_percent() {
         // 100% of one color should just give that color
-        let color = parse_color("color-mix(in oklch, red 100%, blue)")
-            .expect("color-mix 100% red");
+        let color = parse_color("color-mix(in oklch, red 100%, blue)").expect("color-mix 100% red");
         // Should be close to pure red
         assert!(color.0[0] > 250, "100% red should be pure red");
         assert!(color.0[2] < 10, "100% red should have no blue");
@@ -584,8 +580,7 @@ mod tests {
     #[test]
     fn test_color_mix_0_percent() {
         // 0% of one color is effectively 100% of the other
-        let color = parse_color("color-mix(in oklch, red 0%, blue)")
-            .expect("color-mix 0% red");
+        let color = parse_color("color-mix(in oklch, red 0%, blue)").expect("color-mix 0% red");
         // Note: CSS color-mix with 0% may have different behavior across implementations
         // In oklch, the resulting color should be predominantly blue
         // Being lenient here to account for different interpretations
@@ -621,22 +616,43 @@ mod tests {
     fn test_parse_rgb_functional() {
         // rgb() with integer values
         assert_eq!(parse_color("rgb(255, 0, 0)").expect("rgb integer red"), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgb(0, 255, 0)").expect("rgb integer green"), Rgba([0, 255, 0, 255]));
-        assert_eq!(parse_color("rgb(0, 0, 255)").expect("rgb integer blue"), Rgba([0, 0, 255, 255]));
+        assert_eq!(
+            parse_color("rgb(0, 255, 0)").expect("rgb integer green"),
+            Rgba([0, 255, 0, 255])
+        );
+        assert_eq!(
+            parse_color("rgb(0, 0, 255)").expect("rgb integer blue"),
+            Rgba([0, 0, 255, 255])
+        );
 
         // rgb() with percentage values
-        assert_eq!(parse_color("rgb(100%, 0%, 0%)").expect("rgb percent red"), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgb(0%, 100%, 0%)").expect("rgb percent green"), Rgba([0, 255, 0, 255]));
+        assert_eq!(
+            parse_color("rgb(100%, 0%, 0%)").expect("rgb percent red"),
+            Rgba([255, 0, 0, 255])
+        );
+        assert_eq!(
+            parse_color("rgb(0%, 100%, 0%)").expect("rgb percent green"),
+            Rgba([0, 255, 0, 255])
+        );
 
         // Modern space-separated syntax
-        assert_eq!(parse_color("rgb(255 0 0)").expect("rgb space-separated"), Rgba([255, 0, 0, 255]));
+        assert_eq!(
+            parse_color("rgb(255 0 0)").expect("rgb space-separated"),
+            Rgba([255, 0, 0, 255])
+        );
     }
 
     #[test]
     fn test_parse_rgba_functional() {
         // rgba() with alpha
-        assert_eq!(parse_color("rgba(255, 0, 0, 1)").expect("rgba alpha=1"), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgba(255, 0, 0, 0.5)").expect("rgba alpha=0.5"), Rgba([255, 0, 0, 128]));
+        assert_eq!(
+            parse_color("rgba(255, 0, 0, 1)").expect("rgba alpha=1"),
+            Rgba([255, 0, 0, 255])
+        );
+        assert_eq!(
+            parse_color("rgba(255, 0, 0, 0.5)").expect("rgba alpha=0.5"),
+            Rgba([255, 0, 0, 128])
+        );
         assert_eq!(parse_color("rgba(255, 0, 0, 0)").expect("rgba alpha=0"), Rgba([255, 0, 0, 0]));
 
         // Modern syntax with /
@@ -654,17 +670,29 @@ mod tests {
         assert_eq!(parse_color("hsl(240, 100%, 50%)").expect("hsl blue"), Rgba([0, 0, 255, 255]));
 
         // Modern syntax with deg
-        assert_eq!(parse_color("hsl(0deg 100% 50%)").expect("hsl deg syntax"), Rgba([255, 0, 0, 255]));
+        assert_eq!(
+            parse_color("hsl(0deg 100% 50%)").expect("hsl deg syntax"),
+            Rgba([255, 0, 0, 255])
+        );
     }
 
     #[test]
     fn test_parse_hsla_functional() {
         // hsla() with alpha
-        assert_eq!(parse_color("hsla(0, 100%, 50%, 1)").expect("hsla alpha=1"), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("hsla(0, 100%, 50%, 0.5)").expect("hsla alpha=0.5"), Rgba([255, 0, 0, 128]));
+        assert_eq!(
+            parse_color("hsla(0, 100%, 50%, 1)").expect("hsla alpha=1"),
+            Rgba([255, 0, 0, 255])
+        );
+        assert_eq!(
+            parse_color("hsla(0, 100%, 50%, 0.5)").expect("hsla alpha=0.5"),
+            Rgba([255, 0, 0, 128])
+        );
 
         // Modern syntax
-        assert_eq!(parse_color("hsl(0 100% 50% / 50%)").expect("hsl / 50%"), Rgba([255, 0, 0, 128]));
+        assert_eq!(
+            parse_color("hsl(0 100% 50% / 50%)").expect("hsl / 50%"),
+            Rgba([255, 0, 0, 128])
+        );
     }
 
     #[test]
@@ -715,15 +743,18 @@ mod tests {
     fn test_named_colors_case_insensitive() {
         assert_eq!(parse_color("Red").expect("named Red mixed case"), Rgba([255, 0, 0, 255]));
         assert_eq!(parse_color("RED").expect("named RED uppercase"), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("HotPink").expect("named HotPink mixed case"), Rgba([255, 105, 180, 255]));
+        assert_eq!(
+            parse_color("HotPink").expect("named HotPink mixed case"),
+            Rgba([255, 105, 180, 255])
+        );
     }
 
     // CSS-12: color-mix() function tests
     #[test]
     fn test_color_mix_basic() {
         // color-mix in srgb: 50% red + 50% blue = purple
-        let purple = parse_color("color-mix(in srgb, red 50%, blue)")
-            .expect("color-mix srgb red+blue");
+        let purple =
+            parse_color("color-mix(in srgb, red 50%, blue)").expect("color-mix srgb red+blue");
         // Should be approximately (128, 0, 128) - purple
         assert!(purple.0[0] > 100 && purple.0[0] < 150); // R around 128
         assert!(purple.0[1] < 20); // G close to 0
@@ -755,8 +786,8 @@ mod tests {
     #[test]
     fn test_color_mix_white_black_srgb() {
         // 50% white + 50% black = gray (srgb space)
-        let gray = parse_color("color-mix(in srgb, white, black)")
-            .expect("color-mix srgb white+black");
+        let gray =
+            parse_color("color-mix(in srgb, white, black)").expect("color-mix srgb white+black");
         // Should be approximately (128, 128, 128)
         assert!(gray.0[0] > 100 && gray.0[0] < 150);
         assert!(gray.0[1] > 100 && gray.0[1] < 150);

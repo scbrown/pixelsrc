@@ -29,14 +29,7 @@ fn make_sprite_json(width: usize, height: usize) -> String {
         .collect();
 
     let regions: Vec<String> = (0..height.min(16))
-        .map(|row| {
-            format!(
-                "\"t{}\": {{\"rect\": [0, {}, {}, 1]}}",
-                row % 16,
-                row,
-                width
-            )
-        })
+        .map(|row| format!("\"t{}\": {{\"rect\": [0, {}, {}, 1]}}", row % 16, row, width))
         .collect();
 
     format!(

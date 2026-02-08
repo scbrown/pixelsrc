@@ -119,19 +119,12 @@ pub enum ScaffoldAction {
 fn parse_size(s: &str) -> Result<(u32, u32), String> {
     let parts: Vec<&str> = s.split('x').collect();
     if parts.len() != 2 {
-        return Err(format!(
-            "invalid size '{}', expected WxH (e.g., \"16x16\")",
-            s
-        ));
+        return Err(format!("invalid size '{}', expected WxH (e.g., \"16x16\")", s));
     }
-    let w: u32 = parts[0]
-        .trim()
-        .parse()
-        .map_err(|_| format!("invalid width '{}'", parts[0].trim()))?;
-    let h: u32 = parts[1]
-        .trim()
-        .parse()
-        .map_err(|_| format!("invalid height '{}'", parts[1].trim()))?;
+    let w: u32 =
+        parts[0].trim().parse().map_err(|_| format!("invalid width '{}'", parts[0].trim()))?;
+    let h: u32 =
+        parts[1].trim().parse().map_err(|_| format!("invalid height '{}'", parts[1].trim()))?;
     if w == 0 || h == 0 {
         return Err(format!("size dimensions must be > 0, got {}x{}", w, h));
     }
@@ -159,14 +152,7 @@ fn write_output(content: &str, output: Option<&Path>) -> ExitCode {
 /// Execute the scaffold command.
 pub fn run_scaffold(action: ScaffoldAction) -> ExitCode {
     match action {
-        ScaffoldAction::Sprite {
-            name,
-            size,
-            palette,
-            tokens,
-            output,
-            format: _,
-        } => {
+        ScaffoldAction::Sprite { name, size, palette, tokens, output, format: _ } => {
             let (w, h) = match parse_size(&size) {
                 Ok(s) => s,
                 Err(e) => {
@@ -180,25 +166,13 @@ pub fn run_scaffold(action: ScaffoldAction) -> ExitCode {
                 .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                 .unwrap_or_default();
 
-            let content = crate::scaffold::generate_sprite(
-                &name,
-                w,
-                h,
-                palette.as_deref(),
-                &token_list,
-            );
+            let content =
+                crate::scaffold::generate_sprite(&name, w, h, palette.as_deref(), &token_list);
 
             write_output(&content, output.as_deref())
         }
 
-        ScaffoldAction::Composition {
-            name,
-            size,
-            cell_size,
-            palette,
-            output,
-            format: _,
-        } => {
+        ScaffoldAction::Composition { name, size, cell_size, palette, output, format: _ } => {
             let (sw, sh) = match parse_size(&size) {
                 Ok(s) => s,
                 Err(e) => {
@@ -223,14 +197,8 @@ pub fn run_scaffold(action: ScaffoldAction) -> ExitCode {
                 return ExitCode::from(EXIT_INVALID_ARGS);
             }
 
-            let content = crate::scaffold::generate_composition(
-                &name,
-                sw,
-                sh,
-                cw,
-                ch,
-                palette.as_deref(),
-            );
+            let content =
+                crate::scaffold::generate_composition(&name, sw, sh, cw, ch, palette.as_deref());
 
             match content {
                 Ok(c) => write_output(&c, output.as_deref()),
@@ -241,14 +209,7 @@ pub fn run_scaffold(action: ScaffoldAction) -> ExitCode {
             }
         }
 
-        ScaffoldAction::Palette {
-            name,
-            preset,
-            colors,
-            token_prefix,
-            output,
-            format: _,
-        } => {
+        ScaffoldAction::Palette { name, preset, colors, token_prefix, output, format: _ } => {
             let content = crate::scaffold::generate_palette_scaffold(
                 &name,
                 preset.as_deref(),
