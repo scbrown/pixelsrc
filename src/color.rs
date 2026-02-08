@@ -384,49 +384,49 @@ mod tests {
     #[test]
     fn test_parse_rgb_short() {
         // #RGB -> doubled digits, alpha 255
-        assert_eq!(parse_color("#F00").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#0F0").unwrap(), Rgba([0, 255, 0, 255]));
-        assert_eq!(parse_color("#00F").unwrap(), Rgba([0, 0, 255, 255]));
-        assert_eq!(parse_color("#FFF").unwrap(), Rgba([255, 255, 255, 255]));
-        assert_eq!(parse_color("#000").unwrap(), Rgba([0, 0, 0, 255]));
-        assert_eq!(parse_color("#ABC").unwrap(), Rgba([170, 187, 204, 255]));
+        assert_eq!(parse_color("#F00").expect("#F00"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#0F0").expect("#0F0"), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("#00F").expect("#00F"), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("#FFF").expect("#FFF"), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("#000").expect("#000"), Rgba([0, 0, 0, 255]));
+        assert_eq!(parse_color("#ABC").expect("#ABC"), Rgba([170, 187, 204, 255]));
     }
 
     #[test]
     fn test_parse_rgba_short() {
         // #RGBA -> doubled digits
-        assert_eq!(parse_color("#F00F").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#F008").unwrap(), Rgba([255, 0, 0, 136]));
-        assert_eq!(parse_color("#0000").unwrap(), Rgba([0, 0, 0, 0]));
-        assert_eq!(parse_color("#FFFF").unwrap(), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("#F00F").expect("#F00F"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#F008").expect("#F008"), Rgba([255, 0, 0, 136]));
+        assert_eq!(parse_color("#0000").expect("#0000"), Rgba([0, 0, 0, 0]));
+        assert_eq!(parse_color("#FFFF").expect("#FFFF"), Rgba([255, 255, 255, 255]));
     }
 
     #[test]
     fn test_parse_rrggbb() {
         // #RRGGBB -> alpha 255
-        assert_eq!(parse_color("#FF0000").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#00FF00").unwrap(), Rgba([0, 255, 0, 255]));
-        assert_eq!(parse_color("#0000FF").unwrap(), Rgba([0, 0, 255, 255]));
-        assert_eq!(parse_color("#FFFFFF").unwrap(), Rgba([255, 255, 255, 255]));
-        assert_eq!(parse_color("#000000").unwrap(), Rgba([0, 0, 0, 255]));
-        assert_eq!(parse_color("#AABBCC").unwrap(), Rgba([170, 187, 204, 255]));
+        assert_eq!(parse_color("#FF0000").expect("#FF0000"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#00FF00").expect("#00FF00"), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("#0000FF").expect("#0000FF"), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("#FFFFFF").expect("#FFFFFF"), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("#000000").expect("#000000"), Rgba([0, 0, 0, 255]));
+        assert_eq!(parse_color("#AABBCC").expect("#AABBCC"), Rgba([170, 187, 204, 255]));
     }
 
     #[test]
     fn test_parse_rrggbbaa() {
         // #RRGGBBAA -> explicit alpha
-        assert_eq!(parse_color("#FF0000FF").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#FF000080").unwrap(), Rgba([255, 0, 0, 128]));
-        assert_eq!(parse_color("#FF000000").unwrap(), Rgba([255, 0, 0, 0]));
-        assert_eq!(parse_color("#00000000").unwrap(), Rgba([0, 0, 0, 0]));
+        assert_eq!(parse_color("#FF0000FF").expect("#FF0000FF"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#FF000080").expect("#FF000080"), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("#FF000000").expect("#FF000000"), Rgba([255, 0, 0, 0]));
+        assert_eq!(parse_color("#00000000").expect("#00000000"), Rgba([0, 0, 0, 0]));
     }
 
     #[test]
     fn test_case_insensitive() {
         // Should handle both upper and lower case
-        assert_eq!(parse_color("#f00").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#ff0000").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("#aAbBcC").unwrap(), Rgba([170, 187, 204, 255]));
+        assert_eq!(parse_color("#f00").expect("#f00"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#ff0000").expect("#ff0000"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#aAbBcC").expect("#aAbBcC"), Rgba([170, 187, 204, 255]));
     }
 
     #[test]
@@ -464,16 +464,16 @@ mod tests {
     #[test]
     fn test_fixture_color_formats() {
         // {a}: #F00 -> red (short form)
-        assert_eq!(parse_color("#F00").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#F00").expect("#F00 short hex"), Rgba([255, 0, 0, 255]));
 
         // {b}: #FF0000 -> red (long form)
-        assert_eq!(parse_color("#FF0000").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#FF0000").expect("#FF0000 long hex"), Rgba([255, 0, 0, 255]));
 
         // {c}: #FF0000FF -> red with explicit full alpha
-        assert_eq!(parse_color("#FF0000FF").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#FF0000FF").expect("#FF0000FF with alpha"), Rgba([255, 0, 0, 255]));
 
         // {d}: #F00F -> red with alpha (short form)
-        assert_eq!(parse_color("#F00F").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("#F00F").expect("#F00F short with alpha"), Rgba([255, 0, 0, 255]));
     }
 
     #[test]
@@ -496,9 +496,8 @@ mod tests {
     #[test]
     fn test_color_mix_oklch_basic() {
         // color-mix in oklch with 50/50 split (default)
-        let result = parse_color("color-mix(in oklch, red, blue)");
-        assert!(result.is_ok(), "color-mix(in oklch, red, blue) should parse");
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, red, blue)")
+            .expect("color-mix in oklch");
         // Should be a purple-ish color (mixing red and blue)
         assert!(color.0[0] > 100, "Should have significant red component");
         assert!(color.0[2] > 100, "Should have significant blue component");
@@ -507,16 +506,14 @@ mod tests {
     #[test]
     fn test_color_mix_oklch_percentages() {
         // 70% red, 30% blue
-        let result = parse_color("color-mix(in oklch, red 70%, blue)");
-        assert!(result.is_ok(), "color-mix with percentages should parse");
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, red 70%, blue)")
+            .expect("color-mix 70% red");
         // Should be more red than blue
         assert!(color.0[0] > color.0[2], "70% red should dominate");
 
         // 30% red, 70% blue
-        let result2 = parse_color("color-mix(in oklch, red 30%, blue)");
-        assert!(result2.is_ok());
-        let color2 = result2.unwrap();
+        let color2 = parse_color("color-mix(in oklch, red 30%, blue)")
+            .expect("color-mix 30% red");
         // Should be more blue than red
         assert!(color2.0[2] > color2.0[0], "70% blue should dominate");
     }
@@ -524,9 +521,8 @@ mod tests {
     #[test]
     fn test_color_mix_srgb() {
         // color-mix in sRGB color space
-        let result = parse_color("color-mix(in srgb, #ff0000 50%, #0000ff)");
-        assert!(result.is_ok(), "color-mix(in srgb, ...) should parse");
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in srgb, #ff0000 50%, #0000ff)")
+            .expect("color-mix in srgb");
         // In sRGB, 50/50 red and blue should give purple with equal R and B
         assert!(color.0[0] > 100, "Should have red component");
         assert!(color.0[2] > 100, "Should have blue component");
@@ -566,9 +562,8 @@ mod tests {
     #[test]
     fn test_color_mix_white_black() {
         // Mixing white and black should give gray
-        let result = parse_color("color-mix(in oklch, white, black)");
-        assert!(result.is_ok());
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, white, black)")
+            .expect("color-mix white+black");
         // Should be grayish (R, G, B roughly equal)
         let diff_rg = (color.0[0] as i16 - color.0[1] as i16).abs();
         let diff_rb = (color.0[0] as i16 - color.0[2] as i16).abs();
@@ -579,9 +574,8 @@ mod tests {
     #[test]
     fn test_color_mix_100_percent() {
         // 100% of one color should just give that color
-        let result = parse_color("color-mix(in oklch, red 100%, blue)");
-        assert!(result.is_ok());
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, red 100%, blue)")
+            .expect("color-mix 100% red");
         // Should be close to pure red
         assert!(color.0[0] > 250, "100% red should be pure red");
         assert!(color.0[2] < 10, "100% red should have no blue");
@@ -590,9 +584,8 @@ mod tests {
     #[test]
     fn test_color_mix_0_percent() {
         // 0% of one color is effectively 100% of the other
-        let result = parse_color("color-mix(in oklch, red 0%, blue)");
-        assert!(result.is_ok());
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, red 0%, blue)")
+            .expect("color-mix 0% red");
         // Note: CSS color-mix with 0% may have different behavior across implementations
         // In oklch, the resulting color should be predominantly blue
         // Being lenient here to account for different interpretations
@@ -602,9 +595,8 @@ mod tests {
     #[test]
     fn test_color_mix_with_alpha() {
         // color-mix should work with semi-transparent colors
-        let result = parse_color("color-mix(in oklch, rgba(255, 0, 0, 0.5), rgba(0, 0, 255, 0.5))");
-        assert!(result.is_ok(), "color-mix with alpha should work");
-        let color = result.unwrap();
+        let color = parse_color("color-mix(in oklch, rgba(255, 0, 0, 0.5), rgba(0, 0, 255, 0.5))")
+            .expect("color-mix with alpha");
         // Alpha should be preserved/mixed
         assert!(color.0[3] < 255, "Mixed alpha should be less than 255");
     }
@@ -628,73 +620,73 @@ mod tests {
     #[test]
     fn test_parse_rgb_functional() {
         // rgb() with integer values
-        assert_eq!(parse_color("rgb(255, 0, 0)").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgb(0, 255, 0)").unwrap(), Rgba([0, 255, 0, 255]));
-        assert_eq!(parse_color("rgb(0, 0, 255)").unwrap(), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("rgb(255, 0, 0)").expect("rgb integer red"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgb(0, 255, 0)").expect("rgb integer green"), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("rgb(0, 0, 255)").expect("rgb integer blue"), Rgba([0, 0, 255, 255]));
 
         // rgb() with percentage values
-        assert_eq!(parse_color("rgb(100%, 0%, 0%)").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgb(0%, 100%, 0%)").unwrap(), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("rgb(100%, 0%, 0%)").expect("rgb percent red"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgb(0%, 100%, 0%)").expect("rgb percent green"), Rgba([0, 255, 0, 255]));
 
         // Modern space-separated syntax
-        assert_eq!(parse_color("rgb(255 0 0)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgb(255 0 0)").expect("rgb space-separated"), Rgba([255, 0, 0, 255]));
     }
 
     #[test]
     fn test_parse_rgba_functional() {
         // rgba() with alpha
-        assert_eq!(parse_color("rgba(255, 0, 0, 1)").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("rgba(255, 0, 0, 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
-        assert_eq!(parse_color("rgba(255, 0, 0, 0)").unwrap(), Rgba([255, 0, 0, 0]));
+        assert_eq!(parse_color("rgba(255, 0, 0, 1)").expect("rgba alpha=1"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("rgba(255, 0, 0, 0.5)").expect("rgba alpha=0.5"), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("rgba(255, 0, 0, 0)").expect("rgba alpha=0"), Rgba([255, 0, 0, 0]));
 
         // Modern syntax with /
-        assert_eq!(parse_color("rgb(255 0 0 / 50%)").unwrap(), Rgba([255, 0, 0, 128]));
-        assert_eq!(parse_color("rgb(255 0 0 / 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("rgb(255 0 0 / 50%)").expect("rgb / 50%"), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("rgb(255 0 0 / 0.5)").expect("rgb / 0.5"), Rgba([255, 0, 0, 128]));
     }
 
     #[test]
     fn test_parse_hsl_functional() {
         // hsl() - pure red is 0deg, 100% saturation, 50% lightness
-        assert_eq!(parse_color("hsl(0, 100%, 50%)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("hsl(0, 100%, 50%)").expect("hsl red"), Rgba([255, 0, 0, 255]));
         // Pure green is 120deg
-        assert_eq!(parse_color("hsl(120, 100%, 50%)").unwrap(), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("hsl(120, 100%, 50%)").expect("hsl green"), Rgba([0, 255, 0, 255]));
         // Pure blue is 240deg
-        assert_eq!(parse_color("hsl(240, 100%, 50%)").unwrap(), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("hsl(240, 100%, 50%)").expect("hsl blue"), Rgba([0, 0, 255, 255]));
 
         // Modern syntax with deg
-        assert_eq!(parse_color("hsl(0deg 100% 50%)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("hsl(0deg 100% 50%)").expect("hsl deg syntax"), Rgba([255, 0, 0, 255]));
     }
 
     #[test]
     fn test_parse_hsla_functional() {
         // hsla() with alpha
-        assert_eq!(parse_color("hsla(0, 100%, 50%, 1)").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("hsla(0, 100%, 50%, 0.5)").unwrap(), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("hsla(0, 100%, 50%, 1)").expect("hsla alpha=1"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("hsla(0, 100%, 50%, 0.5)").expect("hsla alpha=0.5"), Rgba([255, 0, 0, 128]));
 
         // Modern syntax
-        assert_eq!(parse_color("hsl(0 100% 50% / 50%)").unwrap(), Rgba([255, 0, 0, 128]));
+        assert_eq!(parse_color("hsl(0 100% 50% / 50%)").expect("hsl / 50%"), Rgba([255, 0, 0, 128]));
     }
 
     #[test]
     fn test_parse_hwb_functional() {
         // hwb(hue, whiteness, blackness)
         // Pure red: 0deg, 0% white, 0% black
-        assert_eq!(parse_color("hwb(0 0% 0%)").unwrap(), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("hwb(0 0% 0%)").expect("hwb red"), Rgba([255, 0, 0, 255]));
         // Pure green: 120deg
-        assert_eq!(parse_color("hwb(120 0% 0%)").unwrap(), Rgba([0, 255, 0, 255]));
+        assert_eq!(parse_color("hwb(120 0% 0%)").expect("hwb green"), Rgba([0, 255, 0, 255]));
         // Pure blue: 240deg
-        assert_eq!(parse_color("hwb(240 0% 0%)").unwrap(), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("hwb(240 0% 0%)").expect("hwb blue"), Rgba([0, 0, 255, 255]));
         // White: any hue, 100% white
-        assert_eq!(parse_color("hwb(0 100% 0%)").unwrap(), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("hwb(0 100% 0%)").expect("hwb white"), Rgba([255, 255, 255, 255]));
         // Black: any hue, 100% black
-        assert_eq!(parse_color("hwb(0 0% 100%)").unwrap(), Rgba([0, 0, 0, 255]));
+        assert_eq!(parse_color("hwb(0 0% 100%)").expect("hwb black"), Rgba([0, 0, 0, 255]));
     }
 
     #[test]
     fn test_parse_oklch_functional() {
         // oklch(lightness, chroma, hue)
         // Note: oklch values may have slight rounding differences
-        let red = parse_color("oklch(0.628 0.258 29.23)").unwrap();
+        let red = parse_color("oklch(0.628 0.258 29.23)").expect("oklch red");
         // Should be close to red - allow some tolerance for color space conversion
         assert!(red.0[0] > 250); // R close to 255
         assert!(red.0[1] < 10); // G close to 0
@@ -704,33 +696,34 @@ mod tests {
     #[test]
     fn test_parse_named_colors() {
         // Basic named colors
-        assert_eq!(parse_color("red").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("green").unwrap(), Rgba([0, 128, 0, 255])); // CSS green is #008000
-        assert_eq!(parse_color("blue").unwrap(), Rgba([0, 0, 255, 255]));
-        assert_eq!(parse_color("white").unwrap(), Rgba([255, 255, 255, 255]));
-        assert_eq!(parse_color("black").unwrap(), Rgba([0, 0, 0, 255]));
+        assert_eq!(parse_color("red").expect("named red"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("green").expect("named green"), Rgba([0, 128, 0, 255])); // CSS green is #008000
+        assert_eq!(parse_color("blue").expect("named blue"), Rgba([0, 0, 255, 255]));
+        assert_eq!(parse_color("white").expect("named white"), Rgba([255, 255, 255, 255]));
+        assert_eq!(parse_color("black").expect("named black"), Rgba([0, 0, 0, 255]));
 
         // Transparent
-        assert_eq!(parse_color("transparent").unwrap(), Rgba([0, 0, 0, 0]));
+        assert_eq!(parse_color("transparent").expect("named transparent"), Rgba([0, 0, 0, 0]));
 
         // Extended named colors
-        assert_eq!(parse_color("coral").unwrap(), Rgba([255, 127, 80, 255]));
-        assert_eq!(parse_color("hotpink").unwrap(), Rgba([255, 105, 180, 255]));
-        assert_eq!(parse_color("steelblue").unwrap(), Rgba([70, 130, 180, 255]));
+        assert_eq!(parse_color("coral").expect("named coral"), Rgba([255, 127, 80, 255]));
+        assert_eq!(parse_color("hotpink").expect("named hotpink"), Rgba([255, 105, 180, 255]));
+        assert_eq!(parse_color("steelblue").expect("named steelblue"), Rgba([70, 130, 180, 255]));
     }
 
     #[test]
     fn test_named_colors_case_insensitive() {
-        assert_eq!(parse_color("Red").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("RED").unwrap(), Rgba([255, 0, 0, 255]));
-        assert_eq!(parse_color("HotPink").unwrap(), Rgba([255, 105, 180, 255]));
+        assert_eq!(parse_color("Red").expect("named Red mixed case"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("RED").expect("named RED uppercase"), Rgba([255, 0, 0, 255]));
+        assert_eq!(parse_color("HotPink").expect("named HotPink mixed case"), Rgba([255, 105, 180, 255]));
     }
 
     // CSS-12: color-mix() function tests
     #[test]
     fn test_color_mix_basic() {
         // color-mix in srgb: 50% red + 50% blue = purple
-        let purple = parse_color("color-mix(in srgb, red 50%, blue)").unwrap();
+        let purple = parse_color("color-mix(in srgb, red 50%, blue)")
+            .expect("color-mix srgb red+blue");
         // Should be approximately (128, 0, 128) - purple
         assert!(purple.0[0] > 100 && purple.0[0] < 150); // R around 128
         assert!(purple.0[1] < 20); // G close to 0
@@ -741,7 +734,8 @@ mod tests {
     #[test]
     fn test_color_mix_percentages() {
         // 70% red + 30% black = darker red
-        let dark_red = parse_color("color-mix(in srgb, red 70%, black)").unwrap();
+        let dark_red = parse_color("color-mix(in srgb, red 70%, black)")
+            .expect("color-mix srgb 70% red+black");
         // Should be approximately (179, 0, 0) - 70% of 255
         assert!(dark_red.0[0] > 150 && dark_red.0[0] < 200);
         assert!(dark_red.0[1] < 10);
@@ -751,7 +745,8 @@ mod tests {
     #[test]
     fn test_color_mix_oklch() {
         // color-mix in oklch for perceptually uniform blending
-        let result = parse_color("color-mix(in oklch, #FF0000 70%, black)").unwrap();
+        let result = parse_color("color-mix(in oklch, #FF0000 70%, black)")
+            .expect("color-mix oklch 70% red+black");
         // Should be a darker shade of red
         assert!(result.0[0] > 100); // Still has red
         assert!(result.0[0] < 255); // But darker than pure red
@@ -760,7 +755,8 @@ mod tests {
     #[test]
     fn test_color_mix_white_black_srgb() {
         // 50% white + 50% black = gray (srgb space)
-        let gray = parse_color("color-mix(in srgb, white, black)").unwrap();
+        let gray = parse_color("color-mix(in srgb, white, black)")
+            .expect("color-mix srgb white+black");
         // Should be approximately (128, 128, 128)
         assert!(gray.0[0] > 100 && gray.0[0] < 150);
         assert!(gray.0[1] > 100 && gray.0[1] < 150);
@@ -771,7 +767,8 @@ mod tests {
     fn test_color_mix_highlight_generation() {
         // Common pattern: lighten a color for highlight
         // 70% original + 30% white
-        let highlight = parse_color("color-mix(in srgb, #3366CC 70%, white)").unwrap();
+        let highlight = parse_color("color-mix(in srgb, #3366CC 70%, white)")
+            .expect("color-mix highlight generation");
         // Should be lighter than original
         assert!(highlight.0[0] > 51); // Original R was 51
         assert!(highlight.0[1] > 102); // Original G was 102
@@ -782,7 +779,8 @@ mod tests {
     fn test_color_mix_shadow_generation() {
         // Common pattern: darken a color for shadow
         // 70% original + 30% black (oklch for perceptual uniformity)
-        let shadow = parse_color("color-mix(in oklch, #FFCC99 70%, black)").unwrap();
+        let shadow = parse_color("color-mix(in oklch, #FFCC99 70%, black)")
+            .expect("color-mix shadow generation");
         // Should be darker than original #FFCC99 (255, 204, 153)
         assert!(shadow.0[0] < 255);
         assert!(shadow.0[1] < 204);
@@ -917,7 +915,7 @@ mod tests {
             (0.0, 0.0, -20.0), // shadow: just darker
             (0.0, 0.0, 20.0),  // highlight: just lighter
         )
-        .unwrap();
+        .expect("3-step ramp from #FF0000");
 
         assert_eq!(result.len(), 3, "3-step ramp should have 3 colors");
         assert_eq!(result[0].0, "_1", "First suffix should be _1");
@@ -928,7 +926,8 @@ mod tests {
 
     #[test]
     fn test_generate_ramp_5_steps() {
-        let result = generate_ramp("#808080", 5, (0.0, 0.0, -15.0), (0.0, 0.0, 15.0)).unwrap();
+        let result = generate_ramp("#808080", 5, (0.0, 0.0, -15.0), (0.0, 0.0, 15.0))
+            .expect("5-step ramp from #808080");
 
         assert_eq!(result.len(), 5, "5-step ramp should have 5 colors");
         assert_eq!(result[0].0, "_2");
@@ -946,14 +945,14 @@ mod tests {
             (15.0, 0.0, -15.0), // Shadow shifts toward orange
             (-10.0, 0.0, 15.0), // Highlight shifts toward pink
         )
-        .unwrap();
+        .expect("3-step hue-shifted ramp from #FF8080");
 
         assert_eq!(result.len(), 3);
 
         // Verify shadow has different hue from base
-        let shadow = parse_color(&result[0].1).unwrap();
-        let base = parse_color(&result[1].1).unwrap();
-        let highlight = parse_color(&result[2].1).unwrap();
+        let shadow = parse_color(&result[0].1).expect("ramp shadow color");
+        let base = parse_color(&result[1].1).expect("ramp base color");
+        let highlight = parse_color(&result[2].1).expect("ramp highlight color");
 
         // Shadow should be darker
         let shadow_hsl = rgb_to_hsl(shadow.0[0], shadow.0[1], shadow.0[2]);
@@ -976,7 +975,7 @@ mod tests {
         let shifted = apply_color_shift(&red, 0.0, 0.0, -20.0);
 
         // Parse the shifted color and verify it's darker
-        let shifted_rgba = parse_color(&shifted).unwrap();
+        let shifted_rgba = parse_color(&shifted).expect("shifted color should parse");
         let shifted_hsl = rgb_to_hsl(shifted_rgba.0[0], shifted_rgba.0[1], shifted_rgba.0[2]);
 
         // Original red has L=50, shifted should be L=30
