@@ -20,7 +20,7 @@ path = "src/main.rs"
 [features]
 default = ["lsp"]
 lsp = ["tower-lsp", "tokio"]
-mcp = ["rmcp", "schemars", "tokio"]
+mcp = ["rmcp", "schemars", "tokio", "base64"]
 wasm = ["wasm-bindgen", "console_error_panic_hook"]
 python = ["pyo3"]
 
@@ -48,6 +48,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std"
 pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 rmcp = { version = "0.14", features = ["server", "transport-io", "macros"], optional = true }
 schemars = { version = "1.0", optional = true }
+base64 = { version = "0.22", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
