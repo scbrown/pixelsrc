@@ -56,6 +56,7 @@ pub mod init;
 #[cfg(feature = "lsp")]
 pub mod lsp;
 pub mod lsp_agent_client;
+pub mod mask;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 pub mod models;

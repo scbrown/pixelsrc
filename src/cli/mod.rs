@@ -9,6 +9,7 @@ mod draw;
 mod explain;
 mod import;
 mod info;
+mod mask;
 mod render;
 pub mod scaffold;
 mod show;
@@ -509,6 +510,20 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+
+    /// Query sprite state: tokens, bounds, coordinates (read-only)
+    Mask {
+        /// Input .pxl file to query
+        input: PathBuf,
+
+        /// Sprite name to query
+        #[arg(short, long)]
+        sprite: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Run the CLI application
@@ -665,6 +680,7 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
+        Commands::Mask { input, sprite, json } => mask::run_mask(&input, sprite.as_deref(), json),
     }
 }
 
