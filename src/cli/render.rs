@@ -8,7 +8,9 @@ use std::process::ExitCode;
 
 use crate::antialias::{AAAlgorithm, AnchorMode};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
+use crate::build::project_registry::ProjectRegistry;
 use crate::composition::render_composition;
+use crate::config::loader::{find_config_from, load_config};
 use crate::gif::render_gif;
 use crate::include::{is_include_ref, parse_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
@@ -45,6 +47,7 @@ pub fn run_render(
     _anchor_mode: AnchorMode,
     _no_semantic_aa: bool,
     _gradient_shadows: bool,
+    no_project: bool,
 ) -> ExitCode {
     // Parse nine-slice target size if provided
     let nine_slice_size = if let Some(size_str) = nine_slice_arg {
@@ -68,6 +71,55 @@ pub fn run_render(
         }
     } else {
         None
+    };
+
+    // Auto-detect project context from pxl.toml in parent directories
+    let project_registry = if no_project {
+        None
+    } else {
+        // Canonicalize the input path so parent-dir walking works from the file's real location
+        let input_abs = std::fs::canonicalize(input).unwrap_or_else(|_| input.clone());
+        let start_dir = input_abs.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+        if let Some(config_path) = find_config_from(start_dir) {
+            match load_config(Some(&config_path)) {
+                Ok(config) => {
+                    let project_root = config_path.parent().unwrap();
+                    let src_dir = project_root.join(&config.project.src);
+                    if src_dir.exists() {
+                        let mut registry =
+                            ProjectRegistry::new(config.project.name.clone(), src_dir);
+                        match registry.load_all(strict) {
+                            Ok(()) => {
+                                for warning in registry.warnings() {
+                                    eprintln!("Warning: {}", warning.message);
+                                }
+                                Some(registry)
+                            }
+                            Err(e) => {
+                                if strict {
+                                    eprintln!("Error: Failed to load project registry: {}", e);
+                                    return ExitCode::from(EXIT_ERROR);
+                                }
+                                eprintln!("Warning: Failed to load project registry: {}", e);
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => {
+                    if strict {
+                        eprintln!("Error: Failed to load pxl.toml: {}", e);
+                        return ExitCode::from(EXIT_ERROR);
+                    }
+                    eprintln!("Warning: Failed to load pxl.toml: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
     };
 
     // Open input file
@@ -99,9 +151,9 @@ pub fn run_render(
         return ExitCode::from(EXIT_ERROR);
     }
 
-    // Build palette registry and sprite registry, and collect sprites, animations, and compositions
-    let mut registry = PaletteRegistry::new();
-    let mut sprite_registry = SpriteRegistry::new();
+    // Build local palette registry and sprite registry, and collect sprites, animations, and compositions
+    let mut local_palette_registry = PaletteRegistry::new();
+    let mut local_sprite_registry = SpriteRegistry::new();
     let mut sprites_by_name: HashMap<String, Sprite> = HashMap::new();
     let mut animations_by_name: HashMap<String, Animation> = HashMap::new();
     let mut compositions_by_name: HashMap<String, Composition> = HashMap::new();
@@ -109,7 +161,7 @@ pub fn run_render(
     for obj in parse_result.objects {
         match obj {
             TtpObject::Palette(palette) => {
-                registry.register(palette);
+                local_palette_registry.register(palette);
             }
             TtpObject::Sprite(sprite) => {
                 if sprites_by_name.contains_key(&sprite.name) {
@@ -123,7 +175,7 @@ pub fn run_render(
                         return ExitCode::from(EXIT_ERROR);
                     }
                 }
-                sprite_registry.register_sprite(sprite.clone());
+                local_sprite_registry.register_sprite(sprite.clone());
                 sprites_by_name.insert(sprite.name.clone(), sprite);
             }
             TtpObject::Animation(anim) => {
@@ -156,7 +208,7 @@ pub fn run_render(
             }
             TtpObject::Variant(variant) => {
                 // Register variant with sprite registry for transform resolution
-                sprite_registry.register_variant(variant);
+                local_sprite_registry.register_variant(variant);
             }
             TtpObject::Particle(_) => {
                 // Particle systems are runtime constructs, not rendered statically
@@ -174,6 +226,12 @@ pub fn run_render(
         }
     }
 
+    // Select registries: project-wide (two-pass) or file-local (single-pass)
+    let registry =
+        project_registry.as_ref().map(|r| &r.palettes).unwrap_or(&local_palette_registry);
+    let sprite_registry =
+        project_registry.as_ref().map(|r| &r.sprites).unwrap_or(&local_sprite_registry);
+
     // Get the input file's parent directory for resolving includes
     let input_dir = input.parent().unwrap_or(std::path::Path::new("."));
 
@@ -188,8 +246,8 @@ pub fn run_render(
             &animations_by_name,
             &sprites_by_name,
             &compositions_by_name,
-            &sprite_registry,
-            &registry,
+            sprite_registry,
+            registry,
             input_dir,
             &mut include_visited,
             &mut all_warnings,
@@ -208,8 +266,8 @@ pub fn run_render(
                 output,
                 &sprites_by_name,
                 &animations_by_name,
-                &sprite_registry,
-                &registry,
+                sprite_registry,
+                registry,
                 input_dir,
                 &mut include_visited,
                 &mut all_warnings,
@@ -234,8 +292,8 @@ pub fn run_render(
             comp_name,
             &compositions_by_name,
             &sprites_by_name,
-            &sprite_registry,
-            &registry,
+            sprite_registry,
+            registry,
             input_dir,
             &mut include_visited,
             &mut all_warnings,
@@ -309,7 +367,7 @@ pub fn run_render(
                 }
             } else {
                 // Normal path: sprite_registry handles source resolution and palette
-                let resolved = match sprite_registry.resolve(&sprite.name, &registry, strict) {
+                let resolved = match sprite_registry.resolve(&sprite.name, registry, strict) {
                     Ok(r) => {
                         for warning in &r.warnings {
                             all_warnings
@@ -333,7 +391,7 @@ pub fn run_render(
             // This is critical for derived sprites that reference a regions-based source
             let resolved_regions = if sprite.source.is_some() {
                 // Need to re-resolve to get the regions (palette was already extracted above)
-                match sprite_registry.resolve(&sprite.name, &registry, false) {
+                match sprite_registry.resolve(&sprite.name, registry, false) {
                     Ok(r) => r.regions,
                     Err(_) => sprite.regions.clone(),
                 }
@@ -348,7 +406,7 @@ pub fn run_render(
                     // For derived sprites, get size from resolved source
                     if sprite.source.is_some() {
                         sprite_registry
-                            .resolve(&sprite.name, &registry, false)
+                            .resolve(&sprite.name, registry, false)
                             .ok()
                             .and_then(|r| r.size)
                     } else {
@@ -469,8 +527,8 @@ pub fn run_render(
             let result = render_composition_to_image(
                 comp,
                 &sprites_by_name,
-                &sprite_registry,
-                &registry,
+                sprite_registry,
+                registry,
                 input_dir,
                 &mut include_visited,
                 &mut all_warnings,

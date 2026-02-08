@@ -153,6 +153,10 @@ pub enum Commands {
         /// Enable gradient smoothing for shadow/highlight transitions (DerivesFrom relationships)
         #[arg(long)]
         gradient_shadows: bool,
+
+        /// Disable project context detection (skip pxl.toml lookup)
+        #[arg(long)]
+        no_project: bool,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -580,6 +584,7 @@ pub fn run() -> ExitCode {
             anchor_mode,
             no_semantic_aa,
             gradient_shadows,
+            no_project,
         } => render::run_render(
             &input,
             output.as_deref(),
@@ -601,6 +606,7 @@ pub fn run() -> ExitCode {
             anchor_mode,
             no_semantic_aa,
             gradient_shadows,
+            no_project,
         ),
         Commands::Import {
             input,
