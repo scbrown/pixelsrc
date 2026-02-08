@@ -118,12 +118,25 @@ fn parse_line_arg(arg: &str) -> Result<DrawOp, String> {
     Ok(DrawOp::Line { x0, y0, x1, y1, token })
 }
 
+/// Parse a `--flood` argument: `x,y="{token}"` or `x,y={token}`.
+fn parse_flood_arg(arg: &str) -> Result<DrawOp, String> {
+    let (coords, token_part) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("invalid --flood format '{}', expected x,y={{token}}", arg))?;
+
+    let (x, y) = parse_coords(coords)?;
+    let token = parse_token(token_part)?;
+
+    Ok(DrawOp::Flood { x, y, token })
+}
+
 /// Collect all draw operations from CLI args.
 fn collect_ops(
     set_args: &[String],
     erase_args: &[String],
     rect_args: &[String],
     line_args: &[String],
+    flood_args: &[String],
 ) -> Result<Vec<DrawOp>, String> {
     let mut ops = Vec::new();
     for arg in set_args {
@@ -138,6 +151,9 @@ fn collect_ops(
     for arg in line_args {
         ops.push(parse_line_arg(arg)?);
     }
+    for arg in flood_args {
+        ops.push(parse_flood_arg(arg)?);
+    }
     Ok(ops)
 }
 
@@ -149,11 +165,12 @@ pub fn run_draw(
     erase_args: &[String],
     rect_args: &[String],
     line_args: &[String],
+    flood_args: &[String],
     output: Option<&Path>,
     dry_run: bool,
 ) -> ExitCode {
     // Parse operations first (fail fast on bad args)
-    let ops = match collect_ops(set_args, erase_args, rect_args, line_args) {
+    let ops = match collect_ops(set_args, erase_args, rect_args, line_args, flood_args) {
         Ok(ops) => ops,
         Err(e) => {
             eprintln!("Error: {}", e);

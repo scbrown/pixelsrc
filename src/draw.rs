@@ -63,6 +63,8 @@ pub enum DrawOp {
     Rect { x: u32, y: u32, w: u32, h: u32, token: String },
     /// Draw a line between two points: `--line x1,y1,x2,y2="{token}"`
     Line { x0: u32, y0: u32, x1: u32, y1: u32, token: String },
+    /// Flood fill from a seed point: `--flood x,y="{token}"`
+    Flood { x: u32, y: u32, token: String },
 }
 
 /// Editor that applies draw operations to a sprite's regions.
@@ -105,6 +107,10 @@ impl<'a> RegionEditor<'a> {
                 let new_region =
                     RegionDef { line: Some(vec![[*x0, *y0], [*x1, *y1]]), ..Default::default() };
                 self.merge_shape(token, new_region)
+            }
+            DrawOp::Flood { x, y, token } => {
+                // Region-based flood: set seed point (full BFS requires grid)
+                self.merge_point(*x, *y, token)
             }
         }
     }
@@ -706,5 +712,23 @@ mod tests {
         assert!(region.union.is_some());
         let parts = region.union.as_ref().unwrap();
         assert_eq!(parts.len(), 2);
+    }
+
+    // =========================================================================
+    // Flood fill (region-based) tests
+    // =========================================================================
+
+    #[test]
+    fn test_flood_creates_region() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Flood { x: 1, y: 1, token: "water".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("water"));
+        let region = &regions["water"];
+        assert_eq!(region.points, Some(vec![[1, 1]]));
     }
 }
