@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$HOME/.cargo/bin:$PATH"
+
+echo "==> Checking formatting..."
+cargo fmt --all -- --check
+
+echo "==> Running clippy..."
+cargo clippy --all-targets --features lsp,wasm -- -D warnings
+
+echo "==> Pre-commit checks passed."
