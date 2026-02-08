@@ -126,4 +126,7 @@ pxl validate file.pxl           # Check for errors
 pxl show file.pxl --sprite x    # Terminal display
 pxl import image.png -o out.pxl # Import PNG
 pxl fmt file.pxl                # Format file
+pxl mask file.pxl --list --json # List sprites/animations
+pxl mask file.pxl --sprite x --query "{tok}" --json  # Find token coords
+pxl mask file.pxl --sprite x --count --json           # Token frequencies
 ```
