@@ -708,20 +708,29 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds, region, count, list } => {
-            mask::run_mask(
-                &input,
-                sprite.as_deref(),
-                sample.as_deref(),
-                neighbors.as_deref(),
-                json,
-                query.as_deref(),
-                bounds.as_deref(),
-                region.as_deref(),
-                count,
-                list,
-            )
-        }
+        Commands::Mask {
+            input,
+            sprite,
+            sample,
+            neighbors,
+            json,
+            query,
+            bounds,
+            region,
+            count,
+            list,
+        } => mask::run_mask(
+            &input,
+            sprite.as_deref(),
+            sample.as_deref(),
+            neighbors.as_deref(),
+            json,
+            query.as_deref(),
+            bounds.as_deref(),
+            region.as_deref(),
+            count,
+            list,
+        ),
     }
 }
 
