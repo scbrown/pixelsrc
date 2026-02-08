@@ -1,0 +1,10 @@
+//! MCP tool definitions for Pixelsrc
+//!
+//! Each tool wraps an existing library function, exposing it as a structured
+//! MCP tool that AI models can call.
+
+pub mod analyze;
+pub mod format;
+pub mod palettes;
+pub mod prime;
+pub mod scaffold;
