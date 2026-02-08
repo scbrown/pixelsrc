@@ -370,20 +370,42 @@ impl ServerHandler for PixelsrcMcpServer {
         }))
     }
 
+    fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourceTemplatesResult, McpError>> + Send + '_ {
+        std::future::ready(Ok(ListResourceTemplatesResult {
+            meta: None,
+            resource_templates: resources::list_resource_templates(),
+            next_cursor: None,
+        }))
+    }
+
     fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ReadResourceResult, McpError>> + Send + '_ {
-        let result = resources::read_static_resource(&request.uri);
-        std::future::ready(match result {
-            Some(r) => Ok(r),
-            None => Err(McpError::new(
-                ErrorCode::INVALID_PARAMS,
-                format!("Unknown resource URI: {}", request.uri),
-                None,
-            )),
-        })
+        // Try static resources first, then template-based dynamic resources.
+        let uri = &request.uri;
+
+        if let Some(result) = resources::read_static_resource(uri) {
+            return std::future::ready(Ok(result));
+        }
+
+        if let Some(result) = resources::read_template_resource(uri) {
+            return std::future::ready(match result {
+                Ok(r) => Ok(r),
+                Err(msg) => Err(McpError::new(ErrorCode::INVALID_PARAMS, msg, None)),
+            });
+        }
+
+        std::future::ready(Err(McpError::new(
+            ErrorCode::INVALID_PARAMS,
+            format!("Unknown resource URI: {}", request.uri),
+            None,
+        )))
     }
 }
 
