@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pixelsrc": {
+      "command": "pxl",
+      "args": ["mcp"]
+    }
+  }
+}
