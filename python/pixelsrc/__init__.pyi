@@ -1,6 +1,12 @@
 """Type stubs for the pixelsrc package."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+    from PIL import Image
 
 __version__: str
 
@@ -245,6 +251,24 @@ class RenderResult:
     @property
     def warnings(self) -> list[str]:
         """Any warnings generated during rendering."""
+        ...
+    def to_numpy(self) -> np.ndarray:
+        """Convert RGBA pixel data to a NumPy array with shape (height, width, 4).
+
+        Requires the ``numpy`` package (``pip install pixelsrc[numpy]``).
+
+        Returns:
+            Array of dtype ``uint8`` with shape ``(height, width, 4)``.
+        """
+        ...
+    def to_pil(self) -> Image.Image:
+        """Convert RGBA pixel data to a PIL Image.
+
+        Requires the ``Pillow`` package (``pip install pixelsrc[images]``).
+
+        Returns:
+            An RGBA image.
+        """
         ...
 
 class ImportResult:

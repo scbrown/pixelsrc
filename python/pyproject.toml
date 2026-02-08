@@ -15,6 +15,10 @@ description = "Semantic pixel art format and compiler"
 readme = "README.md"
 license = { text = "MIT" }
 
+[project.optional-dependencies]
+numpy = ["numpy>=1.20"]
+images = ["Pillow>=9.0"]
+
 [tool.maturin]
 manifest-path = "../Cargo.toml"
 features = ["python"]
