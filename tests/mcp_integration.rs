@@ -194,8 +194,8 @@ fn test_mcp_tools_list() {
     let result = resp.get("result").expect("tools/list should return result");
     let tools = result["tools"].as_array().expect("tools should be an array");
 
-    // We have 9 implemented tools
-    assert_eq!(tools.len(), 9, "expected 9 tools, got {}", tools.len());
+    // We have 11 implemented tools
+    assert_eq!(tools.len(), 11, "expected 11 tools, got {}", tools.len());
 
     // Collect tool names
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
@@ -209,6 +209,8 @@ fn test_mcp_tools_list() {
         "pixelsrc_import",
         "pixelsrc_explain",
         "pixelsrc_diff",
+        "pixelsrc_validate",
+        "pixelsrc_suggest",
     ];
     for name in &expected {
         assert!(names.contains(name), "missing tool: {}", name);
@@ -446,6 +448,156 @@ fn test_mcp_tool_import() {
         "import output should contain sprite/palette data, got: {}",
         &full_text[..full_text.len().min(500)]
     );
+
+    client.shutdown();
+}
+
+// ── Validate + Suggest Tools ──────────────────────────────────────────
+
+#[test]
+fn test_mcp_tool_validate_valid_source() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"palette","name":"p","colors":{"{a}":"#FF0000"}}
+{"type":"sprite","name":"s","size":[2,2],"palette":"p","regions":{"a":{"rect":[0,0,2,2]}}}"##;
+
+    let resp = client.call_tool("pixelsrc_validate", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    assert_eq!(parsed["valid"], true, "valid source should validate: {}", text);
+    assert_eq!(parsed["error_count"], 0);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_validate_invalid_source() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = "{not valid json}";
+
+    let resp = client.call_tool("pixelsrc_validate", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    assert_eq!(parsed["valid"], false, "invalid source should fail validation");
+    assert!(parsed["error_count"].as_u64().unwrap() > 0);
+    assert!(!parsed["errors"].as_array().unwrap().is_empty());
+
+    // Check error structure has line numbers
+    let first_error = &parsed["errors"][0];
+    assert!(first_error.get("line").is_some(), "error should have line number");
+    assert!(first_error.get("issue_type").is_some(), "error should have type");
+    assert!(first_error.get("message").is_some(), "error should have message");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_validate_strict_mode() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    // Unknown type produces a warning (not error)
+    let source = r#"{"type": "unknown", "name": "test"}"#;
+
+    // Non-strict: should be valid (warnings don't count)
+    let resp = client.call_tool("pixelsrc_validate", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(parsed["valid"], true, "non-strict should pass with warnings only");
+    assert!(parsed["warning_count"].as_u64().unwrap() > 0);
+
+    // Strict: should be invalid
+    let resp = client
+        .call_tool("pixelsrc_validate", serde_json::json!({ "source": source, "strict": true }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(parsed["valid"], false, "strict mode should fail with warnings");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_validate_no_input() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.call_tool("pixelsrc_validate", serde_json::json!({}));
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "validate with no input should be an error: {:?}", resp);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_suggest_typo() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"palette","name":"char","colors":{"skin":"#FFCC99","hair":"#8B4513"}}
+{"type":"sprite","name":"test","size":[4,4],"palette":"char","regions":{"skni":{"rect":[0,0,4,4]}}}"##;
+
+    let resp = client.call_tool("pixelsrc_suggest", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    assert_eq!(parsed["sprites_analyzed"], 1);
+    let suggestions = parsed["suggestions"].as_array().unwrap();
+    assert!(!suggestions.is_empty(), "should have suggestions for typo");
+
+    // Check suggestion structure
+    let first = &suggestions[0];
+    assert!(first.get("type").is_some());
+    assert!(first.get("line").is_some());
+    assert!(first.get("message").is_some());
+    assert!(first.get("fix").is_some());
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_suggest_clean_source() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"sprite","name":"dot","size":[1,1],"palette":{"x":"#FF0000"},"regions":{"x":{"points":[[0,0]]}}}"##;
+
+    let resp = client.call_tool("pixelsrc_suggest", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    let suggestions = parsed["suggestions"].as_array().unwrap();
+    assert!(suggestions.is_empty(), "clean source should have no suggestions");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_suggest_no_input() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.call_tool("pixelsrc_suggest", serde_json::json!({}));
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "suggest with no input should be an error: {:?}", resp);
 
     client.shutdown();
 }

@@ -12,3 +12,5 @@ pub mod palettes;
 pub mod prime;
 pub mod render;
 pub mod scaffold;
+pub mod suggest;
+pub mod validate;

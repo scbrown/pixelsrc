@@ -14,12 +14,14 @@ use super::resources;
 use super::tools::{
     analyze::AnalyzeInput, diff::DiffInput, explain::ExplainInput, format::FormatInput,
     import::ImportInput, palettes::PalettesInput, prime::PrimeInput, render::RenderInput,
-    scaffold::ScaffoldInput,
+    scaffold::ScaffoldInput, suggest::SuggestInput, validate::ValidateInput,
 };
 use crate::analyze::{collect_files, AnalysisReport};
+use crate::lsp_agent_client::LspAgentClient;
 use crate::palettes;
 use crate::prime::{get_primer, list_sections, PrimerSection};
 use crate::scaffold;
+use crate::suggest::Suggester;
 
 /// The Pixelsrc MCP Server
 ///
@@ -390,6 +392,69 @@ impl PixelsrcMcpServer {
     )]
     fn pixelsrc_diff(&self, Parameters(input): Parameters<DiffInput>) -> Result<String, String> {
         super::tools::diff::run_diff(input)
+    }
+
+    // ── pixelsrc_validate ─────────────────────────────────────────────
+
+    #[tool(
+        name = "pixelsrc_validate",
+        description = "Validate .pxl source and return structured JSON diagnostics. \
+                        Checks JSON syntax, type fields, palette references, undefined tokens, \
+                        and more. Use strict=true to treat warnings as errors."
+    )]
+    pub fn pixelsrc_validate(
+        &self,
+        Parameters(input): Parameters<ValidateInput>,
+    ) -> Result<String, String> {
+        let content = if let Some(source) = &input.source {
+            source.clone()
+        } else if let Some(path_str) = &input.path {
+            std::fs::read_to_string(path_str)
+                .map_err(|e| format!("Cannot read '{}': {}", path_str, e))?
+        } else {
+            return Err(
+                "Provide either 'source' (inline .pxl text) or 'path' (file path).".to_string()
+            );
+        };
+
+        let client = if input.strict { LspAgentClient::strict() } else { LspAgentClient::new() };
+        let result = client.verify_content(&content);
+
+        serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("JSON serialization error: {}", e))
+    }
+
+    // ── pixelsrc_suggest ──────────────────────────────────────────────
+
+    #[tool(
+        name = "pixelsrc_suggest",
+        description = "Analyze .pxl source and suggest fixes. Detects typos in token names \
+                        (via Levenshtein distance), missing palette tokens, and suggests \
+                        corrections or additions. Returns JSON suggestions."
+    )]
+    pub fn pixelsrc_suggest(
+        &self,
+        Parameters(input): Parameters<SuggestInput>,
+    ) -> Result<String, String> {
+        let content = if let Some(source) = &input.source {
+            source.clone()
+        } else if let Some(path_str) = &input.path {
+            std::fs::read_to_string(path_str)
+                .map_err(|e| format!("Cannot read '{}': {}", path_str, e))?
+        } else {
+            return Err(
+                "Provide either 'source' (inline .pxl text) or 'path' (file path).".to_string()
+            );
+        };
+
+        let mut suggester = Suggester::new();
+        for (line_idx, line) in content.lines().enumerate() {
+            suggester.analyze_line(line_idx + 1, line);
+        }
+        let report = suggester.into_report();
+
+        serde_json::to_string_pretty(&report)
+            .map_err(|e| format!("JSON serialization error: {}", e))
     }
 }
 
