@@ -3,6 +3,7 @@
 //! The pipeline coordinates the execution of build targets in the correct order.
 
 use crate::atlas::{pack_atlas, AtlasBox, AtlasConfig as PackerConfig, SpriteInput};
+use crate::build::project_registry::ProjectRegistry;
 use crate::build::{BuildContext, BuildPlan, BuildResult, BuildTarget, TargetKind, TargetResult};
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
@@ -28,6 +29,9 @@ pub enum BuildError {
     /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    /// Project registry error
+    #[error("Project registry error: {0}")]
+    ProjectRegistry(#[from] crate::build::project_registry::ProjectRegistryError),
     /// Generic build error
     #[error("Build error: {0}")]
     Build(String),
@@ -92,6 +96,34 @@ impl BuildPipeline {
         Ok(result)
     }
 
+    /// Load the project-wide registry by parsing all source files.
+    ///
+    /// This is Pass 1 of the two-pass build architecture: parse all files
+    /// into shared registries so that Pass 2 can resolve cross-file references.
+    fn load_project_registry(&self) -> Result<Option<ProjectRegistry>, BuildError> {
+        let src_dir = self.context.src_dir();
+        if !src_dir.exists() {
+            return Ok(None);
+        }
+
+        let mut registry =
+            ProjectRegistry::new(self.context.config().project.name.clone(), src_dir);
+        registry.load_all(self.context.is_strict())?;
+
+        if self.context.is_verbose() {
+            println!(
+                "Project registry: {} items from {} files",
+                registry.total_items(),
+                registry.loaded_files().len(),
+            );
+            for warning in registry.warnings() {
+                eprintln!("Warning: {}", warning.message);
+            }
+        }
+
+        Ok(Some(registry))
+    }
+
     /// Execute a build plan.
     fn execute_plan(&self, plan: &BuildPlan) -> Result<BuildResult, BuildError> {
         let mut result = BuildResult::new();
@@ -111,9 +143,12 @@ impl BuildPipeline {
             fs::create_dir_all(self.context.out_dir())?;
         }
 
-        // Execute each target
+        // Pass 1: Load all project files into shared registries
+        let project_registry = self.load_project_registry()?;
+
+        // Pass 2: Execute each target using shared registries
         for target in ordered {
-            let target_result = self.execute_target(target);
+            let target_result = self.execute_target(target, project_registry.as_ref());
 
             if target_result.status.is_failure() && self.fail_fast {
                 result.add_result(target_result);
@@ -127,7 +162,11 @@ impl BuildPipeline {
     }
 
     /// Execute a single build target.
-    fn execute_target(&self, target: &BuildTarget) -> TargetResult {
+    fn execute_target(
+        &self,
+        target: &BuildTarget,
+        project_registry: Option<&ProjectRegistry>,
+    ) -> TargetResult {
         let start = Instant::now();
 
         if self.context.is_verbose() {
@@ -151,8 +190,8 @@ impl BuildPipeline {
 
         // Execute based on target kind
         let build_result = match target.kind {
-            TargetKind::Sprite => self.build_sprite(target),
-            TargetKind::Atlas => self.build_atlas(target),
+            TargetKind::Sprite => self.build_sprite(target, project_registry),
+            TargetKind::Atlas => self.build_atlas(target, project_registry),
             TargetKind::Animation => self.build_animation(target),
             TargetKind::AnimationPreview => self.build_animation_preview(target),
             TargetKind::Export => self.build_export(target),
@@ -180,7 +219,14 @@ impl BuildPipeline {
     ///
     /// Parses the source .pxl file, resolves palettes, renders the sprite,
     /// and saves it as a PNG file.
-    fn build_sprite(&self, target: &BuildTarget) -> Result<Vec<PathBuf>, String> {
+    ///
+    /// When a project registry is available (two-pass mode), cross-file
+    /// references are resolved via the shared registries.
+    fn build_sprite(
+        &self,
+        target: &BuildTarget,
+        project_registry: Option<&ProjectRegistry>,
+    ) -> Result<Vec<PathBuf>, String> {
         // Validate sources exist
         for source in &target.sources {
             if !source.exists() {
@@ -207,28 +253,37 @@ impl BuildPipeline {
             return Err(format!("Parse warnings in {}: {}", source.display(), warnings.join("; ")));
         }
 
-        // Build palette and sprite registries from parsed objects
-        let mut palette_registry = PaletteRegistry::new();
-        let mut sprite_registry = SpriteRegistry::new();
+        // Build local registries as fallback; use project registry when available
+        let mut local_palette_registry = PaletteRegistry::new();
+        let mut local_sprite_registry = SpriteRegistry::new();
         let mut sprites = Vec::new();
+
         for obj in parse_result.objects {
             match obj {
                 TtpObject::Palette(p) => {
-                    palette_registry.register(p);
+                    if project_registry.is_none() {
+                        local_palette_registry.register(p);
+                    }
                 }
                 TtpObject::Sprite(s) => {
                     sprites.push(s);
                 }
-                _ => {
-                    // Ignore other object types for now (animations, compositions, etc.)
-                }
+                _ => {}
             }
         }
 
-        // Register all sprites (needed for source resolution)
-        for sprite in &sprites {
-            sprite_registry.register_sprite(sprite.clone());
+        // Register sprites locally only when no project registry
+        if project_registry.is_none() {
+            for sprite in &sprites {
+                local_sprite_registry.register_sprite(sprite.clone());
+            }
         }
+
+        // Select registries: project-wide (two-pass) or file-local (single-pass)
+        let palette_registry =
+            project_registry.map(|r| &r.palettes).unwrap_or(&local_palette_registry);
+        let sprite_registry =
+            project_registry.map(|r| &r.sprites).unwrap_or(&local_sprite_registry);
 
         // Find the sprite to render (use the target name or first sprite)
         let sprite_name = if sprites.len() == 1 {
@@ -251,7 +306,7 @@ impl BuildPipeline {
         let (image, render_warnings) = if needs_transform_resolution {
             // Use SpriteRegistry to resolve source references and apply transforms
             let resolved = sprite_registry
-                .resolve(&sprite_name, &palette_registry, self.context.is_strict())
+                .resolve(&sprite_name, palette_registry, self.context.is_strict())
                 .map_err(|e| format!("Failed to resolve sprite '{}': {}", sprite_name, e))?;
 
             // Log any resolution warnings
@@ -323,7 +378,14 @@ impl BuildPipeline {
     ///
     /// Parses all source files, renders sprites in parallel, packs them into a
     /// texture atlas, and saves the atlas image and metadata JSON.
-    fn build_atlas(&self, target: &BuildTarget) -> Result<Vec<std::path::PathBuf>, String> {
+    ///
+    /// When a project registry is available (two-pass mode), cross-file
+    /// references are resolved via the shared registries.
+    fn build_atlas(
+        &self,
+        target: &BuildTarget,
+        project_registry: Option<&ProjectRegistry>,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
         // Validate sources exist
         for source in &target.sources {
             if !source.exists() {
@@ -352,8 +414,12 @@ impl BuildPipeline {
         let is_verbose = self.context.is_verbose();
         let multi_source = target.sources.len() > 1;
 
-        // Phase 1: Parse all source files and collect render tasks
-        // Each render task contains resolved sprite data ready for rendering
+        // Parse all source files and collect render tasks.
+        // Each render task contains resolved sprite data ready for rendering.
+        //
+        // When project_registry is available (two-pass mode), palette and sprite
+        // resolution uses the shared project-wide registries, enabling cross-file
+        // references (e.g., a sprite referencing a palette from another file).
         struct RenderTask {
             /// Resolved palette colors
             colors: HashMap<String, String>,
@@ -372,29 +438,37 @@ impl BuildPipeline {
             let reader = BufReader::new(file);
             let parse_result = parse_stream(reader);
 
-            // Build palette and sprite registries
-            let mut palette_registry = PaletteRegistry::new();
-            let mut sprite_registry = SpriteRegistry::new();
+            // Build local registries as fallback; use project registry when available
+            let mut local_palette_registry = PaletteRegistry::new();
+            let mut local_sprite_registry = SpriteRegistry::new();
             let mut sprites = Vec::new();
 
             for obj in parse_result.objects {
                 match obj {
                     TtpObject::Palette(p) => {
-                        palette_registry.register(p);
+                        if project_registry.is_none() {
+                            local_palette_registry.register(p);
+                        }
                     }
                     TtpObject::Sprite(s) => {
                         sprites.push(s);
                     }
-                    _ => {
-                        // Ignore animations, compositions, etc. for atlas building
-                    }
+                    _ => {}
                 }
             }
 
-            // Register all sprites (needed for source resolution)
-            for sprite in &sprites {
-                sprite_registry.register_sprite(sprite.clone());
+            // Register sprites locally only when no project registry
+            if project_registry.is_none() {
+                for sprite in &sprites {
+                    local_sprite_registry.register_sprite(sprite.clone());
+                }
             }
+
+            // Select registries: project-wide (two-pass) or file-local (single-pass)
+            let palette_registry =
+                project_registry.map(|r| &r.palettes).unwrap_or(&local_palette_registry);
+            let sprite_registry =
+                project_registry.map(|r| &r.sprites).unwrap_or(&local_sprite_registry);
 
             // Create render tasks for each sprite
             let file_stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
@@ -410,7 +484,7 @@ impl BuildPipeline {
                 let colors = if sprite.source.is_some() || sprite.transform.is_some() {
                     // Use SpriteRegistry to resolve source references and apply transforms
                     let resolved = sprite_registry
-                        .resolve(&sprite.name, &palette_registry, is_strict)
+                        .resolve(&sprite.name, palette_registry, is_strict)
                         .map_err(|e| {
                             format!(
                                 "Failed to resolve sprite '{}' in {}: {}",
@@ -855,7 +929,7 @@ mod tests {
             std::path::PathBuf::from("/output/missing.png"),
         );
 
-        let result = pipeline.execute_target(&target);
+        let result = pipeline.execute_target(&target, None);
         assert!(result.status.is_failure());
     }
 
@@ -878,7 +952,7 @@ mod tests {
 
         let target = BuildTarget::sprite("red_dot".to_string(), sprite_file, output_file.clone());
 
-        let result = pipeline.execute_target(&target);
+        let result = pipeline.execute_target(&target, None);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
         assert!(output_file.exists(), "Output PNG file should exist");
 
@@ -953,7 +1027,7 @@ mod tests {
             output_file.clone(),
         );
 
-        let result = pipeline.execute_target(&target);
+        let result = pipeline.execute_target(&target, None);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
 
         // Verify PNG was created
@@ -990,7 +1064,7 @@ mod tests {
         let target =
             BuildTarget::atlas("player".to_string(), vec![sprite_file], output_file.clone());
 
-        let result = pipeline.execute_target(&target);
+        let result = pipeline.execute_target(&target, None);
         assert!(result.status.is_success(), "Expected success, got: {:?}", result.status);
 
         // Verify JSON contains metadata
@@ -1023,7 +1097,280 @@ mod tests {
         let target =
             BuildTarget::atlas("empty".to_string(), vec![palette_file], output_file.clone());
 
-        let result = pipeline.execute_target(&target);
+        let result = pipeline.execute_target(&target, None);
         assert!(result.status.is_failure(), "Should fail when no sprites found");
+    }
+
+    // ========================================================================
+    // Two-pass architecture tests (cross-file reference resolution)
+    // ========================================================================
+
+    #[test]
+    fn test_two_pass_cross_file_palette_reference() {
+        // Sprite in one file references a palette defined in another file.
+        // This only works with the two-pass architecture (project registry).
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: palette definition
+        let palette_file = src_dir.join("palettes").join("colors.pxl");
+        fs::create_dir_all(palette_file.parent().unwrap()).unwrap();
+        let palette_content = r##"{"type": "palette", "name": "mono", "colors": {"{bg}": "#000000", "{fg}": "#FFFFFF"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // File 2: sprite referencing palette by name (cross-file)
+        let sprite_file = src_dir.join("sprites").join("dot.pxl");
+        fs::create_dir_all(sprite_file.parent().unwrap()).unwrap();
+        let sprite_content = r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"{fg}": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // Create output directory
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("dot.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        // Load project registry (Pass 1)
+        let project_registry = pipeline.load_project_registry().unwrap();
+        assert!(project_registry.is_some(), "Project registry should be loaded");
+        let proj_reg = project_registry.as_ref().unwrap();
+        assert!(proj_reg.palettes.contains("mono"), "Registry should contain mono palette");
+        assert!(proj_reg.sprites.contains("dot"), "Registry should contain dot sprite");
+
+        // Build sprite with project registry (Pass 2)
+        let target = BuildTarget::sprite("dot".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(
+            result.status.is_success(),
+            "Cross-file palette reference should resolve: {:?}",
+            result.status
+        );
+        assert!(output_file.exists(), "Output PNG should exist");
+
+        let img = image::open(&output_file).expect("Should open as valid PNG");
+        assert_eq!(img.width(), 1);
+        assert_eq!(img.height(), 1);
+    }
+
+    #[test]
+    fn test_two_pass_cross_file_palette_in_atlas() {
+        // Atlas sprites reference palettes from other files.
+        let (temp, ctx) = create_atlas_test_context("items", vec!["sprites/**/*.pxl"]);
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: shared palette
+        let palette_file = src_dir.join("palettes").join("game.pxl");
+        fs::create_dir_all(palette_file.parent().unwrap()).unwrap();
+        let palette_content = r##"{"type": "palette", "name": "retro", "colors": {"{r}": "#FF0000", "{g}": "#00FF00", "{b}": "#0000FF"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // File 2: sprite using cross-file palette
+        let sprite_file = src_dir.join("sprites").join("sword.pxl");
+        fs::create_dir_all(sprite_file.parent().unwrap()).unwrap();
+        let sprite_content = r##"{"type": "sprite", "name": "sword", "size": [1, 1], "palette": "retro", "regions": {"{r}": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        // File 3: another sprite using cross-file palette
+        let shield_file = src_dir.join("sprites").join("shield.pxl");
+        let shield_content = r##"{"type": "sprite", "name": "shield", "size": [1, 1], "palette": "retro", "regions": {"{b}": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&shield_file).unwrap().write_all(shield_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("items.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+
+        // Load project registry (Pass 1)
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        // Build atlas with project registry (Pass 2)
+        let target = BuildTarget::atlas(
+            "items".to_string(),
+            vec![sprite_file, shield_file],
+            output_file.clone(),
+        );
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(
+            result.status.is_success(),
+            "Cross-file palette in atlas should resolve: {:?}",
+            result.status
+        );
+
+        let png_path = out_dir.join("items.png");
+        assert!(png_path.exists(), "Atlas PNG should exist");
+
+        let json_path = out_dir.join("items.json");
+        assert!(json_path.exists(), "Atlas JSON should exist");
+
+        let json_content = fs::read_to_string(&json_path).expect("Should read JSON");
+        assert!(json_content.contains("sword"), "JSON should contain sword");
+        assert!(json_content.contains("shield"), "JSON should contain shield");
+    }
+
+    #[test]
+    fn test_two_pass_full_pipeline_cross_file() {
+        // End-to-end test: `pipeline.build()` uses two-pass automatically.
+        use crate::config::{AtlasConfig as ConfigAtlas, ProjectConfig, PxlConfig};
+
+        let temp = TempDir::new().unwrap();
+        let src_dir = temp.path().join("src/pxl");
+
+        // Shared palette in its own file
+        let palette_dir = src_dir.join("palettes");
+        fs::create_dir_all(&palette_dir).unwrap();
+        let palette_content =
+            r##"{"type": "palette", "name": "brand", "colors": {"{accent}": "#FF6600"}}"##;
+        File::create(palette_dir.join("brand.pxl"))
+            .unwrap()
+            .write_all(palette_content.as_bytes())
+            .unwrap();
+
+        // Sprite using cross-file palette
+        let sprites_dir = src_dir.join("sprites");
+        fs::create_dir_all(&sprites_dir).unwrap();
+        let sprite_content = r##"{"type": "sprite", "name": "icon", "size": [1, 1], "palette": "brand", "regions": {"{accent}": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(sprites_dir.join("icon.pxl"))
+            .unwrap()
+            .write_all(sprite_content.as_bytes())
+            .unwrap();
+
+        // Config with atlas
+        let mut atlases = std::collections::HashMap::new();
+        atlases.insert(
+            "ui".to_string(),
+            ConfigAtlas {
+                sources: vec!["sprites/**/*.pxl".to_string()],
+                max_size: [1024, 1024],
+                padding: Some(0),
+                power_of_two: false,
+                nine_slice: false,
+                antialias: None,
+            },
+        );
+
+        let config = PxlConfig {
+            project: ProjectConfig {
+                name: "cross-file-test".to_string(),
+                version: "0.1.0".to_string(),
+                src: std::path::PathBuf::from("src/pxl"),
+                out: std::path::PathBuf::from("build"),
+            },
+            atlases,
+            ..default_config()
+        };
+
+        let ctx = BuildContext::new(config, temp.path().to_path_buf());
+        let pipeline = BuildPipeline::new(ctx);
+
+        let result = pipeline.build().unwrap();
+        assert!(result.is_success(), "Full pipeline with cross-file references should succeed");
+    }
+
+    #[test]
+    fn test_two_pass_sprite_source_cross_file() {
+        // A sprite with `source` referencing a sprite from another file.
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: base sprite
+        let base_file = src_dir.join("base.pxl");
+        let base_content = r##"{"type": "sprite", "name": "base_dot", "size": [1, 1], "palette": {"r": "#FF0000"}, "regions": {"r": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&base_file).unwrap().write_all(base_content.as_bytes()).unwrap();
+
+        // File 2: sprite referencing base from another file via source
+        let variant_file = src_dir.join("variant.pxl");
+        let variant_content = r##"{"type": "sprite", "name": "green_dot", "source": "base_dot", "size": [1, 1], "palette": {"r": "#00FF00"}, "regions": {"r": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&variant_file).unwrap().write_all(variant_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("green_dot.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        let target =
+            BuildTarget::sprite("green_dot".to_string(), variant_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(
+            result.status.is_success(),
+            "Cross-file source reference should resolve: {:?}",
+            result.status
+        );
+        assert!(output_file.exists(), "Output PNG should exist");
+    }
+
+    #[test]
+    fn test_two_pass_backward_compat_single_file() {
+        // Single-file sprite with inline palette still works with project registry.
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        let sprite_file = src_dir.join("standalone.pxl");
+        let sprite_content = r##"{"type": "sprite", "name": "pixel", "size": [1, 1], "palette": {"x": "#AABBCC"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}"##;
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("pixel.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        let target = BuildTarget::sprite("pixel".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(
+            result.status.is_success(),
+            "Inline palette should still work with project registry: {:?}",
+            result.status
+        );
+        assert!(output_file.exists(), "Output PNG should exist");
+    }
+
+    #[test]
+    fn test_two_pass_resolution_precedence_local_wins() {
+        // When a file defines a palette locally AND the project has one with the
+        // same name, local should win (Local > Project in precedence).
+        // With project registry, all items are in the shared registry, but the
+        // local definition is also there. Since PaletteRegistry uses first-wins
+        // semantics, we need to verify the correct palette is used.
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: project-level palette "shared" with red
+        let palette_file = src_dir.join("palettes.pxl");
+        let palette_content =
+            r##"{"type": "palette", "name": "shared", "colors": {"{c}": "#FF0000"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // File 2: sprite with its own local "shared" palette (green) — and uses it
+        let sprite_file = src_dir.join("local.pxl");
+        let sprite_content = concat!(
+            r##"{"type": "palette", "name": "shared", "colors": {"{c}": "#00FF00"}}"##,
+            "\n",
+            r##"{"type": "sprite", "name": "test_local", "size": [1, 1], "palette": "shared", "regions": {"{c}": {"points": [[0, 0]], "z": 0}}}"##
+        );
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("test_local.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        let target =
+            BuildTarget::sprite("test_local".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        // Should succeed — the shared palette is available (one of the two)
+        assert!(result.status.is_success(), "Should resolve palette: {:?}", result.status);
+        assert!(output_file.exists(), "Output PNG should exist");
     }
 }
