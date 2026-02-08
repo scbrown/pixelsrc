@@ -68,6 +68,7 @@ pub mod palette_cycle;
 pub mod palette_parser;
 pub mod palettes;
 pub mod parser;
+pub mod particle;
 pub mod path;
 pub mod prime;
 pub mod registry;
@@ -118,6 +119,9 @@ pub use registry::{
 // Rendering
 pub use renderer::{render_resolved, render_sprite};
 pub use structured::{extract_anchor_bounds, render_structured};
+
+// Particle system rendering engine (TTP-hprw)
+pub use particle::ParticleEngine;
 
 // Transform scaling with anchor preservation (TTP-ca8cj)
 pub use transforms::{scale_image, scale_image_with_anchor_preservation, AnchorBounds};
