@@ -56,6 +56,7 @@ pub fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> Ex
             TtpObject::Particle(p) => &p.name,
             TtpObject::Transform(t) => &t.name,
             TtpObject::StateRules(sr) => &sr.name,
+            TtpObject::Import(i) => &i.from,
         };
 
         // Apply name filter if specified
@@ -92,6 +93,7 @@ pub fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> Ex
                     TtpObject::Particle(p) => p.name.clone(),
                     TtpObject::Transform(t) => t.name.clone(),
                     TtpObject::StateRules(sr) => sr.name.clone(),
+                    TtpObject::Import(i) => i.from.clone(),
                 })
                 .collect();
             let name_refs: Vec<&str> = all_names.iter().map(|s| s.as_str()).collect();
@@ -188,6 +190,14 @@ pub fn run_explain(input: &PathBuf, name_filter: Option<&str>, json: bool) -> Ex
                     "name": sr.name,
                     "rule_count": sr.rule_count,
                     "selectors": sr.selectors,
+                }),
+                Explanation::Import(i) => serde_json::json!({
+                    "type": "import",
+                    "from": i.from,
+                    "is_directory": i.is_directory,
+                    "is_relative": i.is_relative,
+                    "alias": i.alias,
+                    "imported_types": i.imported_types,
                 }),
             })
             .collect();

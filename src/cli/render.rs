@@ -168,6 +168,9 @@ pub fn run_render(
             TtpObject::StateRules(_) => {
                 // State rules are runtime styling, applied during rendering
             }
+            TtpObject::Import(_) => {
+                // Import declarations are resolved during loading
+            }
         }
     }
 

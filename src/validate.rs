@@ -314,6 +314,9 @@ impl Validator {
             TtpObject::StateRules(state_rules) => {
                 self.validate_state_rules(line_number, &state_rules);
             }
+            TtpObject::Import(import) => {
+                self.validate_import(line_number, &import);
+            }
         }
     }
 
@@ -369,6 +372,17 @@ impl Validator {
                     "State rules has no rules defined".to_string(),
                 )
                 .with_context(format!("state-rules \"{}\"", state_rules.name)),
+            );
+        }
+    }
+
+    /// Validate an import declaration
+    fn validate_import(&mut self, line_number: usize, import: &crate::models::Import) {
+        let errors = import.validate();
+        for error in errors {
+            self.issues.push(
+                ValidationIssue::error(line_number, IssueType::RangeValidation, error)
+                    .with_context(format!("import from \"{}\"", import.from)),
             );
         }
     }

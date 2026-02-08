@@ -3,6 +3,7 @@
 mod animation;
 mod composition;
 mod core;
+mod import;
 mod object;
 mod palette;
 mod particle;
@@ -15,6 +16,7 @@ mod variant;
 pub use animation::{Animation, Attachment, AttachmentKeyframe, CssKeyframe, FollowMode};
 pub use composition::{Composition, CompositionLayer};
 pub use core::{parse_css_duration, Duration, VarOr};
+pub use import::Import;
 pub use object::{TtpObject, Warning};
 pub use palette::{
     ColorRamp, ColorShift, Palette, PaletteCycle, PaletteRef, Relationship, RelationshipType, Role,
@@ -1882,5 +1884,491 @@ mod tests {
         assert!(json.contains("antialias"));
         let parsed: RegionDef = serde_json::from_str(&json).unwrap();
         assert_eq!(region, parsed);
+    }
+
+    // ========================================================================
+    // Import Object Tests (IMP-4)
+    // ========================================================================
+
+    #[test]
+    fn test_import_parse_unfiltered() {
+        // Unfiltered import: just a from path, imports everything
+        let json = r#"{"type": "import", "from": "characters/hero/base"}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "characters/hero/base");
+                assert!(import.alias.is_none());
+                assert!(import.sprites.is_none());
+                assert!(import.palettes.is_none());
+                assert!(import.transforms.is_none());
+                assert!(import.animations.is_none());
+                assert!(import.is_unfiltered());
+                assert!(!import.is_selective());
+                assert!(!import.is_aliased());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_selective_sprites() {
+        let json = r#"{"type": "import", "from": "characters/hero/base", "sprites": ["idle", "walk", "run"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "characters/hero/base");
+                assert!(import.is_selective());
+                assert!(!import.is_unfiltered());
+                let sprites = import.sprites.unwrap();
+                assert_eq!(sprites, vec!["idle", "walk", "run"]);
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_selective_palettes() {
+        let json = r#"{"type": "import", "from": "lospec-palettes/retro", "palettes": ["gameboy", "nes"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "lospec-palettes/retro");
+                assert!(import.is_selective());
+                let palettes = import.palettes.unwrap();
+                assert_eq!(palettes, vec!["gameboy", "nes"]);
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_selective_transforms() {
+        let json = r#"{"type": "import", "from": "transforms/motion", "transforms": ["spiral-in", "bounce"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert!(import.is_selective());
+                let transforms = import.transforms.unwrap();
+                assert_eq!(transforms, vec!["spiral-in", "bounce"]);
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_selective_animations() {
+        let json = r#"{"type": "import", "from": "anims/player", "animations": ["walk_cycle"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert!(import.is_selective());
+                let animations = import.animations.unwrap();
+                assert_eq!(animations, vec!["walk_cycle"]);
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_selective_multiple_types() {
+        // Import both sprites and palettes from the same file
+        let json = r#"{"type": "import", "from": "characters/hero", "sprites": ["idle"], "palettes": ["skin"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert!(import.is_selective());
+                assert_eq!(import.sprites.unwrap(), vec!["idle"]);
+                assert_eq!(import.palettes.unwrap(), vec!["skin"]);
+                assert!(import.transforms.is_none());
+                assert!(import.animations.is_none());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_aliased() {
+        let json = r#"{"type": "import", "from": "characters/hero/base", "as": "hero"}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "characters/hero/base");
+                assert_eq!(import.alias, Some("hero".to_string()));
+                assert!(import.is_aliased());
+                // Aliased import without filters is NOT unfiltered (it creates a namespace)
+                assert!(!import.is_unfiltered());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_aliased_with_filters() {
+        let json = r#"{"type": "import", "from": "characters/hero/base", "as": "hero", "sprites": ["idle"]}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.alias, Some("hero".to_string()));
+                assert!(import.is_aliased());
+                assert!(import.is_selective());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_directory() {
+        // Directory import: trailing slash
+        let json = r#"{"type": "import", "from": "characters/hero/"}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "characters/hero/");
+                assert!(import.is_directory_import());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_relative_dot() {
+        let json = r#"{"type": "import", "from": "./palettes/brand"}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "./palettes/brand");
+                assert!(import.is_relative());
+                assert!(!import.is_directory_import());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_parse_relative_dotdot() {
+        let json = r#"{"type": "import", "from": "../shared/colors"}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "../shared/colors");
+                assert!(import.is_relative());
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_roundtrip_unfiltered() {
+        let import = Import { from: "characters/hero/base".to_string(), ..Default::default() };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""type":"import""#));
+        assert!(json.contains(r#""from":"characters/hero/base""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_roundtrip_selective() {
+        let import = Import {
+            from: "palettes/shared".to_string(),
+            palettes: Some(vec!["gameboy".to_string(), "nes".to_string()]),
+            ..Default::default()
+        };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_roundtrip_aliased() {
+        let import = Import {
+            from: "characters/hero/base".to_string(),
+            alias: Some("hero".to_string()),
+            ..Default::default()
+        };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(json.contains(r#""as":"hero""#));
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_roundtrip_full() {
+        let import = Import {
+            from: "characters/hero".to_string(),
+            alias: Some("hero".to_string()),
+            sprites: Some(vec!["idle".to_string(), "walk".to_string()]),
+            palettes: Some(vec!["skin".to_string()]),
+            transforms: Some(vec!["mirror-h".to_string()]),
+            animations: Some(vec!["walk_cycle".to_string()]),
+        };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_roundtrip_directory() {
+        let import = Import { from: "characters/hero/".to_string(), ..Default::default() };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_roundtrip_relative() {
+        let import = Import { from: "../shared/colors".to_string(), ..Default::default() };
+        let obj = TtpObject::Import(import.clone());
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: TtpObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(obj, parsed);
+    }
+
+    #[test]
+    fn test_import_skip_serializing_none_fields() {
+        // None optional fields should not appear in serialized output
+        let import = Import { from: "path".to_string(), ..Default::default() };
+        let obj = TtpObject::Import(import);
+        let json = serde_json::to_string(&obj).unwrap();
+        assert!(!json.contains("sprites"));
+        assert!(!json.contains("palettes"));
+        assert!(!json.contains("transforms"));
+        assert!(!json.contains("animations"));
+        assert!(!json.contains("\"as\""));
+    }
+
+    #[test]
+    fn test_import_validate_valid() {
+        let import = Import {
+            from: "characters/hero/base".to_string(),
+            alias: Some("hero".to_string()),
+            sprites: Some(vec!["idle".to_string()]),
+            ..Default::default()
+        };
+        assert!(import.validate().is_empty());
+    }
+
+    #[test]
+    fn test_import_validate_empty_from() {
+        let import = Import { from: String::new(), ..Default::default() };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("cannot be empty"));
+    }
+
+    #[test]
+    fn test_import_validate_alias_with_colon() {
+        let import = Import {
+            from: "path".to_string(),
+            alias: Some("bad:alias".to_string()),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("cannot contain ':'"));
+    }
+
+    #[test]
+    fn test_import_validate_alias_with_slash() {
+        let import = Import {
+            from: "path".to_string(),
+            alias: Some("bad/alias".to_string()),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("cannot contain ':'"));
+    }
+
+    #[test]
+    fn test_import_validate_empty_alias() {
+        let import =
+            Import { from: "path".to_string(), alias: Some(String::new()), ..Default::default() };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("cannot be empty"));
+    }
+
+    #[test]
+    fn test_import_validate_sprite_name_with_colon() {
+        let import = Import {
+            from: "path".to_string(),
+            sprites: Some(vec!["bad:name".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("sprite"));
+        assert!(errors[0].contains("bad:name"));
+    }
+
+    #[test]
+    fn test_import_validate_sprite_name_with_slash() {
+        let import = Import {
+            from: "path".to_string(),
+            sprites: Some(vec!["bad/name".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn test_import_validate_palette_name_with_reserved() {
+        let import = Import {
+            from: "path".to_string(),
+            palettes: Some(vec!["good".to_string(), "bad:name".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("palette"));
+    }
+
+    #[test]
+    fn test_import_validate_transform_name_with_reserved() {
+        let import = Import {
+            from: "path".to_string(),
+            transforms: Some(vec!["bad/name".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("transform"));
+    }
+
+    #[test]
+    fn test_import_validate_animation_name_with_reserved() {
+        let import = Import {
+            from: "path".to_string(),
+            animations: Some(vec!["bad:name".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("animation"));
+    }
+
+    #[test]
+    fn test_import_validate_multiple_errors() {
+        let import = Import {
+            from: String::new(),
+            alias: Some("bad:alias".to_string()),
+            sprites: Some(vec!["ok".to_string(), "bad/sprite".to_string()]),
+            ..Default::default()
+        };
+        let errors = import.validate();
+        assert!(errors.len() >= 3); // empty from, bad alias, bad sprite name
+    }
+
+    #[test]
+    fn test_import_default() {
+        let import = Import::default();
+        assert_eq!(import.from, "");
+        assert!(import.alias.is_none());
+        assert!(import.sprites.is_none());
+        assert!(import.palettes.is_none());
+        assert!(import.transforms.is_none());
+        assert!(import.animations.is_none());
+    }
+
+    #[test]
+    fn test_import_helper_methods() {
+        // Test directory import detection
+        assert!(Import { from: "dir/".to_string(), ..Default::default() }.is_directory_import());
+        assert!(!Import { from: "file".to_string(), ..Default::default() }.is_directory_import());
+
+        // Test relative import detection
+        assert!(Import { from: "./file".to_string(), ..Default::default() }.is_relative());
+        assert!(Import { from: "../file".to_string(), ..Default::default() }.is_relative());
+        assert!(!Import { from: "file".to_string(), ..Default::default() }.is_relative());
+        assert!(!Import { from: "path/file".to_string(), ..Default::default() }.is_relative());
+    }
+
+    #[test]
+    fn test_import_parse_error_missing_from() {
+        // Import without 'from' should fail to parse (it's required)
+        let json = r#"{"type": "import"}"#;
+        let result: Result<TtpObject, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_import_parse_error_invalid_type() {
+        // Wrong type value
+        let json = r#"{"type": "imports", "from": "path"}"#;
+        let result: Result<TtpObject, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_import_parse_extra_fields_ignored() {
+        // Extra fields should be ignored gracefully
+        let json = r#"{"type": "import", "from": "path", "unknown_field": true}"#;
+        let obj: TtpObject = serde_json::from_str(json).unwrap();
+        match obj {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "path");
+            }
+            _ => panic!("Expected import"),
+        }
+    }
+
+    #[test]
+    fn test_import_in_stream() {
+        // Import objects should be parsed in a stream alongside other types
+        use crate::parser::parse_stream;
+        use std::io::Cursor;
+
+        let input = r##"{"type": "palette", "name": "colors", "colors": {"{x}": "#FF0000"}}
+{"type": "import", "from": "shared/palettes", "palettes": ["gameboy"]}
+{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "colors", "regions": {"x": {"points": [[0, 0]]}}}"##;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 3);
+        assert!(result.warnings.is_empty());
+
+        // Verify import is the second object
+        match &result.objects[1] {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "shared/palettes");
+                assert_eq!(import.palettes, Some(vec!["gameboy".to_string()]));
+            }
+            _ => panic!("Expected import as second object"),
+        }
+    }
+
+    #[test]
+    fn test_import_json5_format() {
+        // Import with JSON5 features
+        use crate::parser::parse_stream;
+        use std::io::Cursor;
+
+        let input = r#"{
+  // Import hero sprites
+  type: "import",
+  from: "characters/hero/base",
+  as: "hero",
+  sprites: [
+    "idle",
+    "walk",  // trailing comma
+  ],
+}"#;
+        let result = parse_stream(Cursor::new(input));
+        assert_eq!(result.objects.len(), 1);
+        assert!(result.warnings.is_empty());
+        match &result.objects[0] {
+            TtpObject::Import(import) => {
+                assert_eq!(import.from, "characters/hero/base");
+                assert_eq!(import.alias, Some("hero".to_string()));
+                assert_eq!(import.sprites, Some(vec!["idle".to_string(), "walk".to_string()]));
+            }
+            _ => panic!("Expected import"),
+        }
     }
 }

@@ -87,6 +87,7 @@ pub fn parse_content(jsonl: &str) -> (PaletteRegistry, SpriteRegistry, HashMap<S
             TtpObject::Particle(_) => {}
             TtpObject::Transform(_) => {}
             TtpObject::StateRules(_) => {}
+            TtpObject::Import(_) => {}
         }
     }
 
@@ -118,6 +119,7 @@ pub fn parse_compositions(
             TtpObject::Particle(_) => {}
             TtpObject::Transform(_) => {}
             TtpObject::StateRules(_) => {}
+            TtpObject::Import(_) => {}
         }
     }
 

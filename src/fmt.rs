@@ -61,6 +61,7 @@ fn format_object(obj: &TtpObject) -> String {
         TtpObject::Particle(p) => format_particle(p),
         TtpObject::Transform(t) => format_transform(t),
         TtpObject::StateRules(sr) => format_state_rules(sr),
+        TtpObject::Import(i) => format_import(i),
     }
 }
 
@@ -389,6 +390,12 @@ fn format_transform(transform: &crate::models::TransformDef) -> String {
     serde_json::to_string(transform).unwrap_or_else(|_| {
         // Fallback to basic format
         format!(r#"{{"type": "transform", "name": "{}"}}"#, escape_json_string(&transform.name))
+    })
+}
+
+fn format_import(import: &crate::models::Import) -> String {
+    serde_json::to_string(&crate::models::TtpObject::Import(import.clone())).unwrap_or_else(|_| {
+        format!(r#"{{"type": "import", "from": "{}"}}"#, escape_json_string(&import.from))
     })
 }
 

@@ -96,6 +96,9 @@ impl AnalysisReport {
                 TtpObject::StateRules(_) => {
                     // State rules are runtime styling, not analyzed
                 }
+                TtpObject::Import(_) => {
+                    // Import declarations are resolved during loading, not analyzed
+                }
             }
         }
 

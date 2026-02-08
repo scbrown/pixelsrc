@@ -153,6 +153,21 @@ pub struct StateRulesExplanation {
     pub selectors: Vec<String>,
 }
 
+/// Explanation for import declarations
+#[derive(Debug)]
+pub struct ImportExplanation {
+    /// Source path being imported from
+    pub from: String,
+    /// Whether this is a directory import
+    pub is_directory: bool,
+    /// Whether this is a relative import
+    pub is_relative: bool,
+    /// Optional alias
+    pub alias: Option<String>,
+    /// Imported item types
+    pub imported_types: Vec<String>,
+}
+
 /// Unified explanation for any pixelsrc object
 #[derive(Debug)]
 pub enum Explanation {
@@ -164,6 +179,7 @@ pub enum Explanation {
     Variant(VariantExplanation),
     Particle(ParticleExplanation),
     StateRules(StateRulesExplanation),
+    Import(ImportExplanation),
 }
 
 /// Analyze a sprite and produce an explanation
@@ -301,6 +317,34 @@ pub fn explain_state_rules(state_rules: &StateRules) -> StateRulesExplanation {
     }
 }
 
+/// Explain an import declaration
+pub fn explain_import(import: &crate::models::Import) -> ImportExplanation {
+    let mut imported_types = Vec::new();
+    if import.sprites.is_some() {
+        imported_types.push("sprites".to_string());
+    }
+    if import.palettes.is_some() {
+        imported_types.push("palettes".to_string());
+    }
+    if import.transforms.is_some() {
+        imported_types.push("transforms".to_string());
+    }
+    if import.animations.is_some() {
+        imported_types.push("animations".to_string());
+    }
+    if imported_types.is_empty() {
+        imported_types.push("all".to_string());
+    }
+
+    ImportExplanation {
+        from: import.from.clone(),
+        is_directory: import.is_directory_import(),
+        is_relative: import.is_relative(),
+        alias: import.alias.clone(),
+        imported_types,
+    }
+}
+
 /// Explain any TtpObject
 pub fn explain_object(
     obj: &TtpObject,
@@ -319,6 +363,7 @@ pub fn explain_object(
         TtpObject::StateRules(state_rules) => {
             Explanation::StateRules(explain_state_rules(state_rules))
         }
+        TtpObject::Import(import) => Explanation::Import(explain_import(import)),
     }
 }
 
@@ -561,6 +606,7 @@ pub fn format_explanation(exp: &Explanation) -> String {
         Explanation::Particle(p) => format_particle_explanation(p),
         Explanation::Transform(t) => format_transform_explanation(t),
         Explanation::StateRules(sr) => format_state_rules_explanation(sr),
+        Explanation::Import(i) => format_import_explanation(i),
     }
 }
 
@@ -574,6 +620,21 @@ fn format_state_rules_explanation(sr: &StateRulesExplanation) -> String {
             lines.push(format!("    - {}", selector));
         }
     }
+    lines.join("\n")
+}
+
+/// Format an import explanation as human-readable text
+fn format_import_explanation(i: &ImportExplanation) -> String {
+    let mut lines = vec![format!("Import: {}", i.from)];
+    if i.is_directory {
+        lines.push("  Type: directory import".to_string());
+    } else if i.is_relative {
+        lines.push("  Type: relative import".to_string());
+    }
+    if let Some(alias) = &i.alias {
+        lines.push(format!("  Alias: {}", alias));
+    }
+    lines.push(format!("  Imports: {}", i.imported_types.join(", ")));
     lines.join("\n")
 }
 
