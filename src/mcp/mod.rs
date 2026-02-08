@@ -5,6 +5,7 @@
 //!
 //! Start the server with `pxl mcp` (hidden command, feature-gated).
 
+pub mod prompts;
 pub mod resources;
 mod server;
 pub mod tools;

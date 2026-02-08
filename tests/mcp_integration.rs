@@ -125,6 +125,22 @@ impl McpClient {
         self.request("resources/read", serde_json::json!({ "uri": uri }))
     }
 
+    /// Call prompts/list and return the result.
+    fn list_prompts(&mut self) -> serde_json::Value {
+        self.request("prompts/list", serde_json::json!({}))
+    }
+
+    /// Call prompts/get for a specific prompt with arguments.
+    fn get_prompt(&mut self, name: &str, args: serde_json::Value) -> serde_json::Value {
+        self.request(
+            "prompts/get",
+            serde_json::json!({
+                "name": name,
+                "arguments": args,
+            }),
+        )
+    }
+
     /// Shut down by closing stdin, which causes the server to exit.
     fn shutdown(mut self) {
         drop(self.stdin);
@@ -158,6 +174,7 @@ fn test_mcp_initialize_handshake() {
     let caps = &result["capabilities"];
     assert!(caps.get("tools").is_some(), "tools capability should be present");
     assert!(caps.get("resources").is_some(), "resources capability should be present");
+    assert!(caps.get("prompts").is_some(), "prompts capability should be present");
 
     client.shutdown();
 }
@@ -520,6 +537,153 @@ fn test_mcp_resource_read_unknown_uri() {
         "reading unknown resource should return error: {:?}",
         resp
     );
+
+    client.shutdown();
+}
+
+// ── Prompts ───────────────────────────────────────────────────────────
+
+#[test]
+fn test_mcp_prompts_list() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.list_prompts();
+    let result = resp.get("result").expect("prompts/list should return result");
+    let prompts = result["prompts"].as_array().expect("prompts should be array");
+
+    assert_eq!(prompts.len(), 4, "expected 4 prompts, got {}", prompts.len());
+
+    let names: Vec<&str> = prompts.iter().map(|p| p["name"].as_str().unwrap()).collect();
+    assert!(names.contains(&"create_sprite"), "missing create_sprite");
+    assert!(names.contains(&"create_animation"), "missing create_animation");
+    assert!(names.contains(&"review_pxl"), "missing review_pxl");
+    assert!(names.contains(&"pixel_art_guide"), "missing pixel_art_guide");
+
+    // Each prompt should have description and arguments
+    for prompt in prompts {
+        let name = prompt["name"].as_str().unwrap();
+        assert!(
+            prompt.get("description").and_then(|d| d.as_str()).is_some(),
+            "prompt {} missing description",
+            name
+        );
+        let args = prompt["arguments"].as_array().unwrap_or_else(|| {
+            panic!("prompt {} missing arguments", name);
+        });
+        assert!(!args.is_empty(), "prompt {} should have at least one argument", name);
+    }
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_prompt_create_sprite() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.get_prompt(
+        "create_sprite",
+        serde_json::json!({
+            "description": "a small knight",
+            "size": "16x16",
+            "palette": "pico8",
+        }),
+    );
+    let result = resp.get("result").expect("prompts/get should return result");
+    let messages = result["messages"].as_array().expect("messages should be array");
+
+    assert_eq!(messages.len(), 2, "create_sprite should return 2 messages");
+
+    // First message: assistant with format spec context
+    assert_eq!(messages[0]["role"].as_str().unwrap(), "assistant");
+    let sys_text = messages[0]["content"]["text"].as_str().unwrap();
+    assert!(sys_text.contains("Pixelsrc"), "system msg should contain format reference");
+    assert!(sys_text.contains("@pico8"), "system msg should mention chosen palette");
+
+    // Second message: user with the request
+    assert_eq!(messages[1]["role"].as_str().unwrap(), "user");
+    let user_text = messages[1]["content"]["text"].as_str().unwrap();
+    assert!(user_text.contains("a small knight"), "user msg should contain description");
+    assert!(user_text.contains("16x16"), "user msg should contain size");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_prompt_create_animation() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.get_prompt(
+        "create_animation",
+        serde_json::json!({
+            "description": "a coin spinning",
+            "frames": "6",
+            "fps": "10",
+        }),
+    );
+    let result = resp.get("result").expect("prompts/get should return result");
+    let messages = result["messages"].as_array().expect("messages should be array");
+    assert_eq!(messages.len(), 2);
+
+    let user_text = messages[1]["content"]["text"].as_str().unwrap();
+    assert!(user_text.contains("6-frame"), "should mention frame count");
+    assert!(user_text.contains("a coin spinning"), "should mention description");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_prompt_review_pxl() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.get_prompt(
+        "review_pxl",
+        serde_json::json!({
+            "source": "{\"type\":\"sprite\",\"name\":\"test\"}",
+        }),
+    );
+    let result = resp.get("result").expect("prompts/get should return result");
+    let messages = result["messages"].as_array().expect("messages should be array");
+    assert_eq!(messages.len(), 2);
+
+    let sys_text = messages[0]["content"]["text"].as_str().unwrap();
+    assert!(sys_text.contains("Review Checklist"), "should contain review checklist");
+
+    let user_text = messages[1]["content"]["text"].as_str().unwrap();
+    assert!(user_text.contains("test"), "should embed the source");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_prompt_pixel_art_guide() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.get_prompt("pixel_art_guide", serde_json::json!({ "genre": "RPG" }));
+    let result = resp.get("result").expect("prompts/get should return result");
+    let messages = result["messages"].as_array().expect("messages should be array");
+    assert_eq!(messages.len(), 2);
+
+    let sys_text = messages[0]["content"]["text"].as_str().unwrap();
+    assert!(sys_text.contains("@gameboy"), "should list available palettes");
+
+    let user_text = messages[1]["content"]["text"].as_str().unwrap();
+    assert!(user_text.contains("RPG"), "should mention genre");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_prompt_unknown_name() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.get_prompt("nonexistent_prompt", serde_json::json!({}));
+    assert!(resp.get("error").is_some(), "getting unknown prompt should return error: {:?}", resp);
 
     client.shutdown();
 }

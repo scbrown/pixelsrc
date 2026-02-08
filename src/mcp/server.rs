@@ -9,6 +9,7 @@ use rmcp::model::*;
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler, ServiceExt};
 
+use super::prompts;
 use super::resources;
 use super::tools::{
     analyze::AnalyzeInput, format::FormatInput, import::ImportInput, palettes::PalettesInput,
@@ -340,7 +341,11 @@ impl ServerHandler for PixelsrcMcpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder().enable_tools().enable_resources().build(),
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_prompts()
+                .build(),
             server_info: Implementation {
                 name: "pixelsrc-mcp".into(),
                 version: env!("CARGO_PKG_VERSION").into(),
@@ -356,6 +361,35 @@ impl ServerHandler for PixelsrcMcpServer {
                     .into(),
             ),
         }
+    }
+
+    fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListPromptsResult, McpError>> + Send + '_ {
+        std::future::ready(Ok(ListPromptsResult {
+            meta: None,
+            prompts: prompts::list_prompts(),
+            next_cursor: None,
+        }))
+    }
+
+    fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<GetPromptResult, McpError>> + Send + '_ {
+        let args = request.arguments.unwrap_or_default();
+        let result = prompts::get_prompt(&request.name, &args);
+        std::future::ready(match result {
+            Some(r) => Ok(r),
+            None => Err(McpError::new(
+                ErrorCode::INVALID_PARAMS,
+                format!("Unknown prompt: {}", request.name),
+                None,
+            )),
+        })
     }
 
     fn list_resources(
