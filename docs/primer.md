@@ -337,12 +337,38 @@ pxl import image.png -o output.pxl
 pxl import image.png --analyze -o output.pxl
 ```
 
+### Mask (Read-Only Sprite Queries)
+
+```bash
+# List all sprites, animations, compositions in a file
+pxl mask input.pxl --list --json
+
+# Find all coordinates where a token appears
+pxl mask input.pxl --sprite hero --query "{eye}" --json
+
+# Get bounding box of a token
+pxl mask input.pxl --sprite hero --bounds "{skin}" --json
+
+# Sample token at a coordinate
+pxl mask input.pxl --sprite hero --sample 6,6 --json
+
+# Get 4-connected neighbors at a coordinate
+pxl mask input.pxl --sprite hero --neighbors 6,6 --json
+
+# Extract a rectangular region of tokens
+pxl mask input.pxl --sprite hero --region 5,5,6,4 --json
+
+# Token frequency counts
+pxl mask input.pxl --sprite hero --count --json
+```
+
 ## Workflow
 
 1. **Generate** - Create JSON5 with palette and sprite definitions
 2. **Validate** - Run `pxl validate file.pxl` to check for errors
 3. **Render** - Run `pxl render file.pxl` to create PNG
-4. **Iterate** - Fix any issues and re-render
+4. **Inspect** - Run `pxl mask file.pxl --sprite name --count --json` to verify state
+5. **Iterate** - Fix any issues and re-render
 
 ## Tips for Better Sprites
 
