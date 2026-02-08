@@ -729,4 +729,260 @@ mod tests {
         let region = &regions["water"];
         assert_eq!(region.points, Some(vec![[1, 1]]));
     }
+
+    // =========================================================================
+    // Edge case tests: 1x1 sprite, boundary ops, zero-size shapes
+    // =========================================================================
+
+    const TINY_PXL: &str = r##"{"type": "palette", "name": "p", "colors": {"_": "#00000000", "x": "#FF0000"}}
+{"type": "sprite", "name": "pixel", "size": [1, 1], "palette": "p", "regions": {}}"##;
+
+    #[test]
+    fn test_1x1_sprite_set() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline.apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "dot".to_string() }]).unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("dot"));
+        assert_eq!(regions["dot"].points, Some(vec![[0, 0]]));
+    }
+
+    #[test]
+    fn test_1x1_sprite_rect() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Rect { x: 0, y: 0, w: 1, h: 1, token: "fill".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("fill"));
+        assert_eq!(regions["fill"].rect, Some([0, 0, 1, 1]));
+    }
+
+    #[test]
+    fn test_1x1_sprite_erase() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Set { x: 0, y: 0, token: "x".to_string() },
+                DrawOp::Erase { x: 0, y: 0 },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("_"), "erase should add transparent region");
+        assert!(regions["_"].z.unwrap_or(0) > 0, "transparent region should have high z");
+    }
+
+    #[test]
+    fn test_1x1_sprite_line() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Line { x0: 0, y0: 0, x1: 0, y1: 0, token: "pt".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("pt"));
+        assert_eq!(regions["pt"].line, Some(vec![[0, 0], [0, 0]]));
+    }
+
+    #[test]
+    fn test_1x1_sprite_flood() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline.apply_ops(&[DrawOp::Flood { x: 0, y: 0, token: "w".to_string() }]).unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("w"));
+        assert_eq!(regions["w"].points, Some(vec![[0, 0]]));
+    }
+
+    #[test]
+    fn test_zero_size_rect() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Rect { x: 0, y: 0, w: 0, h: 0, token: "zero".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        // Zero-size rect still creates a region entry
+        assert!(regions.contains_key("zero"));
+        assert_eq!(regions["zero"].rect, Some([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_boundary_set_at_origin() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline.apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "tl".to_string() }]).unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["tl"].points, Some(vec![[0, 0]]));
+    }
+
+    #[test]
+    fn test_boundary_set_at_max_corner() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        // 4x4 sprite, max valid coord is (3,3)
+        pipeline.apply_ops(&[DrawOp::Set { x: 3, y: 3, token: "br".to_string() }]).unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["br"].points, Some(vec![[3, 3]]));
+    }
+
+    #[test]
+    fn test_rect_full_sprite() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Rect { x: 0, y: 0, w: 4, h: 4, token: "full".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["full"].rect, Some([0, 0, 4, 4]));
+    }
+
+    #[test]
+    fn test_line_at_top_edge() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Line { x0: 0, y0: 0, x1: 3, y1: 0, token: "top".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["top"].line, Some(vec![[0, 0], [3, 0]]));
+    }
+
+    #[test]
+    fn test_line_at_bottom_edge() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Line { x0: 0, y0: 3, x1: 3, y1: 3, token: "bottom".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["bottom"].line, Some(vec![[0, 3], [3, 3]]));
+    }
+
+    // =========================================================================
+    // Multiple operations and merge strategies
+    // =========================================================================
+
+    #[test]
+    fn test_multiple_erases_accumulate() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline.apply_ops(&[DrawOp::Erase { x: 1, y: 1 }, DrawOp::Erase { x: 2, y: 2 }]).unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        let transp = &regions["_"];
+        // Two erases should accumulate as points
+        assert_eq!(transp.points, Some(vec![[1, 1], [2, 2]]));
+    }
+
+    #[test]
+    fn test_set_then_erase_same_coord_different_tokens() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Set { x: 0, y: 0, token: "mark".to_string() },
+                DrawOp::Erase { x: 0, y: 0 },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        // Both should exist — the transparent "_" at higher z overrides visually
+        assert!(regions.contains_key("mark"));
+        assert!(regions.contains_key("_"));
+        assert!(regions["_"].z.unwrap_or(0) > 0);
+    }
+
+    #[test]
+    fn test_line_then_rect_same_token_creates_union() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Line { x0: 0, y0: 0, x1: 3, y1: 0, token: "a".to_string() },
+                DrawOp::Rect { x: 0, y: 1, w: 4, h: 3, token: "a".to_string() },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["a"];
+        // Different shape types should union
+        assert!(region.union.is_some());
+        let parts = region.union.as_ref().unwrap();
+        assert_eq!(parts.len(), 2);
+    }
+
+    #[test]
+    fn test_flood_then_rect_same_token_creates_union() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Flood { x: 0, y: 0, token: "w".to_string() },
+                DrawOp::Rect { x: 0, y: 0, w: 2, h: 2, token: "w".to_string() },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["w"];
+        // flood creates points, rect creates rect → different shape → union
+        assert!(region.union.is_some());
+    }
+
+    // =========================================================================
+    // Roundtrip fidelity
+    // =========================================================================
+
+    #[test]
+    fn test_roundtrip_1x1_sprite() {
+        let mut pipeline = DrawPipeline::load_from_string(TINY_PXL, Some("pixel")).unwrap();
+        pipeline.apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "x".to_string() }]).unwrap();
+
+        let result = pipeline.serialize().unwrap();
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, Some("pixel")).unwrap();
+        let sprite = pipeline2.sprite().unwrap();
+        assert!(sprite.regions.as_ref().unwrap().contains_key("x"));
+    }
+
+    #[test]
+    fn test_roundtrip_multiple_ops_preserves_all() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Set { x: 0, y: 0, token: "a".to_string() },
+                DrawOp::Rect { x: 0, y: 1, w: 4, h: 1, token: "b".to_string() },
+                DrawOp::Line { x0: 0, y0: 2, x1: 3, y1: 2, token: "c".to_string() },
+                DrawOp::Flood { x: 0, y: 3, token: "d".to_string() },
+                DrawOp::Erase { x: 3, y: 3 },
+            ])
+            .unwrap();
+
+        let result = pipeline.serialize().unwrap();
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, Some("dot")).unwrap();
+        let sprite = pipeline2.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert!(regions.contains_key("a"), "set region should survive roundtrip");
+        assert!(regions.contains_key("b"), "rect region should survive roundtrip");
+        assert!(regions.contains_key("c"), "line region should survive roundtrip");
+        assert!(regions.contains_key("d"), "flood region should survive roundtrip");
+        assert!(regions.contains_key("_"), "erase region should survive roundtrip");
+    }
+
+    #[test]
+    fn test_apply_ops_no_sprite_selected() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, None).unwrap();
+        let result = pipeline.apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "x".to_string() }]);
+        assert!(result.is_err(), "should error when no sprite selected");
+    }
 }
