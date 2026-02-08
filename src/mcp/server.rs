@@ -8,8 +8,8 @@ use rmcp::model::*;
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 
 use super::tools::{
-    analyze::AnalyzeInput, format::FormatInput, palettes::PalettesInput, prime::PrimeInput,
-    scaffold::ScaffoldInput,
+    analyze::AnalyzeInput, format::FormatInput, import::ImportInput, palettes::PalettesInput,
+    prime::PrimeInput, scaffold::ScaffoldInput,
 };
 use crate::analyze::{collect_files, AnalysisReport};
 use crate::palettes;
@@ -314,6 +314,20 @@ impl PixelsrcMcpServer {
                 other
             )),
         }
+    }
+
+    // ── pixelsrc_import ──────────────────────────────────────────────
+
+    /// Convert a PNG image to .pxl source format. Accepts base64 PNG or file
+    /// path, runs color quantization, and generates .pxl JSONL output.
+    #[tool(
+        description = "Convert a PNG image to .pxl source format. Accepts base64 PNG or file path, runs color quantization, and generates .pxl JSONL output."
+    )]
+    fn pixelsrc_import(
+        &self,
+        Parameters(input): Parameters<ImportInput>,
+    ) -> Result<String, String> {
+        super::tools::import::run_import(input)
     }
 }
 

@@ -378,7 +378,28 @@ pub fn import_png_with_options<P: AsRef<Path>>(
     options: &ImportOptions,
 ) -> Result<ImportResult, String> {
     let img = image::open(path.as_ref()).map_err(|e| format!("Failed to open image: {}", e))?;
+    import_dynamic_image(img, name, max_colors, options)
+}
 
+/// Import from raw image bytes (e.g. decoded from base64 PNG).
+pub fn import_from_image_data(
+    data: &[u8],
+    name: &str,
+    max_colors: usize,
+    options: &ImportOptions,
+) -> Result<ImportResult, String> {
+    let img =
+        image::load_from_memory(data).map_err(|e| format!("Failed to decode image: {}", e))?;
+    import_dynamic_image(img, name, max_colors, options)
+}
+
+/// Core import logic operating on a decoded image.
+fn import_dynamic_image(
+    img: image::DynamicImage,
+    name: &str,
+    max_colors: usize,
+    options: &ImportOptions,
+) -> Result<ImportResult, String> {
     let (width, height) = img.dimensions();
 
     // Extract all unique colors with their pixel counts
@@ -624,5 +645,35 @@ mod tests {
         assert!(jsonl.contains("test_sprite"));
         assert!(jsonl.contains("\"regions\""));
         assert!(!jsonl.contains("\"grid\""));
+    }
+
+    #[test]
+    fn test_import_from_image_data() {
+        // Create a minimal 2x2 PNG in memory
+        let mut img = image::RgbaImage::new(2, 2);
+        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255])); // red
+        img.put_pixel(1, 0, image::Rgba([0, 255, 0, 255])); // green
+        img.put_pixel(0, 1, image::Rgba([0, 0, 255, 255])); // blue
+        img.put_pixel(1, 1, image::Rgba([255, 0, 0, 255])); // red
+
+        let mut png_bytes = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(std::io::Cursor::new(&mut png_bytes));
+        image::ImageEncoder::write_image(encoder, &img, 2, 2, image::ColorType::Rgba8).unwrap();
+
+        let result = import_from_image_data(&png_bytes, "test", 16, &ImportOptions::default());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.width, 2);
+        assert_eq!(result.height, 2);
+        assert_eq!(result.name, "test");
+        // 3 unique colors (red, green, blue)
+        assert_eq!(result.palette.len(), 3);
+    }
+
+    #[test]
+    fn test_import_from_image_data_invalid() {
+        let result = import_from_image_data(&[0, 1, 2, 3], "bad", 16, &ImportOptions::default());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to decode image"));
     }
 }

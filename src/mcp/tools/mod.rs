@@ -5,6 +5,7 @@
 
 pub mod analyze;
 pub mod format;
+pub mod import;
 pub mod palettes;
 pub mod prime;
 pub mod scaffold;

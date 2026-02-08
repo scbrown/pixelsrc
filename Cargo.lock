@@ -1559,6 +1559,7 @@ name = "pixelsrc"
 version = "0.2.0"
 dependencies = [
  "atty",
+ "base64",
  "clap",
  "console_error_panic_hook",
  "criterion",
