@@ -520,6 +520,14 @@ pub enum Commands {
         #[arg(short, long)]
         sprite: Option<String>,
 
+        /// Sample token at coordinate: x,y
+        #[arg(long, value_name = "X,Y")]
+        sample: Option<String>,
+
+        /// Get 4-connected neighbors at coordinate: x,y
+        #[arg(long, value_name = "X,Y")]
+        neighbors: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -688,9 +696,15 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, json, query, bounds } => {
-            mask::run_mask(&input, sprite.as_deref(), json, query.as_deref(), bounds.as_deref())
-        }
+        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds } => mask::run_mask(
+            &input,
+            sprite.as_deref(),
+            sample.as_deref(),
+            neighbors.as_deref(),
+            json,
+            query.as_deref(),
+            bounds.as_deref(),
+        ),
     }
 }
 

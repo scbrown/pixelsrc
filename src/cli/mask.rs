@@ -20,6 +20,8 @@ fn normalize_token(token: &str) -> &str {
 pub fn run_mask(
     input: &Path,
     sprite: Option<&str>,
+    sample: Option<&str>,
+    neighbors: Option<&str>,
     json: bool,
     query: Option<&str>,
     bounds: Option<&str>,
@@ -100,6 +102,10 @@ pub fn run_mask(
         } else {
             print_bounds_text(&result);
         }
+    } else if let Some(coord_str) = sample {
+        return run_sample(&grid, coord_str, json);
+    } else if let Some(coord_str) = neighbors {
+        return run_neighbors(&grid, coord_str, json);
     } else {
         // Default: dump the full token grid
         if json {
@@ -110,6 +116,124 @@ pub fn run_mask(
     }
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+// --- Coordinate parsing ---
+
+/// Parse "x,y" coordinate string.
+fn parse_coords(s: &str) -> Result<(u32, u32), String> {
+    let (x_str, y_str) =
+        s.split_once(',').ok_or_else(|| format!("invalid coordinates '{}', expected x,y", s))?;
+
+    let x: u32 =
+        x_str.trim().parse().map_err(|_| format!("invalid x coordinate '{}'", x_str.trim()))?;
+    let y: u32 =
+        y_str.trim().parse().map_err(|_| format!("invalid y coordinate '{}'", y_str.trim()))?;
+
+    Ok((x, y))
+}
+
+// --- Sample output ---
+
+/// Execute --sample operation.
+fn run_sample(grid: &TokenGrid, coord_str: &str, json: bool) -> ExitCode {
+    let (x, y) = match parse_coords(coord_str) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    match grid.sample(x, y) {
+        Ok(token) => {
+            if json {
+                let output = serde_json::json!({
+                    "x": x,
+                    "y": y,
+                    "token": format!("{{{}}}", token),
+                });
+                println!("{}", serde_json::to_string(&output).unwrap());
+            } else {
+                println!("({}, {}): {{{}}}", x, y, token);
+            }
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
+}
+
+// --- Neighbors output ---
+
+/// Execute --neighbors operation.
+fn run_neighbors(grid: &TokenGrid, coord_str: &str, json: bool) -> ExitCode {
+    let (x, y) = match parse_coords(coord_str) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return ExitCode::from(EXIT_INVALID_ARGS);
+        }
+    };
+
+    match grid.neighbors(x, y) {
+        Ok(result) => {
+            if json {
+                let mut neighbors = serde_json::Map::new();
+                if let Some(ref t) = result.up {
+                    neighbors
+                        .insert("up".to_string(), serde_json::Value::String(format!("{{{}}}", t)));
+                }
+                if let Some(ref t) = result.down {
+                    neighbors.insert(
+                        "down".to_string(),
+                        serde_json::Value::String(format!("{{{}}}", t)),
+                    );
+                }
+                if let Some(ref t) = result.left {
+                    neighbors.insert(
+                        "left".to_string(),
+                        serde_json::Value::String(format!("{{{}}}", t)),
+                    );
+                }
+                if let Some(ref t) = result.right {
+                    neighbors.insert(
+                        "right".to_string(),
+                        serde_json::Value::String(format!("{{{}}}", t)),
+                    );
+                }
+
+                let output = serde_json::json!({
+                    "x": x,
+                    "y": y,
+                    "token": format!("{{{}}}", result.token),
+                    "neighbors": serde_json::Value::Object(neighbors),
+                });
+                println!("{}", serde_json::to_string(&output).unwrap());
+            } else {
+                println!("({}, {}): {{{}}}", x, y, result.token);
+                if let Some(ref t) = result.up {
+                    println!("  up    ({}, {}): {{{}}}", x, y.wrapping_sub(1), t);
+                }
+                if let Some(ref t) = result.down {
+                    println!("  down  ({}, {}): {{{}}}", x, y + 1, t);
+                }
+                if let Some(ref t) = result.left {
+                    println!("  left  ({}, {}): {{{}}}", x.wrapping_sub(1), y, t);
+                }
+                if let Some(ref t) = result.right {
+                    println!("  right ({}, {}): {{{}}}", x + 1, y, t);
+                }
+            }
+            ExitCode::from(EXIT_SUCCESS)
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            ExitCode::from(EXIT_ERROR)
+        }
+    }
 }
 
 // --- Query output ---

@@ -114,7 +114,63 @@ pub struct BoundsResult {
     pub pixel_count: u32,
 }
 
+/// Result of a neighbor query at a coordinate.
+pub struct NeighborResult {
+    /// The token at the queried coordinate.
+    pub token: String,
+    /// Token above (y-1), if in bounds.
+    pub up: Option<String>,
+    /// Token below (y+1), if in bounds.
+    pub down: Option<String>,
+    /// Token to the left (x-1), if in bounds.
+    pub left: Option<String>,
+    /// Token to the right (x+1), if in bounds.
+    pub right: Option<String>,
+}
+
 impl TokenGrid {
+    /// Return the token at the given coordinate.
+    ///
+    /// Returns an error if the coordinate is out of bounds.
+    pub fn sample(&self, x: u32, y: u32) -> Result<&str, String> {
+        if x >= self.width || y >= self.height {
+            return Err(format!(
+                "coordinate ({}, {}) is out of bounds for {}x{} sprite",
+                x, y, self.width, self.height
+            ));
+        }
+        Ok(&self.grid[y as usize][x as usize])
+    }
+
+    /// Return the token and its 4-connected neighbors at the given coordinate.
+    ///
+    /// Out-of-bounds neighbors are omitted (None).
+    pub fn neighbors(&self, x: u32, y: u32) -> Result<NeighborResult, String> {
+        if x >= self.width || y >= self.height {
+            return Err(format!(
+                "coordinate ({}, {}) is out of bounds for {}x{} sprite",
+                x, y, self.width, self.height
+            ));
+        }
+
+        let token = self.grid[y as usize][x as usize].clone();
+        let up = if y > 0 { Some(self.grid[(y - 1) as usize][x as usize].clone()) } else { None };
+        let down = if y + 1 < self.height {
+            Some(self.grid[(y + 1) as usize][x as usize].clone())
+        } else {
+            None
+        };
+        let left =
+            if x > 0 { Some(self.grid[y as usize][(x - 1) as usize].clone()) } else { None };
+        let right = if x + 1 < self.width {
+            Some(self.grid[y as usize][(x + 1) as usize].clone())
+        } else {
+            None
+        };
+
+        Ok(NeighborResult { token, up, down, left, right })
+    }
+
     /// Build a token grid from a sprite's regions.
     ///
     /// Rasterizes all regions and assigns each pixel to the token that
@@ -487,5 +543,108 @@ mod tests {
         let result = grid.bounds("x");
         assert_eq!(result.bounds, Some([2, 3, 1, 1]));
         assert_eq!(result.pixel_count, 1);
+    }
+
+    // --- Sample tests ---
+
+    #[test]
+    fn test_sample_returns_correct_token() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Transparent corner
+        assert_eq!(grid.sample(0, 0).unwrap(), "_");
+        // Interior rect
+        assert_eq!(grid.sample(1, 1).unwrap(), "x");
+        assert_eq!(grid.sample(2, 2).unwrap(), "x");
+        // Transparent edge
+        assert_eq!(grid.sample(3, 0).unwrap(), "_");
+    }
+
+    #[test]
+    fn test_sample_out_of_bounds() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        assert!(grid.sample(4, 0).is_err());
+        assert!(grid.sample(0, 4).is_err());
+        assert!(grid.sample(100, 100).is_err());
+    }
+
+    // --- Neighbors tests ---
+
+    #[test]
+    fn test_neighbors_interior() {
+        // Use z-ordering test sprite: "a" fills all, "b" fills [1,1,2,2]
+        let content = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000", "a": "#F00", "b": "#0F0"}}
+{"type": "sprite", "name": "s", "size": [4, 4], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4], "z": 0}, "b": {"rect": [1, 1, 2, 2], "z": 1}}}"##;
+
+        let pipeline = MaskPipeline::load_from_string(content, Some("s")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Center-ish point (1,1) is "b", neighbors are mixed
+        let result = grid.neighbors(1, 1).unwrap();
+        assert_eq!(result.token, "b");
+        assert_eq!(result.up.as_deref(), Some("a")); // (1,0) = "a"
+        assert_eq!(result.down.as_deref(), Some("b")); // (1,2) = "b"
+        assert_eq!(result.left.as_deref(), Some("a")); // (0,1) = "a"
+        assert_eq!(result.right.as_deref(), Some("b")); // (2,1) = "b"
+    }
+
+    #[test]
+    fn test_neighbors_corner_top_left() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Top-left corner (0,0): only down and right exist
+        let result = grid.neighbors(0, 0).unwrap();
+        assert_eq!(result.token, "_");
+        assert!(result.up.is_none());
+        assert!(result.left.is_none());
+        assert!(result.down.is_some());
+        assert!(result.right.is_some());
+    }
+
+    #[test]
+    fn test_neighbors_corner_bottom_right() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Bottom-right corner (3,3): only up and left exist
+        let result = grid.neighbors(3, 3).unwrap();
+        assert_eq!(result.token, "_");
+        assert!(result.up.is_some());
+        assert!(result.left.is_some());
+        assert!(result.down.is_none());
+        assert!(result.right.is_none());
+    }
+
+    #[test]
+    fn test_neighbors_edge_top() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        // Top edge (1,0): no up neighbor
+        let result = grid.neighbors(1, 0).unwrap();
+        assert!(result.up.is_none());
+        assert!(result.down.is_some());
+        assert!(result.left.is_some());
+        assert!(result.right.is_some());
+    }
+
+    #[test]
+    fn test_neighbors_out_of_bounds() {
+        let pipeline = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("dot")).unwrap();
+        let sprite = pipeline.sprite().unwrap();
+        let grid = TokenGrid::from_sprite(sprite).unwrap();
+
+        assert!(grid.neighbors(4, 0).is_err());
+        assert!(grid.neighbors(0, 4).is_err());
     }
 }
