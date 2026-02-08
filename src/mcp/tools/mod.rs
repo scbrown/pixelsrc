@@ -8,4 +8,5 @@ pub mod format;
 pub mod import;
 pub mod palettes;
 pub mod prime;
+pub mod render;
 pub mod scaffold;

@@ -13,7 +13,7 @@ use super::prompts;
 use super::resources;
 use super::tools::{
     analyze::AnalyzeInput, format::FormatInput, import::ImportInput, palettes::PalettesInput,
-    prime::PrimeInput, scaffold::ScaffoldInput,
+    prime::PrimeInput, render::RenderInput, scaffold::ScaffoldInput,
 };
 use crate::analyze::{collect_files, AnalysisReport};
 use crate::palettes;
@@ -48,6 +48,36 @@ impl PixelsrcMcpServer {
         Parameters(input): Parameters<FormatInput>,
     ) -> Result<String, String> {
         crate::fmt::format_pixelsrc(&input.source)
+    }
+
+    // ── pixelsrc_render ──────────────────────────────────────────────
+
+    /// Render .pxl source or file to a PNG image. Returns base64-encoded PNG
+    /// with a text summary. Use `sprite` to select a specific sprite, and
+    /// `scale` to upscale with nearest-neighbor interpolation.
+    #[tool(
+        description = "Render .pxl source or file to a PNG image. Returns base64-encoded PNG with a text summary. Use sprite to select from multi-sprite source, scale to upscale."
+    )]
+    fn pixelsrc_render(
+        &self,
+        Parameters(input): Parameters<RenderInput>,
+    ) -> Result<CallToolResult, McpError> {
+        match super::tools::render::run_render(input) {
+            Ok(output) => {
+                let mut summary = format!(
+                    "Rendered sprite '{}' ({}x{} px)",
+                    output.sprite_name, output.width, output.height,
+                );
+                if !output.warnings.is_empty() {
+                    summary.push_str(&format!("\nWarnings:\n{}", output.warnings.join("\n")));
+                }
+                Ok(CallToolResult::success(vec![
+                    Content::image(output.base64_png, "image/png"),
+                    Content::text(summary),
+                ]))
+            }
+            Err(msg) => Ok(CallToolResult::error(vec![Content::text(msg)])),
+        }
     }
 
     // ── pixelsrc_prime ───────────────────────────────────────────────

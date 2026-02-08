@@ -194,13 +194,14 @@ fn test_mcp_tools_list() {
     let result = resp.get("result").expect("tools/list should return result");
     let tools = result["tools"].as_array().expect("tools should be an array");
 
-    // We have 6 implemented tools
-    assert_eq!(tools.len(), 6, "expected 6 tools, got {}", tools.len());
+    // We have 7 implemented tools
+    assert_eq!(tools.len(), 7, "expected 7 tools, got {}", tools.len());
 
     // Collect tool names
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
     let expected = [
         "pixelsrc_format",
+        "pixelsrc_render",
         "pixelsrc_prime",
         "pixelsrc_palettes",
         "pixelsrc_analyze",
@@ -249,6 +250,68 @@ fn test_mcp_tool_format() {
 
     let text = content[0]["text"].as_str().unwrap();
     assert!(text.contains("sprite"), "formatted output should contain sprite type");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_render() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type": "sprite", "name": "dot", "size": [2, 2], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"points": [[0, 0], [1, 1]], "z": 0}}}"##;
+
+    let resp =
+        client.call_tool("pixelsrc_render", serde_json::json!({ "source": source, "scale": 2 }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+
+    // Should have at least two content blocks: image + text summary
+    assert!(content.len() >= 2, "render should return image + text, got {}", content.len());
+
+    // First content should be an image
+    assert_eq!(content[0]["type"].as_str().unwrap(), "image");
+    assert_eq!(content[0]["mimeType"].as_str().unwrap(), "image/png");
+    let data = content[0]["data"].as_str().unwrap();
+    assert!(!data.is_empty(), "image data should not be empty");
+
+    // Second content should be text summary
+    assert_eq!(content[1]["type"].as_str().unwrap(), "text");
+    let summary = content[1]["text"].as_str().unwrap();
+    assert!(summary.contains("dot"), "summary should mention sprite name");
+    assert!(summary.contains("4x4"), "summary should mention scaled dimensions");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_render_error() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    // No source or path provided
+    let resp = client.call_tool("pixelsrc_render", serde_json::json!({}));
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "render with no input should be an error: {:?}", resp);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_render_missing_sprite() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": {"_": "#00000000", "x": "#FF0000"}, "regions": {"x": {"points": [[0, 0]], "z": 0}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_render",
+        serde_json::json!({ "source": source, "sprite": "nonexistent" }),
+    );
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "render with missing sprite should be an error: {:?}", resp);
 
     client.shutdown();
 }
