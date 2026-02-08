@@ -106,6 +106,16 @@ impl BuildContext {
     pub fn default_padding(&self) -> u32 {
         self.config.defaults.padding
     }
+
+    /// Get the source directory if it exists, otherwise None.
+    pub fn src_dir_if_exists(&self) -> Option<PathBuf> {
+        let dir = self.src_dir();
+        if dir.exists() {
+            Some(dir)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]

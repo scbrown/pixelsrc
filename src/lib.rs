@@ -72,6 +72,7 @@ pub mod path;
 pub mod prime;
 pub mod registry;
 pub mod renderer;
+pub mod resolve_imports;
 pub mod scaffold;
 pub mod shapes;
 pub mod spritesheet;

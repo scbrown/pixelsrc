@@ -9,8 +9,9 @@ use crate::models::TtpObject;
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, ResolvedSprite, SpriteRegistry};
 use crate::renderer::{render_resolved, render_sprite};
+use crate::resolve_imports::ImportResolver;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -253,20 +254,27 @@ impl BuildPipeline {
             return Err(format!("Parse warnings in {}: {}", source.display(), warnings.join("; ")));
         }
 
-        // Build local registries as fallback; use project registry when available
+        // Separate local items and import declarations
         let mut local_palette_registry = PaletteRegistry::new();
         let mut local_sprite_registry = SpriteRegistry::new();
         let mut sprites = Vec::new();
+        let mut imports = Vec::new();
+        let mut local_names = HashSet::new();
 
         for obj in parse_result.objects {
             match obj {
                 TtpObject::Palette(p) => {
+                    local_names.insert(p.name.clone());
                     if project_registry.is_none() {
                         local_palette_registry.register(p);
                     }
                 }
                 TtpObject::Sprite(s) => {
+                    local_names.insert(s.name.clone());
                     sprites.push(s);
+                }
+                TtpObject::Import(imp) => {
+                    imports.push(imp);
                 }
                 _ => {}
             }
@@ -279,11 +287,82 @@ impl BuildPipeline {
             }
         }
 
-        // Select registries: project-wide (two-pass) or file-local (single-pass)
-        let palette_registry =
-            project_registry.map(|r| &r.palettes).unwrap_or(&local_palette_registry);
-        let sprite_registry =
-            project_registry.map(|r| &r.sprites).unwrap_or(&local_sprite_registry);
+        // Resolve import declarations if present
+        if !imports.is_empty() {
+            let src_root = project_registry
+                .map(|r| r.src_root().to_path_buf())
+                .or_else(|| self.context.src_dir_if_exists());
+            let base_dir = source.parent().unwrap_or(std::path::Path::new("."));
+            let mut resolver = ImportResolver::new(src_root, self.context.is_strict());
+            resolver.mark_visited(source);
+
+            let resolved = resolver
+                .resolve_all(&imports, base_dir, &local_names)
+                .map_err(|e| format!("Import resolution error in {}: {}", source.display(), e))?;
+
+            // Log import warnings
+            if self.context.is_verbose() {
+                for warning in &resolved.warnings {
+                    eprintln!("Warning: {}", warning.message);
+                }
+            }
+
+            // Register imported items into local registries
+            for palette in resolved.palettes {
+                local_palette_registry.register(palette);
+            }
+            for sprite in resolved.sprites {
+                local_sprite_registry.register_sprite(sprite);
+            }
+            for variant in resolved.variants {
+                local_sprite_registry.register_variant(variant);
+            }
+        }
+
+        // Select registries: when imports are present, use local registries
+        // (which contain imported items) with project registry as base.
+        // Otherwise, use project-wide (two-pass) or file-local (single-pass).
+        let has_imports = !imports.is_empty();
+        let effective_palette_registry;
+        let effective_sprite_registry;
+
+        if has_imports {
+            // Merge project registry items into local registries for full resolution
+            if let Some(pr) = project_registry {
+                // Copy project palettes that aren't already in local registry
+                for palette_name in pr.palette_names() {
+                    if let Some(loc) = pr.palette_location(palette_name) {
+                        if !local_palette_registry.contains(&loc.short_name) {
+                            if let Some(palette) = pr.palettes.get(&loc.short_name) {
+                                local_palette_registry.register(palette.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            effective_palette_registry = local_palette_registry;
+            // Re-register local sprites for lookup when imports are present
+            for sprite in &sprites {
+                if !local_sprite_registry.contains(&sprite.name) {
+                    local_sprite_registry.register_sprite(sprite.clone());
+                }
+            }
+            effective_sprite_registry = local_sprite_registry;
+        } else {
+            effective_palette_registry = if let Some(pr) = project_registry {
+                pr.palettes.clone()
+            } else {
+                local_palette_registry
+            };
+            effective_sprite_registry = if let Some(pr) = project_registry {
+                pr.sprites.clone()
+            } else {
+                local_sprite_registry
+            };
+        }
+
+        let palette_registry = &effective_palette_registry;
+        let sprite_registry = &effective_sprite_registry;
 
         // Find the sprite to render (use the target name or first sprite)
         let sprite_name = if sprites.len() == 1 {
@@ -438,20 +517,27 @@ impl BuildPipeline {
             let reader = BufReader::new(file);
             let parse_result = parse_stream(reader);
 
-            // Build local registries as fallback; use project registry when available
+            // Separate local items and import declarations
             let mut local_palette_registry = PaletteRegistry::new();
             let mut local_sprite_registry = SpriteRegistry::new();
             let mut sprites = Vec::new();
+            let mut file_imports = Vec::new();
+            let mut file_local_names = HashSet::new();
 
             for obj in parse_result.objects {
                 match obj {
                     TtpObject::Palette(p) => {
+                        file_local_names.insert(p.name.clone());
                         if project_registry.is_none() {
                             local_palette_registry.register(p);
                         }
                     }
                     TtpObject::Sprite(s) => {
+                        file_local_names.insert(s.name.clone());
                         sprites.push(s);
+                    }
+                    TtpObject::Import(imp) => {
+                        file_imports.push(imp);
                     }
                     _ => {}
                 }
@@ -464,11 +550,76 @@ impl BuildPipeline {
                 }
             }
 
-            // Select registries: project-wide (two-pass) or file-local (single-pass)
-            let palette_registry =
-                project_registry.map(|r| &r.palettes).unwrap_or(&local_palette_registry);
-            let sprite_registry =
-                project_registry.map(|r| &r.sprites).unwrap_or(&local_sprite_registry);
+            // Resolve import declarations if present
+            if !file_imports.is_empty() {
+                let src_root = project_registry
+                    .map(|r| r.src_root().to_path_buf())
+                    .or_else(|| self.context.src_dir_if_exists());
+                let base_dir = source.parent().unwrap_or(std::path::Path::new("."));
+                let mut resolver = ImportResolver::new(src_root, is_strict);
+                resolver.mark_visited(source);
+
+                let resolved =
+                    resolver.resolve_all(&file_imports, base_dir, &file_local_names).map_err(
+                        |e| format!("Import resolution error in {}: {}", source.display(), e),
+                    )?;
+
+                if is_verbose {
+                    for warning in &resolved.warnings {
+                        eprintln!("Warning: {}", warning.message);
+                    }
+                }
+
+                for palette in resolved.palettes {
+                    local_palette_registry.register(palette);
+                }
+                for sprite in resolved.sprites {
+                    local_sprite_registry.register_sprite(sprite);
+                }
+                for variant in resolved.variants {
+                    local_sprite_registry.register_variant(variant);
+                }
+            }
+
+            // Select registries with import support
+            let has_file_imports = !file_imports.is_empty();
+            let effective_palette_reg;
+            let effective_sprite_reg;
+
+            if has_file_imports {
+                if let Some(pr) = project_registry {
+                    for palette_name in pr.palette_names() {
+                        if let Some(loc) = pr.palette_location(palette_name) {
+                            if !local_palette_registry.contains(&loc.short_name) {
+                                if let Some(palette) = pr.palettes.get(&loc.short_name) {
+                                    local_palette_registry.register(palette.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                for sprite in &sprites {
+                    if !local_sprite_registry.contains(&sprite.name) {
+                        local_sprite_registry.register_sprite(sprite.clone());
+                    }
+                }
+                effective_palette_reg = local_palette_registry;
+                effective_sprite_reg = local_sprite_registry;
+            } else {
+                effective_palette_reg = if let Some(pr) = project_registry {
+                    pr.palettes.clone()
+                } else {
+                    local_palette_registry
+                };
+                effective_sprite_reg = if let Some(pr) = project_registry {
+                    pr.sprites.clone()
+                } else {
+                    local_sprite_registry
+                };
+            }
+
+            let palette_registry = &effective_palette_reg;
+            let sprite_registry = &effective_sprite_reg;
 
             // Create render tasks for each sprite
             let file_stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
@@ -1371,6 +1522,130 @@ mod tests {
 
         // Should succeed — the shared palette is available (one of the two)
         assert!(result.status.is_success(), "Should resolve palette: {:?}", result.status);
+        assert!(output_file.exists(), "Output PNG should exist");
+    }
+
+    // ========================================================================
+    // Import resolution integration tests
+    // ========================================================================
+
+    #[test]
+    fn test_import_resolves_palette_from_other_file() {
+        // Sprite file imports a palette from another file, then renders.
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: palette definition
+        let palette_file = src_dir.join("palettes").join("shared.pxl");
+        fs::create_dir_all(palette_file.parent().unwrap()).unwrap();
+        let palette_content = r##"{"type": "palette", "name": "mono", "colors": {"{bg}": "#000000", "{fg}": "#FFFFFF"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // File 2: sprite that imports the palette
+        let sprite_file = src_dir.join("sprites").join("dot.pxl");
+        fs::create_dir_all(sprite_file.parent().unwrap()).unwrap();
+        let sprite_content = concat!(
+            r#"{"type": "import", "from": "palettes/shared"}"#,
+            "\n",
+            r##"{"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"{fg}": {"points": [[0, 0]], "z": 0}}}"##
+        );
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("dot.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        let target = BuildTarget::sprite("dot".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(result.status.is_success(), "Import should resolve palette: {:?}", result.status);
+        assert!(output_file.exists(), "Output PNG should exist");
+
+        let img = image::open(&output_file).expect("Should open as valid PNG");
+        assert_eq!(img.width(), 1);
+        assert_eq!(img.height(), 1);
+    }
+
+    #[test]
+    fn test_import_relative_path_without_project() {
+        // Relative import works without project registry.
+        let temp = TempDir::new().unwrap();
+        let src_dir = temp.path().join("src/pxl");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        // Palette in shared/ directory
+        let palette_file = src_dir.join("shared").join("colors.pxl");
+        fs::create_dir_all(palette_file.parent().unwrap()).unwrap();
+        let palette_content =
+            r##"{"type": "palette", "name": "brand", "colors": {"{accent}": "#FF6600"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // Sprite using relative import
+        let sprite_file = src_dir.join("sprites").join("icon.pxl");
+        fs::create_dir_all(sprite_file.parent().unwrap()).unwrap();
+        let sprite_content = concat!(
+            r#"{"type": "import", "from": "../shared/colors"}"#,
+            "\n",
+            r##"{"type": "sprite", "name": "icon", "size": [1, 1], "palette": "brand", "regions": {"{accent}": {"points": [[0, 0]], "z": 0}}}"##
+        );
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("icon.png");
+
+        // No project registry — standalone mode
+        let config = default_config();
+        let ctx = BuildContext::new(config, temp.path().to_path_buf());
+        let pipeline = BuildPipeline::new(ctx);
+
+        let target = BuildTarget::sprite("icon".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, None);
+
+        assert!(
+            result.status.is_success(),
+            "Relative import should work without project: {:?}",
+            result.status
+        );
+        assert!(output_file.exists(), "Output PNG should exist");
+    }
+
+    #[test]
+    fn test_import_aliased_palette_rendering() {
+        // Import with alias: palette accessible as alias:name.
+        let (temp, ctx) = create_test_context();
+        let src_dir = temp.path().join("src/pxl");
+
+        // File 1: palette
+        let palette_file = src_dir.join("palettes").join("retro.pxl");
+        fs::create_dir_all(palette_file.parent().unwrap()).unwrap();
+        let palette_content = r##"{"type": "palette", "name": "gameboy", "colors": {"{bg}": "#0F380F", "{fg}": "#9BBC0F"}}"##;
+        File::create(&palette_file).unwrap().write_all(palette_content.as_bytes()).unwrap();
+
+        // File 2: sprite using aliased import
+        let sprite_file = src_dir.join("sprites").join("pixel.pxl");
+        fs::create_dir_all(sprite_file.parent().unwrap()).unwrap();
+        let sprite_content = concat!(
+            r#"{"type": "import", "from": "palettes/retro", "as": "retro"}"#,
+            "\n",
+            r##"{"type": "sprite", "name": "pixel", "size": [1, 1], "palette": "retro:gameboy", "regions": {"{fg}": {"points": [[0, 0]], "z": 0}}}"##
+        );
+        File::create(&sprite_file).unwrap().write_all(sprite_content.as_bytes()).unwrap();
+
+        let out_dir = temp.path().join("build");
+        fs::create_dir_all(&out_dir).unwrap();
+        let output_file = out_dir.join("pixel.png");
+
+        let pipeline = BuildPipeline::new(ctx);
+        let project_registry = pipeline.load_project_registry().unwrap();
+
+        let target = BuildTarget::sprite("pixel".to_string(), sprite_file, output_file.clone());
+        let result = pipeline.execute_target(&target, project_registry.as_ref());
+
+        assert!(result.status.is_success(), "Aliased import should resolve: {:?}", result.status);
         assert!(output_file.exists(), "Output PNG should exist");
     }
 }
