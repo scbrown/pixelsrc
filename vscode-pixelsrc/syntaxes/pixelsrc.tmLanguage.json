@@ -1,0 +1,204 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pixelsrc",
+  "scopeName": "source.pixelsrc",
+  "fileTypes": ["pxl"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#object" }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.pixelsrc",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.pixelsrc",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "object": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.block.begin.pixelsrc" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.end.pixelsrc" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#type-field" },
+        { "include": "#name-field" },
+        { "include": "#key-value" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+        { "include": "#null" },
+        { "include": "#array" },
+        { "include": "#object" },
+        { "include": "#color-hex" },
+        { "include": "#css-function" },
+        { "include": "#token-reference" }
+      ]
+    },
+    "type-field": {
+      "match": "(type)\\s*:\\s*(\"(?:palette|sprite|animation|composition|variant|import|state_rules)\")",
+      "captures": {
+        "1": { "name": "support.type.property-name.pixelsrc" },
+        "2": { "name": "support.constant.type-value.pixelsrc" }
+      }
+    },
+    "name-field": {
+      "match": "(name)\\s*:\\s*(\"[^\"]*\")",
+      "captures": {
+        "1": { "name": "entity.name.tag.pixelsrc" },
+        "2": { "name": "entity.name.function.pixelsrc" }
+      }
+    },
+    "key-value": {
+      "patterns": [
+        {
+          "comment": "Shape keywords as object keys",
+          "match": "\\b(rect|points|line|stroke|ellipse|circle|polygon|path|fill|union|intersect|subtract)\\s*:",
+          "captures": {
+            "1": { "name": "keyword.other.shape.pixelsrc" }
+          }
+        },
+        {
+          "comment": "Modifier keywords as object keys",
+          "match": "\\b(symmetric|z|round|thickness|repeat|spacing|transform|jitter|within|adjacent-to|x|y)\\s*:",
+          "captures": {
+            "1": { "name": "keyword.other.modifier.pixelsrc" }
+          }
+        },
+        {
+          "comment": "Role values",
+          "match": ":\\s*(\"(?:fill|highlight|shadow|boundary|anchor)\")",
+          "captures": {
+            "1": { "name": "constant.other.role.pixelsrc" }
+          }
+        },
+        {
+          "comment": "Well-known field names",
+          "match": "\\b(size|palette|regions|colors|roles|keyframes|duration|timing_function|loop|layers|sprite|base|rules|from|imports|delay|direction|cell_size|scale|antialias)\\s*:",
+          "captures": {
+            "1": { "name": "variable.other.property.pixelsrc" }
+          }
+        },
+        {
+          "comment": "Keyframe percentage keys",
+          "match": "(\"\\d+%\")",
+          "captures": {
+            "1": { "name": "constant.numeric.percentage.pixelsrc" }
+          }
+        },
+        {
+          "comment": "Unquoted object keys (JSON5)",
+          "match": "([a-zA-Z_][a-zA-Z0-9_-]*)\\s*:",
+          "captures": {
+            "1": { "name": "variable.other.key.pixelsrc" }
+          }
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.pixelsrc",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.pixelsrc" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.pixelsrc" }
+          },
+          "patterns": [
+            { "include": "#color-hex-in-string" },
+            { "include": "#css-function-in-string" },
+            { "include": "#duration-in-string" },
+            { "include": "#string-escape" }
+          ]
+        },
+        {
+          "name": "string.quoted.single.pixelsrc",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.pixelsrc" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.pixelsrc" }
+          },
+          "patterns": [
+            { "include": "#string-escape" }
+          ]
+        }
+      ]
+    },
+    "string-escape": {
+      "name": "constant.character.escape.pixelsrc",
+      "match": "\\\\."
+    },
+    "color-hex": {
+      "name": "constant.other.color.hex.pixelsrc",
+      "match": "#[0-9a-fA-F]{3,8}\\b"
+    },
+    "color-hex-in-string": {
+      "name": "constant.other.color.hex.pixelsrc",
+      "match": "#[0-9a-fA-F]{3,8}(?=\")"
+    },
+    "css-function": {
+      "name": "support.function.css.pixelsrc",
+      "match": "\\b(?:rgb|rgba|hsl|hsla|color-mix|var|scale|translate|rotate|flip|skew)\\s*\\("
+    },
+    "css-function-in-string": {
+      "name": "support.function.css.pixelsrc",
+      "match": "(?:rgb|rgba|hsl|hsla|color-mix|var|scale|translate|rotate|flip|skew|ease-in-out|ease-in|ease-out|ease|linear|steps|cubic-bezier)"
+    },
+    "duration-in-string": {
+      "name": "constant.numeric.duration.pixelsrc",
+      "match": "\\d+(?:\\.\\d+)?(?:ms|s)(?=\")"
+    },
+    "number": {
+      "name": "constant.numeric.pixelsrc",
+      "match": "-?\\b\\d+(?:\\.\\d+)?\\b"
+    },
+    "boolean": {
+      "name": "constant.language.boolean.pixelsrc",
+      "match": "\\b(?:true|false)\\b"
+    },
+    "null": {
+      "name": "constant.language.null.pixelsrc",
+      "match": "\\bnull\\b"
+    },
+    "array": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.array.begin.pixelsrc" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.array.end.pixelsrc" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+        { "include": "#null" },
+        { "include": "#array" },
+        { "include": "#object" }
+      ]
+    },
+    "token-reference": {
+      "name": "variable.other.token.pixelsrc",
+      "match": "\\{[a-zA-Z_][a-zA-Z0-9_]*\\}"
+    }
+  }
+}

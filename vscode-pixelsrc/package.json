@@ -1,0 +1,157 @@
+{
+  "name": "pixelsrc",
+  "displayName": "Pixelsrc",
+  "description": "Syntax highlighting, LSP support, and live preview for Pixelsrc (.pxl) pixel art files",
+  "version": "0.1.0",
+  "publisher": "pixelsrc",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scbrown/pixelsrc"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Visualization"
+  ],
+  "keywords": [
+    "pixel-art",
+    "sprite",
+    "gamedev",
+    "pixelsrc",
+    "pxl"
+  ],
+  "icon": "icons/pixelsrc-icon.png",
+  "activationEvents": [
+    "onLanguage:pixelsrc"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pixelsrc",
+        "aliases": [
+          "Pixelsrc",
+          "pxl"
+        ],
+        "extensions": [
+          ".pxl"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/pixelsrc-icon.png",
+          "dark": "./icons/pixelsrc-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pixelsrc",
+        "scopeName": "source.pixelsrc",
+        "path": "./syntaxes/pixelsrc.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Pixelsrc",
+      "properties": {
+        "pixelsrc.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the Pixelsrc language server for diagnostics, completions, and hover"
+        },
+        "pixelsrc.lsp.path": {
+          "type": "string",
+          "default": "pxl",
+          "description": "Path to the pxl binary (defaults to 'pxl' on PATH)"
+        },
+        "pixelsrc.preview.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the live sprite preview panel"
+        },
+        "pixelsrc.preview.scale": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 32,
+          "description": "Pixel scale factor for the preview panel"
+        },
+        "pixelsrc.preview.background": {
+          "type": "string",
+          "default": "checkerboard",
+          "enum": [
+            "checkerboard",
+            "dark",
+            "light",
+            "transparent"
+          ],
+          "description": "Background style for the preview panel"
+        },
+        "pixelsrc.colorDecorators.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline color decorators for palette colors"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "pixelsrc.openPreview",
+        "title": "Pixelsrc: Open Sprite Preview",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "pixelsrc.openPreviewToSide",
+        "title": "Pixelsrc: Open Sprite Preview to the Side",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "pixelsrc.exportPng",
+        "title": "Pixelsrc: Export as PNG"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "resourceLangId == pixelsrc",
+          "command": "pixelsrc.openPreviewToSide",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "pixelsrc.openPreview",
+          "when": "resourceLangId == pixelsrc"
+        },
+        {
+          "command": "pixelsrc.openPreviewToSide",
+          "when": "resourceLangId == pixelsrc"
+        },
+        {
+          "command": "pixelsrc.exportPng",
+          "when": "resourceLangId == pixelsrc"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.3.0"
+  }
+}

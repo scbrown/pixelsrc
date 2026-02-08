@@ -40,6 +40,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [DT: Mask](./drafting-table-mask.md) | **`pxl mask`** (read-only sprite state queries) | Complete |
 | [Import System](./import-system.md) | **Module System** (cross-file refs, qualified namespaces, library sharing) | Planning |
 | [MCP Server](./mcp-server.md) | **MCP Server** (`pxl mcp`, tools, resources, prompts for AI models) | Planning |
+| VS Code Extension | **VS Code Extension** (syntax highlighting, LSP client, live preview, color decorators) | Complete |
 
 ### Future Ideas
 
@@ -50,7 +51,7 @@ See [personas](../personas.md) for user context on feature complexity.
 | [Semantic Import](./phase-semantic-import.md) | All | Auto-identify visual components during PNG→pxlsrc using embeddings (CLIP/SAM) |
 | [Nested Compositions](./nested-compositions.md) | Game Dev, Pixel Artist+ | Compositions referencing compositions for hierarchical scenes |
 | [Persona Integration](./persona-integration.md) | All | Personas in `pxl prime`, frontmatter tags in docs |
-| VS Code Extension | All | Syntax highlighting + live preview |
+| ~~VS Code Extension~~ | ~~All~~ | ~~Syntax highlighting + live preview~~ → **Complete** (see `vscode-pixelsrc/`) |
 | Token Efficiency | All | Run-length encoding, row repetition, compression |
 | Inheritance | Pixel Artist+ | Scene variants, extends, day/night themes |
 | Edge Constraints | Game Dev | Tile connectivity validation (see BACKLOG) |
