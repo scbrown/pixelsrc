@@ -1,14 +1,18 @@
-# Pixelsrc
+![pixelsrc banner](docs/assets/banner.png)
+
+# pixelsrc
 
 [![CI](https://github.com/scbrown/pixelsrc/actions/workflows/ci.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/ci.yml)
 [![Release](https://github.com/scbrown/pixelsrc/actions/workflows/release.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/release.yml)
 [![WASM](https://github.com/scbrown/pixelsrc/actions/workflows/wasm.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/wasm.yml)
+[![Version](https://img.shields.io/crates/v/pxl)](https://crates.io/crates/pxl)
 [![npm](https://img.shields.io/npm/v/@stiwi/pixelsrc-wasm)](https://www.npmjs.com/package/@stiwi/pixelsrc-wasm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Made with pixelsrc](https://img.shields.io/badge/made%20with-pixelsrc-BD93F9)](https://pixelsrc.dev)
 
 **The first pixel art format designed for GenAI.**
 
-Pixelsrc is a semantic, human-readable text format for defining pixel art. Unlike traditional editors or hex-based formats, it's designed from the ground up for AI systems to generate reliably.
+pixelsrc is a semantic, human-readable text format for defining pixel art. Unlike traditional editors or hex-based formats, it's designed from the ground up for AI systems to generate reliably.
 
 ```json5
 // coin.pxl - A simple coin sprite
@@ -37,7 +41,7 @@ Pixelsrc is a semantic, human-readable text format for defining pixel art. Unlik
 }
 ```
 
-## Why Pixelsrc?
+## Why pixelsrc?
 
 - **Semantic regions** - Define shapes like `rect`, `circle`, `fill` instead of individual pixels
 - **Context-efficient** - 64x64 sprites take the same space as 8x8 with similar structure
