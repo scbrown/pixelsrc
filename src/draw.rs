@@ -90,7 +90,7 @@ impl<'a> RegionEditor<'a> {
                 // Compute max z before mutating
                 let max_z = self.regions.values().filter_map(|r| r.z).max().unwrap_or(0);
                 // Erase = add point to "_" (transparent) at high z-order
-                let warnings = self.merge_point(*x, *y, &"_".to_string());
+                let warnings = self.merge_point(*x, *y, "_");
                 // Ensure the _ region has high z-order so it covers other tokens
                 if let Some(region) = self.regions.get_mut("_") {
                     if region.z.unwrap_or(0) <= max_z {
