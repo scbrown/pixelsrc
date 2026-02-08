@@ -540,6 +540,14 @@ pub enum Commands {
         #[arg(long, value_name = "TOKEN")]
         bounds: Option<String>,
 
+        /// Dump tokens in a rectangle (e.g. --region 4,2,4,4)
+        #[arg(long, value_name = "X,Y,W,H")]
+        region: Option<String>,
+
+        /// Show token frequency counts
+        #[arg(long)]
+        count: bool,
+
         /// List all sprites, compositions, and animations in the file
         #[arg(long)]
         list: bool,
@@ -700,7 +708,7 @@ pub fn run() -> ExitCode {
                 dry_run,
             )
         }
-        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds, list } => {
+        Commands::Mask { input, sprite, sample, neighbors, json, query, bounds, region, count, list } => {
             mask::run_mask(
                 &input,
                 sprite.as_deref(),
@@ -709,6 +717,8 @@ pub fn run() -> ExitCode {
                 json,
                 query.as_deref(),
                 bounds.as_deref(),
+                region.as_deref(),
+                count,
                 list,
             )
         }

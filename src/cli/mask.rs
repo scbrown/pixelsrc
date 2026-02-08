@@ -6,7 +6,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use crate::mask::{BoundsResult, MaskPipeline, QueryResult, TokenGrid};
+use crate::mask::{BoundsResult, CountResult, MaskPipeline, QueryResult, RegionResult, TokenGrid};
 use crate::models::{PaletteRef, TtpObject};
 
 use super::{EXIT_ERROR, EXIT_INVALID_ARGS, EXIT_SUCCESS};
@@ -15,6 +15,19 @@ use super::{EXIT_ERROR, EXIT_INVALID_ARGS, EXIT_SUCCESS};
 /// Users type `--query "{eye}"` but the grid stores bare names like `"eye"`.
 fn normalize_token(token: &str) -> &str {
     token.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(token)
+}
+
+/// Parse a region argument "x,y,w,h" into four u32 values.
+fn parse_region_arg(arg: &str) -> Result<(u32, u32, u32, u32), String> {
+    let parts: Vec<&str> = arg.split(',').collect();
+    if parts.len() != 4 {
+        return Err(format!("expected x,y,w,h but got '{}'", arg));
+    }
+    let x = parts[0].trim().parse::<u32>().map_err(|_| format!("invalid x: '{}'", parts[0]))?;
+    let y = parts[1].trim().parse::<u32>().map_err(|_| format!("invalid y: '{}'", parts[1]))?;
+    let w = parts[2].trim().parse::<u32>().map_err(|_| format!("invalid w: '{}'", parts[2]))?;
+    let h = parts[3].trim().parse::<u32>().map_err(|_| format!("invalid h: '{}'", parts[3]))?;
+    Ok((x, y, w, h))
 }
 
 /// Execute the mask command.
@@ -26,6 +39,8 @@ pub fn run_mask(
     json: bool,
     query: Option<&str>,
     bounds: Option<&str>,
+    region: Option<&str>,
+    count: bool,
     list: bool,
 ) -> ExitCode {
     // --list is a file-level query that doesn't require --sprite
@@ -113,6 +128,33 @@ pub fn run_mask(
         return run_sample(&grid, coord_str, json);
     } else if let Some(coord_str) = neighbors {
         return run_neighbors(&grid, coord_str, json);
+    } else if let Some(region_arg) = region {
+        let (x, y, w, h) = match parse_region_arg(region_arg) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Error: --region {}", e);
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        };
+        let result = grid.region(x, y, w, h);
+        if result.clamped {
+            eprintln!(
+                "Warning: region clamped to sprite bounds ({}x{} at {},{} \u{2192} {}x{} at {},{})",
+                w, h, x, y, result.width, result.height, result.x, result.y
+            );
+        }
+        if json {
+            print_region_json(&result);
+        } else {
+            print_region_text(&result);
+        }
+    } else if count {
+        let result = grid.count();
+        if json {
+            print_count_json(&result);
+        } else {
+            print_count_text(&result, sprite_name);
+        }
     } else {
         // Default: dump the full token grid
         if json {
@@ -322,6 +364,70 @@ fn print_grid_text(grid: &TokenGrid, sprite_name: &str) {
         let line = row.iter().map(|t| format!("{{{}}}", t)).collect::<Vec<_>>().join("");
         println!("  {}", line);
     }
+}
+
+// --- Region output ---
+
+fn print_region_text(result: &RegionResult) {
+    println!(
+        "Region ({},{})–({},{}):",
+        result.x,
+        result.y,
+        result.x + result.width,
+        result.y + result.height
+    );
+    for row in &result.grid {
+        let line = row.iter().map(|t| format!("{{{}}}", t)).collect::<Vec<_>>().join("");
+        println!("  {}", line);
+    }
+}
+
+fn print_region_json(result: &RegionResult) {
+    let grid_json: Vec<Vec<&str>> =
+        result.grid.iter().map(|row| row.iter().map(|s| s.as_str()).collect()).collect();
+
+    let output = serde_json::json!({
+        "x": result.x,
+        "y": result.y,
+        "width": result.width,
+        "height": result.height,
+        "grid": grid_json,
+        "clamped": result.clamped,
+    });
+    println!("{}", serde_json::to_string(&output).unwrap());
+}
+
+// --- Count output ---
+
+fn print_count_text(result: &CountResult, sprite_name: &str) {
+    println!("Token counts for \"{}\" ({} pixels):", sprite_name, result.total);
+    // Find max token name width for alignment
+    let max_width = result.tokens.iter().map(|(t, _)| t.len() + 2).max().unwrap_or(0);
+    for (token, count) in &result.tokens {
+        let pct =
+            if result.total > 0 { (*count as f64 / result.total as f64) * 100.0 } else { 0.0 };
+        println!(
+            "  {:<width$} {:>5}  ({:.1}%)",
+            format!("{{{}}}", token),
+            count,
+            pct,
+            width = max_width
+        );
+    }
+}
+
+fn print_count_json(result: &CountResult) {
+    let tokens: serde_json::Map<String, serde_json::Value> = result
+        .tokens
+        .iter()
+        .map(|(token, count)| (format!("{{{}}}", token), serde_json::json!(*count)))
+        .collect();
+
+    let output = serde_json::json!({
+        "tokens": tokens,
+        "total": result.total,
+    });
+    println!("{}", serde_json::to_string(&output).unwrap());
 }
 
 // --- List output (DT-M5) ---
