@@ -3,6 +3,10 @@
 //! These tests spawn `pxl mcp` as a subprocess and communicate via JSON-RPC 2.0
 //! over stdin/stdout, verifying the full MCP protocol handshake, tool listing,
 //! tool invocation, resource listing/reading, and error handling.
+//!
+//! Requires `--features mcp` — the `pxl mcp` subcommand only exists when the
+//! `mcp` feature is enabled, so these tests are compiled out otherwise.
+#![cfg(feature = "mcp")]
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
