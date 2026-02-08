@@ -36,7 +36,7 @@ This directory contains the phased implementation plan for Pixelsrc.
 | [Antialiasing](./phase-semantic-antialiasing.md) | **Semantic Antialiasing** (HQx, xBR, Scale2x, gradient-aware upscaling) | Complete |
 | [crates.io](n/a) | **Cargo Publish** (CI workflow, trusted publisher) | Complete |
 | [DT: Scaffold](./drafting-table-scaffold.md) | **`pxl scaffold`** (generate skeleton .pxl structures) | Planning |
-| [DT: Draw](./drafting-table-draw.md) | **`pxl draw`** (coordinate-based sprite editing) | Planning |
+| [DT: Draw](./drafting-table-draw.md) | **`pxl draw`** (coordinate-based sprite editing) | Complete |
 | [DT: Mask](./drafting-table-mask.md) | **`pxl mask`** (read-only sprite state queries) | Complete |
 | [Import System](./import-system.md) | **Module System** (cross-file refs, qualified namespaces, library sharing) | Planning |
 | [MCP Server](./mcp-server.md) | **MCP Server** (`pxl mcp`, tools, resources, prompts for AI models) | Planning |
