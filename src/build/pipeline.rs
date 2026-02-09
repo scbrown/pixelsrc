@@ -111,6 +111,16 @@ impl BuildPipeline {
             ProjectRegistry::new(self.context.config().project.name.clone(), src_dir);
         registry.load_all(self.context.is_strict())?;
 
+        // Load installed dependencies
+        let config = self.context.config();
+        if !config.dependencies.is_empty() {
+            registry.load_dependencies(
+                &config.dependencies,
+                self.context.project_root(),
+                self.context.is_strict(),
+            )?;
+        }
+
         if self.context.is_verbose() {
             println!(
                 "Project registry: {} items from {} files",

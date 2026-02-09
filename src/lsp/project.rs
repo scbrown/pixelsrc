@@ -42,6 +42,11 @@ impl ProjectContext {
         let mut registry = ProjectRegistry::new(config.project.name.clone(), src_dir.clone());
         registry.load_all(false).ok()?;
 
+        // Load dependencies if declared
+        if !config.dependencies.is_empty() {
+            registry.load_dependencies(&config.dependencies, project_root, false).ok()?;
+        }
+
         Some(ProjectContext { registry, config_path: config_path.clone(), src_root: src_dir })
     }
 
@@ -65,6 +70,14 @@ impl ProjectContext {
         let mut registry = ProjectRegistry::new(config.project.name.clone(), src_dir.clone());
         match registry.load_all(false) {
             Ok(()) => {
+                // Load dependencies if declared
+                if !config.dependencies.is_empty()
+                    && registry
+                        .load_dependencies(&config.dependencies, project_root, false)
+                        .is_err()
+                {
+                    return false;
+                }
                 self.registry = registry;
                 self.src_root = src_dir;
                 true

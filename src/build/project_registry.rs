@@ -3,6 +3,9 @@
 //! Parses all source files under the project's `src/pxl/` directory and registers
 //! items with fully-qualified canonical names (`project_name/path/to/file:item_name`).
 //!
+//! Also loads items from installed dependencies (`.pxl/deps/`) with namespace-qualified
+//! canonical names (`depname/path/to/file:item_name`).
+//!
 //! This is the foundation for the import system (IMP-1), enabling cross-file
 //! references by maintaining a shared namespace across the entire project.
 
@@ -14,6 +17,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 use crate::build::discover_files;
+use crate::config::schema::Dependency;
 use crate::models::TtpObject;
 use crate::parser::parse_stream;
 use crate::registry::{CompositionRegistry, PaletteRegistry, SpriteRegistry, TransformRegistry};
@@ -36,6 +40,15 @@ pub enum ProjectRegistryError {
     /// Discovery error
     #[error("Source discovery error: {0}")]
     Discovery(#[from] crate::build::DiscoveryError),
+    /// Dependency not installed
+    #[error("Dependency '{name}' is declared in pxl.toml but not installed. Run `pxl install` to fetch dependencies.")]
+    DependencyNotInstalled { name: String },
+    /// Dependency has no pxl.toml
+    #[error("Dependency '{name}' at '{path}' has no pxl.toml")]
+    DependencyNoPxlToml { name: String, path: PathBuf },
+    /// Dependency config error
+    #[error("Dependency '{name}' config error: {detail}")]
+    DependencyConfigError { name: String, detail: String },
 }
 
 /// Warning from project registry loading (lenient mode).
@@ -220,6 +233,210 @@ impl ProjectRegistry {
                     self.compositions.register(c);
                 }
                 // Animation, Particle, StateRules — not yet indexed in project registry
+                _ => {}
+            }
+        }
+
+        self.loaded_files.push(file_path.to_path_buf());
+        Ok(())
+    }
+
+    /// Load all installed dependencies and register their items with namespaced canonical names.
+    ///
+    /// For each dependency declared in `dependencies`, resolves its cache path from
+    /// `.pxl/deps/<name>/`, reads its `pxl.toml` to find the source directory, and
+    /// loads all items with canonical names of the form `depname/path:item`.
+    ///
+    /// External items are NOT registered as short names, ensuring namespace isolation:
+    /// cross-project name collisions are impossible.
+    ///
+    /// Warns if a local directory name shadows a dependency name.
+    pub fn load_dependencies(
+        &mut self,
+        dependencies: &HashMap<String, Dependency>,
+        project_root: &Path,
+        strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        if dependencies.is_empty() {
+            return Ok(());
+        }
+
+        let deps_dir = project_root.join(".pxl").join("deps");
+
+        // Sort for deterministic loading order
+        let mut dep_names: Vec<&String> = dependencies.keys().collect();
+        dep_names.sort();
+
+        for dep_name in dep_names {
+            // Check for local directory shadow
+            if self.src_root.join(dep_name).is_dir() {
+                self.warnings.push(ProjectRegistryWarning {
+                    message: format!(
+                        "Local directory '{}' shadows dependency '{}'. \
+                         Use the full dependency-qualified path (e.g., '{}/path:item') \
+                         to reference external items.",
+                        dep_name, dep_name, dep_name,
+                    ),
+                });
+            }
+
+            let dep_path = deps_dir.join(dep_name);
+            if !dep_path.exists() {
+                return Err(ProjectRegistryError::DependencyNotInstalled {
+                    name: dep_name.clone(),
+                });
+            }
+
+            self.load_dependency(dep_name, &dep_path, strict)?;
+        }
+
+        Ok(())
+    }
+
+    /// Load a single dependency from its installed cache path.
+    ///
+    /// Reads the dependency's `pxl.toml` to determine its source directory,
+    /// then discovers and registers all items with `dep_name/path:item` canonical names.
+    fn load_dependency(
+        &mut self,
+        dep_name: &str,
+        dep_root: &Path,
+        strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        // Read the dependency's pxl.toml to find its src dir
+        let dep_config_path = dep_root.join("pxl.toml");
+        if !dep_config_path.exists() {
+            return Err(ProjectRegistryError::DependencyNoPxlToml {
+                name: dep_name.to_string(),
+                path: dep_root.to_path_buf(),
+            });
+        }
+
+        let config_str = std::fs::read_to_string(&dep_config_path).map_err(|e| {
+            ProjectRegistryError::DependencyConfigError {
+                name: dep_name.to_string(),
+                detail: e.to_string(),
+            }
+        })?;
+
+        // Parse just enough to get the src directory
+        let dep_config: toml::Value = toml::from_str(&config_str).map_err(|e| {
+            ProjectRegistryError::DependencyConfigError {
+                name: dep_name.to_string(),
+                detail: e.to_string(),
+            }
+        })?;
+
+        let src_rel = dep_config
+            .get("project")
+            .and_then(|p| p.get("src"))
+            .and_then(|s| s.as_str())
+            .unwrap_or("src/pxl");
+
+        let dep_src_root = dep_root.join(src_rel);
+        if !dep_src_root.exists() {
+            // Dependency has no source files — not an error, just nothing to load
+            return Ok(());
+        }
+
+        // Discover files in the dependency
+        let pxl_files = discover_files(&dep_src_root, "**/*.pxl").unwrap_or_default();
+        let jsonl_files = discover_files(&dep_src_root, "**/*.jsonl").unwrap_or_default();
+
+        let mut all_files = pxl_files;
+        all_files.extend(jsonl_files);
+        all_files.sort();
+        all_files.dedup();
+
+        for file_path in all_files {
+            self.load_dependency_file(dep_name, &dep_src_root, &file_path, strict)?;
+        }
+
+        Ok(())
+    }
+
+    /// Load a single file from a dependency, registering items with dep-qualified names.
+    ///
+    /// Items get canonical names of the form `dep_name/module_path:item_name`.
+    /// They are NOT registered as short names (namespace isolation).
+    fn load_dependency_file(
+        &mut self,
+        dep_name: &str,
+        dep_src_root: &Path,
+        file_path: &Path,
+        strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let file = File::open(file_path)
+            .map_err(|e| ProjectRegistryError::Io { path: file_path.to_path_buf(), source: e })?;
+        let reader = BufReader::new(file);
+        let parse_result = parse_stream(reader);
+
+        // Module path relative to the dep's src root
+        let relative = file_path.strip_prefix(dep_src_root).unwrap_or(file_path);
+        let file_module = relative.with_extension("").to_string_lossy().replace('\\', "/");
+
+        for obj in parse_result.objects {
+            match obj {
+                TtpObject::Palette(p) => {
+                    validate_name(&p.name, file_path)?;
+                    let canonical = format!("{}/{}:{}", dep_name, file_module, p.name);
+                    self.register_dep_palette_location(
+                        &canonical,
+                        &p.name,
+                        &file_module,
+                        file_path,
+                        strict,
+                    )?;
+                    self.palettes.register(p);
+                }
+                TtpObject::Sprite(s) => {
+                    validate_name(&s.name, file_path)?;
+                    let canonical = format!("{}/{}:{}", dep_name, file_module, s.name);
+                    self.register_dep_sprite_location(
+                        &canonical,
+                        &s.name,
+                        &file_module,
+                        file_path,
+                        strict,
+                    )?;
+                    self.sprites.register_sprite(s);
+                }
+                TtpObject::Variant(v) => {
+                    validate_name(&v.name, file_path)?;
+                    let canonical = format!("{}/{}:{}", dep_name, file_module, v.name);
+                    self.register_dep_variant_location(
+                        &canonical,
+                        &v.name,
+                        &file_module,
+                        file_path,
+                        strict,
+                    )?;
+                    self.sprites.register_variant(v);
+                }
+                TtpObject::Transform(t) => {
+                    validate_name(&t.name, file_path)?;
+                    let canonical = format!("{}/{}:{}", dep_name, file_module, t.name);
+                    self.register_dep_transform_location(
+                        &canonical,
+                        &t.name,
+                        &file_module,
+                        file_path,
+                        strict,
+                    )?;
+                    self.transforms.register(t);
+                }
+                TtpObject::Composition(c) => {
+                    validate_name(&c.name, file_path)?;
+                    let canonical = format!("{}/{}:{}", dep_name, file_module, c.name);
+                    self.register_dep_composition_location(
+                        &canonical,
+                        &c.name,
+                        &file_module,
+                        file_path,
+                        strict,
+                    )?;
+                    self.compositions.register(c);
+                }
                 _ => {}
             }
         }
@@ -624,6 +841,98 @@ impl ProjectRegistry {
 
         Ok(())
     }
+
+    // --- Dependency registration helpers (canonical only, no short names) ---
+
+    fn register_dep_palette_location(
+        &mut self,
+        canonical: &str,
+        short_name: &str,
+        file_path: &str,
+        source_file: &Path,
+        _strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let location = ItemLocation {
+            canonical_name: canonical.to_string(),
+            short_name: short_name.to_string(),
+            file_path: file_path.to_string(),
+            source_file: source_file.to_path_buf(),
+        };
+        self.palette_locations.insert(canonical.to_string(), location);
+        Ok(())
+    }
+
+    fn register_dep_sprite_location(
+        &mut self,
+        canonical: &str,
+        short_name: &str,
+        file_path: &str,
+        source_file: &Path,
+        _strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let location = ItemLocation {
+            canonical_name: canonical.to_string(),
+            short_name: short_name.to_string(),
+            file_path: file_path.to_string(),
+            source_file: source_file.to_path_buf(),
+        };
+        self.sprite_locations.insert(canonical.to_string(), location);
+        Ok(())
+    }
+
+    fn register_dep_variant_location(
+        &mut self,
+        canonical: &str,
+        short_name: &str,
+        file_path: &str,
+        source_file: &Path,
+        _strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let location = ItemLocation {
+            canonical_name: canonical.to_string(),
+            short_name: short_name.to_string(),
+            file_path: file_path.to_string(),
+            source_file: source_file.to_path_buf(),
+        };
+        self.variant_locations.insert(canonical.to_string(), location);
+        Ok(())
+    }
+
+    fn register_dep_transform_location(
+        &mut self,
+        canonical: &str,
+        short_name: &str,
+        file_path: &str,
+        source_file: &Path,
+        _strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let location = ItemLocation {
+            canonical_name: canonical.to_string(),
+            short_name: short_name.to_string(),
+            file_path: file_path.to_string(),
+            source_file: source_file.to_path_buf(),
+        };
+        self.transform_locations.insert(canonical.to_string(), location);
+        Ok(())
+    }
+
+    fn register_dep_composition_location(
+        &mut self,
+        canonical: &str,
+        short_name: &str,
+        file_path: &str,
+        source_file: &Path,
+        _strict: bool,
+    ) -> Result<(), ProjectRegistryError> {
+        let location = ItemLocation {
+            canonical_name: canonical.to_string(),
+            short_name: short_name.to_string(),
+            file_path: file_path.to_string(),
+            source_file: source_file.to_path_buf(),
+        };
+        self.composition_locations.insert(canonical.to_string(), location);
+        Ok(())
+    }
 }
 
 /// Validate that an item name does not contain reserved characters.
@@ -1022,5 +1331,341 @@ mod tests {
 
         assert!(result.is_err());
         matches!(result.unwrap_err(), ProjectRegistryError::Io { .. });
+    }
+
+    // --- Dependency loading tests ---
+
+    /// Helper to set up a dependency project at .pxl/deps/<name>/
+    fn create_dep_project(project_root: &Path, dep_name: &str, pxl_content: &[(&str, &str)]) {
+        let dep_dir = project_root.join(".pxl/deps").join(dep_name);
+        let dep_src = dep_dir.join("src/pxl");
+        fs::create_dir_all(&dep_src).unwrap();
+
+        // Create pxl.toml for the dependency
+        fs::write(dep_dir.join("pxl.toml"), format!("[project]\nname = \"{}\"\n", dep_name))
+            .unwrap();
+
+        // Create .pxl files
+        for (path, content) in pxl_content {
+            create_pxl_file(&dep_src, path, content);
+        }
+    }
+
+    #[test]
+    fn test_load_dependency_palette() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        // Create dependency with a palette
+        create_dep_project(
+            project_root,
+            "lospec-palettes",
+            &[(
+                "retro.pxl",
+                r##"{"type": "palette", "name": "gameboy", "colors": {"{bg}": "#0F380F", "{fg}": "#9BBC0F"}}"##,
+            )],
+        );
+
+        let mut registry = ProjectRegistry::new("my-game".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "lospec-palettes".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        // Canonical name works
+        assert!(registry.palette_locations.contains_key("lospec-palettes/retro:gameboy"));
+        assert_eq!(registry.resolve_palette_name("lospec-palettes/retro:gameboy"), Some("gameboy"));
+
+        // Short name does NOT resolve to dep item (namespace isolation)
+        // Only local items get short name resolution
+        assert_eq!(registry.resolve_palette_name("gameboy"), None);
+    }
+
+    #[test]
+    fn test_load_dependency_sprite() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        create_dep_project(
+            project_root,
+            "ui-kit",
+            &[(
+                "buttons/close.pxl",
+                r#"{"type": "sprite", "name": "close_btn", "palette": {}, "size": [8, 8]}"#,
+            )],
+        );
+
+        let mut registry = ProjectRegistry::new("my-game".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "ui-kit".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        assert!(registry.sprite_locations.contains_key("ui-kit/buttons/close:close_btn"));
+        assert_eq!(
+            registry.resolve_sprite_name("ui-kit/buttons/close:close_btn"),
+            Some("close_btn")
+        );
+        // No short name for external items
+        assert_eq!(registry.resolve_sprite_name("close_btn"), None);
+    }
+
+    #[test]
+    fn test_load_dependency_not_installed() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        // Don't create the dep directory — simulate uninstalled
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "missing-dep".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+
+        let result = registry.load_dependencies(&deps, project_root, false);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ProjectRegistryError::DependencyNotInstalled { name } => {
+                assert_eq!(name, "missing-dep");
+            }
+            e => panic!("Expected DependencyNotInstalled, got {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_load_dependency_no_pxl_toml() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        // Create dep directory but no pxl.toml
+        let dep_dir = project_root.join(".pxl/deps/bad-dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "bad-dep".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+
+        let result = registry.load_dependencies(&deps, project_root, false);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ProjectRegistryError::DependencyNoPxlToml { name, .. } => {
+                assert_eq!(name, "bad-dep");
+            }
+            e => panic!("Expected DependencyNoPxlToml, got {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_load_dependency_shadow_warning() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+
+        // Create a local directory that matches dep name
+        fs::create_dir_all(src.join("shared-palettes")).unwrap();
+
+        create_dep_project(
+            project_root,
+            "shared-palettes",
+            &[("mono.pxl", r##"{"type": "palette", "name": "mono", "colors": {"{_}": "#000"}}"##)],
+        );
+
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "shared-palettes".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        // Should have a shadow warning
+        assert!(
+            registry.warnings().iter().any(|w| w.message.contains("shadows")),
+            "Expected shadow warning, got: {:?}",
+            registry.warnings()
+        );
+    }
+
+    #[test]
+    fn test_load_dependency_namespace_isolation() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+
+        // Create local palette with same name as dep palette
+        create_pxl_file(
+            &src,
+            "colors.pxl",
+            r##"{"type": "palette", "name": "gameboy", "colors": {"{bg}": "#000"}}"##,
+        );
+
+        create_dep_project(
+            project_root,
+            "lospec",
+            &[(
+                "retro.pxl",
+                r##"{"type": "palette", "name": "gameboy", "colors": {"{bg}": "#0F380F"}}"##,
+            )],
+        );
+
+        let mut registry = ProjectRegistry::new("my-game".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "lospec".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        // Short name resolves to local
+        assert_eq!(registry.resolve_palette_name("gameboy"), Some("gameboy"));
+
+        // Dep-qualified resolves to dep
+        assert_eq!(registry.resolve_palette_name("lospec/retro:gameboy"), Some("gameboy"));
+
+        // Both canonical names exist (no collision)
+        assert!(registry.palette_locations.contains_key("my-game/colors:gameboy"));
+        assert!(registry.palette_locations.contains_key("lospec/retro:gameboy"));
+    }
+
+    #[test]
+    fn test_load_dependency_multiple_deps() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        create_dep_project(
+            project_root,
+            "dep-a",
+            &[(
+                "colors.pxl",
+                r##"{"type": "palette", "name": "dark", "colors": {"{bg}": "#111"}}"##,
+            )],
+        );
+        create_dep_project(
+            project_root,
+            "dep-b",
+            &[(
+                "sprites.pxl",
+                r#"{"type": "sprite", "name": "icon", "palette": {}, "size": [8, 8]}"#,
+            )],
+        );
+
+        let mut registry = ProjectRegistry::new("my-game".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "dep-a".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        deps.insert(
+            "dep-b".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        assert!(registry.palette_locations.contains_key("dep-a/colors:dark"));
+        assert!(registry.sprite_locations.contains_key("dep-b/sprites:icon"));
+    }
+
+    #[test]
+    fn test_load_dependency_empty_src() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        // Create dep with pxl.toml but no src/pxl/ directory
+        let dep_dir = project_root.join(".pxl/deps/empty-dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(dep_dir.join("pxl.toml"), "[project]\nname = \"empty-dep\"\n").unwrap();
+
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "empty-dep".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+
+        // Should succeed with no items loaded
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+        assert_eq!(registry.total_items(), 0);
+    }
+
+    #[test]
+    fn test_load_dependency_custom_src_dir() {
+        let temp = TempDir::new().unwrap();
+        let project_root = temp.path();
+        let src = project_root.join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        // Create dep with custom src dir
+        let dep_dir = project_root.join(".pxl/deps/custom");
+        let dep_src = dep_dir.join("assets/pxl");
+        fs::create_dir_all(&dep_src).unwrap();
+        fs::write(dep_dir.join("pxl.toml"), "[project]\nname = \"custom\"\nsrc = \"assets/pxl\"\n")
+            .unwrap();
+        create_pxl_file(
+            &dep_src,
+            "colors.pxl",
+            r##"{"type": "palette", "name": "warm", "colors": {"{hot}": "#F00"}}"##,
+        );
+
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let mut deps = HashMap::new();
+        deps.insert(
+            "custom".to_string(),
+            crate::config::schema::Dependency { path: None, git: None, rev: None },
+        );
+        registry.load_dependencies(&deps, project_root, false).unwrap();
+
+        assert!(registry.palette_locations.contains_key("custom/colors:warm"));
+    }
+
+    #[test]
+    fn test_load_dependency_no_dependencies() {
+        let temp = TempDir::new().unwrap();
+        let src = temp.path().join("src/pxl");
+        fs::create_dir_all(&src).unwrap();
+
+        let mut registry = ProjectRegistry::new("test".to_string(), src);
+        registry.load_all(false).unwrap();
+
+        let deps = HashMap::new();
+        registry.load_dependencies(&deps, temp.path(), false).unwrap();
+        assert_eq!(registry.total_items(), 0);
     }
 }

@@ -88,7 +88,17 @@ pub fn run_render(
                     if src_dir.exists() {
                         let mut registry =
                             ProjectRegistry::new(config.project.name.clone(), src_dir);
-                        match registry.load_all(strict) {
+                        match registry.load_all(strict).and_then(|()| {
+                            if !config.dependencies.is_empty() {
+                                registry.load_dependencies(
+                                    &config.dependencies,
+                                    project_root,
+                                    strict,
+                                )
+                            } else {
+                                Ok(())
+                            }
+                        }) {
                             Ok(()) => {
                                 for warning in registry.warnings() {
                                     eprintln!("Warning: {}", warning.message);

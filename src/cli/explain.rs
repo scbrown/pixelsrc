@@ -397,6 +397,14 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
                                 src_root,
                             );
                             if registry.load_all(false).is_ok() {
+                                // Load dependencies if declared
+                                if !config.dependencies.is_empty() {
+                                    let _ = registry.load_dependencies(
+                                        &config.dependencies,
+                                        project_root,
+                                        false,
+                                    );
+                                }
                                 for path in files {
                                     if let Ok(content) = std::fs::read_to_string(path) {
                                         suggester
