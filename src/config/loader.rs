@@ -195,6 +195,7 @@ pub fn default_config() -> PxlConfig {
         exports: ExportsConfig::default(),
         validate: ValidateConfig::default(),
         watch: WatchConfig::default(),
+        dependencies: HashMap::new(),
     }
 }
 

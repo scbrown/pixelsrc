@@ -412,6 +412,46 @@ fn default_missing_refs() -> ValidationLevel {
     ValidationLevel::Error
 }
 
+/// A single dependency declaration.
+///
+/// Dependencies can be either path-based (local filesystem) or git-based (remote repository).
+///
+/// # Path dependency
+/// ```toml
+/// [dependencies]
+/// shared-palettes = { path = "../shared-palettes" }
+/// ```
+///
+/// # Git dependency
+/// ```toml
+/// [dependencies]
+/// lospec-palettes = { git = "https://github.com/user/lospec-palettes", rev = "v1.0.0" }
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Dependency {
+    /// Local filesystem path to the dependency project (relative to pxl.toml).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<PathBuf>,
+    /// Git repository URL for the dependency.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git: Option<String>,
+    /// Git revision (tag, branch, or commit hash). Only used with `git`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rev: Option<String>,
+}
+
+impl Dependency {
+    /// Returns true if this is a path-based dependency.
+    pub fn is_path(&self) -> bool {
+        self.path.is_some()
+    }
+
+    /// Returns true if this is a git-based dependency.
+    pub fn is_git(&self) -> bool {
+        self.git.is_some()
+    }
+}
+
 /// Watch mode configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchConfig {
@@ -465,6 +505,9 @@ pub struct PxlConfig {
     /// Watch mode settings
     #[serde(default)]
     pub watch: WatchConfig,
+    /// External project dependencies
+    #[serde(default)]
+    pub dependencies: HashMap<String, Dependency>,
 }
 
 /// Configuration validation error
@@ -551,6 +594,59 @@ impl PxlConfig {
                 field: "export.unity.pixels_per_unit".to_string(),
                 message: "must be a positive integer".to_string(),
             });
+        }
+
+        // Validate dependencies
+        for (name, dep) in &self.dependencies {
+            // Dependency names cannot contain ':' or '/'
+            if name.contains(':') || name.contains('/') {
+                errors.push(ConfigValidationError {
+                    field: format!("dependencies.{}", name),
+                    message: "dependency name cannot contain ':' or '/'".to_string(),
+                });
+            }
+
+            if name.is_empty() {
+                errors.push(ConfigValidationError {
+                    field: "dependencies".to_string(),
+                    message: "dependency name cannot be empty".to_string(),
+                });
+            }
+
+            // Must specify exactly one of path or git
+            match (dep.path.is_some(), dep.git.is_some()) {
+                (false, false) => {
+                    errors.push(ConfigValidationError {
+                        field: format!("dependencies.{}", name),
+                        message: "must specify either 'path' or 'git'".to_string(),
+                    });
+                }
+                (true, true) => {
+                    errors.push(ConfigValidationError {
+                        field: format!("dependencies.{}", name),
+                        message: "cannot specify both 'path' and 'git'".to_string(),
+                    });
+                }
+                _ => {}
+            }
+
+            // Git URL must be non-empty
+            if let Some(url) = &dep.git {
+                if url.is_empty() {
+                    errors.push(ConfigValidationError {
+                        field: format!("dependencies.{}.git", name),
+                        message: "git URL cannot be empty".to_string(),
+                    });
+                }
+            }
+
+            // Rev without git is meaningless
+            if dep.rev.is_some() && dep.git.is_none() {
+                errors.push(ConfigValidationError {
+                    field: format!("dependencies.{}.rev", name),
+                    message: "'rev' can only be used with 'git' dependencies".to_string(),
+                });
+            }
         }
 
         errors
@@ -1030,5 +1126,225 @@ edge_threshold = -0.1
             toml::from_str(toml).expect("invalid atlas edge threshold config should parse");
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.field == "atlases.bad.antialias.edge_threshold"));
+    }
+
+    #[test]
+    fn test_dependencies_path_based() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+shared-palettes = { path = "../shared-palettes" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("path dependency should parse");
+        let dep = config.dependencies.get("shared-palettes").expect("dep should exist");
+        assert_eq!(dep.path, Some(PathBuf::from("../shared-palettes")));
+        assert!(dep.git.is_none());
+        assert!(dep.rev.is_none());
+        assert!(dep.is_path());
+        assert!(!dep.is_git());
+        assert!(config.validate().is_empty());
+    }
+
+    #[test]
+    fn test_dependencies_git_based() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+lospec-palettes = { git = "https://github.com/user/lospec-palettes", rev = "v1.0.0" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("git dependency should parse");
+        let dep = config.dependencies.get("lospec-palettes").expect("dep should exist");
+        assert!(dep.path.is_none());
+        assert_eq!(dep.git.as_deref(), Some("https://github.com/user/lospec-palettes"));
+        assert_eq!(dep.rev.as_deref(), Some("v1.0.0"));
+        assert!(!dep.is_path());
+        assert!(dep.is_git());
+        assert!(config.validate().is_empty());
+    }
+
+    #[test]
+    fn test_dependencies_git_without_rev() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+lospec-palettes = { git = "https://github.com/user/lospec-palettes" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("git dep without rev should parse");
+        let dep = config.dependencies.get("lospec-palettes").expect("dep should exist");
+        assert!(dep.rev.is_none());
+        assert!(config.validate().is_empty());
+    }
+
+    #[test]
+    fn test_dependencies_multiple() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+shared-palettes = { path = "../shared-palettes" }
+lospec-palettes = { git = "https://github.com/user/lospec-palettes", rev = "v1.0.0" }
+ui-kit = { path = "../ui-kit" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("multiple deps should parse");
+        assert_eq!(config.dependencies.len(), 3);
+        assert!(config.dependencies.get("shared-palettes").unwrap().is_path());
+        assert!(config.dependencies.get("lospec-palettes").unwrap().is_git());
+        assert!(config.dependencies.get("ui-kit").unwrap().is_path());
+        assert!(config.validate().is_empty());
+    }
+
+    #[test]
+    fn test_dependencies_empty_section() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("empty deps should parse");
+        assert!(config.dependencies.is_empty());
+        assert!(config.validate().is_empty());
+    }
+
+    #[test]
+    fn test_dependencies_default_omitted() {
+        let toml = r#"
+[project]
+name = "test"
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("no deps section should parse");
+        assert!(config.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_validation_dep_name_with_colon() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+"bad:name" = { path = "../foo" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("bad dep name should parse");
+        let errors = config.validate();
+        assert!(errors.iter().any(
+            |e| e.field == "dependencies.bad:name" && e.message.contains("cannot contain ':'")
+        ));
+    }
+
+    #[test]
+    fn test_validation_dep_name_with_slash() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+"bad/name" = { path = "../foo" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("bad dep name should parse");
+        let errors = config.validate();
+        assert!(errors.iter().any(
+            |e| e.field == "dependencies.bad/name" && e.message.contains("cannot contain ':'")
+        ));
+    }
+
+    #[test]
+    fn test_validation_dep_neither_path_nor_git() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+broken = {}
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("empty dep should parse");
+        let errors = config.validate();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.field == "dependencies.broken"
+                    && e.message.contains("must specify either"))
+        );
+    }
+
+    #[test]
+    fn test_validation_dep_both_path_and_git() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+confused = { path = "../foo", git = "https://example.com/foo" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("dual dep should parse");
+        let errors = config.validate();
+        assert!(errors.iter().any(
+            |e| e.field == "dependencies.confused" && e.message.contains("cannot specify both")
+        ));
+    }
+
+    #[test]
+    fn test_validation_dep_empty_git_url() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+bad = { git = "" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("empty git url should parse");
+        let errors = config.validate();
+        assert!(errors
+            .iter()
+            .any(|e| e.field == "dependencies.bad.git" && e.message.contains("cannot be empty")));
+    }
+
+    #[test]
+    fn test_validation_dep_rev_without_git() {
+        let toml = r#"
+[project]
+name = "test"
+
+[dependencies]
+bad = { path = "../foo", rev = "v1.0" }
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("rev without git should parse");
+        let errors = config.validate();
+        assert!(errors
+            .iter()
+            .any(|e| e.field == "dependencies.bad.rev"
+                && e.message.contains("only be used with 'git'")));
+    }
+
+    #[test]
+    fn test_dependencies_with_full_config() {
+        let toml = r#"
+[project]
+name = "my-rpg"
+version = "1.0.0"
+
+[defaults]
+scale = 2
+
+[dependencies]
+shared-palettes = { path = "../shared-palettes" }
+lospec = { git = "https://github.com/lospec/palettes", rev = "main" }
+
+[atlases.characters]
+sources = ["sprites/**"]
+"#;
+        let config: PxlConfig = toml::from_str(toml).expect("full config with deps should parse");
+        assert_eq!(config.project.name, "my-rpg");
+        assert_eq!(config.defaults.scale, 2);
+        assert_eq!(config.dependencies.len(), 2);
+        assert!(config.atlases.contains_key("characters"));
+        assert!(config.validate().is_empty());
     }
 }
