@@ -9,6 +9,7 @@ mod draw;
 mod explain;
 mod import;
 mod info;
+mod install;
 mod mask;
 mod render;
 pub mod scaffold;
@@ -454,6 +455,17 @@ pub enum Commands {
         preset: String,
     },
 
+    /// Fetch and cache external dependencies declared in pxl.toml
+    Install {
+        /// Re-fetch all dependencies (ignore cache)
+        #[arg(long)]
+        clean: bool,
+
+        /// Show detailed progress
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// Start the Language Server Protocol server (for editor integration)
     #[cfg(feature = "lsp")]
     #[command(hide = true)]
@@ -703,6 +715,7 @@ pub fn run() -> ExitCode {
         Commands::Init { path, name, preset } => {
             build::run_init(path.as_deref(), name.as_deref(), &preset)
         }
+        Commands::Install { clean, verbose } => install::run_install(clean, verbose),
         #[cfg(feature = "lsp")]
         Commands::Lsp => agent::run_lsp(),
         #[cfg(feature = "mcp")]
