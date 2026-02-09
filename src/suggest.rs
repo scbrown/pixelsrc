@@ -3,6 +3,7 @@
 //! Also provides comprehensive suggestion analysis for pixelsrc files,
 //! including missing token detection.
 
+use crate::build::project_registry::ProjectRegistry;
 use crate::models::{PaletteRef, Sprite, TtpObject};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -14,12 +15,18 @@ use std::io::BufRead;
 pub enum SuggestionType {
     /// A token is used but not defined in the palette
     MissingToken,
+    /// An @include: reference can be migrated to an import declaration
+    IncludeToImport,
+    /// A cross-file reference would benefit from an explicit import
+    AddExplicitImport,
 }
 
 impl std::fmt::Display for SuggestionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SuggestionType::MissingToken => write!(f, "missing_token"),
+            SuggestionType::IncludeToImport => write!(f, "include_to_import"),
+            SuggestionType::AddExplicitImport => write!(f, "add_explicit_import"),
         }
     }
 }
@@ -57,6 +64,18 @@ pub enum SuggestionFix {
         token: String,
         /// Suggested color (hex)
         suggested_color: String,
+    },
+    /// Replace @include: with an import declaration
+    UseImport {
+        /// The @include: reference to replace
+        include_ref: String,
+        /// The suggested import declaration JSON
+        import_json: String,
+    },
+    /// Add an explicit import declaration
+    AddImport {
+        /// The suggested import declaration JSON
+        import_json: String,
     },
 }
 
@@ -146,11 +165,58 @@ impl Suggester {
                 let tokens: HashSet<String> = palette.colors.keys().cloned().collect();
                 self.palettes.insert(palette.name, tokens);
             }
-            TtpObject::Sprite(sprite) => {
-                self.analyze_sprite(line_number, &sprite);
+            TtpObject::Sprite(ref sprite) => {
+                // Check for @include: references and suggest migration
+                if let PaletteRef::Named(ref name) = sprite.palette {
+                    if name.starts_with("@include:") {
+                        self.suggest_include_migration(line_number, sprite, name);
+                    }
+                }
+                self.analyze_sprite(line_number, sprite);
             }
-            _ => {} // Ignore other types for now
+            _ => {}
         }
+    }
+
+    /// Suggest migrating an @include: reference to an import declaration
+    fn suggest_include_migration(
+        &mut self,
+        line_number: usize,
+        sprite: &Sprite,
+        include_ref: &str,
+    ) {
+        let after_prefix = include_ref.strip_prefix("@include:").unwrap_or(include_ref);
+
+        // Parse optional #name suffix
+        let (path_part, palette_name) = if let Some(hash_pos) = after_prefix.rfind('#') {
+            (&after_prefix[..hash_pos], Some(&after_prefix[hash_pos + 1..]))
+        } else {
+            (after_prefix, None)
+        };
+
+        // Strip extension for import path
+        let import_path = path_part
+            .strip_suffix(".pxl")
+            .or_else(|| path_part.strip_suffix(".jsonl"))
+            .unwrap_or(path_part);
+
+        // Build the suggested import JSON
+        let import_json = if let Some(name) = palette_name {
+            format!(r#"{{"type": "import", "from": "{}", "palettes": ["{}"]}}"#, import_path, name)
+        } else {
+            format!(r#"{{"type": "import", "from": "{}"}}"#, import_path)
+        };
+
+        self.report.suggestions.push(Suggestion {
+            suggestion_type: SuggestionType::IncludeToImport,
+            line: line_number,
+            sprite: sprite.name.clone(),
+            message: "Consider migrating @include: to an import declaration for cleaner dependency tracking".to_string(),
+            fix: SuggestionFix::UseImport {
+                include_ref: include_ref.to_string(),
+                import_json,
+            },
+        });
     }
 
     /// Analyze a sprite for suggestions
@@ -248,6 +314,75 @@ impl Suggester {
                 self.palettes.get(name).cloned()
             }
             PaletteRef::Inline(colors) => Some(colors.keys().cloned().collect()),
+        }
+    }
+
+    /// Suggest explicit imports for cross-file references in a project context.
+    ///
+    /// When a sprite references a palette by name and that palette exists in another
+    /// file within the project (resolved via ProjectRegistry), suggest adding an
+    /// explicit import declaration.
+    pub fn suggest_explicit_imports(
+        &mut self,
+        registry: &ProjectRegistry,
+        file_path: &std::path::Path,
+        content: &str,
+    ) {
+        // Parse the content to find sprites and their palette refs
+        for (line_idx, line) in content.lines().enumerate() {
+            let line_number = line_idx + 1;
+            if line.trim().is_empty() {
+                continue;
+            }
+
+            let obj: TtpObject = match serde_json::from_str(line) {
+                Ok(obj) => obj,
+                Err(_) => continue,
+            };
+
+            if let TtpObject::Sprite(ref sprite) = obj {
+                if let PaletteRef::Named(ref palette_name) = sprite.palette {
+                    // Skip @include: references (handled separately)
+                    if palette_name.starts_with("@include:") || palette_name.starts_with('@') {
+                        continue;
+                    }
+
+                    // Skip if palette is defined locally in this file
+                    if self.palettes.contains_key(palette_name) {
+                        continue;
+                    }
+
+                    // Check if palette exists in project registry
+                    if let Some(_resolved) = registry.resolve_palette_name(palette_name) {
+                        // Get the location to construct import path
+                        if let Some(canonical) = registry
+                            .palette_names()
+                            .find(|c| c.ends_with(&format!(":{}", palette_name)))
+                        {
+                            if let Some(loc) = registry.palette_location(canonical) {
+                                // Check this isn't from the same file
+                                if loc.source_file != file_path {
+                                    let import_json = format!(
+                                        r#"{{"type": "import", "from": "{}", "palettes": ["{}"]}}"#,
+                                        loc.file_path, palette_name
+                                    );
+
+                                    self.report.suggestions.push(Suggestion {
+                                        suggestion_type: SuggestionType::AddExplicitImport,
+                                        line: line_number,
+                                        sprite: sprite.name.clone(),
+                                        message: format!(
+                                            "Palette \"{}\" is defined in \"{}\". Consider adding an explicit import for cleaner dependency tracking.",
+                                            palette_name, loc.file_path
+                                        ),
+                                        fix: SuggestionFix::AddImport { import_json },
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -507,6 +642,72 @@ mod tests {
         let missing_token = report.filter_by_type(SuggestionType::MissingToken);
         assert_eq!(missing_token.len(), 1);
         assert!(missing_token[0].message.contains("c"));
+    }
+
+    #[test]
+    fn test_suggester_include_to_import_basic() {
+        let mut suggester = Suggester::new();
+        // Sprite using @include: reference
+        suggester.analyze_line(
+            1,
+            r#"{"type": "sprite", "name": "hero", "size": [4, 4], "palette": "@include:../palettes/brand.pxl", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        let report = suggester.into_report();
+        let include_suggestions = report.filter_by_type(SuggestionType::IncludeToImport);
+        assert_eq!(include_suggestions.len(), 1, "Expected 1 include migration suggestion");
+
+        match &include_suggestions[0].fix {
+            SuggestionFix::UseImport { include_ref, import_json } => {
+                assert!(include_ref.contains("@include:"));
+                assert!(import_json.contains("../palettes/brand"));
+                assert!(!import_json.contains(".pxl")); // Extension should be stripped
+            }
+            _ => panic!("Expected UseImport fix"),
+        }
+    }
+
+    #[test]
+    fn test_suggester_include_to_import_with_name() {
+        let mut suggester = Suggester::new();
+        // Sprite using @include: with #name syntax
+        suggester.analyze_line(
+            1,
+            r#"{"type": "sprite", "name": "hero", "size": [4, 4], "palette": "@include:palettes.pxl#gameboy", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        let report = suggester.into_report();
+        let include_suggestions = report.filter_by_type(SuggestionType::IncludeToImport);
+        assert_eq!(include_suggestions.len(), 1);
+
+        match &include_suggestions[0].fix {
+            SuggestionFix::UseImport { import_json, .. } => {
+                assert!(import_json.contains("palettes"));
+                assert!(import_json.contains("gameboy"));
+            }
+            _ => panic!("Expected UseImport fix"),
+        }
+    }
+
+    #[test]
+    fn test_suggester_no_include_suggestion_for_normal_palette() {
+        let mut suggester = Suggester::new();
+        // Normal palette reference - no include migration needed
+        suggester.analyze_line(
+            1,
+            r##"{"type": "palette", "name": "colors", "colors": {"x": "#FF0000"}}"##,
+        );
+        suggester.analyze_line(
+            2,
+            r#"{"type": "sprite", "name": "hero", "size": [4, 4], "palette": "colors", "regions": {"x": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        let report = suggester.into_report();
+        let include_suggestions = report.filter_by_type(SuggestionType::IncludeToImport);
+        assert!(
+            include_suggestions.is_empty(),
+            "No include migration should be suggested for normal refs"
+        );
     }
 
     #[test]

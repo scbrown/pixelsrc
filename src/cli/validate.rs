@@ -166,6 +166,7 @@ pub fn run_fmt(files: &[PathBuf], check: bool, stdout_mode: bool) -> ExitCode {
 
 /// Execute the validate command
 pub fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) -> ExitCode {
+    use crate::config::loader::find_config_from;
     use std::io::{self, BufRead};
 
     let mut validator = Validator::new();
@@ -197,6 +198,29 @@ pub fn run_validate(files: &[PathBuf], stdin: bool, strict: bool, json: bool) ->
             if let Err(e) = validator.validate_file(path) {
                 eprintln!("Error: Cannot read '{}': {}", path.display(), e);
                 return ExitCode::from(EXIT_ERROR);
+            }
+        }
+
+        // Try project-aware import validation
+        // Look for pxl.toml to find project context
+        if let Some(first_file) = files.first() {
+            let search_dir = first_file
+                .canonicalize()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+            if let Some(config_path) = find_config_from(search_dir) {
+                if let Some(project_root) = config_path.parent() {
+                    if let Ok(config) = crate::config::loader::load_config(Some(&config_path)) {
+                        let src_root = project_root.join(&config.project.src);
+                        if src_root.exists() {
+                            for path in files {
+                                validator.validate_imports_with_project(path, &src_root);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

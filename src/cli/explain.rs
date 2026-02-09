@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::config::loader::find_config_from;
 use crate::diff::{diff_files, format_diff};
 use crate::explain::{explain_object, format_explanation, resolve_palette_colors, Explanation};
 use crate::models::TtpObject;
@@ -331,8 +332,13 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
     // Parse the --only filter
     let type_filter: Option<SuggestionType> = match only {
         Some("token") => Some(SuggestionType::MissingToken),
+        Some("include") => Some(SuggestionType::IncludeToImport),
+        Some("import") => Some(SuggestionType::AddExplicitImport),
         Some(other) => {
-            eprintln!("Error: Unknown suggestion type '{}'. Use 'token'.", other);
+            eprintln!(
+                "Error: Unknown suggestion type '{}'. Use 'token', 'include', or 'import'.",
+                other
+            );
             return ExitCode::from(EXIT_INVALID_ARGS);
         }
         None => None,
@@ -368,6 +374,39 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
             if let Err(e) = suggester.analyze_reader(BufReader::new(file)) {
                 eprintln!("Error reading '{}': {}", path.display(), e);
                 return ExitCode::from(EXIT_ERROR);
+            }
+        }
+    }
+
+    // Try project-aware suggestions (explicit import recommendations)
+    if !stdin {
+        if let Some(first_file) = files.first() {
+            let search_dir = first_file
+                .canonicalize()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+            if let Some(config_path) = find_config_from(search_dir) {
+                if let Some(project_root) = config_path.parent() {
+                    if let Ok(config) = crate::config::loader::load_config(Some(&config_path)) {
+                        let src_root = project_root.join(&config.project.src);
+                        if src_root.exists() {
+                            let mut registry = crate::build::project_registry::ProjectRegistry::new(
+                                config.project.name.clone(),
+                                src_root,
+                            );
+                            if registry.load_all(false).is_ok() {
+                                for path in files {
+                                    if let Ok(content) = std::fs::read_to_string(path) {
+                                        suggester
+                                            .suggest_explicit_imports(&registry, path, &content);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -419,6 +458,13 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
                     SuggestionFix::AddToPalette { token, suggested_color } => {
                         println!("  Fix: Add \"{}\": \"{}\" to palette", token, suggested_color);
                     }
+                    SuggestionFix::UseImport { include_ref, import_json } => {
+                        println!("  Replace: {}", include_ref);
+                        println!("  With:    {}", import_json);
+                    }
+                    SuggestionFix::AddImport { import_json } => {
+                        println!("  Add: {}", import_json);
+                    }
                 }
                 println!();
             }
@@ -428,9 +474,27 @@ pub fn run_suggest(files: &[PathBuf], stdin: bool, json: bool, only: Option<&str
                 .iter()
                 .filter(|s| s.suggestion_type == SuggestionType::MissingToken)
                 .count();
+            let include_count = suggestions
+                .iter()
+                .filter(|s| s.suggestion_type == SuggestionType::IncludeToImport)
+                .count();
+            let import_count = suggestions
+                .iter()
+                .filter(|s| s.suggestion_type == SuggestionType::AddExplicitImport)
+                .count();
 
+            let mut summary_parts = Vec::new();
             if token_count > 0 {
-                println!("Summary: {} missing token(s)", token_count);
+                summary_parts.push(format!("{} missing token(s)", token_count));
+            }
+            if include_count > 0 {
+                summary_parts.push(format!("{} @include: migration(s)", include_count));
+            }
+            if import_count > 0 {
+                summary_parts.push(format!("{} explicit import(s)", import_count));
+            }
+            if !summary_parts.is_empty() {
+                println!("Summary: {}", summary_parts.join(", "));
             }
         }
     }

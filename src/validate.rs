@@ -4,7 +4,9 @@
 //! common mistakes like undefined tokens and invalid colors.
 
 use crate::color::parse_color;
-use crate::models::{Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject};
+use crate::models::{
+    Import, Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject,
+};
 use crate::palette_parser::{PaletteParser, ParseMode};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -77,6 +79,12 @@ pub enum IssueType {
     RangeValidation,
     /// Sprite has no regions defined or state-rules has no rules
     EmptyGrid,
+    /// Import target file or item could not be resolved
+    UnresolvedImport,
+    /// Import declaration imports items that are never used in the file
+    UnusedImport,
+    /// Import alias or imported name shadows a locally defined name
+    ShadowedImport,
 }
 
 impl std::fmt::Display for IssueType {
@@ -99,6 +107,9 @@ impl std::fmt::Display for IssueType {
             IssueType::UncertainConstraint => write!(f, "uncertain_constraint"),
             IssueType::RangeValidation => write!(f, "range_validation"),
             IssueType::EmptyGrid => write!(f, "empty_grid"),
+            IssueType::UnresolvedImport => write!(f, "unresolved_import"),
+            IssueType::UnusedImport => write!(f, "unused_import"),
+            IssueType::ShadowedImport => write!(f, "shadowed_import"),
         }
     }
 }
@@ -158,6 +169,17 @@ impl ValidationIssue {
     }
 }
 
+/// Tracks an import declaration for unused-import detection.
+#[derive(Debug, Clone)]
+struct TrackedImport {
+    /// Line number where the import was declared
+    line: usize,
+    /// The import declaration
+    import: Import,
+    /// Whether any item from this import has been referenced
+    used: bool,
+}
+
 /// Validator for Pixelsrc files
 pub struct Validator {
     /// Collected validation issues
@@ -176,6 +198,12 @@ pub struct Validator {
     variant_names: HashSet<String>,
     /// Known palette names (for duplicate detection)
     palette_names: HashSet<String>,
+    /// Import declarations found in the file (for unused-import detection)
+    tracked_imports: Vec<TrackedImport>,
+    /// All locally defined names (for shadowed-import detection)
+    local_names: HashSet<String>,
+    /// Names imported via import declarations (import alias → items)
+    imported_names: HashSet<String>,
 }
 
 impl Default for Validator {
@@ -200,6 +228,9 @@ impl Validator {
             composition_names: HashSet::new(),
             variant_names: HashSet::new(),
             palette_names: HashSet::new(),
+            tracked_imports: Vec::new(),
+            local_names: HashSet::new(),
+            imported_names: HashSet::new(),
         }
     }
 
@@ -261,7 +292,17 @@ impl Validator {
         };
 
         // Check 3: Unknown type
-        let valid_types = ["palette", "sprite", "animation", "composition", "variant"];
+        let valid_types = [
+            "palette",
+            "sprite",
+            "animation",
+            "composition",
+            "variant",
+            "import",
+            "transform",
+            "particle",
+            "state-rules",
+        ];
         if !valid_types.contains(&type_str) {
             self.issues.push(
                 ValidationIssue::warning(
@@ -385,12 +426,60 @@ impl Validator {
                     .with_context(format!("import from \"{}\"", import.from)),
             );
         }
+
+        // Check if import alias shadows a locally defined name
+        if let Some(ref alias) = import.alias {
+            if self.local_names.contains(alias) {
+                self.issues.push(
+                    ValidationIssue::warning(
+                        line_number,
+                        IssueType::ShadowedImport,
+                        format!("Import alias \"{}\" shadows locally defined name", alias),
+                    )
+                    .with_context(format!("import from \"{}\"", import.from)),
+                );
+            }
+        }
+
+        // Track for unused-import detection
+        self.tracked_imports.push(TrackedImport {
+            line: line_number,
+            import: import.clone(),
+            used: false,
+        });
+
+        // Track imported names for cross-reference
+        if let Some(ref alias) = import.alias {
+            self.imported_names.insert(alias.clone());
+        }
+        if let Some(ref palettes) = import.palettes {
+            for name in palettes {
+                self.imported_names.insert(name.clone());
+            }
+        }
+        if let Some(ref sprites) = import.sprites {
+            for name in sprites {
+                self.imported_names.insert(name.clone());
+            }
+        }
+        if let Some(ref transforms) = import.transforms {
+            for name in transforms {
+                self.imported_names.insert(name.clone());
+            }
+        }
+        if let Some(ref animations) = import.animations {
+            for name in animations {
+                self.imported_names.insert(name.clone());
+            }
+        }
     }
 
     /// Validate a palette definition
     fn validate_palette(&mut self, line_number: usize, palette: &Palette) {
         let name = &palette.name;
         let colors = &palette.colors;
+        // Track as a local name
+        self.local_names.insert(name.to_string());
         // Check for duplicate name
         if !self.palette_names.insert(name.to_string()) {
             self.issues.push(
@@ -556,6 +645,14 @@ impl Validator {
     /// Validate a sprite definition
     fn validate_sprite(&mut self, line_number: usize, sprite: &crate::models::Sprite) {
         let name = &sprite.name;
+
+        // Track as a local name
+        self.local_names.insert(name.to_string());
+
+        // Mark import as used if palette reference matches an imported name
+        if let PaletteRef::Named(ref palette_name) = sprite.palette {
+            self.mark_import_used(palette_name);
+        }
 
         // Check for duplicate name
         if !self.sprite_names.insert(name.to_string()) {
@@ -778,6 +875,112 @@ impl Validator {
                     ),
                 )
                 .with_context(format!("particle \"{}\"", particle.name)),
+            );
+        }
+    }
+
+    /// Mark an import as used if a referenced name matches an imported item.
+    fn mark_import_used(&mut self, name: &str) {
+        // Check if the name or its prefix matches any tracked import
+        let base_name = name.split(':').next().unwrap_or(name);
+        for tracked in &mut self.tracked_imports {
+            // Check alias match (e.g., "hero" in "hero:idle")
+            if let Some(ref alias) = tracked.import.alias {
+                if base_name == alias {
+                    tracked.used = true;
+                    return;
+                }
+            }
+
+            // Check selective import match
+            if let Some(ref palettes) = tracked.import.palettes {
+                if palettes.iter().any(|p| p == name) {
+                    tracked.used = true;
+                    return;
+                }
+            }
+            if let Some(ref sprites) = tracked.import.sprites {
+                if sprites.iter().any(|s| s == name) {
+                    tracked.used = true;
+                    return;
+                }
+            }
+            if let Some(ref transforms) = tracked.import.transforms {
+                if transforms.iter().any(|t| t == name) {
+                    tracked.used = true;
+                    return;
+                }
+            }
+            if let Some(ref animations) = tracked.import.animations {
+                if animations.iter().any(|a| a == name) {
+                    tracked.used = true;
+                    return;
+                }
+            }
+
+            // For unfiltered imports, mark used if the from path basename matches
+            if !tracked.import.is_selective() && tracked.import.alias.is_none() {
+                // Unfiltered import — all items are available by short name.
+                // We can't know which items the file provides without resolving,
+                // so mark as used on any reference that isn't locally defined.
+                if !self.palette_names.contains(name) && !self.sprite_names.contains(name) {
+                    tracked.used = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// Validate import declarations against a project registry.
+    ///
+    /// Checks that:
+    /// - Import target files/items can be resolved
+    /// - Reports unused imports
+    pub fn validate_imports_with_project(&mut self, file_path: &Path, src_root: &Path) {
+        use crate::resolve_imports::ImportResolver;
+
+        let base_dir = file_path.parent().unwrap_or(Path::new("."));
+
+        for tracked in &self.tracked_imports {
+            let import = &tracked.import;
+            let mut resolver = ImportResolver::new(Some(src_root.to_path_buf()), false);
+            resolver.mark_visited(file_path);
+
+            let local_names_clone = self.local_names.clone();
+            match resolver.resolve_all(std::slice::from_ref(import), base_dir, &local_names_clone) {
+                Ok(_resolved) => {
+                    // Import resolved successfully
+                }
+                Err(e) => {
+                    self.issues.push(
+                        ValidationIssue::error(
+                            tracked.line,
+                            IssueType::UnresolvedImport,
+                            format!("Cannot resolve import: {}", e),
+                        )
+                        .with_context(format!("import from \"{}\"", import.from)),
+                    );
+                }
+            }
+        }
+
+        // Report unused imports
+        // We need to clone to avoid borrow issues
+        let unused: Vec<(usize, String)> = self
+            .tracked_imports
+            .iter()
+            .filter(|t| !t.used)
+            .map(|t| (t.line, t.import.from.clone()))
+            .collect();
+
+        for (line, from) in unused {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line,
+                    IssueType::UnusedImport,
+                    format!("Import from \"{}\" is never used", from),
+                )
+                .with_context(format!("import from \"{}\"", from)),
             );
         }
     }
@@ -1411,6 +1614,101 @@ mod tests {
         let issues: Vec<_> =
             validator.issues().iter().filter(|i| i.issue_type == IssueType::JsonSyntax).collect();
         assert_eq!(issues.len(), 1, "Expected JSON syntax error for invalid relationship type");
+    }
+
+    #[test]
+    fn test_validate_import_shadowed_alias() {
+        let mut validator = Validator::new();
+        // Define a local palette first
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "colors", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        // Import with alias that matches the local name
+        validator.validate_line(2, r#"{"type": "import", "from": "./other", "as": "colors"}"#);
+
+        let shadowed_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::ShadowedImport)
+            .collect();
+        assert_eq!(shadowed_issues.len(), 1, "Expected 1 shadowed import issue");
+        assert!(shadowed_issues[0].message.contains("colors"));
+    }
+
+    #[test]
+    fn test_validate_import_no_shadow_when_no_conflict() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "colors", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        // Import with alias that doesn't conflict
+        validator.validate_line(2, r#"{"type": "import", "from": "./other", "as": "external"}"#);
+
+        let shadowed_issues: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::ShadowedImport)
+            .collect();
+        assert!(shadowed_issues.is_empty(), "Expected no shadowed import issues");
+    }
+
+    #[test]
+    fn test_validate_unused_import_detection() {
+        let mut validator = Validator::new();
+        // Import that is never referenced
+        validator.validate_line(
+            1,
+            r#"{"type": "import", "from": "./palettes", "palettes": ["unused_pal"]}"#,
+        );
+        // A sprite that doesn't use the imported palette
+        validator.validate_line(
+            2,
+            r##"{"type": "palette", "name": "local", "colors": {"{a}": "#FF0000"}}"##,
+        );
+        validator.validate_line(
+            3,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "palette": "local", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        // Run import validation (without project context, just check unused detection)
+        // The unused imports should be reported via validate_imports_with_project,
+        // but we can check that the tracking mechanism works
+        let unused: Vec<_> = validator.tracked_imports.iter().filter(|t| !t.used).collect();
+        assert_eq!(unused.len(), 1, "Expected 1 unused import");
+        assert_eq!(unused[0].import.from, "./palettes");
+    }
+
+    #[test]
+    fn test_validate_used_import_tracked() {
+        let mut validator = Validator::new();
+        // Import a palette
+        validator
+            .validate_line(1, r#"{"type": "import", "from": "./shared", "palettes": ["gameboy"]}"#);
+        // Use the imported palette in a sprite
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "hero", "size": [4, 4], "palette": "gameboy", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        let used: Vec<_> = validator.tracked_imports.iter().filter(|t| t.used).collect();
+        assert_eq!(used.len(), 1, "Expected 1 used import");
+    }
+
+    #[test]
+    fn test_validate_used_import_by_alias() {
+        let mut validator = Validator::new();
+        // Import with alias
+        validator.validate_line(1, r#"{"type": "import", "from": "./shared", "as": "shared"}"#);
+        // Use the alias in a sprite palette reference
+        validator.validate_line(
+            2,
+            r#"{"type": "sprite", "name": "hero", "size": [4, 4], "palette": "shared:gameboy", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+
+        let used: Vec<_> = validator.tracked_imports.iter().filter(|t| t.used).collect();
+        assert_eq!(used.len(), 1, "Expected 1 used import (alias match)");
     }
 
     #[test]
