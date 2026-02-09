@@ -602,6 +602,215 @@ fn test_mcp_tool_suggest_no_input() {
     client.shutdown();
 }
 
+// ── Explain + Diff Tools ──────────────────────────────────────────────
+
+#[test]
+fn test_mcp_tool_explain_single_sprite() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"sprite","name":"dot","size":[2,2],"palette":{"_":"#00000000","x":"#FF0000"},"regions":{"x":{"points":[[0,0],[1,1]],"z":0}}}"##;
+
+    let resp = client.call_tool("pixelsrc_explain", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    assert_eq!(parsed["type"], "sprite");
+    assert_eq!(parsed["name"], "dot");
+    assert_eq!(parsed["width"], 2);
+    assert_eq!(parsed["height"], 2);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_explain_multi_object() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"palette","name":"pal","colors":{"_":"#00000000","r":"#FF0000"}}
+{"type":"sprite","name":"red_dot","size":[1,1],"palette":"pal","regions":{"r":{"points":[[0,0]],"z":0}}}"##;
+
+    let resp = client.call_tool("pixelsrc_explain", serde_json::json!({ "source": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(text).expect("should be JSON array");
+    assert_eq!(parsed.len(), 2);
+    assert_eq!(parsed[0]["type"], "palette");
+    assert_eq!(parsed[1]["type"], "sprite");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_explain_name_filter() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"palette","name":"pal","colors":{"_":"#00000000","r":"#FF0000"}}
+{"type":"sprite","name":"red_dot","size":[1,1],"palette":"pal","regions":{"r":{"points":[[0,0]],"z":0}}}"##;
+
+    let resp = client
+        .call_tool("pixelsrc_explain", serde_json::json!({ "source": source, "name": "red_dot" }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
+    assert_eq!(parsed["type"], "sprite");
+    assert_eq!(parsed["name"], "red_dot");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_explain_no_input() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let resp = client.call_tool("pixelsrc_explain", serde_json::json!({}));
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "explain with no input should be an error: {:?}", resp);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_explain_name_not_found() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"sprite","name":"dot","size":[1,1],"palette":{"x":"#FF0000"},"regions":{"x":{"points":[[0,0]]}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_explain",
+        serde_json::json!({ "source": source, "name": "nonexistent" }),
+    );
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "explain with unknown name should be an error: {:?}", resp);
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_diff_identical() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"_":"#00000000","x":"#FF0000"},"regions":{"x":{"rect":[0,0,2,2]}}}"##;
+
+    let resp = client
+        .call_tool("pixelsrc_diff", serde_json::json!({ "source_a": source, "source_b": source }));
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(text).expect("should be JSON array");
+    assert_eq!(parsed.len(), 1);
+    assert_eq!(parsed[0]["sprite"], "hero");
+    assert_eq!(parsed[0]["summary"], "No differences");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_diff_color_change() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source_a = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"_":"#00000000","x":"#FF0000"},"regions":{"x":{"rect":[0,0,2,2]}}}"##;
+    let source_b = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"_":"#00000000","x":"#00FF00"},"regions":{"x":{"rect":[0,0,2,2]}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_diff",
+        serde_json::json!({ "source_a": source_a, "source_b": source_b }),
+    );
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(text).expect("should be JSON array");
+    let changes = parsed[0]["palette_changes"].as_array().unwrap();
+    assert!(!changes.is_empty(), "should detect palette color change");
+    assert_eq!(changes[0]["type"], "changed");
+    assert_eq!(changes[0]["token"], "x");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_diff_dimension_change() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source_a = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"_":"#00000000","x":"#FF0000"},"regions":{"x":{"rect":[0,0,2,2]}}}"##;
+    let source_b = r##"{"type":"sprite","name":"hero","size":[4,4],"palette":{"_":"#00000000","x":"#FF0000"},"regions":{"x":{"rect":[0,0,4,4]}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_diff",
+        serde_json::json!({ "source_a": source_a, "source_b": source_b }),
+    );
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(text).expect("should be JSON array");
+    let dim = &parsed[0]["dimension_change"];
+    assert_eq!(dim["old"], serde_json::json!([2, 2]));
+    assert_eq!(dim["new"], serde_json::json!([4, 4]));
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_diff_sprite_filter() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source_a = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"x":"#FF0000"},"regions":{"x":{"rect":[0,0,2,2]}}}
+{"type":"sprite","name":"enemy","size":[2,2],"palette":{"e":"#0000FF"},"regions":{"e":{"rect":[0,0,2,2]}}}"##;
+    let source_b = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"x":"#00FF00"},"regions":{"x":{"rect":[0,0,2,2]}}}
+{"type":"sprite","name":"enemy","size":[4,4],"palette":{"e":"#0000FF"},"regions":{"e":{"rect":[0,0,4,4]}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_diff",
+        serde_json::json!({ "source_a": source_a, "source_b": source_b, "sprite": "enemy" }),
+    );
+    let result = resp.get("result").expect("tool call should return result");
+    let content = result["content"].as_array().expect("content should be array");
+    let text = content[0]["text"].as_str().unwrap();
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(text).expect("should be JSON array");
+    assert_eq!(parsed.len(), 1, "sprite filter should return only one diff");
+    assert_eq!(parsed[0]["sprite"], "enemy");
+
+    client.shutdown();
+}
+
+#[test]
+fn test_mcp_tool_diff_sprite_not_found() {
+    let mut client = McpClient::spawn();
+    client.initialize();
+
+    let source = r##"{"type":"sprite","name":"hero","size":[2,2],"palette":{"x":"#FF0000"},"regions":{"x":{"rect":[0,0,2,2]}}}"##;
+
+    let resp = client.call_tool(
+        "pixelsrc_diff",
+        serde_json::json!({ "source_a": source, "source_b": source, "sprite": "nonexistent" }),
+    );
+    let result = resp.get("result").expect("should have result");
+    let is_error = result.get("isError").and_then(|e| e.as_bool()).unwrap_or(false);
+    assert!(is_error, "diff with unknown sprite should be an error: {:?}", resp);
+
+    client.shutdown();
+}
+
 // ── Error Cases ───────────────────────────────────────────────────────
 
 #[test]

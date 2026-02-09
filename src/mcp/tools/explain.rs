@@ -67,6 +67,7 @@ pub fn run_explain(input: ExplainInput) -> Result<String, String> {
             TtpObject::Particle(p) => &p.name,
             TtpObject::Transform(t) => &t.name,
             TtpObject::StateRules(sr) => &sr.name,
+            TtpObject::Import(i) => &i.from,
         };
 
         if let Some(ref filter) = input.name {
@@ -187,6 +188,14 @@ fn explanation_to_json(exp: &Explanation) -> serde_json::Value {
             "name": sr.name,
             "rule_count": sr.rule_count,
             "selectors": sr.selectors,
+        }),
+        Explanation::Import(i) => serde_json::json!({
+            "type": "import",
+            "from": i.from,
+            "is_directory": i.is_directory,
+            "is_relative": i.is_relative,
+            "alias": i.alias,
+            "imported_types": i.imported_types,
         }),
     }
 }
