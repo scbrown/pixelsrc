@@ -354,6 +354,21 @@ impl ProjectRegistry {
         self.sprite_locations.get(canonical)
     }
 
+    /// Get the location info for a variant by canonical name.
+    pub fn variant_location(&self, canonical: &str) -> Option<&ItemLocation> {
+        self.variant_locations.get(canonical)
+    }
+
+    /// Get the location info for a transform by canonical name.
+    pub fn transform_location(&self, canonical: &str) -> Option<&ItemLocation> {
+        self.transform_locations.get(canonical)
+    }
+
+    /// Get the location info for a composition by canonical name.
+    pub fn composition_location(&self, canonical: &str) -> Option<&ItemLocation> {
+        self.composition_locations.get(canonical)
+    }
+
     /// Get all palette canonical names.
     pub fn palette_names(&self) -> impl Iterator<Item = &String> {
         self.palette_locations.keys()

@@ -4,6 +4,7 @@ use crate::transforms::explain_transform;
 use crate::validate::{Severity, ValidationIssue, Validator};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::RwLock;
 use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::*;
@@ -18,6 +19,11 @@ use super::completions::{
     get_state_selector_completions,
 };
 use super::hover::get_structured_format_hover;
+use super::project::{
+    check_cross_file_references, extract_reference_at_position, get_cross_file_completions,
+    get_import_path_completions, goto_cross_file_definition, hover_cross_file_reference,
+    is_import_from_context, ProjectContext,
+};
 use super::symbols::{
     build_variable_registry, collect_css_variables, collect_defined_tokens, extract_symbols,
     extract_variable_at_position, find_variable_definition, is_css_variable_completion_context,
@@ -35,11 +41,55 @@ pub struct PixelsrcLanguageServer {
     client: Client,
     /// Document state tracking for open files
     documents: RwLock<HashMap<Url, String>>,
+    /// Project context for cross-file support (loaded lazily)
+    project: RwLock<Option<ProjectContext>>,
 }
 
 impl PixelsrcLanguageServer {
     pub fn new(client: Client) -> Self {
-        Self { client, documents: RwLock::new(HashMap::new()) }
+        Self { client, documents: RwLock::new(HashMap::new()), project: RwLock::new(None) }
+    }
+
+    /// Try to initialize or refresh the project context from a file URI.
+    fn ensure_project_context(&self, uri: &Url) {
+        // Only handle file:// URIs
+        let file_path = match uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let needs_init = match self.project.read() {
+            Ok(ctx) => ctx.is_none(),
+            Err(_) => return,
+        };
+
+        if needs_init {
+            if let Some(ctx) = ProjectContext::from_file(&file_path) {
+                if let Ok(mut project) = self.project.write() {
+                    *project = Some(ctx);
+                }
+            }
+        }
+    }
+
+    /// Reload the project registry (e.g., after a file change).
+    fn reload_project_registry(&self) {
+        if let Ok(mut project) = self.project.write() {
+            if let Some(ctx) = project.as_mut() {
+                ctx.reload();
+            }
+        }
+    }
+
+    /// Get the file path for a URI, if it's a .pxl or .jsonl file in the project.
+    fn uri_to_project_file(&self, uri: &Url) -> Option<PathBuf> {
+        let path = uri.to_file_path().ok()?;
+        let ext = path.extension()?.to_str()?;
+        if ext == "pxl" || ext == "jsonl" {
+            Some(path)
+        } else {
+            None
+        }
     }
 
     /// Validate document content and publish diagnostics
@@ -49,8 +99,16 @@ impl PixelsrcLanguageServer {
             validator.validate_line(line_num + 1, line);
         }
 
-        let diagnostics: Vec<Diagnostic> =
+        let mut diagnostics: Vec<Diagnostic> =
             validator.issues().iter().map(Self::issue_to_diagnostic).collect();
+
+        // Add cross-file reference diagnostics if project context is available
+        if let Ok(project) = self.project.read() {
+            if let Some(ctx) = project.as_ref() {
+                let cross_file_diags = check_cross_file_references(content, &ctx.registry);
+                diagnostics.extend(cross_file_diags);
+            }
+        }
 
         self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
     }
@@ -186,6 +244,9 @@ impl LanguageServer for PixelsrcLanguageServer {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
+        // Initialize project context on first file open
+        self.ensure_project_context(&uri);
+
         // Store document content (lock must be dropped before any await)
         let lock_failed = match self.documents.write() {
             Ok(mut documents) => {
@@ -221,6 +282,11 @@ impl LanguageServer for PixelsrcLanguageServer {
                     .log_message(MessageType::ERROR, "Failed to acquire document lock")
                     .await;
                 return;
+            }
+
+            // Reload project registry when project files change
+            if self.uri_to_project_file(&uri).is_some() {
+                self.reload_project_registry();
             }
 
             // Validate and publish diagnostics
@@ -401,6 +467,23 @@ impl LanguageServer for PixelsrcLanguageServer {
             }));
         }
 
+        // Check for cross-file reference hover (palette, source, base, etc.)
+        if let Some(ref_name) = extract_reference_at_position(line, pos.character) {
+            if let Ok(project) = self.project.read() {
+                if let Some(ctx) = project.as_ref() {
+                    if let Some(hover_text) = hover_cross_file_reference(&ctx.registry, &ref_name) {
+                        return Ok(Some(Hover {
+                            contents: HoverContents::Markup(MarkupContent {
+                                kind: MarkupKind::Markdown,
+                                value: hover_text,
+                            }),
+                            range: None,
+                        }));
+                    }
+                }
+            }
+        }
+
         Ok(None)
     }
 
@@ -450,6 +533,16 @@ impl LanguageServer for PixelsrcLanguageServer {
             }
 
             return Ok(Some(CompletionResponse::Array(completions)));
+        }
+
+        // Check if we're in an import "from" field context
+        if is_import_from_context(current_line, pos.character) {
+            if let Ok(project) = self.project.read() {
+                if let Some(ctx) = project.as_ref() {
+                    let completions = get_import_path_completions(&ctx.registry);
+                    return Ok(Some(CompletionResponse::Array(completions)));
+                }
+            }
         }
 
         // Detect structured format completion context
@@ -508,6 +601,13 @@ impl LanguageServer for PixelsrcLanguageServer {
                         insert_text: Some(display_token.to_string()),
                         ..Default::default()
                     });
+                }
+
+                // Add cross-file completions from project registry
+                if let Ok(project) = self.project.read() {
+                    if let Some(ctx) = project.as_ref() {
+                        completions.extend(get_cross_file_completions(&ctx.registry));
+                    }
                 }
             }
         }
@@ -670,6 +770,17 @@ impl LanguageServer for PixelsrcLanguageServer {
                         end: Position { line: def_line as u32, character: end_char },
                     },
                 })));
+            }
+        }
+
+        // Check for cross-file reference (palette, source, base, etc.)
+        if let Some(ref_name) = extract_reference_at_position(line, pos.character) {
+            if let Ok(project) = self.project.read() {
+                if let Some(ctx) = project.as_ref() {
+                    if let Some(response) = goto_cross_file_definition(&ctx.registry, &ref_name) {
+                        return Ok(Some(response));
+                    }
+                }
             }
         }
 

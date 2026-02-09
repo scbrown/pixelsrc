@@ -14,6 +14,7 @@
 mod color_utils;
 mod completions;
 mod hover;
+pub mod project;
 mod server;
 mod symbols;
 mod timing_utils;
