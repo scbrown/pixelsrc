@@ -65,6 +65,10 @@ pub enum DrawOp {
     Line { x0: u32, y0: u32, x1: u32, y1: u32, token: String },
     /// Flood fill from a seed point: `--flood x,y="{token}"`
     Flood { x: u32, y: u32, token: String },
+    /// Fill a circle: `--circle cx,cy,r="{token}"`
+    Circle { cx: u32, cy: u32, r: u32, token: String },
+    /// Fill an ellipse: `--ellipse cx,cy,rx,ry="{token}"`
+    Ellipse { cx: u32, cy: u32, rx: u32, ry: u32, token: String },
 }
 
 /// Editor that applies draw operations to a sprite's regions.
@@ -111,6 +115,15 @@ impl<'a> RegionEditor<'a> {
             DrawOp::Flood { x, y, token } => {
                 // Region-based flood: set seed point (full BFS requires grid)
                 self.merge_point(*x, *y, token)
+            }
+            DrawOp::Circle { cx, cy, r, token } => {
+                let new_region = RegionDef { circle: Some([*cx, *cy, *r]), ..Default::default() };
+                self.merge_shape(token, new_region)
+            }
+            DrawOp::Ellipse { cx, cy, rx, ry, token } => {
+                let new_region =
+                    RegionDef { ellipse: Some([*cx, *cy, *rx, *ry]), ..Default::default() };
+                self.merge_shape(token, new_region)
             }
         }
     }
@@ -984,5 +997,125 @@ mod tests {
         let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, None).unwrap();
         let result = pipeline.apply_ops(&[DrawOp::Set { x: 0, y: 0, token: "x".to_string() }]);
         assert!(result.is_err(), "should error when no sprite selected");
+    }
+
+    // =========================================================================
+    // Circle and ellipse draw operations (DT-D5)
+    // =========================================================================
+
+    #[test]
+    fn test_circle_creates_region() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Circle { cx: 2, cy: 2, r: 1, token: "gem".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["gem"];
+        assert_eq!(region.circle, Some([2, 2, 1]));
+    }
+
+    #[test]
+    fn test_circle_zero_radius() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Circle { cx: 1, cy: 1, r: 0, token: "dot2".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["dot2"];
+        assert_eq!(region.circle, Some([1, 1, 0]));
+    }
+
+    #[test]
+    fn test_ellipse_creates_region() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Ellipse { cx: 2, cy: 2, rx: 2, ry: 1, token: "oval".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["oval"];
+        assert_eq!(region.ellipse, Some([2, 2, 2, 1]));
+    }
+
+    #[test]
+    fn test_circle_over_existing_rect_creates_union() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        // "x" already has rect [1,1,2,2]. Add a circle for "x".
+        pipeline
+            .apply_ops(&[DrawOp::Circle { cx: 2, cy: 2, r: 1, token: "x".to_string() }])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["x"];
+        assert!(region.union.is_some());
+        let parts = region.union.as_ref().unwrap();
+        assert_eq!(parts.len(), 2);
+        assert!(parts[0].rect.is_some());
+        assert!(parts[1].circle.is_some());
+    }
+
+    #[test]
+    fn test_ellipse_over_existing_points_creates_union() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Set { x: 0, y: 0, token: "mark".to_string() },
+                DrawOp::Ellipse { cx: 2, cy: 2, rx: 2, ry: 1, token: "mark".to_string() },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["mark"];
+        assert!(region.union.is_some());
+        let parts = region.union.as_ref().unwrap();
+        assert_eq!(parts.len(), 2);
+        assert!(parts[0].points.is_some());
+        assert!(parts[1].ellipse.is_some());
+    }
+
+    #[test]
+    fn test_roundtrip_circle() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Circle { cx: 2, cy: 2, r: 1, token: "gem".to_string() }])
+            .unwrap();
+
+        let result = pipeline.serialize().unwrap();
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, Some("dot")).unwrap();
+        let sprite = pipeline2.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["gem"];
+        assert_eq!(region.circle, Some([2, 2, 1]));
+    }
+
+    #[test]
+    fn test_roundtrip_ellipse() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[DrawOp::Ellipse { cx: 2, cy: 2, rx: 3, ry: 1, token: "oval".to_string() }])
+            .unwrap();
+
+        let result = pipeline.serialize().unwrap();
+        let pipeline2 = DrawPipeline::load_from_string(&result.content, Some("dot")).unwrap();
+        let sprite = pipeline2.sprite().unwrap();
+        let region = &sprite.regions.as_ref().unwrap()["oval"];
+        assert_eq!(region.ellipse, Some([2, 2, 3, 1]));
+    }
+
+    #[test]
+    fn test_circle_and_ellipse_in_same_invocation() {
+        let mut pipeline = DrawPipeline::load_from_string(SIMPLE_PXL, Some("dot")).unwrap();
+        pipeline
+            .apply_ops(&[
+                DrawOp::Circle { cx: 1, cy: 1, r: 1, token: "sun".to_string() },
+                DrawOp::Ellipse { cx: 3, cy: 3, rx: 2, ry: 1, token: "cloud".to_string() },
+            ])
+            .unwrap();
+
+        let sprite = pipeline.sprite().unwrap();
+        let regions = sprite.regions.as_ref().unwrap();
+        assert_eq!(regions["sun"].circle, Some([1, 1, 1]));
+        assert_eq!(regions["cloud"].ellipse, Some([3, 3, 2, 1]));
     }
 }

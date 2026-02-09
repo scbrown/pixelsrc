@@ -130,6 +130,59 @@ fn parse_flood_arg(arg: &str) -> Result<DrawOp, String> {
     Ok(DrawOp::Flood { x, y, token })
 }
 
+/// Parse a `--circle` argument: `cx,cy,r="{token}"` or `cx,cy,r={token}`.
+fn parse_circle_arg(arg: &str) -> Result<DrawOp, String> {
+    let (coords, token_part) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("invalid --circle format '{}', expected cx,cy,r={{token}}", arg))?;
+
+    let parts: Vec<&str> = coords.split(',').collect();
+    if parts.len() != 3 {
+        return Err(format!(
+            "invalid --circle coordinates '{}', expected cx,cy,r (3 values)",
+            coords
+        ));
+    }
+
+    let cx: u32 =
+        parts[0].trim().parse().map_err(|_| format!("invalid cx '{}'", parts[0].trim()))?;
+    let cy: u32 =
+        parts[1].trim().parse().map_err(|_| format!("invalid cy '{}'", parts[1].trim()))?;
+    let r: u32 = parts[2].trim().parse().map_err(|_| format!("invalid r '{}'", parts[2].trim()))?;
+
+    let token = parse_token(token_part)?;
+
+    Ok(DrawOp::Circle { cx, cy, r, token })
+}
+
+/// Parse an `--ellipse` argument: `cx,cy,rx,ry="{token}"` or `cx,cy,rx,ry={token}`.
+fn parse_ellipse_arg(arg: &str) -> Result<DrawOp, String> {
+    let (coords, token_part) = arg.split_once('=').ok_or_else(|| {
+        format!("invalid --ellipse format '{}', expected cx,cy,rx,ry={{token}}", arg)
+    })?;
+
+    let parts: Vec<&str> = coords.split(',').collect();
+    if parts.len() != 4 {
+        return Err(format!(
+            "invalid --ellipse coordinates '{}', expected cx,cy,rx,ry (4 values)",
+            coords
+        ));
+    }
+
+    let cx: u32 =
+        parts[0].trim().parse().map_err(|_| format!("invalid cx '{}'", parts[0].trim()))?;
+    let cy: u32 =
+        parts[1].trim().parse().map_err(|_| format!("invalid cy '{}'", parts[1].trim()))?;
+    let rx: u32 =
+        parts[2].trim().parse().map_err(|_| format!("invalid rx '{}'", parts[2].trim()))?;
+    let ry: u32 =
+        parts[3].trim().parse().map_err(|_| format!("invalid ry '{}'", parts[3].trim()))?;
+
+    let token = parse_token(token_part)?;
+
+    Ok(DrawOp::Ellipse { cx, cy, rx, ry, token })
+}
+
 /// Collect all draw operations from CLI args.
 fn collect_ops(
     set_args: &[String],
@@ -137,6 +190,8 @@ fn collect_ops(
     rect_args: &[String],
     line_args: &[String],
     flood_args: &[String],
+    circle_args: &[String],
+    ellipse_args: &[String],
 ) -> Result<Vec<DrawOp>, String> {
     let mut ops = Vec::new();
     for arg in set_args {
@@ -154,6 +209,12 @@ fn collect_ops(
     for arg in flood_args {
         ops.push(parse_flood_arg(arg)?);
     }
+    for arg in circle_args {
+        ops.push(parse_circle_arg(arg)?);
+    }
+    for arg in ellipse_args {
+        ops.push(parse_ellipse_arg(arg)?);
+    }
     Ok(ops)
 }
 
@@ -166,11 +227,21 @@ pub fn run_draw(
     rect_args: &[String],
     line_args: &[String],
     flood_args: &[String],
+    circle_args: &[String],
+    ellipse_args: &[String],
     output: Option<&Path>,
     dry_run: bool,
 ) -> ExitCode {
     // Parse operations first (fail fast on bad args)
-    let ops = match collect_ops(set_args, erase_args, rect_args, line_args, flood_args) {
+    let ops = match collect_ops(
+        set_args,
+        erase_args,
+        rect_args,
+        line_args,
+        flood_args,
+        circle_args,
+        ellipse_args,
+    ) {
         Ok(ops) => ops,
         Err(e) => {
             eprintln!("Error: {}", e);

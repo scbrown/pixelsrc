@@ -506,6 +506,14 @@ pub enum Commands {
         #[arg(long, value_name = "X,Y={TOKEN}")]
         flood: Vec<String>,
 
+        /// Fill circle: cx,cy,r="{token}" (e.g. --circle 8,8,4="{gem}")
+        #[arg(long, value_name = "CX,CY,R={TOKEN}")]
+        circle: Vec<String>,
+
+        /// Fill ellipse: cx,cy,rx,ry="{token}" (e.g. --ellipse 8,8,6,4="{gem}")
+        #[arg(long, value_name = "CX,CY,RX,RY={TOKEN}")]
+        ellipse: Vec<String>,
+
         /// Output file (default: overwrite input)
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -701,19 +709,31 @@ pub fn run() -> ExitCode {
         Commands::Mcp => agent::run_mcp(),
         Commands::Agent { action } => agent::run_agent(action),
         Commands::Scaffold { action } => scaffold::run_scaffold(action),
-        Commands::Draw { input, sprite, set, erase, rect, line, flood, output, dry_run } => {
-            draw::run_draw(
-                &input,
-                sprite.as_deref(),
-                &set,
-                &erase,
-                &rect,
-                &line,
-                &flood,
-                output.as_deref(),
-                dry_run,
-            )
-        }
+        Commands::Draw {
+            input,
+            sprite,
+            set,
+            erase,
+            rect,
+            line,
+            flood,
+            circle,
+            ellipse,
+            output,
+            dry_run,
+        } => draw::run_draw(
+            &input,
+            sprite.as_deref(),
+            &set,
+            &erase,
+            &rect,
+            &line,
+            &flood,
+            &circle,
+            &ellipse,
+            output.as_deref(),
+            dry_run,
+        ),
         Commands::Mask {
             input,
             sprite,
