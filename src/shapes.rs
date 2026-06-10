@@ -245,6 +245,49 @@ pub fn subtract(
     result
 }
 
+/// Grow a region outward by `thickness` pixels (morphological dilation).
+///
+/// Each iteration adds every empty neighbor of a set pixel. With
+/// `diagonal = true` the 8-connected (Moore) neighborhood is used, so convex
+/// corners are filled and the result fully surrounds the shape; with `false`
+/// only the 4-connected (von Neumann) neighbors are added. `thickness` of 0
+/// returns a copy unchanged.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::dilate;
+/// use std::collections::HashSet;
+///
+/// let dot: HashSet<(i32, i32)> = [(2, 2)].into_iter().collect();
+/// // 8-connected dilation of a single pixel yields a 3x3 block (9 pixels).
+/// assert_eq!(dilate(&dot, 1, true).len(), 9);
+/// // 4-connected yields a plus shape (5 pixels).
+/// assert_eq!(dilate(&dot, 1, false).len(), 5);
+/// ```
+pub fn dilate(
+    pixels: &HashSet<(i32, i32)>,
+    thickness: i32,
+    diagonal: bool,
+) -> HashSet<(i32, i32)> {
+    let neighbors: &[(i32, i32)] = if diagonal {
+        &[(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+    } else {
+        &[(0, -1), (-1, 0), (1, 0), (0, 1)]
+    };
+    let mut current = pixels.clone();
+    for _ in 0..thickness.max(0) {
+        let mut next = current.clone();
+        for &(x, y) in &current {
+            for (dx, dy) in neighbors {
+                next.insert((x + dx, y + dy));
+            }
+        }
+        current = next;
+    }
+    current
+}
+
 /// Find pixels that appear in all input regions.
 ///
 /// Returns the intersection of all input regions. If no regions are provided,
