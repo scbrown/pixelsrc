@@ -675,6 +675,37 @@ mod tests {
     }
 
     #[test]
+    fn test_extends_render_golden() {
+        // A base frame with a `ring` and a `flame`; an extending frame that
+        // overrides only `flame`. Rendering the extender must show the
+        // inherited ring AND the moved flame, proving region-level inheritance
+        // reaches the pixels.
+        let base = "{type: \"sprite\", name: \"frame_a\", size: [8, 8], palette: {_: \"#0000\", ring: \"#888888\", flame: \"#E25822\"}, regions: { ring: { rect: [1, 5, 6, 2], z: 0 }, flame: { rect: [3, 1, 2, 4], z: 1 } }}";
+        let ext = "{type: \"sprite\", name: \"frame_b\", extends: \"frame_a\", regions: { flame: { rect: [4, 0, 2, 5], z: 1 } }}";
+
+        let mut sprite_registry = SpriteRegistry::new();
+        let palette_registry = PaletteRegistry::new();
+        for line in [base, ext] {
+            match parse_line(line, 0).unwrap() {
+                crate::models::TtpObject::Sprite(s) => sprite_registry.register_sprite(s),
+                _ => panic!("expected sprite"),
+            }
+        }
+
+        let resolved = sprite_registry.resolve("frame_b", &palette_registry, true).unwrap();
+        let (image, warnings) = crate::renderer::render_resolved(&resolved);
+        assert!(warnings.is_empty(), "Unexpected warnings: {:?}", warnings);
+
+        // Inherited ring at row 5 (e.g. (1,5)) is grey.
+        assert_eq!(*image.get_pixel(1, 5), Rgba([0x88, 0x88, 0x88, 255]));
+        // Overridden flame now sits at column 4-5, rows 0-4.
+        assert_eq!(*image.get_pixel(4, 0), Rgba([0xE2, 0x58, 0x22, 255]));
+        assert_eq!(*image.get_pixel(5, 4), Rgba([0xE2, 0x58, 0x22, 255]));
+        // The base flame's old column 3 is now empty (override replaced it).
+        assert_eq!(*image.get_pixel(3, 1), Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
     fn test_default_z_for_role() {
         // Anchor should be highest
         assert_eq!(default_z_for_role(Some(&Role::Anchor)), 100);

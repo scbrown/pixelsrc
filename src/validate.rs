@@ -820,11 +820,48 @@ impl Validator {
             );
         }
 
-        // Get palette tokens for validation
-        let palette_tokens = self.get_palette_tokens(&sprite.palette, line_number, name);
+        // An omitted palette (empty Named ref) is only legal when `extends` is
+        // set — the base palette is inherited. On any other sprite it's a
+        // missing-palette error. Skip token resolution in the inherited case so
+        // we don't spuriously flag inherited tokens as undefined.
+        let palette_omitted =
+            matches!(&sprite.palette, PaletteRef::Named(n) if n.is_empty());
+        if palette_omitted && sprite.extends.is_none() {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::MissingPalette,
+                    format!("Sprite \"{}\" has no palette", name),
+                )
+                .with_context(format!("sprite \"{}\"", name))
+                .with_suggestion(
+                    "add a `palette` reference, or `extends` a sprite to inherit one".to_string(),
+                ),
+            );
+        }
 
-        // Validate sprites have regions defined (unless they reference a source sprite)
-        if sprite.regions.is_none() && sprite.source.is_none() {
+        // `remove` only means something alongside `extends`.
+        if sprite.remove.is_some() && sprite.extends.is_none() {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line_number,
+                    IssueType::EmptyGrid,
+                    format!("Sprite \"{}\" uses `remove` without `extends`; it has no effect", name),
+                )
+                .with_context(format!("sprite \"{}\"", name)),
+            );
+        }
+
+        // Get palette tokens for validation (skipped when inheriting a palette)
+        let palette_tokens = if palette_omitted {
+            None
+        } else {
+            self.get_palette_tokens(&sprite.palette, line_number, name)
+        };
+
+        // Validate sprites have regions defined (unless they inherit them from
+        // another sprite via `source` or `extends`)
+        if sprite.regions.is_none() && sprite.source.is_none() && sprite.extends.is_none() {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
@@ -1666,6 +1703,37 @@ mod tests {
             .filter(|i| i.issue_type == IssueType::MissingPalette)
             .collect();
         assert_eq!(missing_palette_issues.len(), 1);
+    }
+
+    #[test]
+    fn test_validate_omitted_palette_without_extends_warns() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r#"{"type": "sprite", "name": "test", "size": [4, 4], "regions": {"a": {"rect": [0, 0, 4, 4]}}}"#,
+        );
+        let missing: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::MissingPalette)
+            .collect();
+        assert_eq!(missing.len(), 1);
+    }
+
+    #[test]
+    fn test_validate_omitted_palette_with_extends_ok() {
+        // An `extends` sprite may omit its palette — it inherits the base's.
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r#"{"type": "sprite", "name": "frame_b", "extends": "frame_a", "regions": {"flame": {"rect": [0, 0, 2, 2]}}}"#,
+        );
+        let missing: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| i.issue_type == IssueType::MissingPalette)
+            .collect();
+        assert!(missing.is_empty(), "extends sprite should not warn on omitted palette");
     }
 
     #[test]
