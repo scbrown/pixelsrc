@@ -3,8 +3,10 @@
 //! Provides tools for comparing sprites and detecting differences in:
 //! - Dimensions (width, height)
 //! - Palette colors (added, removed, changed tokens)
+//! - Region geometry (added, removed, shifted, or changed pixels per token)
+//! - Presence (a sprite existing in only one of the two files)
 
-use crate::models::{PaletteRef, Sprite, TtpObject};
+use crate::models::{PaletteRef, RegionDef, Sprite, TtpObject};
 use crate::parser::parse_stream;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -18,6 +20,10 @@ pub struct SpriteDiff {
     pub dimension_change: Option<DimensionChange>,
     /// Changes to palette colors
     pub palette_changes: Vec<PaletteChange>,
+    /// Changes to region geometry
+    pub region_changes: Vec<RegionChange>,
+    /// Set when the sprite exists in only one of the files
+    pub presence_change: Option<String>,
     /// Human-readable summary of the diff
     pub summary: String,
 }
@@ -25,8 +31,24 @@ pub struct SpriteDiff {
 impl SpriteDiff {
     /// Returns true if there are no differences
     pub fn is_empty(&self) -> bool {
-        self.dimension_change.is_none() && self.palette_changes.is_empty()
+        self.dimension_change.is_none()
+            && self.palette_changes.is_empty()
+            && self.region_changes.is_empty()
+            && self.presence_change.is_none()
     }
+}
+
+/// A geometric change to one region (token) between two sprites
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegionChange {
+    /// Region exists only in the second sprite
+    Added { token: String },
+    /// Region exists only in the first sprite
+    Removed { token: String },
+    /// Same shape, translated as a unit (a walk-cycle bob shows up here)
+    Shifted { token: String, dx: i32, dy: i32 },
+    /// Shape changed: `differing` pixels in the symmetric difference
+    Changed { token: String, differing: usize },
 }
 
 /// Change in sprite dimensions
@@ -137,10 +159,104 @@ pub fn diff_sprites(
         token_a.cmp(token_b)
     });
 
-    // Generate summary
-    let summary = generate_summary(&dimension_change, &palette_changes);
+    // Compare region geometry (the part "No differences found" used to skip
+    // entirely: two same-size, same-palette sprites with completely
+    // different pixels diffed as identical).
+    let region_changes = diff_regions(a, b);
 
-    SpriteDiff { dimension_change, palette_changes, summary }
+    // Generate summary
+    let summary = generate_summary(&dimension_change, &palette_changes, &region_changes);
+
+    SpriteDiff { dimension_change, palette_changes, region_changes, presence_change: None, summary }
+}
+
+/// Rasterize both sprites' regions (renderer's two-pass order) and compare
+/// them token by token. Sprites without regions+size (e.g. derived sprites)
+/// are not compared — geometry comparison needs concrete regions.
+fn diff_regions(a: &Sprite, b: &Sprite) -> Vec<RegionChange> {
+    let (Some(regions_a), Some(regions_b)) = (&a.regions, &b.regions) else {
+        return Vec::new();
+    };
+    let (Some([wa, ha]), Some([wb, hb])) = (a.size, b.size) else {
+        return Vec::new();
+    };
+
+    let raster_a = rasterize_all(regions_a, wa as i32, ha as i32);
+    let raster_b = rasterize_all(regions_b, wb as i32, hb as i32);
+
+    let mut tokens: Vec<&String> =
+        raster_a.keys().chain(raster_b.keys()).collect::<HashSet<_>>().into_iter().collect();
+    tokens.sort();
+
+    let mut changes = Vec::new();
+    for token in tokens {
+        match (raster_a.get(token), raster_b.get(token)) {
+            (Some(_), None) => changes.push(RegionChange::Removed { token: token.clone() }),
+            (None, Some(_)) => changes.push(RegionChange::Added { token: token.clone() }),
+            (Some(pa), Some(pb)) => {
+                if pa == pb {
+                    continue;
+                }
+                if let Some((dx, dy)) = detect_shift(pa, pb) {
+                    changes.push(RegionChange::Shifted { token: token.clone(), dx, dy });
+                } else {
+                    let differing = pa.symmetric_difference(pb).count();
+                    changes.push(RegionChange::Changed { token: token.clone(), differing });
+                }
+            }
+            (None, None) => unreachable!(),
+        }
+    }
+    changes
+}
+
+fn rasterize_all(
+    regions: &HashMap<String, RegionDef>,
+    width: i32,
+    height: i32,
+) -> HashMap<String, HashSet<(i32, i32)>> {
+    let mut warnings = Vec::new();
+    let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+    let mut pending: Vec<(&String, &RegionDef)> = Vec::new();
+    for (token, region) in regions {
+        if region.fill.is_some() || region.auto_shadow.is_some() {
+            pending.push((token, region));
+        } else {
+            let pixels =
+                crate::structured::rasterize_region(region, &rasterized, width, height, &mut warnings);
+            rasterized.insert(token.clone(), pixels);
+        }
+    }
+    for (token, region) in pending {
+        let pixels =
+            crate::structured::rasterize_region(region, &rasterized, width, height, &mut warnings);
+        rasterized.insert(token.clone(), pixels);
+    }
+    rasterized
+}
+
+/// If `b` is exactly `a` translated by a constant offset, return it.
+fn detect_shift(a: &HashSet<(i32, i32)>, b: &HashSet<(i32, i32)>) -> Option<(i32, i32)> {
+    if a.len() != b.len() || a.is_empty() {
+        return None;
+    }
+    let min_a = (
+        a.iter().map(|p| p.0).min().expect("non-empty"),
+        a.iter().map(|p| p.1).min().expect("non-empty"),
+    );
+    let min_b = (
+        b.iter().map(|p| p.0).min().expect("non-empty"),
+        b.iter().map(|p| p.1).min().expect("non-empty"),
+    );
+    let (dx, dy) = (min_b.0 - min_a.0, min_b.1 - min_a.1);
+    if (dx, dy) == (0, 0) {
+        return None; // equal sets are handled before this
+    }
+    if a.iter().all(|(x, y)| b.contains(&(x + dx, y + dy))) {
+        Some((dx, dy))
+    } else {
+        None
+    }
 }
 
 /// Get sprite dimensions from size field
@@ -157,12 +273,17 @@ fn get_sprite_dimensions(sprite: &Sprite) -> (u32, u32) {
 fn generate_summary(
     dimension_change: &Option<DimensionChange>,
     palette_changes: &[PaletteChange],
+    region_changes: &[RegionChange],
 ) -> String {
     let mut parts = Vec::new();
 
     if let Some(dim) = dimension_change {
         parts
             .push(format!("Dimensions: {}x{} → {}x{}", dim.old.0, dim.old.1, dim.new.0, dim.new.1));
+    }
+
+    if !region_changes.is_empty() {
+        parts.push(format!("Regions: {} changed", region_changes.len()));
     }
 
     let added_count =
@@ -259,25 +380,29 @@ pub fn diff_files(path_a: &Path, path_b: &Path) -> Result<Vec<(String, SpriteDif
             }
             (Some(_), None) => {
                 // Sprite only in file A (removed)
+                let note = format!("Sprite '{}' removed in second file", name);
                 diffs.push((
                     name.clone(),
                     SpriteDiff {
                         dimension_change: None,
                         palette_changes: Vec::new(),
-
-                        summary: format!("Sprite '{}' removed in second file", name),
+                        region_changes: Vec::new(),
+                        presence_change: Some(note.clone()),
+                        summary: note,
                     },
                 ));
             }
             (None, Some(_)) => {
                 // Sprite only in file B (added)
+                let note = format!("Sprite '{}' added in second file", name);
                 diffs.push((
                     name.clone(),
                     SpriteDiff {
                         dimension_change: None,
                         palette_changes: Vec::new(),
-
-                        summary: format!("Sprite '{}' added in second file", name),
+                        region_changes: Vec::new(),
+                        presence_change: Some(note.clone()),
+                        summary: note,
                     },
                 ));
             }
@@ -295,6 +420,13 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
     output.push(format!("Comparing sprite \"{}\" ({}) vs ({}):", name, file_a, file_b));
     output.push(String::new());
 
+    // Presence: the sprite exists in only one file — say that, never
+    // "No differences found" (which is what this case used to print).
+    if let Some(note) = &diff.presence_change {
+        output.push(note.clone());
+        return output.join("\n");
+    }
+
     // Dimensions
     if let Some(dim) = &diff.dimension_change {
         output
@@ -304,6 +436,28 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
         return output.join("\n");
     } else {
         output.push("Dimensions: Same".to_string());
+    }
+
+    // Region geometry changes
+    if !diff.region_changes.is_empty() {
+        output.push(String::new());
+        output.push("Region changes:".to_string());
+        for change in &diff.region_changes {
+            match change {
+                RegionChange::Added { token } => {
+                    output.push(format!("  + {} (new region)", token));
+                }
+                RegionChange::Removed { token } => {
+                    output.push(format!("  - {} (region gone)", token));
+                }
+                RegionChange::Shifted { token, dx, dy } => {
+                    output.push(format!("  → {} shifted ({}, {})", token, dx, dy));
+                }
+                RegionChange::Changed { token, differing } => {
+                    output.push(format!("  ~ {} shape changed ({} pixel(s) differ)", token, differing));
+                }
+            }
+        }
     }
 
     // Palette changes
@@ -335,6 +489,67 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sprite_with_regions(name: &str, json_regions: &str) -> Sprite {
+        let json = format!(
+            r##"{{"type": "sprite", "name": "{}", "size": [16, 16],
+                 "palette": {{"_": "transparent", "a": "#FF0000", "b": "#00FF00"}},
+                 "regions": {} }}"##,
+            name, json_regions
+        );
+        json5::from_str::<Sprite>(&json).expect("test sprite parses")
+    }
+
+    #[test]
+    fn test_region_shift_detected() {
+        // The walk-cycle bob: same shape, one region moved up a pixel.
+        let a = sprite_with_regions("s", r#"{"a": {"rect": [4, 4, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#);
+        let b = sprite_with_regions("s", r#"{"a": {"rect": [4, 3, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#);
+        let palette = HashMap::new();
+        let diff = diff_sprites(&a, &b, &palette, &palette);
+        assert_eq!(
+            diff.region_changes,
+            vec![RegionChange::Shifted { token: "a".to_string(), dx: 0, dy: -1 }]
+        );
+        assert!(!diff.is_empty(), "a shifted region is a difference");
+    }
+
+    #[test]
+    fn test_region_shape_change_detected() {
+        let a = sprite_with_regions("s", r#"{"a": {"rect": [4, 4, 3, 3]}}"#);
+        let b = sprite_with_regions("s", r#"{"a": {"rect": [4, 4, 3, 2]}}"#);
+        let palette = HashMap::new();
+        let diff = diff_sprites(&a, &b, &palette, &palette);
+        assert_eq!(
+            diff.region_changes,
+            vec![RegionChange::Changed { token: "a".to_string(), differing: 3 }]
+        );
+    }
+
+    #[test]
+    fn test_region_added_and_removed_detected() {
+        let a = sprite_with_regions("s", r#"{"a": {"rect": [4, 4, 3, 3]}}"#);
+        let b = sprite_with_regions("s", r#"{"b": {"rect": [4, 4, 3, 3]}}"#);
+        let palette = HashMap::new();
+        let diff = diff_sprites(&a, &b, &palette, &palette);
+        assert!(diff.region_changes.contains(&RegionChange::Added { token: "b".to_string() }));
+        assert!(diff.region_changes.contains(&RegionChange::Removed { token: "a".to_string() }));
+    }
+
+    #[test]
+    fn test_presence_diff_never_says_no_differences() {
+        let diff = SpriteDiff {
+            dimension_change: None,
+            palette_changes: Vec::new(),
+            region_changes: Vec::new(),
+            presence_change: Some("Sprite 'x' removed in second file".to_string()),
+            summary: "Sprite 'x' removed in second file".to_string(),
+        };
+        assert!(!diff.is_empty());
+        let text = format_diff("x", &diff, "a.pxl", "b.pxl");
+        assert!(text.contains("removed in second file"), "got: {}", text);
+        assert!(!text.contains("No differences"), "got: {}", text);
+    }
 
     fn make_sprite(name: &str, palette: HashMap<String, String>, grid: Vec<&str>) -> Sprite {
         // Compute dimensions from grid (for backwards compatibility in tests)
