@@ -35,6 +35,7 @@
 - [Animation](format/animation.md)
 - [Variant](format/variant.md)
 - [Composition](format/composition.md)
+- [Particle Systems](format/particle.md)
 - [Transforms](format/transforms.md)
 - [Includes](format/includes.md)
 
