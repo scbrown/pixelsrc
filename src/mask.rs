@@ -293,7 +293,7 @@ impl TokenGrid {
         let mut warnings: Vec<Warning> = Vec::new();
 
         for (token, region) in regions {
-            if region.fill.is_some() || region.auto_shadow.is_some() {
+            if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
                 pending.push((token.clone(), region));
             } else {
                 let pixels = rasterize_region(
