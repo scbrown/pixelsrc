@@ -314,6 +314,35 @@ Inspect the resolved result of an extending sprite the same way as any sprite �
 `pxl mask <file> --sprite fire_b` shows the merged token grid, and
 `pxl render --sprite fire_b` renders the inherited + overridden regions together.
 
+## Group Translation (`translate`)
+
+Many animation cycles — a walk bob, a shiver, a float — are *only* a small
+offset of a base frame. `translate` shifts a named set of regions by one offset,
+so the whole move is a single line instead of re-deriving every member region's
+coordinates (and risking a frame-tear when one is off by a pixel).
+
+```json5
+// Passing frame of a walk cycle: inherit the contact frame, bob the upper
+// body up one pixel. The legs stay planted.
+{
+  type: "sprite",
+  name: "walk_pass",
+  extends: "walk_contact",
+  translate: { by: [0, -1], regions: ["torso", "head", "arm_l", "arm_r"] },
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `by` | Offset `[dx, dy]` in pixels (negative `dy` moves up) |
+| `regions` | Region keys to shift. **Omit to shift every region** in the sprite. |
+
+`translate` is applied after `extends` inheritance and region merging, and
+composes with it: a frame can inherit a base, override a region, *and* shift a
+group, all at once. It expands into a per-region `translate` offset (a region
+may also carry its own `translate` to shift just itself); the two compose
+additively.
+
 ## Complete Example
 
 ```json5

@@ -942,6 +942,17 @@ impl Validator {
         if let (Some(regions), Some([w, h])) = (&sprite.regions, sprite.size) {
             let width = w as i32;
             let height = h as i32;
+            // Honor a sprite-level group `translate` so off-canvas warnings
+            // reflect what the renderer draws.
+            let translated_owned;
+            let regions = if let Some(group) = &sprite.translate {
+                let mut cloned = regions.clone();
+                crate::models::apply_group_translate(&mut cloned, group);
+                translated_owned = cloned;
+                &translated_owned
+            } else {
+                regions
+            };
             if width > 0 && height > 0 {
                 let mut raster_warnings = Vec::new();
                 let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();

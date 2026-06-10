@@ -1598,6 +1598,57 @@ mod tests {
     }
 
     #[test]
+    fn test_group_translate_shifts_named_regions() {
+        use crate::models::GroupTranslate;
+        // walk_pass inherits walk_contact and bobs only `flame`-like `ring`
+        // up by one pixel via a sprite-level group translate.
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(extends_base());
+        sprite_registry.register_sprite(Sprite {
+            name: "bobbed".to_string(),
+            extends: Some("frame_a".to_string()),
+            translate: Some(GroupTranslate {
+                by: [0, -1],
+                regions: Some(vec!["flame".to_string()]),
+            }),
+            ..Default::default()
+        });
+
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("bobbed", &palette_registry, true).unwrap();
+        let regions = r.regions.unwrap();
+        // The targeted region carries the offset; the untargeted one does not.
+        assert_eq!(regions.get("flame").unwrap().translate, Some([0, -1]));
+        assert_eq!(regions.get("ring").unwrap().translate, None);
+    }
+
+    #[test]
+    fn test_group_translate_all_regions_when_unspecified() {
+        use crate::models::GroupTranslate;
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(Sprite {
+            name: "shift_all".to_string(),
+            size: Some([8, 8]),
+            palette: PaletteRef::Inline(HashMap::from([
+                ("a".to_string(), "#FFF".to_string()),
+                ("b".to_string(), "#000".to_string()),
+            ])),
+            regions: Some(HashMap::from([
+                ("a".to_string(), RegionDef { rect: Some([0, 0, 2, 2]), ..Default::default() }),
+                ("b".to_string(), RegionDef { rect: Some([4, 4, 2, 2]), ..Default::default() }),
+            ])),
+            translate: Some(GroupTranslate { by: [1, 1], regions: None }),
+            ..Default::default()
+        });
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("shift_all", &palette_registry, true).unwrap();
+        let regions = r.regions.unwrap();
+        // No `regions` list → every region shifts.
+        assert_eq!(regions.get("a").unwrap().translate, Some([1, 1]));
+        assert_eq!(regions.get("b").unwrap().translate, Some([1, 1]));
+    }
+
+    #[test]
     fn test_extends_chain_two_levels() {
         // a -> b (override flame) -> c (override ring). c sees both overrides.
         let mut sprite_registry = SpriteRegistry::new();

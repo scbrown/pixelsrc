@@ -69,7 +69,7 @@ impl MaskPipeline {
     /// sprite unchanged when it inherits nothing.
     pub fn resolved_sprite(&self) -> Option<Sprite> {
         let target = self.sprite()?;
-        if target.extends.is_none() && target.source.is_none() {
+        if target.extends.is_none() && target.source.is_none() && target.translate.is_none() {
             return Some(target.clone());
         }
         let by_name: HashMap<&str, &Sprite> = self
@@ -80,7 +80,12 @@ impl MaskPipeline {
                 _ => None,
             })
             .collect();
-        let (regions, size) = resolve_inherited(target, &by_name, &mut Vec::new());
+        let (mut regions, size) = resolve_inherited(target, &by_name, &mut Vec::new());
+        if let Some(group) = &target.translate {
+            if let Some(r) = regions.as_mut() {
+                crate::models::apply_group_translate(r, group);
+            }
+        }
         let mut resolved = target.clone();
         resolved.regions = regions;
         resolved.size = target.size.or(size);
@@ -481,6 +486,20 @@ mod tests {
         // Overridden flame at its new position; old column cleared.
         assert_eq!(grid.grid[0][4], "flame");
         assert_eq!(grid.grid[1][3], "_");
+    }
+
+    const TRANSLATE_SPRITE: &str = r##"{"type": "sprite", "name": "bob", "size": [8, 8], "palette": {"a": "#FFF"}, "regions": {"a": {"rect": [2, 2, 2, 2], "z": 0}}, "translate": {"by": [0, -1], "regions": ["a"]}}"##;
+
+    #[test]
+    fn test_mask_resolves_group_translate() {
+        // A sprite-level group `translate` shifts the region up one row; the
+        // token grid must reflect the shift.
+        let pipeline = MaskPipeline::load_from_string(TRANSLATE_SPRITE, Some("bob")).unwrap();
+        let sprite = pipeline.resolved_sprite().unwrap();
+        let grid = TokenGrid::from_sprite(&sprite).unwrap();
+        // Rect was at rows 2-3; after [0,-1] it sits at rows 1-2.
+        assert_eq!(grid.grid[1][2], "a");
+        assert_eq!(grid.grid[3][2], "_");
     }
 
     #[test]
