@@ -213,18 +213,38 @@ pub fn run_show(
         }
     };
 
-    // Grid-based terminal rendering is deprecated
-    // Use render command to generate PNG output instead
-    eprintln!("Error: Terminal view requires grid format, which is deprecated.");
-    eprintln!(
-        "Use 'pxl render' to generate PNG output, or use sprites with structured regions format."
-    );
+    // Render the structured sprite to an ANSI half-block color preview. This
+    // resolves `source`/`extends`/`translate` through the sprite registry so
+    // the preview matches what `pxl render` would produce — a visual check that
+    // complements `pxl mask`'s text token grid.
+    let mut sprite_registry = crate::registry::SpriteRegistry::new();
+    for s in sprites_by_name.values() {
+        sprite_registry.register_sprite(s.clone());
+    }
 
-    // Show basic sprite info
-    let (width, height) =
-        if let Some(size) = sprite.size { (size[0] as usize, size[1] as usize) } else { (0, 0) };
+    let resolved = match sprite_registry.resolve(&sprite.name, &registry, false) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: sprite '{}': {}", sprite.name, e);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+    for w in &resolved.warnings {
+        eprintln!("Warning: sprite '{}': {}", sprite.name, w.message);
+    }
+
+    if resolved.regions.as_ref().is_none_or(|r| r.is_empty()) {
+        eprintln!("Error: sprite '{}' has no regions to display", sprite.name);
+        return ExitCode::from(EXIT_ERROR);
+    }
+
+    let (image, _warnings) = crate::renderer::render_resolved(&resolved);
+
+    let (width, height) = if let Some(size) = resolved.size { (size[0], size[1]) } else { (0, 0) };
     println!("Sprite: {} ({}x{})", sprite.name, width, height);
-    println!("Has regions: {}", sprite.regions.is_some());
+    println!();
+    use crate::terminal::render_image_ansi;
+    print!("{}", render_image_ansi(&image));
 
-    ExitCode::from(EXIT_ERROR)
+    ExitCode::from(EXIT_SUCCESS)
 }
