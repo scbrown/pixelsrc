@@ -397,9 +397,11 @@ pub fn run_render(
                 resolved.palette
             };
 
-            // Get regions from resolved source if sprite has a source reference
-            // This is critical for derived sprites that reference a regions-based source
-            let resolved_regions = if sprite.source.is_some() {
+            // Get regions from the resolved sprite when it inherits from another
+            // (via `source` wholesale-copy or `extends` region-merge); the
+            // palette was already extracted above.
+            let inherits = sprite.source.is_some() || sprite.extends.is_some();
+            let resolved_regions = if inherits {
                 // Need to re-resolve to get the regions (palette was already extracted above)
                 match sprite_registry.resolve(&sprite.name, registry, false) {
                     Ok(r) => r.regions,
@@ -413,8 +415,8 @@ pub fn run_render(
             let render_sprite_data = crate::registry::ResolvedSprite {
                 name: sprite.name.clone(),
                 size: sprite.size.or_else(|| {
-                    // For derived sprites, get size from resolved source
-                    if sprite.source.is_some() {
+                    // For inheriting sprites, get size from the resolved base
+                    if inherits {
                         sprite_registry
                             .resolve(&sprite.name, registry, false)
                             .ok()

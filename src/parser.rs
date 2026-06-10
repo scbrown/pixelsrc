@@ -455,6 +455,9 @@ mod tests {
             "invalid_color.jsonl",
             "validate_errors.jsonl",
             "validate_typo.jsonl",
+            // An omitted `palette` now parses (it is legal on `extends` sprites);
+            // a non-extending sprite without one is caught by the validator.
+            "missing_palette.jsonl",
         ];
 
         for entry in fs::read_dir(fixtures_dir).unwrap() {

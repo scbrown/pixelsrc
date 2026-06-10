@@ -21,6 +21,9 @@ pub enum SpriteError {
     /// Sprite references a source sprite that doesn't exist
     #[error("Sprite '{sprite}' references unknown source sprite '{source_name}'")]
     SourceNotFound { sprite: String, source_name: String },
+    /// Sprite extends a base sprite that doesn't exist
+    #[error("Sprite '{sprite}' extends unknown base sprite '{base}'")]
+    ExtendsNotFound { sprite: String, base: String },
     /// Circular reference detected during source resolution
     #[error("Circular reference detected for sprite '{sprite}': {}", chain.join(" -> "))]
     CircularReference { sprite: String, chain: Vec<String> },
@@ -47,6 +50,19 @@ impl SpriteWarning {
     pub fn source_not_found(sprite: &str, source: &str) -> Self {
         Self {
             message: format!("Sprite '{}' references unknown source sprite '{}'", sprite, source),
+        }
+    }
+
+    pub fn extends_not_found(sprite: &str, base: &str) -> Self {
+        Self { message: format!("Sprite '{}' extends unknown base sprite '{}'", sprite, base) }
+    }
+
+    pub fn remove_missing(sprite: &str, region: &str) -> Self {
+        Self {
+            message: format!(
+                "Sprite '{}' removes region '{}' that the base sprite does not define",
+                sprite, region
+            ),
         }
     }
 
@@ -201,8 +217,57 @@ impl SpriteRegistry {
         // Mark as visited
         visited.push(sprite.name.clone());
 
-        // Resolve source sprite's regions and size if this sprite references another
-        let (base_regions, base_size) = if let Some(source_name) = &sprite.source {
+        // Resolve inherited regions, size, and palette.
+        //
+        // `extends` merges at the region level (inherit base map, patch by key,
+        // delete via `remove`) and inherits the base palette; `source` copies
+        // the base regions wholesale (region patching is not available there).
+        // The two are mutually exclusive — `extends` wins if both are set.
+        let mut inherited_palette: Option<HashMap<String, String>> = None;
+        let (base_regions, base_size) = if let Some(base_name) = &sprite.extends {
+            match self.sprites.get(base_name) {
+                Some(base_sprite) => {
+                    let base_resolved = self.resolve_sprite_internal(
+                        base_sprite,
+                        palette_registry,
+                        strict,
+                        visited,
+                    )?;
+                    warnings.extend(base_resolved.warnings);
+
+                    // Start from the base's regions, then apply this sprite's patches.
+                    let mut merged = base_resolved.regions.clone().unwrap_or_default();
+                    if let Some(remove_keys) = &sprite.remove {
+                        for key in remove_keys {
+                            if merged.remove(key).is_none() {
+                                warnings.push(SpriteWarning::remove_missing(&sprite.name, key));
+                            }
+                        }
+                    }
+                    if let Some(own) = &sprite.regions {
+                        for (key, def) in own {
+                            // Overriding a key replaces the whole RegionDef, so
+                            // its own z/role determines z-order; a brand-new key
+                            // is simply added at its declared z.
+                            merged.insert(key.clone(), def.clone());
+                        }
+                    }
+                    inherited_palette = Some(base_resolved.palette);
+                    (Some(merged), base_resolved.size)
+                }
+                None => {
+                    if strict {
+                        return Err(SpriteError::ExtendsNotFound {
+                            sprite: sprite.name.clone(),
+                            base: base_name.clone(),
+                        });
+                    } else {
+                        warnings.push(SpriteWarning::extends_not_found(&sprite.name, base_name));
+                        (sprite.regions.clone(), None)
+                    }
+                }
+            }
+        } else if let Some(source_name) = &sprite.source {
             match self.sprites.get(source_name) {
                 Some(source_sprite) => {
                     let source_resolved = self.resolve_sprite_internal(
@@ -230,28 +295,45 @@ impl SpriteRegistry {
             (sprite.regions.clone(), None)
         };
 
-        // Resolve the sprite's palette
-        let palette = match palette_registry.resolve(sprite, strict) {
-            Ok(result) => {
-                if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning { message: warning.message });
+        // Resolve the sprite's own palette. An `extends` sprite may omit its
+        // `palette` entirely (an empty Named ref), inheriting the base's; if it
+        // declares one, those colors override the inherited tokens key-by-key.
+        let palette_omitted =
+            matches!(&sprite.palette, crate::models::PaletteRef::Named(n) if n.is_empty());
+        let own_palette = if inherited_palette.is_some() && palette_omitted {
+            HashMap::new()
+        } else {
+            match palette_registry.resolve(sprite, strict) {
+                Ok(result) => {
+                    if let Some(warning) = result.warning {
+                        warnings.push(SpriteWarning { message: warning.message });
+                    }
+                    result.palette.colors
                 }
-                result.palette.colors
-            }
-            Err(e) => {
-                // In strict mode, this would have returned an error from resolve()
-                // In lenient mode, we got a fallback. Map the error for strict.
-                if strict {
-                    // The resolve() function already handles strict vs lenient
-                    return Err(SpriteError::NotFound(format!("palette error: {}", e)));
+                Err(e) => {
+                    // In strict mode, this would have returned an error from resolve()
+                    // In lenient mode, we got a fallback. Map the error for strict.
+                    if strict {
+                        // The resolve() function already handles strict vs lenient
+                        return Err(SpriteError::NotFound(format!("palette error: {}", e)));
+                    }
+                    HashMap::new()
                 }
-                HashMap::new()
             }
+        };
+
+        let palette = if let Some(mut base_palette) = inherited_palette {
+            for (token, color) in own_palette {
+                base_palette.insert(token, color);
+            }
+            base_palette
+        } else {
+            own_palette
         };
 
         Ok(ResolvedSprite {
             name: sprite.name.clone(),
-            // Use sprite's explicit size, or fall back to source sprite's size
+            // Use sprite's explicit size, or fall back to the inherited size
             size: sprite.size.or(base_size),
             palette,
             warnings,

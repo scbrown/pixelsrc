@@ -243,6 +243,77 @@ See [Transforms](transforms.md#op-style-transforms-derived-sprites) for the full
 
 > **Note:** For animated transforms (in keyframes), use CSS transform strings instead. See [Animation](animation.md).
 
+## Region Inheritance (`extends`)
+
+`extends` builds a sprite from another sprite's regions, then patches them
+key-by-key. It is the right tool for **animation frame-sets**, where most
+regions are identical across frames and only a few change — instead of copying
+every region into every frame (and risking a frame-tear when one copy drifts),
+each frame inherits the shared regions and overrides only what moves.
+
+```json5
+// Base frame: defines the full sprite.
+{
+  type: "sprite",
+  name: "fire_a",
+  size: [16, 32],
+  palette: "fire",
+  regions: {
+    ring:  { rect: [3, 26, 10, 4], z: 0 },   // stone ring — shared by every frame
+    flame: { rect: [7, 14, 2, 12], z: 1 },
+  },
+}
+
+// Next frame: inherits `ring` and the palette; overrides only `flame`.
+{
+  type: "sprite",
+  name: "fire_b",
+  extends: "fire_a",
+  regions: {
+    flame: { rect: [8, 12, 2, 14], z: 1 },
+  },
+}
+```
+
+### Fields
+
+| Field | Description |
+|-------|-------------|
+| `extends` | Name of the base sprite to inherit regions, palette, and size from |
+| `regions` | Region patches: each key **replaces** the inherited region of that name (or **adds** a new one if the key is not inherited) |
+| `remove` | List of inherited region keys to **delete** |
+
+### Semantics
+
+- **Override** — a key in `regions` that the base also defines replaces the
+  whole region definition. Its `z` and `role` come from the override, not the
+  inherited region, so an override is free to change its own z-order. (Other
+  regions keep theirs; nothing else re-stacks.)
+- **Add** — a key not present in the base is simply inserted at its declared `z`.
+- **Remove** — `remove: ["key"]` deletes an inherited region. Removing a key the
+  base doesn't define is a warning, not an error.
+- **Palette** — the base's resolved palette is inherited. You may omit `palette`
+  entirely (it is required on every *non-extending* sprite); if you do declare
+  one, its colors override inherited tokens key-by-key, exactly like a
+  [variant](variant.md).
+- **Size** — inherited from the base unless the extending sprite declares its own.
+- **Chaining** — `extends` may point at another extending sprite; the chain
+  resolves base-first, so the deepest override of a key wins.
+
+### `extends` vs. `source`
+
+Both inherit from another sprite, but they operate at different levels:
+
+| | `source` | `extends` |
+|---|----------|-----------|
+| Inherits | The base sprite's **rendered image** | The base sprite's **region map** |
+| Can change individual regions? | No — only whole-image `transform`s | Yes — override/add/remove by key |
+| Use for | Mirrored / rotated / filtered variants | Animation frames that share most regions |
+
+Inspect the resolved result of an extending sprite the same way as any sprite —
+`pxl mask <file> --sprite fire_b` shows the merged token grid, and
+`pxl render --sprite fire_b` renders the inherited + overridden regions together.
+
 ## Complete Example
 
 ```json5

@@ -94,10 +94,28 @@ pub struct Sprite {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
+    /// The sprite's palette. May be omitted (defaults to an empty Named ref)
+    /// only when `extends` is set, in which case the base sprite's palette is
+    /// inherited; the validator flags an omitted palette on any other sprite.
+    #[serde(default)]
     pub palette: PaletteRef,
     /// Reference to another sprite by name (mutually exclusive with `regions`)
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub source: Option<String>,
+    /// Inherit a base sprite's regions, palette, and size, then override/add
+    /// individual regions via `regions` and delete inherited ones via `remove`.
+    ///
+    /// Unlike `source` (which copies the base wholesale and can only apply
+    /// whole-image `transform`s), `extends` merges at the region level: the
+    /// base's regions are the starting map, `regions` here patch it key-by-key
+    /// (replacing the whole `RegionDef` — including its `z`/`role`), and
+    /// `remove` deletes inherited keys. Built for animation frame-sets where
+    /// most regions are shared and only a few differ per frame.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub extends: Option<String>,
+    /// Inherited region keys to delete (only meaningful with `extends`).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub remove: Option<Vec<String>>,
     /// Structured regions for rendering
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub regions: Option<HashMap<String, RegionDef>>,

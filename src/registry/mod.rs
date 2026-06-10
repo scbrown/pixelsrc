@@ -1479,4 +1479,151 @@ mod tests {
         assert!(stored.colors.contains_key("{hair_1}"));
         assert!(stored.colors.contains_key("{hair+1}"));
     }
+
+    // --- Sprite `extends` (region-level inheritance) ---
+
+    /// A base frame: a stone `ring` and a `flame`, with an inline palette.
+    fn extends_base() -> Sprite {
+        Sprite {
+            name: "frame_a".to_string(),
+            size: Some([8, 8]),
+            palette: PaletteRef::Inline(HashMap::from([
+                ("_".to_string(), "#00000000".to_string()),
+                ("ring".to_string(), "#888888".to_string()),
+                ("flame".to_string(), "#E25822".to_string()),
+            ])),
+            regions: Some(HashMap::from([
+                ("ring".to_string(), RegionDef { rect: Some([1, 5, 6, 2]), z: Some(0), ..Default::default() }),
+                ("flame".to_string(), RegionDef { rect: Some([3, 1, 2, 4]), z: Some(1), ..Default::default() }),
+            ])),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_extends_inherits_regions_and_palette() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(extends_base());
+        // frame_b overrides only `flame`, omits its palette (inherits the base's).
+        sprite_registry.register_sprite(Sprite {
+            name: "frame_b".to_string(),
+            extends: Some("frame_a".to_string()),
+            regions: Some(HashMap::from([(
+                "flame".to_string(),
+                RegionDef { rect: Some([4, 0, 2, 5]), z: Some(1), ..Default::default() },
+            )])),
+            ..Default::default()
+        });
+
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("frame_b", &palette_registry, true).unwrap();
+
+        // Size inherited from base.
+        assert_eq!(r.size, Some([8, 8]));
+        // Palette inherited wholesale.
+        assert_eq!(r.palette.get("ring"), Some(&"#888888".to_string()));
+        assert_eq!(r.palette.get("flame"), Some(&"#E25822".to_string()));
+
+        let regions = r.regions.unwrap();
+        // `ring` inherited unchanged.
+        assert_eq!(regions.get("ring").unwrap().rect, Some([1, 5, 6, 2]));
+        // `flame` replaced by the override.
+        assert_eq!(regions.get("flame").unwrap().rect, Some([4, 0, 2, 5]));
+        assert!(r.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_extends_remove_and_add() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(extends_base());
+        // Drop `flame`, add a new `spark` region.
+        sprite_registry.register_sprite(Sprite {
+            name: "frame_dim".to_string(),
+            extends: Some("frame_a".to_string()),
+            remove: Some(vec!["flame".to_string()]),
+            regions: Some(HashMap::from([(
+                "spark".to_string(),
+                RegionDef { points: Some(vec![[2, 2]]), z: Some(2), ..Default::default() },
+            )])),
+            palette: PaletteRef::Inline(HashMap::from([(
+                "spark".to_string(),
+                "#FFD700".to_string(),
+            )])),
+            ..Default::default()
+        });
+
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("frame_dim", &palette_registry, true).unwrap();
+        let regions = r.regions.unwrap();
+        assert!(regions.contains_key("ring"));
+        assert!(!regions.contains_key("flame")); // removed
+        assert!(regions.contains_key("spark")); // added
+        // Own palette token merged over the inherited base.
+        assert_eq!(r.palette.get("spark"), Some(&"#FFD700".to_string()));
+        assert_eq!(r.palette.get("ring"), Some(&"#888888".to_string()));
+    }
+
+    #[test]
+    fn test_extends_unknown_base_strict() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(Sprite {
+            name: "orphan".to_string(),
+            extends: Some("ghost".to_string()),
+            ..Default::default()
+        });
+        let palette_registry = PaletteRegistry::new();
+        let result = sprite_registry.resolve("orphan", &palette_registry, true);
+        match result.unwrap_err() {
+            SpriteError::ExtendsNotFound { sprite, base } => {
+                assert_eq!(sprite, "orphan");
+                assert_eq!(base, "ghost");
+            }
+            e => panic!("Expected ExtendsNotFound, got {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_extends_remove_missing_warns_lenient() {
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(extends_base());
+        sprite_registry.register_sprite(Sprite {
+            name: "frame_c".to_string(),
+            extends: Some("frame_a".to_string()),
+            remove: Some(vec!["nonexistent".to_string()]),
+            ..Default::default()
+        });
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("frame_c", &palette_registry, false).unwrap();
+        assert!(r.warnings.iter().any(|w| w.message.contains("nonexistent")));
+    }
+
+    #[test]
+    fn test_extends_chain_two_levels() {
+        // a -> b (override flame) -> c (override ring). c sees both overrides.
+        let mut sprite_registry = SpriteRegistry::new();
+        sprite_registry.register_sprite(extends_base());
+        sprite_registry.register_sprite(Sprite {
+            name: "b".to_string(),
+            extends: Some("frame_a".to_string()),
+            regions: Some(HashMap::from([(
+                "flame".to_string(),
+                RegionDef { rect: Some([4, 0, 2, 5]), z: Some(1), ..Default::default() },
+            )])),
+            ..Default::default()
+        });
+        sprite_registry.register_sprite(Sprite {
+            name: "c".to_string(),
+            extends: Some("b".to_string()),
+            regions: Some(HashMap::from([(
+                "ring".to_string(),
+                RegionDef { rect: Some([0, 6, 8, 1]), z: Some(0), ..Default::default() },
+            )])),
+            ..Default::default()
+        });
+        let palette_registry = PaletteRegistry::new();
+        let r = sprite_registry.resolve("c", &palette_registry, true).unwrap();
+        let regions = r.regions.unwrap();
+        assert_eq!(regions.get("flame").unwrap().rect, Some([4, 0, 2, 5])); // from b
+        assert_eq!(regions.get("ring").unwrap().rect, Some([0, 6, 8, 1])); // from c
+    }
 }
