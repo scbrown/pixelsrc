@@ -85,6 +85,14 @@ pub enum IssueType {
     UnusedImport,
     /// Import alias or imported name shadows a locally defined name
     ShadowedImport,
+    /// The same region key appears twice in one sprite (earlier one is lost)
+    DuplicateRegionKey,
+    /// A region resolves to zero pixels
+    EmptyRegion,
+    /// A region has pixels outside the sprite canvas (silently clipped at render)
+    OutOfCanvas,
+    /// A palette token is never used by any region of the sprites that use the palette
+    UnusedToken,
 }
 
 impl std::fmt::Display for IssueType {
@@ -110,8 +118,129 @@ impl std::fmt::Display for IssueType {
             IssueType::UnresolvedImport => write!(f, "unresolved_import"),
             IssueType::UnusedImport => write!(f, "unused_import"),
             IssueType::ShadowedImport => write!(f, "shadowed_import"),
+            IssueType::DuplicateRegionKey => write!(f, "duplicate_region_key"),
+            IssueType::EmptyRegion => write!(f, "empty_region"),
+            IssueType::OutOfCanvas => write!(f, "out_of_canvas"),
+            IssueType::UnusedToken => write!(f, "unused_token"),
         }
     }
+}
+
+/// Scan the raw JSON5 text of a sprite object for duplicate keys inside its
+/// top-level `regions` object. Deserialization keeps only the last value for
+/// a repeated key, so this is unrecoverable downstream — it must be caught
+/// on the raw text. String-, escape- and comment-aware; nested objects
+/// (region definitions) are skipped by depth tracking.
+fn duplicate_region_keys(content: &str) -> Vec<String> {
+    #[derive(PartialEq)]
+    enum Mode {
+        Seeking,    // looking for the `regions` key at sprite depth
+        InRegions,  // collecting keys at regions depth
+        Done,
+    }
+
+    let mut mode = Mode::Seeking;
+    let mut depth: i32 = 0;
+    let mut regions_depth: i32 = 0;
+    let mut in_string = false;
+    let mut string_quote = '"';
+    let mut escaped = false;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+    let mut prev: Option<char> = None;
+    let mut token = String::new(); // last bare-word or string literal seen
+    let mut expecting_key = false;
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut duplicates: Vec<String> = Vec::new();
+
+    for ch in content.chars() {
+        if in_line_comment {
+            if ch == '\n' {
+                in_line_comment = false;
+            }
+            prev = Some(ch);
+            continue;
+        }
+        if in_block_comment {
+            if prev == Some('*') && ch == '/' {
+                in_block_comment = false;
+            }
+            prev = Some(ch);
+            continue;
+        }
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == string_quote {
+                in_string = false;
+            } else {
+                token.push(ch);
+            }
+            prev = Some(ch);
+            continue;
+        }
+        match ch {
+            '/' if prev == Some('/') => {
+                in_line_comment = true;
+                token.clear();
+            }
+            '*' if prev == Some('/') => in_block_comment = true,
+            '"' | '\'' => {
+                in_string = true;
+                string_quote = ch;
+                token.clear();
+            }
+            '{' => {
+                depth += 1;
+                if mode == Mode::InRegions && depth == regions_depth {
+                    expecting_key = true;
+                }
+                token.clear();
+            }
+            '}' => {
+                depth -= 1;
+                if mode == Mode::InRegions && depth < regions_depth {
+                    mode = Mode::Done; // the regions object itself closed
+                }
+                token.clear();
+            }
+            ':' => {
+                match mode {
+                    Mode::Seeking if token == "regions" && depth == 1 => {
+                        mode = Mode::InRegions;
+                        regions_depth = depth + 1; // keys live one level in
+                    }
+                    Mode::InRegions if expecting_key && depth == regions_depth && !token.is_empty() => {
+                        let count = seen.entry(token.clone()).or_insert(0);
+                        *count += 1;
+                        if *count == 2 {
+                            duplicates.push(token.clone());
+                        }
+                        expecting_key = false;
+                    }
+                    _ => {}
+                }
+                token.clear();
+            }
+            ',' => {
+                if mode == Mode::InRegions && depth == regions_depth {
+                    expecting_key = true;
+                }
+                token.clear();
+            }
+            c if c.is_alphanumeric() || c == '_' || c == '-' || c == '$' => token.push(c),
+            c if c.is_whitespace() => {}
+            _ => token.clear(),
+        }
+        prev = Some(ch);
+        if matches!(mode, Mode::Done) {
+            break;
+        }
+    }
+
+    duplicates
 }
 
 /// A validation issue found in the input
@@ -204,6 +333,10 @@ pub struct Validator {
     local_names: HashSet<String>,
     /// Names imported via import declarations (import alias → items)
     imported_names: HashSet<String>,
+    /// Line where each local palette was declared (for unused-token reporting)
+    palette_lines: HashMap<String, usize>,
+    /// Tokens actually referenced by sprites, per named palette
+    used_palette_tokens: HashMap<String, HashSet<String>>,
 }
 
 impl Default for Validator {
@@ -231,6 +364,8 @@ impl Validator {
             tracked_imports: Vec::new(),
             local_names: HashSet::new(),
             imported_names: HashSet::new(),
+            palette_lines: HashMap::new(),
+            used_palette_tokens: HashMap::new(),
         }
     }
 
@@ -335,6 +470,24 @@ impl Validator {
                 self.validate_palette(line_number, &palette);
             }
             TtpObject::Sprite(sprite) => {
+                // Duplicate region keys are unrecoverable after JSON5
+                // deserialization (last key silently wins), so scan the raw
+                // text — losing a region to a duplicate key is the most
+                // common silent data-loss in practice.
+                for dup in duplicate_region_keys(content) {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::DuplicateRegionKey,
+                            format!(
+                                "Region key {:?} appears more than once — earlier definitions are silently discarded",
+                                dup
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", sprite.name))
+                        .with_suggestion("give each visual component a unique token (e.g. wing, wing_hi)".to_string()),
+                    );
+                }
                 self.validate_sprite(line_number, &sprite);
             }
             TtpObject::Animation(animation) => {
@@ -480,6 +633,7 @@ impl Validator {
         let colors = &palette.colors;
         // Track as a local name
         self.local_names.insert(name.to_string());
+        self.palette_lines.insert(name.to_string(), line_number);
         // Check for duplicate name
         if !self.palette_names.insert(name.to_string()) {
             self.issues.push(
@@ -710,6 +864,155 @@ impl Validator {
                     self.issues.push(issue);
                 }
             }
+        }
+
+        // Record token usage for end-of-file unused-token reporting (named
+        // palettes are shared between sprites, so per-sprite reporting would
+        // be noisy); inline palettes are self-contained — check immediately.
+        match &sprite.palette {
+            PaletteRef::Named(palette_name) => {
+                let used = self.used_palette_tokens.entry(palette_name.clone()).or_default();
+                for token in &all_tokens_used {
+                    used.insert(token.clone());
+                }
+            }
+            PaletteRef::Inline(colors) => {
+                let mut unused: Vec<&String> = colors
+                    .keys()
+                    .filter(|t| *t != "_" && !all_tokens_used.contains(*t))
+                    .collect();
+                unused.sort();
+                if !unused.is_empty() {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::UnusedToken,
+                            format!(
+                                "Palette tokens never used by any region: {} — often the mirror-image of a misspelled region key",
+                                unused.iter().map(|t| t.as_str()).collect::<Vec<_>>().join(", ")
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", name)),
+                    );
+                }
+            }
+        }
+
+        // Rasterize the regions the way the renderer will (same two-pass
+        // order for fill/auto-shadow references) and warn on what the
+        // renderer would silently swallow: zero-pixel regions and pixels
+        // clipped outside the canvas.
+        if let (Some(regions), Some([w, h])) = (&sprite.regions, sprite.size) {
+            let width = w as i32;
+            let height = h as i32;
+            if width > 0 && height > 0 {
+                let mut raster_warnings = Vec::new();
+                let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+                let mut pending: Vec<(&String, &crate::models::RegionDef)> = Vec::new();
+                for (token, region) in regions {
+                    if region.fill.is_some() || region.auto_shadow.is_some() {
+                        pending.push((token, region));
+                    } else {
+                        let pixels = crate::structured::rasterize_region(
+                            region,
+                            &rasterized,
+                            width,
+                            height,
+                            &mut raster_warnings,
+                        );
+                        rasterized.insert(token.clone(), pixels);
+                    }
+                }
+                for (token, region) in pending {
+                    let pixels = crate::structured::rasterize_region(
+                        region,
+                        &rasterized,
+                        width,
+                        height,
+                        &mut raster_warnings,
+                    );
+                    rasterized.insert(token.clone(), pixels);
+                }
+
+                let mut tokens: Vec<&String> = rasterized.keys().collect();
+                tokens.sort();
+                for token in tokens {
+                    let pixels = &rasterized[token];
+                    if pixels.is_empty() {
+                        let mut issue = ValidationIssue::warning(
+                            line_number,
+                            IssueType::EmptyRegion,
+                            format!("Region {} resolves to zero pixels", token),
+                        )
+                        .with_context(format!("sprite \"{}\"", name));
+                        if regions.get(token).is_some_and(|r| r.auto_outline.is_some()) {
+                            issue = issue.with_suggestion(
+                                "auto-outline does not render; author the outline as a silhouette region".to_string(),
+                            );
+                        }
+                        self.issues.push(issue);
+                    } else {
+                        let mut oob: Vec<&(i32, i32)> = pixels
+                            .iter()
+                            .filter(|(x, y)| *x < 0 || *y < 0 || *x >= width || *y >= height)
+                            .collect();
+                        if !oob.is_empty() {
+                            oob.sort();
+                            self.issues.push(
+                                ValidationIssue::warning(
+                                    line_number,
+                                    IssueType::OutOfCanvas,
+                                    format!(
+                                        "Region {} has {} pixel(s) outside the {}x{} canvas (e.g. ({}, {})) — they are silently clipped at render",
+                                        token,
+                                        oob.len(),
+                                        width,
+                                        height,
+                                        oob[0].0,
+                                        oob[0].1
+                                    ),
+                                )
+                                .with_context(format!("sprite \"{}\"", name)),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Report palette tokens that no sprite in the file ever used. Called at
+    /// the end of a file pass; only palettes referenced by at least one
+    /// local sprite are checked, so palette-only library files stay quiet.
+    pub fn report_unused_palette_tokens(&mut self) {
+        let mut reports: Vec<(usize, String, Vec<String>)> = Vec::new();
+        for (palette_name, used) in &self.used_palette_tokens {
+            if let Some(defined) = self.palettes.get(palette_name) {
+                let mut unused: Vec<String> = defined
+                    .iter()
+                    .filter(|t| *t != "_" && !used.contains(*t))
+                    .cloned()
+                    .collect();
+                unused.sort();
+                if !unused.is_empty() {
+                    let line = self.palette_lines.get(palette_name).copied().unwrap_or(0);
+                    reports.push((line, palette_name.clone(), unused));
+                }
+            }
+        }
+        reports.sort();
+        for (line, palette_name, unused) in reports {
+            self.issues.push(
+                ValidationIssue::warning(
+                    line,
+                    IssueType::UnusedToken,
+                    format!(
+                        "Palette tokens never used by any region: {} — often the mirror-image of a misspelled region key",
+                        unused.join(", ")
+                    ),
+                )
+                .with_context(format!("palette \"{}\"", palette_name)),
+            );
         }
     }
 
@@ -1113,6 +1416,8 @@ impl Validator {
         if !accumulator.trim().is_empty() {
             self.validate_line(start_line, &accumulator);
         }
+
+        self.report_unused_palette_tokens();
 
         Ok(())
     }
@@ -1678,6 +1983,122 @@ mod tests {
         let unused: Vec<_> = validator.tracked_imports.iter().filter(|t| !t.used).collect();
         assert_eq!(unused.len(), 1, "Expected 1 unused import");
         assert_eq!(unused[0].import.from, "./palettes");
+    }
+
+    #[test]
+    fn test_duplicate_region_key_detected() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "dup", "size": [16, 16], "palette": {"_": "transparent", "b": "#FF0000"},
+                "regions": { b: { rect: [0, 0, 4, 4] }, b: { rect: [10, 10, 4, 4] } }}"##,
+        );
+        assert!(
+            validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
+            "duplicate region key must be reported: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_duplicate_region_keys_nested_objects_not_confused() {
+        let mut validator = Validator::new();
+        // Same key names inside DIFFERENT region values (e.g. union members)
+        // and in non-region nested objects must not count as duplicates.
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "ok", "size": [16, 16], "palette": {"_": "transparent", "a": "#FF0000", "b": "#00FF00"},
+                "regions": {"a": {"union": [{"rect": [0, 0, 2, 2]}, {"rect": [4, 4, 2, 2]}]}, "b": {"points": [[1, 1]]}}}"##,
+        );
+        assert!(
+            !validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
+            "no duplicates here: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_out_of_canvas_pixels_warned() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "oob", "size": [16, 16], "palette": {"_": "transparent", "c": "#FF0000"},
+                "regions": {"c": {"points": [[30, 30], [2, 2]]}}}"##,
+        );
+        assert!(
+            validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::OutOfCanvas)),
+            "out-of-canvas pixel must be reported: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_empty_region_warned() {
+        let mut validator = Validator::new();
+        // auto-outline renders nothing — the canonical zero-pixel region.
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "hollow", "size": [16, 16], "palette": {"_": "transparent", "b": "#FF0000", "d": "#000000"},
+                "regions": {"b": {"rect": [5, 5, 6, 6]}, "d": {"auto-outline": "b"}}}"##,
+        );
+        assert!(
+            validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::EmptyRegion)),
+            "zero-pixel region must be reported: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_unused_inline_palette_token_warned() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "s", "size": [4, 4], "palette": {"_": "transparent", "a": "#FF0000", "ghost": "#00FF00"},
+                "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
+        );
+        assert!(
+            validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::UnusedToken)),
+            "unused inline palette token must be reported: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_unused_named_palette_token_reported_at_file_end() {
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "p", "colors": {"_": "transparent", "a": "#FF0000", "ghost": "#00FF00"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r##"{"type": "sprite", "name": "s", "size": [4, 4], "palette": "p", "regions": {"a": {"rect": [0, 0, 4, 4]}}}"##,
+        );
+        validator.report_unused_palette_tokens();
+        let unused: Vec<_> = validator
+            .issues()
+            .iter()
+            .filter(|i| matches!(i.issue_type, IssueType::UnusedToken))
+            .collect();
+        assert_eq!(unused.len(), 1, "exactly the ghost token: {:?}", validator.issues());
+        assert!(unused[0].message.contains("ghost"));
+    }
+
+    #[test]
+    fn test_palette_only_file_stays_quiet() {
+        let mut validator = Validator::new();
+        // A palette library file: no local sprites use it — unused-token
+        // reporting must not fire (sprites in other files may use it).
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "lib", "colors": {"_": "transparent", "a": "#FF0000"}}"##,
+        );
+        validator.report_unused_palette_tokens();
+        assert!(
+            !validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::UnusedToken)),
+            "palette-only files must stay quiet: {:?}",
+            validator.issues()
+        );
     }
 
     #[test]
