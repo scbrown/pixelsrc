@@ -337,6 +337,14 @@ pub struct Validator {
     palette_lines: HashMap<String, usize>,
     /// Tokens actually referenced by sprites, per named palette
     used_palette_tokens: HashMap<String, HashSet<String>>,
+    /// Each sprite's (own named palette, `extends` target) for resolving the
+    /// effective palette of a sprite that omits its palette via `extends`.
+    sprite_palette_chain: HashMap<String, (Option<String>, Option<String>)>,
+    /// Token usage from sprites that omit their palette (inheriting via
+    /// `extends`); resolved to the inherited palette at end-of-file so its
+    /// tokens are not falsely flagged unused. Each entry is (extends-target,
+    /// tokens used).
+    deferred_token_usage: Vec<(String, HashSet<String>)>,
 }
 
 impl Default for Validator {
@@ -366,6 +374,8 @@ impl Validator {
             imported_names: HashSet::new(),
             palette_lines: HashMap::new(),
             used_palette_tokens: HashMap::new(),
+            sprite_palette_chain: HashMap::new(),
+            deferred_token_usage: Vec::new(),
         }
     }
 
@@ -903,10 +913,27 @@ impl Validator {
             }
         }
 
+        // Remember this sprite's (own named palette, extends target) so an
+        // extending sprite that omits its palette can be resolved to the
+        // inherited palette at end-of-file.
+        let own_named_palette = match &sprite.palette {
+            PaletteRef::Named(n) if !n.is_empty() => Some(n.clone()),
+            _ => None,
+        };
+        self.sprite_palette_chain
+            .insert(name.to_string(), (own_named_palette, sprite.extends.clone()));
+
         // Record token usage for end-of-file unused-token reporting (named
         // palettes are shared between sprites, so per-sprite reporting would
         // be noisy); inline palettes are self-contained — check immediately.
         match &sprite.palette {
+            // An extending sprite that omits its palette: defer its token usage
+            // and credit it to the inherited palette once the file is parsed.
+            PaletteRef::Named(palette_name) if palette_name.is_empty() => {
+                if let Some(base) = &sprite.extends {
+                    self.deferred_token_usage.push((base.clone(), all_tokens_used.clone()));
+                }
+            }
             PaletteRef::Named(palette_name) => {
                 let used = self.used_palette_tokens.entry(palette_name.clone()).or_default();
                 for token in &all_tokens_used {
@@ -1033,6 +1060,34 @@ impl Validator {
     /// the end of a file pass; only palettes referenced by at least one
     /// local sprite are checked, so palette-only library files stay quiet.
     pub fn report_unused_palette_tokens(&mut self) {
+        // Credit tokens used by palette-omitting `extends` sprites to the
+        // palette they inherit, walking the extends chain to the first sprite
+        // that declares a named palette. This prevents a token used only by an
+        // extending frame from being reported as unused.
+        let deferred = std::mem::take(&mut self.deferred_token_usage);
+        for (base, tokens) in deferred {
+            let mut cursor = Some(base);
+            let mut hops = 0;
+            while let Some(name) = cursor {
+                hops += 1;
+                if hops > 64 {
+                    break; // guard against a cycle in malformed input
+                }
+                match self.sprite_palette_chain.get(&name) {
+                    Some((Some(palette_name), _)) => {
+                        let used =
+                            self.used_palette_tokens.entry(palette_name.clone()).or_default();
+                        for token in &tokens {
+                            used.insert(token.clone());
+                        }
+                        break;
+                    }
+                    Some((None, Some(next))) => cursor = Some(next.clone()),
+                    _ => break,
+                }
+            }
+        }
+
         let mut reports: Vec<(usize, String, Vec<String>)> = Vec::new();
         for (palette_name, used) in &self.used_palette_tokens {
             if let Some(defined) = self.palettes.get(palette_name) {
@@ -1729,6 +1784,32 @@ mod tests {
             .filter(|i| i.issue_type == IssueType::MissingPalette)
             .collect();
         assert_eq!(missing.len(), 1);
+    }
+
+    #[test]
+    fn test_extends_token_usage_credits_inherited_palette() {
+        // A token used only by a palette-omitting `extends` frame must not be
+        // reported as unused on the inherited named palette.
+        let mut validator = Validator::new();
+        validator.validate_line(
+            1,
+            r##"{"type": "palette", "name": "p", "colors": {"_": "transparent", "ring": "#888888", "spark": "#FFD700"}}"##,
+        );
+        validator.validate_line(
+            2,
+            r##"{"type": "sprite", "name": "base", "size": [8, 8], "palette": "p", "regions": {"ring": {"rect": [1, 5, 6, 2]}}}"##,
+        );
+        // Only this extending frame (which omits its palette) uses `spark`.
+        validator.validate_line(
+            3,
+            r##"{"type": "sprite", "name": "frame", "extends": "base", "regions": {"spark": {"points": [[2, 2]]}}}"##,
+        );
+        validator.report_unused_palette_tokens();
+        assert!(
+            !validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::UnusedToken)),
+            "spark is used by an extending frame; must not be flagged unused: {:?}",
+            validator.issues()
+        );
     }
 
     #[test]
