@@ -274,6 +274,32 @@ pub fn run_diff(file_a: &PathBuf, file_b: &PathBuf, sprite: Option<&str>, json: 
                     });
                 }
 
+                if let Some(ref note) = diff.presence_change {
+                    obj["presence_change"] = serde_json::json!(note);
+                }
+
+                if !diff.region_changes.is_empty() {
+                    let region_changes: Vec<_> = diff
+                        .region_changes
+                        .iter()
+                        .map(|c| match c {
+                            crate::diff::RegionChange::Added { token } => {
+                                serde_json::json!({"type": "added", "token": token})
+                            }
+                            crate::diff::RegionChange::Removed { token } => {
+                                serde_json::json!({"type": "removed", "token": token})
+                            }
+                            crate::diff::RegionChange::Shifted { token, dx, dy } => {
+                                serde_json::json!({"type": "shifted", "token": token, "dx": dx, "dy": dy})
+                            }
+                            crate::diff::RegionChange::Changed { token, differing } => {
+                                serde_json::json!({"type": "changed", "token": token, "differing": differing})
+                            }
+                        })
+                        .collect();
+                    obj["region_changes"] = serde_json::json!(region_changes);
+                }
+
                 if !diff.palette_changes.is_empty() {
                     let palette_changes: Vec<_> = diff
                         .palette_changes
