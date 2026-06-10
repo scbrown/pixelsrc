@@ -48,6 +48,10 @@ pub fn run_render(
     _no_semantic_aa: bool,
     _gradient_shadows: bool,
     no_project: bool,
+    frames: Option<u32>,
+    canvas: Option<&str>,
+    origin: Option<&str>,
+    fps: Option<u32>,
 ) -> ExitCode {
     // Parse nine-slice target size if provided
     let nine_slice_size = if let Some(size_str) = nine_slice_arg {
@@ -167,6 +171,7 @@ pub fn run_render(
     let mut sprites_by_name: HashMap<String, Sprite> = HashMap::new();
     let mut animations_by_name: HashMap<String, Animation> = HashMap::new();
     let mut compositions_by_name: HashMap<String, Composition> = HashMap::new();
+    let mut particles_by_name: HashMap<String, crate::models::Particle> = HashMap::new();
 
     for obj in parse_result.objects {
         match obj {
@@ -220,8 +225,10 @@ pub fn run_render(
                 // Register variant with sprite registry for transform resolution
                 local_sprite_registry.register_variant(variant);
             }
-            TtpObject::Particle(_) => {
-                // Particle systems are runtime constructs, not rendered statically
+            TtpObject::Particle(particle) => {
+                // Particles bake to frames on demand (`--frames`); otherwise
+                // they are runtime constructs and not rendered statically.
+                particles_by_name.insert(particle.name.clone(), particle);
             }
             TtpObject::Transform(_) => {
                 // User-defined transforms are stored in transform registry
@@ -247,6 +254,29 @@ pub fn run_render(
 
     // Track visited files for circular include detection
     let mut include_visited: HashSet<PathBuf> = HashSet::new();
+
+    // Handle particle baking (`--frames N`): simulate the deterministic
+    // particle engine and write a frame-set (PNG per frame, or a GIF).
+    if let Some(frame_count) = frames {
+        return run_particle_bake(
+            input,
+            output,
+            frame_count,
+            canvas,
+            origin,
+            fps,
+            &particles_by_name,
+            &sprites_by_name,
+            sprite_registry,
+            registry,
+            input_dir,
+            &mut include_visited,
+            sprite_filter,
+            strict,
+            scale,
+            gif_output,
+        );
+    }
 
     // Handle animation rendering (--gif or --spritesheet)
     if gif_output || spritesheet_output {
@@ -583,6 +613,200 @@ pub fn run_render(
     }
 
     ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Bake a particle system to a frame-set.
+///
+/// The particle engine (`ParticleEngine::generate_frames`) is seeded and
+/// deterministic, so the same input always yields the same frames. Writes a
+/// numbered PNG per frame (`{name}_NN.png`, the validator's frame-set
+/// convention) or, with `--gif`, a single animated GIF.
+#[allow(clippy::too_many_arguments)]
+fn run_particle_bake(
+    input: &std::path::Path,
+    output: Option<&std::path::Path>,
+    frame_count: u32,
+    canvas: Option<&str>,
+    origin: Option<&str>,
+    fps: Option<u32>,
+    particles: &HashMap<String, crate::models::Particle>,
+    sprites: &HashMap<String, Sprite>,
+    sprite_registry: &SpriteRegistry,
+    palette_registry: &PaletteRegistry,
+    _input_dir: &std::path::Path,
+    _include_visited: &mut HashSet<PathBuf>,
+    particle_filter: Option<&str>,
+    strict: bool,
+    scale: u8,
+    gif_output: bool,
+) -> ExitCode {
+    if particles.is_empty() {
+        eprintln!("Error: --frames given but no particle systems found in input file");
+        return ExitCode::from(EXIT_ERROR);
+    }
+    if frame_count == 0 {
+        eprintln!("Error: --frames must be at least 1");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
+    // Canvas size (default 32x32) and emitter origin (default bottom-center).
+    let (cw, ch) = match canvas {
+        Some(s) => match parse_wxh(s) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Error: --canvas {}", e);
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        },
+        None => (32, 32),
+    };
+    let (ox, oy) = match origin {
+        Some(s) => match parse_xy(s) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Error: --origin {}", e);
+                return ExitCode::from(EXIT_INVALID_ARGS);
+            }
+        },
+        None => (cw as i32 / 2, ch as i32 - 1),
+    };
+
+    let fps = fps.unwrap_or(10).max(1);
+    let duration_ms = (1000.0 / fps as f64).round() as u32;
+
+    // Select which particle systems to bake.
+    let selected: Vec<&crate::models::Particle> = match particle_filter {
+        Some(name) => match particles.get(name) {
+            Some(p) => vec![p],
+            None => {
+                eprintln!("Error: no particle system named '{}' in input", name);
+                let names: Vec<&str> = particles.keys().map(|s| s.as_str()).collect();
+                if let Some(suggestion) = format_suggestion(&suggest(name, &names, 3)) {
+                    eprintln!("{}", suggestion);
+                }
+                return ExitCode::from(EXIT_ERROR);
+            }
+        },
+        None => particles.values().collect(),
+    };
+
+    for particle in selected {
+        // Render the particle's referenced sprite to an image to emit.
+        if !sprites.contains_key(&particle.sprite) && !sprite_registry.contains(&particle.sprite) {
+            eprintln!(
+                "Error: particle '{}' references unknown sprite '{}'",
+                particle.name, particle.sprite
+            );
+            return ExitCode::from(EXIT_ERROR);
+        }
+        let resolved = match sprite_registry.resolve(&particle.sprite, palette_registry, strict) {
+            Ok(r) => {
+                for w in &r.warnings {
+                    eprintln!("Warning: particle '{}': {}", particle.name, w.message);
+                }
+                r
+            }
+            Err(e) => {
+                eprintln!("Error: particle '{}': {}", particle.name, e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+        };
+        let (sprite_image, render_warnings) = render_resolved(&resolved);
+        if strict && !render_warnings.is_empty() {
+            for w in &render_warnings {
+                eprintln!("Error: particle '{}': {}", particle.name, w.message);
+            }
+            return ExitCode::from(EXIT_ERROR);
+        }
+
+        let mut engine = crate::particle::ParticleEngine::new(particle, &sprite_image);
+        let raw_frames = engine.generate_frames(frame_count, [cw, ch], [ox, oy]);
+
+        if gif_output {
+            let gif_frames: Vec<_> =
+                raw_frames.into_iter().map(|f| scale_image(f, scale)).collect();
+            let path = particle_output_path(input, output, &particle.name, None, "gif");
+            if let Err(e) = render_gif(&gif_frames, duration_ms, true, &path) {
+                eprintln!("Error: Failed to save '{}': {}", path.display(), e);
+                return ExitCode::from(EXIT_ERROR);
+            }
+            println!("Saved: {} ({} frames @ {} fps)", path.display(), frame_count, fps);
+        } else {
+            for (i, frame) in raw_frames.into_iter().enumerate() {
+                let img = scale_image(frame, scale);
+                let path = particle_output_path(input, output, &particle.name, Some(i as u32), "png");
+                if let Err(e) = save_png(&img, &path) {
+                    eprintln!("Error: Failed to save '{}': {}", path.display(), e);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+                println!("Saved: {}", path.display());
+            }
+        }
+    }
+
+    ExitCode::from(EXIT_SUCCESS)
+}
+
+/// Parse a "WxH" string into a (width, height) pair.
+fn parse_wxh(s: &str) -> Result<(u32, u32), String> {
+    let parts: Vec<&str> = s.split('x').collect();
+    if parts.len() != 2 {
+        return Err(format!("invalid size '{}'; use WxH (e.g. 16x32)", s));
+    }
+    match (parts[0].trim().parse::<u32>(), parts[1].trim().parse::<u32>()) {
+        (Ok(w), Ok(h)) if w > 0 && h > 0 => Ok((w, h)),
+        _ => Err(format!("invalid size '{}'; width and height must be positive integers", s)),
+    }
+}
+
+/// Parse an "X,Y" string into an (x, y) coordinate pair.
+fn parse_xy(s: &str) -> Result<(i32, i32), String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 2 {
+        return Err(format!("invalid coordinate '{}'; use X,Y (e.g. 8,31)", s));
+    }
+    match (parts[0].trim().parse::<i32>(), parts[1].trim().parse::<i32>()) {
+        (Ok(x), Ok(y)) => Ok((x, y)),
+        _ => Err(format!("invalid coordinate '{}'; X and Y must be integers", s)),
+    }
+}
+
+/// Build the output path for a baked particle frame or gif.
+///
+/// `frame` is `Some(n)` for a numbered PNG frame (`{name}_NN.png`) or `None`
+/// for a single file (`{name}.gif`). Honors an `-o` directory or file stem,
+/// else writes alongside the input file.
+fn particle_output_path(
+    input: &std::path::Path,
+    output: Option<&std::path::Path>,
+    particle_name: &str,
+    frame: Option<u32>,
+    ext: &str,
+) -> PathBuf {
+    let file_name = match frame {
+        Some(n) => format!("{}_{:02}.{}", particle_name, n, ext),
+        None => format!("{}.{}", particle_name, ext),
+    };
+    match output {
+        Some(out) => {
+            let is_dir = out.as_os_str().to_string_lossy().ends_with('/') || out.is_dir();
+            if is_dir {
+                out.join(file_name)
+            } else if frame.is_none() {
+                // Single gif: use the given path verbatim.
+                out.to_path_buf()
+            } else {
+                // Numbered frames: use the path's stem as the base name.
+                let stem = out.file_stem().and_then(|s| s.to_str()).unwrap_or(particle_name);
+                let parent = out.parent().unwrap_or(std::path::Path::new(""));
+                parent.join(format!("{}_{:02}.{}", stem, frame.unwrap(), ext))
+            }
+        }
+        None => {
+            let parent = input.parent().unwrap_or(std::path::Path::new(""));
+            parent.join(file_name)
+        }
+    }
 }
 
 /// Render a specific composition
