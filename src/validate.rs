@@ -958,7 +958,7 @@ impl Validator {
                 let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
                 let mut pending: Vec<(&String, &crate::models::RegionDef)> = Vec::new();
                 for (token, region) in regions {
-                    if region.fill.is_some() || region.auto_shadow.is_some() {
+                    if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
                         pending.push((token, region));
                     } else {
                         let pixels = crate::structured::rasterize_region(
@@ -995,7 +995,7 @@ impl Validator {
                         .with_context(format!("sprite \"{}\"", name));
                         if regions.get(token).is_some_and(|r| r.auto_outline.is_some()) {
                             issue = issue.with_suggestion(
-                                "auto-outline does not render; author the outline as a silhouette region".to_string(),
+                                "auto-outline produced no pixels; check that its source region exists and is non-empty".to_string(),
                             );
                         }
                         self.issues.push(issue);
@@ -2114,15 +2114,32 @@ mod tests {
     #[test]
     fn test_empty_region_warned() {
         let mut validator = Validator::new();
-        // auto-outline renders nothing — the canonical zero-pixel region.
+        // An empty point list is a canonical zero-pixel region.
         validator.validate_line(
             1,
             r##"{"type": "sprite", "name": "hollow", "size": [16, 16], "palette": {"_": "transparent", "b": "#FF0000", "d": "#000000"},
-                "regions": {"b": {"rect": [5, 5, 6, 6]}, "d": {"auto-outline": "b"}}}"##,
+                "regions": {"b": {"rect": [5, 5, 6, 6]}, "d": {"points": []}}}"##,
         );
         assert!(
             validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::EmptyRegion)),
             "zero-pixel region must be reported: {:?}",
+            validator.issues()
+        );
+    }
+
+    #[test]
+    fn test_auto_outline_renders_and_does_not_warn() {
+        let mut validator = Validator::new();
+        // auto-outline now emits a real silhouette band, so it must NOT be
+        // flagged as a zero-pixel region when its source exists.
+        validator.validate_line(
+            1,
+            r##"{"type": "sprite", "name": "blob", "size": [16, 16], "palette": {"_": "transparent", "b": "#FF0000", "d": "#000000"},
+                "regions": {"b": {"rect": [5, 5, 6, 6], "z": 1}, "d": {"auto-outline": "b", "z": 0}}}"##,
+        );
+        assert!(
+            !validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::EmptyRegion)),
+            "auto-outline should render pixels now: {:?}",
             validator.issues()
         );
     }
