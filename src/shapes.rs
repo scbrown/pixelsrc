@@ -141,9 +141,14 @@ pub fn rasterize_stroke(x: i32, y: i32, w: i32, h: i32, thickness: i32) -> HashS
     pixels
 }
 
-/// Rasterize a filled ellipse using the midpoint algorithm.
+/// Rasterize a filled ellipse with conventional pixel-art rounding.
 ///
-/// Returns all pixels within an ellipse centered at (cx, cy) with radii (rx, ry).
+/// Returns all pixels within an ellipse centered at (cx, cy) with radii
+/// (rx, ry): a pixel is inside when `(dx/(rx+0.5))² + (dy/(ry+0.5))² <= 1`.
+/// The +0.5 treats each radius as extending to the edge of the boundary
+/// pixel, which produces the round shapes pixel artists expect (the
+/// previous midpoint-walk implementation produced angular discs and could
+/// overshoot the radius by one pixel on the widest rows).
 ///
 /// # Examples
 ///
@@ -153,6 +158,8 @@ pub fn rasterize_stroke(x: i32, y: i32, w: i32, h: i32, thickness: i32) -> HashS
 /// let pixels = rasterize_ellipse(5, 5, 3, 2);
 /// assert!(pixels.contains(&(5, 5))); // Center
 /// assert!(pixels.len() > 0);
+/// // Never wider than the diameter:
+/// assert!(pixels.iter().all(|&(x, y)| (x - 5).abs() <= 3 && (y - 5).abs() <= 2));
 /// ```
 pub fn rasterize_ellipse(cx: i32, cy: i32, rx: i32, ry: i32) -> HashSet<(i32, i32)> {
     let mut pixels = HashSet::new();
@@ -161,56 +168,14 @@ pub fn rasterize_ellipse(cx: i32, cy: i32, rx: i32, ry: i32) -> HashSet<(i32, i3
         return pixels;
     }
 
-    // Convert to i64 to avoid overflow in calculations
-    let rx = rx as i64;
-    let ry = ry as i64;
-    let cx = cx as i64;
-    let cy = cy as i64;
-
-    // Region 1
-    let mut x = 0i64;
-    let mut y = ry;
-
-    let rx_sq = rx * rx;
-    let ry_sq = ry * ry;
-
-    let mut p1 = ry_sq - (rx_sq * ry) + (rx_sq / 4);
-    let mut dx = 2 * ry_sq * x;
-    let mut dy = 2 * rx_sq * y;
-
-    // Region 1 decision parameter
-    while dx < dy {
-        draw_ellipse_points(cx, cy, x, y, &mut pixels);
-
-        if p1 < 0 {
-            x += 1;
-            dx += 2 * ry_sq;
-            p1 += dx + ry_sq;
-        } else {
-            x += 1;
-            y -= 1;
-            dx += 2 * ry_sq;
-            dy -= 2 * rx_sq;
-            p1 += dx - dy + ry_sq;
-        }
-    }
-
-    // Region 2 decision parameter
-    let mut p2 = ry_sq * (x + 1) * (x + 1) / 4 + rx_sq * (y - 1) * (y - 1) - rx_sq * ry_sq;
-
-    while y >= 0 {
-        draw_ellipse_points(cx, cy, x, y, &mut pixels);
-
-        if p2 > 0 {
-            y -= 1;
-            dy -= 2 * rx_sq;
-            p2 += rx_sq - dy;
-        } else {
-            x += 1;
-            y -= 1;
-            dx += 2 * ry_sq;
-            dy -= 2 * rx_sq;
-            p2 += dx - dy + rx_sq;
+    let a = rx as f64 + 0.5;
+    let b = ry as f64 + 0.5;
+    for dy in -ry..=ry {
+        let t = 1.0 - (dy as f64 / b).powi(2);
+        let half_width = (a * t.sqrt()).floor() as i32;
+        let half_width = half_width.min(rx); // rounding may not exceed the radius
+        for dx in -half_width..=half_width {
+            pixels.insert((cx + dx, cy + dy));
         }
     }
 
@@ -507,15 +472,6 @@ fn find_interior_seed(
     None
 }
 
-/// Helper function to draw ellipse points with fill.
-fn draw_ellipse_points(cx: i64, cy: i64, x: i64, y: i64, pixels: &mut HashSet<(i32, i32)>) {
-    // Fill horizontal lines for each y-coordinate
-    for scan_x in -x..=x {
-        pixels.insert(((cx + scan_x) as i32, (cy + y) as i32));
-        pixels.insert(((cx + scan_x) as i32, (cy - y) as i32));
-    }
-}
-
 /// Rasterize a filled polygon using scanline fill algorithm.
 ///
 /// Returns all pixels within a polygon defined by a list of vertices.
@@ -730,6 +686,64 @@ mod tests {
         let pixels = rasterize_ellipse(5, 5, 3, 3);
         assert!(pixels.contains(&(5, 5))); // Center
         assert!(!pixels.is_empty());
+    }
+
+    /// Golden test: per-row widths of circles must match the conventional
+    /// pixel-art circle (hw = floor((r+0.5)·sqrt(1-(dy/(r+0.5))²))), stay
+    /// symmetric, and never exceed the diameter. The old midpoint walk
+    /// produced 5,9,11,13,15,16,16,16,16,16,… for r=7 — angular AND one
+    /// pixel too wide in the middle.
+    #[test]
+    fn test_rasterize_circle_golden_row_widths() {
+        for r in 2..=16 {
+            let c = 20; // comfortably inside positive space
+            let pixels = rasterize_ellipse(c, c, r, r);
+            let rf = r as f64 + 0.5;
+            for dy in -r..=r {
+                let expected_hw = ((rf * (1.0 - (dy as f64 / rf).powi(2)).sqrt()).floor() as i32).min(r);
+                let row: Vec<i32> =
+                    pixels.iter().filter(|&&(_, y)| y == c + dy).map(|&(x, _)| x).collect();
+                let min_x = *row.iter().min().expect("row present");
+                let max_x = *row.iter().max().expect("row present");
+                assert_eq!(
+                    (min_x, max_x),
+                    (c - expected_hw, c + expected_hw),
+                    "r={} dy={}: row span wrong",
+                    r,
+                    dy
+                );
+                assert_eq!(
+                    row.len() as i32,
+                    2 * expected_hw + 1,
+                    "r={} dy={}: row has holes",
+                    r,
+                    dy
+                );
+            }
+            // No pixel outside the bounding box (the old overshoot bug).
+            assert!(
+                pixels.iter().all(|&(x, y)| (x - c).abs() <= r && (y - c).abs() <= r),
+                "r={}: pixels exceed radius",
+                r
+            );
+        }
+    }
+
+    /// The r=7 disc reads round: the top row is narrow, widths increase
+    /// monotonically to the equator, and the equator is exactly 2r+1 wide.
+    #[test]
+    fn test_rasterize_circle_r7_shape() {
+        let pixels = rasterize_ellipse(7, 7, 7, 7);
+        let width_at = |dy: i32| pixels.iter().filter(|&&(_, y)| y == 7 + dy).count() as i32;
+        assert_eq!(width_at(0), 15, "equator is the full diameter");
+        assert_eq!(width_at(-7), 5, "polar row is narrow (round, not flat)");
+        for dy in 0..7 {
+            assert!(
+                width_at(dy) >= width_at(dy + 1),
+                "widths shrink monotonically toward the pole (dy={})",
+                dy
+            );
+        }
     }
 
     #[test]
