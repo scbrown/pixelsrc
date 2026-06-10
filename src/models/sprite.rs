@@ -85,6 +85,33 @@ pub struct FrameTag {
     pub fps: Option<u32>,
 }
 
+/// A sprite-level group translation: shift a set of regions by one offset.
+///
+/// Expands at resolution into a per-region `translate`, so a walk-cycle bob —
+/// "move the whole upper body up one pixel" — is a single line instead of
+/// re-deriving every member region's coordinates. Composes with `extends`: a
+/// frame can inherit a base and shift part of it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GroupTranslate {
+    /// Pixel offset `[dx, dy]` applied to each targeted region.
+    pub by: [i32; 2],
+    /// Region keys to shift. Omit to shift every region in the sprite.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub regions: Option<Vec<String>>,
+}
+
+/// Apply a group translation to a region map in place, composing with any
+/// translation a region already carries.
+pub fn apply_group_translate(regions: &mut HashMap<String, RegionDef>, gt: &GroupTranslate) {
+    for (key, def) in regions.iter_mut() {
+        let targeted = gt.regions.as_ref().is_none_or(|rs| rs.contains(key));
+        if targeted {
+            let cur = def.translate.unwrap_or([0, 0]);
+            def.translate = Some([cur[0] + gt.by[0], cur[1] + gt.by[1]]);
+        }
+    }
+}
+
 /// A sprite definition.
 ///
 /// A sprite uses `regions` for structured rendering, or can reference another sprite via `source`
@@ -116,6 +143,10 @@ pub struct Sprite {
     /// Inherited region keys to delete (only meaningful with `extends`).
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub remove: Option<Vec<String>>,
+    /// Shift a group of regions by one offset (expands to per-region
+    /// `translate`). Applied after `extends` inheritance and region merging.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub translate: Option<GroupTranslate>,
     /// Structured regions for rendering
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub regions: Option<HashMap<String, RegionDef>>,

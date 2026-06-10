@@ -428,9 +428,11 @@ pub fn run_render(
             };
 
             // Get regions from the resolved sprite when it inherits from another
-            // (via `source` wholesale-copy or `extends` region-merge); the
-            // palette was already extracted above.
-            let inherits = sprite.source.is_some() || sprite.extends.is_some();
+            // (via `source` wholesale-copy or `extends` region-merge) or carries
+            // a sprite-level `translate` group shift; the palette was already
+            // extracted above.
+            let inherits =
+                sprite.source.is_some() || sprite.extends.is_some() || sprite.translate.is_some();
             let resolved_regions = if inherits {
                 // Need to re-resolve to get the regions (palette was already extracted above)
                 match sprite_registry.resolve(&sprite.name, registry, false) {

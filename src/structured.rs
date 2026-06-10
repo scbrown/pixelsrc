@@ -196,6 +196,13 @@ pub fn rasterize_region(
         pixels = apply_symmetric(&pixels, symmetric, canvas_width, canvas_height, warnings);
     }
 
+    // Apply translation last, so it shifts the fully-resolved shape.
+    if let Some([dx, dy]) = region.translate {
+        if dx != 0 || dy != 0 {
+            pixels = pixels.into_iter().map(|(x, y)| (x + dx, y + dy)).collect();
+        }
+    }
+
     pixels
 }
 
@@ -672,6 +679,22 @@ mod tests {
 
         // Shadow visible at offset (5,5) where body doesn't overlap
         assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_region_translate_shifts_pixels() {
+        // A region with `translate` shifts its rasterized pixels by [dx, dy].
+        let region =
+            RegionDef { rect: Some([0, 0, 2, 2]), translate: Some([2, 3]), ..Default::default() };
+        let all_regions = HashMap::new();
+        let mut warnings = Vec::new();
+        let pixels = rasterize_region(&region, &all_regions, 16, 16, &mut warnings);
+        // Original (0,0) moves to (2,3); (1,1) to (3,4).
+        assert!(pixels.contains(&(2, 3)));
+        assert!(pixels.contains(&(3, 4)));
+        assert!(!pixels.contains(&(0, 0)));
+        assert_eq!(pixels.len(), 4);
+        assert!(warnings.is_empty());
     }
 
     #[test]

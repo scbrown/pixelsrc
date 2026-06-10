@@ -331,6 +331,15 @@ impl SpriteRegistry {
             own_palette
         };
 
+        // Apply a sprite-level group translation last, after inheritance and
+        // region merging, by expanding it into per-region `translate` offsets.
+        let mut final_regions = base_regions;
+        if let Some(group) = &sprite.translate {
+            if let Some(regions) = final_regions.as_mut() {
+                crate::models::apply_group_translate(regions, group);
+            }
+        }
+
         Ok(ResolvedSprite {
             name: sprite.name.clone(),
             // Use sprite's explicit size, or fall back to the inherited size
@@ -338,7 +347,7 @@ impl SpriteRegistry {
             palette,
             warnings,
             nine_slice: sprite.nine_slice.clone(),
-            regions: base_regions,
+            regions: final_regions,
         })
     }
 
