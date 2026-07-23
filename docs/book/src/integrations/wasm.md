@@ -297,7 +297,7 @@ When deploying WASM-based features, verify:
 
 ## Chronicle Integration
 
-[Chronicle](https://git.lan/stiwi/chronicle) is a narrative engine for games and graphic novels that uses pixelsrc as its asset rendering layer.
+Chronicle is a narrative engine for games and graphic novels that uses pixelsrc as its asset rendering layer.
 
 ### How Chronicle Uses Pixelsrc
 
