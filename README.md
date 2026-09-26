@@ -51,6 +51,12 @@ pixelsrc is a semantic, human-readable text format for defining pixel art. Unlik
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install scbrown/pixelsrc/pxl
+```
+
 ### Cargo
 
 ```bash
