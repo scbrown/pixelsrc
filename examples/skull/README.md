@@ -78,3 +78,16 @@ python3 examples/skull/contact_sheet.py
 - **Glow.** The `ember` palette adds four warm shades. `glow_1` warms the inner
   socket walls, `glow_2` adds a coal and `glow_3` flares it. The blink overlays
   darken the same walls to the socket colour, half and then full.
+
+## Evolution
+
+![The skull from the first attempt to now](evolution.png)
+
+Every version of this skull was written as `.pxl` and rendered by `pxl`. From left to right:
+
+- **Reference:** the target art.
+- **January 25:** the first pass and an iteration from the artisan workflow.
+- **February 7:** round 2.
+- **September 26:** a fleet agent's 48×48 pass (#12), then the version in this folder, which took twelve render-and-compare rounds against the reference (#13).
+
+The earlier sources live in git history under `examples/avatar-prototype/`.
