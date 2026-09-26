@@ -222,8 +222,13 @@ fn rasterize_all(
         if region.fill.is_some() || region.auto_shadow.is_some() {
             pending.push((token, region));
         } else {
-            let pixels =
-                crate::structured::rasterize_region(region, &rasterized, width, height, &mut warnings);
+            let pixels = crate::structured::rasterize_region(
+                region,
+                &rasterized,
+                width,
+                height,
+                &mut warnings,
+            );
             rasterized.insert(token.clone(), pixels);
         }
     }
@@ -454,7 +459,10 @@ pub fn format_diff(name: &str, diff: &SpriteDiff, file_a: &str, file_b: &str) ->
                     output.push(format!("  → {} shifted ({}, {})", token, dx, dy));
                 }
                 RegionChange::Changed { token, differing } => {
-                    output.push(format!("  ~ {} shape changed ({} pixel(s) differ)", token, differing));
+                    output.push(format!(
+                        "  ~ {} shape changed ({} pixel(s) differ)",
+                        token, differing
+                    ));
                 }
             }
         }
@@ -503,8 +511,14 @@ mod tests {
     #[test]
     fn test_region_shift_detected() {
         // The walk-cycle bob: same shape, one region moved up a pixel.
-        let a = sprite_with_regions("s", r#"{"a": {"rect": [4, 4, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#);
-        let b = sprite_with_regions("s", r#"{"a": {"rect": [4, 3, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#);
+        let a = sprite_with_regions(
+            "s",
+            r#"{"a": {"rect": [4, 4, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#,
+        );
+        let b = sprite_with_regions(
+            "s",
+            r#"{"a": {"rect": [4, 3, 3, 3]}, "b": {"rect": [0, 0, 2, 2]}}"#,
+        );
         let palette = HashMap::new();
         let diff = diff_sprites(&a, &b, &palette, &palette);
         assert_eq!(

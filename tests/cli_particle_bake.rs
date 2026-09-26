@@ -129,8 +129,7 @@ fn test_particle_bake_no_particle_errors() {
     )
     .unwrap();
 
-    let (_stdout, stderr, ok) =
-        run_render(&[input.to_str().unwrap(), "--frames", "4"]);
+    let (_stdout, stderr, ok) = run_render(&[input.to_str().unwrap(), "--frames", "4"]);
     assert!(!ok, "should fail when no particle is present");
     assert!(stderr.contains("no particle systems"), "stderr: {}", stderr);
 }

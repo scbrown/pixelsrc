@@ -265,11 +265,7 @@ pub fn subtract(
 /// // 4-connected yields a plus shape (5 pixels).
 /// assert_eq!(dilate(&dot, 1, false).len(), 5);
 /// ```
-pub fn dilate(
-    pixels: &HashSet<(i32, i32)>,
-    thickness: i32,
-    diagonal: bool,
-) -> HashSet<(i32, i32)> {
+pub fn dilate(pixels: &HashSet<(i32, i32)>, thickness: i32, diagonal: bool) -> HashSet<(i32, i32)> {
     let neighbors: &[(i32, i32)] = if diagonal {
         &[(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
     } else {
@@ -743,7 +739,8 @@ mod tests {
             let pixels = rasterize_ellipse(c, c, r, r);
             let rf = r as f64 + 0.5;
             for dy in -r..=r {
-                let expected_hw = ((rf * (1.0 - (dy as f64 / rf).powi(2)).sqrt()).floor() as i32).min(r);
+                let expected_hw =
+                    ((rf * (1.0 - (dy as f64 / rf).powi(2)).sqrt()).floor() as i32).min(r);
                 let row: Vec<i32> =
                     pixels.iter().filter(|&&(_, y)| y == c + dy).map(|&(x, _)| x).collect();
                 let min_x = *row.iter().min().expect("row present");

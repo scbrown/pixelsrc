@@ -134,8 +134,8 @@ impl std::fmt::Display for IssueType {
 fn duplicate_region_keys(content: &str) -> Vec<String> {
     #[derive(PartialEq)]
     enum Mode {
-        Seeking,    // looking for the `regions` key at sprite depth
-        InRegions,  // collecting keys at regions depth
+        Seeking,   // looking for the `regions` key at sprite depth
+        InRegions, // collecting keys at regions depth
         Done,
     }
 
@@ -212,7 +212,9 @@ fn duplicate_region_keys(content: &str) -> Vec<String> {
                         mode = Mode::InRegions;
                         regions_depth = depth + 1; // keys live one level in
                     }
-                    Mode::InRegions if expecting_key && depth == regions_depth && !token.is_empty() => {
+                    Mode::InRegions
+                        if expecting_key && depth == regions_depth && !token.is_empty() =>
+                    {
                         let count = seen.entry(token.clone()).or_insert(0);
                         *count += 1;
                         if *count == 2 {
@@ -834,8 +836,7 @@ impl Validator {
         // set — the base palette is inherited. On any other sprite it's a
         // missing-palette error. Skip token resolution in the inherited case so
         // we don't spuriously flag inherited tokens as undefined.
-        let palette_omitted =
-            matches!(&sprite.palette, PaletteRef::Named(n) if n.is_empty());
+        let palette_omitted = matches!(&sprite.palette, PaletteRef::Named(n) if n.is_empty());
         if palette_omitted && sprite.extends.is_none() {
             self.issues.push(
                 ValidationIssue::warning(
@@ -856,7 +857,10 @@ impl Validator {
                 ValidationIssue::warning(
                     line_number,
                     IssueType::EmptyGrid,
-                    format!("Sprite \"{}\" uses `remove` without `extends`; it has no effect", name),
+                    format!(
+                        "Sprite \"{}\" uses `remove` without `extends`; it has no effect",
+                        name
+                    ),
                 )
                 .with_context(format!("sprite \"{}\"", name)),
             );
@@ -941,10 +945,8 @@ impl Validator {
                 }
             }
             PaletteRef::Inline(colors) => {
-                let mut unused: Vec<&String> = colors
-                    .keys()
-                    .filter(|t| *t != "_" && !all_tokens_used.contains(*t))
-                    .collect();
+                let mut unused: Vec<&String> =
+                    colors.keys().filter(|t| *t != "_" && !all_tokens_used.contains(*t)).collect();
                 unused.sort();
                 if !unused.is_empty() {
                     self.issues.push(
@@ -985,7 +987,10 @@ impl Validator {
                 let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
                 let mut pending: Vec<(&String, &crate::models::RegionDef)> = Vec::new();
                 for (token, region) in regions {
-                    if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
+                    if region.fill.is_some()
+                        || region.auto_shadow.is_some()
+                        || region.auto_outline.is_some()
+                    {
                         pending.push((token, region));
                     } else {
                         let pixels = crate::structured::rasterize_region(
@@ -1091,11 +1096,8 @@ impl Validator {
         let mut reports: Vec<(usize, String, Vec<String>)> = Vec::new();
         for (palette_name, used) in &self.used_palette_tokens {
             if let Some(defined) = self.palettes.get(palette_name) {
-                let mut unused: Vec<String> = defined
-                    .iter()
-                    .filter(|t| *t != "_" && !used.contains(*t))
-                    .cloned()
-                    .collect();
+                let mut unused: Vec<String> =
+                    defined.iter().filter(|t| *t != "_" && !used.contains(*t)).cloned().collect();
                 unused.sort();
                 if !unused.is_empty() {
                     let line = self.palette_lines.get(palette_name).copied().unwrap_or(0);
@@ -2154,7 +2156,10 @@ mod tests {
                 "regions": { b: { rect: [0, 0, 4, 4] }, b: { rect: [10, 10, 4, 4] } }}"##,
         );
         assert!(
-            validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
+            validator
+                .issues()
+                .iter()
+                .any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
             "duplicate region key must be reported: {:?}",
             validator.issues()
         );
@@ -2171,7 +2176,10 @@ mod tests {
                 "regions": {"a": {"union": [{"rect": [0, 0, 2, 2]}, {"rect": [4, 4, 2, 2]}]}, "b": {"points": [[1, 1]]}}}"##,
         );
         assert!(
-            !validator.issues().iter().any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
+            !validator
+                .issues()
+                .iter()
+                .any(|i| matches!(i.issue_type, IssueType::DuplicateRegionKey)),
             "no duplicates here: {:?}",
             validator.issues()
         );
