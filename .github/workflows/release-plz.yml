@@ -1,0 +1,59 @@
+name: Release-plz
+
+# On every push to main: open or update the release PR (version bump +
+# CHANGELOG). When that PR merges: tag v<version>, create the GitHub release,
+# then build the binaries and publish to crates.io from this same run.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-plz
+  cancel-in-progress: false
+
+jobs:
+  release-plz:
+    name: Release-plz
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: MarcoIeni/release-plz-action@v0.5
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve the new tag
+        id: tag
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release.outputs.releases }}
+        run: echo "tag=$(echo "$RELEASES" | jq -r '.[0].tag')" >> "$GITHUB_OUTPUT"
+
+  binaries:
+    name: Binaries
+    needs: release-plz
+    if: needs.release-plz.outputs.releases_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-plz.outputs.tag }}
+
+  crates:
+    name: crates.io
+    needs: release-plz
+    if: needs.release-plz.outputs.releases_created == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/crates.yml
+    with:
+      tag: ${{ needs.release-plz.outputs.tag }}

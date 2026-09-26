@@ -3,6 +3,13 @@ name: Publish to crates.io
 on:
   release:
     types: [published]
+  # Called by release-plz.yml after it tags a release (a GITHUB_TOKEN release
+  # cannot trigger the `release` arm above).
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       dry_run:
@@ -23,6 +30,8 @@ jobs:
       id-token: write  # Required for OIDC trusted publishing
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

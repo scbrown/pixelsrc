@@ -111,6 +111,10 @@ impl LockFile {
             } else {
                 project_root.join(declared_path)
             };
+            // install_path_dep records the canonical path, so compare against that:
+            // otherwise any symlink in the project path (macOS /var -> /private/var)
+            // makes every path dep look stale and reinstall on each run.
+            let resolved = resolved.canonicalize().unwrap_or(resolved);
             let resolved_str = resolved.to_string_lossy().to_string();
             locked.dep_type == "path" && locked.source == resolved_str
         } else if dep.is_git() {

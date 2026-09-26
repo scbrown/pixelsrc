@@ -5,10 +5,10 @@
 [![CI](https://github.com/scbrown/pixelsrc/actions/workflows/ci.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/ci.yml)
 [![Release](https://github.com/scbrown/pixelsrc/actions/workflows/release.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/release.yml)
 [![WASM](https://github.com/scbrown/pixelsrc/actions/workflows/wasm.yml/badge.svg)](https://github.com/scbrown/pixelsrc/actions/workflows/wasm.yml)
-[![Version](https://img.shields.io/crates/v/pxl)](https://crates.io/crates/pxl)
+[![Version](https://img.shields.io/crates/v/pixelsrc)](https://crates.io/crates/pixelsrc)
 [![npm](https://img.shields.io/npm/v/@stiwi/pixelsrc-wasm)](https://www.npmjs.com/package/@stiwi/pixelsrc-wasm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Made with pixelsrc](https://img.shields.io/badge/made%20with-pixelsrc-BD93F9)](https://pixelsrc.dev)
+[![Made with pixelsrc](https://img.shields.io/badge/made%20with-pixelsrc-BD93F9)](https://scbrown.github.io/pixelsrc/)
 
 **The first pixel art format designed for GenAI.**
 
@@ -51,15 +51,11 @@ pixelsrc is a semantic, human-readable text format for defining pixel art. Unlik
 
 ## Installation
 
-### Homebrew (macOS/Linux)
+### Cargo
 
 ```bash
-brew install scbrown/tap/pixelsrc
-```
-
-### Cargo (from source)
-
-```bash
+cargo install pixelsrc
+# or the latest main:
 cargo install --git https://github.com/scbrown/pixelsrc
 ```
 

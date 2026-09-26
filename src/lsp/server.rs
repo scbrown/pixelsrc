@@ -189,10 +189,12 @@ impl PixelsrcLanguageServer {
                         // Likely inside a region definition
                         return CompletionContext::RegionDef;
                     }
-                    Some("palette") if line.contains(':') => {
-                        if content.contains("\"roles\"") && !line.contains("\"colors\"") {
-                            return CompletionContext::Roles;
-                        }
+                    Some("palette")
+                        if line.contains(':')
+                            && content.contains("\"roles\"")
+                            && !line.contains("\"colors\"") =>
+                    {
+                        return CompletionContext::Roles;
                     }
                     _ => {}
                 }
