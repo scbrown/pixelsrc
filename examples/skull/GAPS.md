@@ -1,4 +1,4 @@
-# Gaps found while drawing the skull
+# Gaps found while drawing and animating the skull
 
 These are places where the compiler couldn't express what the art needed, or
 where it didn't behave the way the docs describe. Each one has a minimal repro
@@ -82,9 +82,40 @@ mismatched map, and that warns on every render. **Workaround:** the talking
 poses `skull_jaw_ajar` and `skull_jaw_open` are written out in full as their
 own sprites, not as `shift`-ed copies of `skull_jaw`.
 
+GIF frames have the same problem. With `frames: ["dot", "dot_moved"]`,
+`pxl render --gif` draws the second frame empty and warns that `dot_moved`
+"uses deprecated grid format". **Workaround in `skull_anim.pxl`:** the 1px
+head float needs the whole skull at two heights, so every sprite exists twice
+(`*_rest` and `*_up`) with its coordinates written out.
+
 ## 5. Derived sprites still need `palette`
 
 The docs example `{ type: "sprite", name: "hero_outlined", source: "hero",
 transform: [...] }` fails with `missing field 'palette'`. In `skull.pxl`,
 the composition after that line then wasn't found either. **Workaround:** not needed after gap 4, but any
 `source:` sprite has to repeat `palette`.
+
+## 6. No per-frame duration in a frame-list animation
+
+A `frames: [...]` animation has one `duration` that applies to every frame.
+`gif.rs::render_gif` takes a single `duration_ms`, and there's no per-frame
+timing field (`frame_metadata` only carries hitboxes). Speech timing and idle
+holds need uneven frame lengths. **Workaround:** a hold is the same
+composition repeated (`skull_talking` repeats `skull` for its pauses). Nothing
+is lost in the GIF, but the frame lists get long.
+
+## 7. A palette `@include` breaks when a sprite is used directly as a GIF frame
+
+```json5
+// base.pxl
+{ type: "palette", name: "p", colors: { _: "transparent", x: "#ff0000" } }
+// anim.pxl
+{ type: "sprite", name: "a", size: [4, 4], palette: "@include:base.pxl", regions: { x: { points: [[0, 0]] } } }
+{ type: "animation", name: "an", frames: ["a", "a"], duration: 100 }
+```
+
+The first frame is right, but the second renders magenta with `Circular include detected: .../base.pxl` and
+`Unknown token x`. The include-visited set seems to be shared across frames,
+so the second lookup of the same file is treated as a cycle. The same include
+works through a composition. **Workaround:** `skull_anim.pxl` repeats the
+`bone` palette instead of including it from `skull.pxl`.
