@@ -3,7 +3,7 @@
 use image::{Rgba, RgbaImage};
 use std::collections::HashMap;
 
-use crate::models::Composition;
+use crate::models::{Composition, CompositionLayer};
 use crate::registry::CompositionRegistry;
 use crate::variables::VariableRegistry;
 
@@ -11,6 +11,34 @@ use super::blend::{blit_sprite, blit_sprite_blended};
 use super::context::RenderContext;
 use super::error::{CompositionError, Warning};
 use super::resolve::{resolve_blend_mode, resolve_opacity};
+
+/// Transform a layer's input before placement, without mutating cached sprites
+/// or nested compositions reused by other layers.
+fn transform_layer_sprite<'a>(
+    image: &'a RgbaImage,
+    layer: &CompositionLayer,
+    composition_name: &str,
+    strict: bool,
+    warnings: &mut Vec<Warning>,
+) -> Result<std::borrow::Cow<'a, RgbaImage>, CompositionError> {
+    let Some(specs) = layer.transform.as_deref().filter(|specs| !specs.is_empty()) else {
+        return Ok(std::borrow::Cow::Borrowed(image));
+    };
+    let (image, diagnostics) =
+        crate::transforms::apply_image_transform_specs(image.clone(), specs, None);
+    for diagnostic in diagnostics {
+        let message =
+            format!("layer '{}': {}", layer.name.as_deref().unwrap_or("unnamed"), diagnostic);
+        if strict {
+            return Err(CompositionError::LayerTransform {
+                composition_name: composition_name.to_string(),
+                message,
+            });
+        }
+        warnings.push(Warning::new(message));
+    }
+    Ok(std::borrow::Cow::Owned(image))
+}
 
 /// Render a composition to an RGBA image buffer.
 ///
@@ -228,7 +256,15 @@ pub fn render_composition(
                         }
                     };
 
-                    // Check for size mismatch (Task 2.5)
+                    let sprite_image = transform_layer_sprite(
+                        sprite_image,
+                        layer,
+                        &comp.name,
+                        strict,
+                        &mut warnings,
+                    )?;
+
+                    // Check the transformed dimensions for size mismatch (Task 2.5)
                     let sprite_width = sprite_image.width();
                     let sprite_height = sprite_image.height();
                     if sprite_width > cell_size[0] || sprite_height > cell_size[1] {
@@ -252,7 +288,7 @@ pub fn render_composition(
                     let y = (row_idx as u32) * cell_size[1];
 
                     // Blit sprite onto canvas with blend mode and opacity (ATF-10)
-                    blit_sprite_blended(&mut canvas, sprite_image, x, y, blend_mode, opacity);
+                    blit_sprite_blended(&mut canvas, &sprite_image, x, y, blend_mode, opacity);
                 }
             }
         }
@@ -436,6 +472,14 @@ fn render_composition_inner(
                             )));
                             continue;
                         };
+
+                    let sprite_image = transform_layer_sprite(
+                        &sprite_image,
+                        layer,
+                        &comp.name,
+                        strict,
+                        &mut warnings,
+                    )?;
 
                     let x = (col_idx as u32) * cell_size[0];
                     let y = (row_idx as u32) * cell_size[1];

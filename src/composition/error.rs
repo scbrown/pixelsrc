@@ -18,6 +18,9 @@ impl Warning {
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum CompositionError {
+    /// A layer transform could not be parsed or applied in strict mode.
+    #[error("Layer transform in composition '{composition_name}': {message}")]
+    LayerTransform { composition_name: String, message: String },
     /// Sprite dimensions exceed cell size
     #[error("Sprite '{sprite_name}' ({sprite_w}x{sprite_h}) exceeds cell size ({cell_w}x{cell_h}) in composition '{composition_name}'", sprite_w = sprite_size.0, sprite_h = sprite_size.1, cell_w = cell_size.0, cell_h = cell_size.1)]
     SizeMismatch {
