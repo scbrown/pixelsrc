@@ -23,7 +23,7 @@ impl DimensionStats {
     /// Get dimension counts sorted by frequency.
     pub fn sorted_by_frequency(&self) -> Vec<((u32, u32), usize)> {
         let mut items: Vec<_> = self.dimensions.iter().map(|(k, v)| (*k, *v)).collect();
-        items.sort_by_key(|a| std::cmp::Reverse(a.1));
+        items.sort_by(|a, b| b.1.cmp(&a.1));
         items
     }
 

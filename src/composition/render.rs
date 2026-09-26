@@ -175,8 +175,8 @@ pub fn render_composition(
     }
 
     // Calculate expected grid dimensions for map validation
-    let expected_cols = width.checked_div(cell_size[0]).unwrap_or(width);
-    let expected_rows = height.checked_div(cell_size[1]).unwrap_or(height);
+    let expected_cols = if cell_size[0] > 0 { width / cell_size[0] } else { width };
+    let expected_rows = if cell_size[1] > 0 { height / cell_size[1] } else { height };
 
     // Create canvas (transparent by default)
     let mut canvas = RgbaImage::from_pixel(width, height, Rgba([0, 0, 0, 0]));
