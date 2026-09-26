@@ -111,7 +111,7 @@ impl CoOccurrenceMatrix {
     /// Get top N token pairs by co-occurrence count.
     pub fn top_n(&self, n: usize) -> Vec<((&String, &String), usize)> {
         let mut items: Vec<_> = self.pairs.iter().map(|((a, b), count)| ((a, b), *count)).collect();
-        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.sort_by_key(|a| std::cmp::Reverse(a.1));
         items.truncate(n);
         items
     }
@@ -131,7 +131,7 @@ impl CoOccurrenceMatrix {
                 }
             })
             .collect();
-        results.sort_by(|a, b| b.1.cmp(&a.1));
+        results.sort_by_key(|a| std::cmp::Reverse(a.1));
         results
     }
 

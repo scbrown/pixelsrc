@@ -57,7 +57,7 @@ impl TokenFamilyDetector {
             .collect();
 
         // Sort by total count descending
-        families.sort_by(|a, b| b.total_count.cmp(&a.total_count));
+        families.sort_by_key(|a| std::cmp::Reverse(a.total_count));
         families
     }
 

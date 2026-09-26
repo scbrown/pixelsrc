@@ -129,7 +129,7 @@ pub fn pack_atlas(
 
     // Sort sprites by height descending (better packing)
     let mut sorted_sprites: Vec<(usize, &SpriteInput)> = sprites.iter().enumerate().collect();
-    sorted_sprites.sort_by(|a, b| b.1.image.height().cmp(&a.1.image.height()));
+    sorted_sprites.sort_by_key(|a| std::cmp::Reverse(a.1.image.height()));
 
     let mut atlases: Vec<(RgbaImage, AtlasMetadata, Vec<Shelf>)> = vec![];
     let mut sprite_to_atlas: HashMap<String, (usize, AtlasFrame)> = HashMap::new();

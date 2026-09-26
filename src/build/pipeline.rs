@@ -593,10 +593,8 @@ impl BuildPipeline {
 
             // Select registries with import support
             let has_file_imports = !file_imports.is_empty();
-            let effective_palette_reg;
-            let effective_sprite_reg;
 
-            if has_file_imports {
+            let (effective_palette_reg, effective_sprite_reg) = if has_file_imports {
                 if let Some(pr) = project_registry {
                     for palette_name in pr.palette_names() {
                         if let Some(loc) = pr.palette_location(palette_name) {
@@ -613,20 +611,21 @@ impl BuildPipeline {
                         local_sprite_registry.register_sprite(sprite.clone());
                     }
                 }
-                effective_palette_reg = local_palette_registry;
-                effective_sprite_reg = local_sprite_registry;
+                (local_palette_registry, local_sprite_registry)
             } else {
-                effective_palette_reg = if let Some(pr) = project_registry {
-                    pr.palettes.clone()
-                } else {
-                    local_palette_registry
-                };
-                effective_sprite_reg = if let Some(pr) = project_registry {
-                    pr.sprites.clone()
-                } else {
-                    local_sprite_registry
-                };
-            }
+                (
+                    if let Some(pr) = project_registry {
+                        pr.palettes.clone()
+                    } else {
+                        local_palette_registry
+                    },
+                    if let Some(pr) = project_registry {
+                        pr.sprites.clone()
+                    } else {
+                        local_sprite_registry
+                    },
+                )
+            };
 
             let palette_registry = &effective_palette_reg;
             let sprite_registry = &effective_sprite_reg;
