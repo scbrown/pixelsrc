@@ -83,6 +83,8 @@ python3 examples/skull/contact_sheet.py
 
 ![The skull from the first attempt to now](evolution.png)
 
+Animated, each version and then the four animations: [evolution.gif](evolution.gif)
+
 Every version of this skull was written as `.pxl` and rendered by `pxl`. From left to right:
 
 - **Reference:** the target art.
