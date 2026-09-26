@@ -102,6 +102,8 @@ jobs:
           test('search functionality works', async ({ page }) => {
             await page.goto(BASE_URL);
             // Check search is available
+            // mdBook keeps the search bar hidden until search is opened
+            await page.locator('#search-toggle').click();
             const searchInput = page.locator('#searchbar');
             await expect(searchInput).toBeVisible();
           });
