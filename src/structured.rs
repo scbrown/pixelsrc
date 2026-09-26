@@ -712,7 +712,7 @@ mod tests {
         assert!(pixels.contains(&(2, 2))); // diagonal corner (8-connected)
         assert!(pixels.contains(&(3, 2))); // top edge
         assert!(pixels.contains(&(5, 5))); // far diagonal corner
-        // The source pixels themselves are NOT part of the outline.
+                                           // The source pixels themselves are NOT part of the outline.
         assert!(!pixels.contains(&(3, 3)));
         assert!(!pixels.contains(&(4, 4)));
         assert!(warnings.is_empty());

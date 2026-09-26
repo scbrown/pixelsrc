@@ -736,7 +736,8 @@ fn run_particle_bake(
         } else {
             for (i, frame) in raw_frames.into_iter().enumerate() {
                 let img = scale_image(frame, scale);
-                let path = particle_output_path(input, output, &particle.name, Some(i as u32), "png");
+                let path =
+                    particle_output_path(input, output, &particle.name, Some(i as u32), "png");
                 if let Err(e) = save_png(&img, &path) {
                     eprintln!("Error: Failed to save '{}': {}", path.display(), e);
                     return ExitCode::from(EXIT_ERROR);

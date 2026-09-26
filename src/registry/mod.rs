@@ -1493,8 +1493,14 @@ mod tests {
                 ("flame".to_string(), "#E25822".to_string()),
             ])),
             regions: Some(HashMap::from([
-                ("ring".to_string(), RegionDef { rect: Some([1, 5, 6, 2]), z: Some(0), ..Default::default() }),
-                ("flame".to_string(), RegionDef { rect: Some([3, 1, 2, 4]), z: Some(1), ..Default::default() }),
+                (
+                    "ring".to_string(),
+                    RegionDef { rect: Some([1, 5, 6, 2]), z: Some(0), ..Default::default() },
+                ),
+                (
+                    "flame".to_string(),
+                    RegionDef { rect: Some([3, 1, 2, 4]), z: Some(1), ..Default::default() },
+                ),
             ])),
             ..Default::default()
         }
@@ -1558,7 +1564,7 @@ mod tests {
         assert!(regions.contains_key("ring"));
         assert!(!regions.contains_key("flame")); // removed
         assert!(regions.contains_key("spark")); // added
-        // Own palette token merged over the inherited base.
+                                                // Own palette token merged over the inherited base.
         assert_eq!(r.palette.get("spark"), Some(&"#FFD700".to_string()));
         assert_eq!(r.palette.get("ring"), Some(&"#888888".to_string()));
     }
