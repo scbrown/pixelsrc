@@ -1,0 +1,18 @@
+[workspace]
+changelog_config = "cliff.toml"
+# release-plz only cuts the release PR, the tag and the GitHub release. The
+# binaries and the crates.io publish run as jobs in release-plz.yml, because a
+# tag or release created with GITHUB_TOKEN does not trigger `on: push: tags`
+# or `on: release` workflows. Left to those triggers, a release would ship
+# with no binaries.
+publish = false
+# Use the tags as the baseline instead of asking crates.io; with publish off,
+# the registry is not the source of truth.
+git_only = true
+git_release_enable = true
+git_tag_enable = true
+# The default template is `{{ package }}-v{{ version }}`; every tag here is v*.
+git_tag_name = "v{{ version }}"
+
+[[package]]
+name = "pixelsrc"
