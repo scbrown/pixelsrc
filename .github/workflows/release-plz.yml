@@ -2,7 +2,8 @@ name: Release-plz
 
 # On every push to main: open or update the release PR (version bump +
 # CHANGELOG). When that PR merges: tag v<version>, create the GitHub release,
-# then build the binaries and publish to crates.io from this same run.
+# then build the binaries, update the Homebrew tap and publish to crates.io
+# from this same run.
 on:
   push:
     branches: [main]
@@ -46,6 +47,15 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       tag: ${{ needs.release-plz.outputs.tag }}
+
+  homebrew:
+    name: Homebrew tap
+    needs: [release-plz, binaries]
+    uses: ./.github/workflows/homebrew.yml
+    with:
+      tag: ${{ needs.release-plz.outputs.tag }}
+    secrets:
+      HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
   crates:
     name: crates.io
