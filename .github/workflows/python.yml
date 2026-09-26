@@ -10,6 +10,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # pyo3 0.23 tops out at Python 3.13; runners now carry 3.14, which
+  # --find-interpreter picks up. Build those against the stable ABI.
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
 
 jobs:
   linux:

@@ -74,9 +74,8 @@ jobs:
 
           test.beforeAll(async () => {
             // Start a simple HTTP server
-            server = spawn('npx', ['serve', '-p', PORT, 'docs/book/book'], {
-              stdio: 'pipe',
-              shell: true
+            server = spawn('python3', ['-m', 'http.server', String(PORT), '--directory', 'docs/book/book'], {
+              stdio: 'pipe'
             });
             // Wait for server to start
             await new Promise(resolve => setTimeout(resolve, 3000));
