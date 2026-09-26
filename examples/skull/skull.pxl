@@ -1,0 +1,432 @@
+// skull.pxl - 3/4 view skull facing right, after reference-skull.jpg
+//
+// 40x40 canvas, transparent background. The skull is two sprites so the jaw
+// can move: skull_cranium (everything fixed) and skull_jaw (the mandible);
+// the `skull` composition stacks them into the still.
+//
+// Every region carries an explicit z: region maps are unordered, so paint
+// order must be spelled out (see GAPS.md).
+
+{
+  type: "palette",
+  name: "bone",
+  colors: {
+    _: "transparent",
+    lit: "transparent",   // mask only: the lit side of the cranium
+    gap: "transparent",   // see-through hole at the corner of the mouth
+    outline: "#6f6a64",
+    crease: "#7c766f",
+    hi: "#fefded",        // cream highlight
+    edge: "#fefded",
+    tooth: "#fefded",
+    root: "#fefded",
+    bone: "#e6dccd",      // beige base
+    fleck: "#e6dccd",
+    mid: "#c5baa9",       // tan shadow
+    shade: "#c5baa9",
+    gum: "#c5baa9",
+    umber: "#a4998a",     // deepest bone shadow
+    seam: "#a4998a",
+    socket: "#554d48",    // dark warm grey cavities
+    rim: "#7f7a74",       // lighter inner wall of the orbits
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Cranium + upper jaw: everything that stays put when the skull talks
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "skull_cranium",
+  size: [40, 40],
+  palette: "bone",
+  regions: {
+    // silhouette as a closed polyline; the bone fills it
+    outline: {
+      z: 100,
+      line: [
+        [17, 0], [22, 0], [23, 1], [27, 1], [29, 2], [34, 7], [34, 12], [35, 13],
+        [35, 16], [34, 17], [34, 20], [31, 23], [31, 32], [18, 32], [10, 23], [8, 23],
+        [6, 22], [5, 21], [5, 18], [4, 17], [4, 10], [5, 9], [5, 7], [9, 3], [11, 2],
+        [13, 1], [16, 1], [17, 0],
+      ],
+    },
+    bone: { z: 0, fill: "inside(outline)" },
+
+    // everything right of this line is lit; left of it is the back-of-skull shadow
+    lit: {
+      z: -10,
+      path: "M17,-1 L40,-1 L40,39 L10,39 L10,21 L11,20 L10,19 L8,18 L8,16 L6,14 L6,13 L8,11 L8,9 L10,7 L10,6 L12,5 L12,4 L14,3 L15,2 L17,1 Z",
+    },
+    mid: { z: 10, fill: "inside(outline)", except: ["lit"] },
+
+    // shadowed temple, cheekbone underside, far side of the face, brow
+    shade: {
+      z: 20,
+      union: [
+        // temple hollow behind the orbit
+        { points: [[14, 15], [13, 16], [14, 16], [13, 17], [14, 17], [12, 18], [13, 18], [11, 19], [12, 19], [13, 19]] },
+        // cheekbone underside plane
+        { path: "M20,20 L23,20 L23,22 L22,23 L21,25 L19,25 L18,24 L19,21 Z" },
+        // right wall of the nose, far side of the face
+        { line: [[29, 18], [29, 22]] },
+        { path: "M31,20 L33,20 L32,22 L31,22 Z" },
+        // glabella
+        { line: [[25, 11], [28, 11]] },
+        { path: "M19,26 L20,26 L20,28 L19,28 Z" },
+      ],
+    },
+
+    // cream light on the dome, brow ridge, cheekbone and nose bridge
+    hi: {
+      z: 30,
+      union: [
+        { path: "M19,2 L26,2 L28,3 L31,6 L32,7 L32,8 L33,9 L33,10 L17,10 L19,9 L16,8 L12,7 L15,4 Z" },
+        { points: [[17, 11], [24, 11], [29, 11], [30, 11], [16, 13], [16, 14]] },
+        { path: "M15,15 L16,15 L16,17 L15,17 Z" },
+        { points: [[18, 18], [24, 12], [25, 12], [26, 13], [27, 13], [27, 14], [27, 15], [28, 15], [27, 16], [28, 16], [29, 16]] },
+        { points: [[27, 17], [29, 17], [30, 17], [25, 18], [26, 18], [30, 18]] },
+        { path: "M23,19 L26,19 L26,22 L25,22 L24,21 L24,20 Z" },
+        { line: [[30, 19], [30, 22]] },
+        { line: [[31, 19], [33, 19]] },
+      ],
+    },
+    // small breaks in the brow highlight
+    fleck: { z: 32, points: [[21, 10], [27, 10], [32, 10], [33, 10], [26, 15], [26, 16]] },
+
+    // tooth roots above the gum line
+    root: {
+      z: 35,
+      union: [
+        { line: [[24, 23], [24, 25]] },
+        { line: [[26, 23], [26, 25]] },
+        { line: [[27, 23], [27, 24]] },
+        { line: [[29, 23], [29, 25]] },
+        { line: [[22, 25], [23, 25]] },
+      ],
+    },
+
+    umber: {
+      z: 40,
+      union: [
+        { line: [[26, 12], [28, 12]] },
+        // cheek underside where the jaw tucks in
+        { points: [[11, 22], [13, 23]] },
+        { line: [[19, 27], [19, 28]] },
+        { points: [[19, 26], [29, 26], [30, 26]] },
+      ],
+    },
+    // gum line above the upper teeth
+    gum: { z: 42, line: [[20, 26], [28, 26]] },
+
+    // upper teeth: lit tooth on bone, two pixels per tooth
+    tooth: {
+      z: 45,
+      union: [
+        { line: [[21, 27], [21, 28]] },
+        { line: [[23, 27], [23, 28]] },
+        { line: [[25, 27], [25, 28]] },
+        { line: [[27, 27], [27, 28]] },
+        { line: [[29, 27], [29, 28]] },
+      ],
+    },
+
+    // temple ridge running down into the jaw hinge
+    crease: {
+      z: 50,
+      union: [
+        { line: [[16, 11], [16, 12]] },
+        { points: [[15, 13], [15, 14]] },
+        { line: [[14, 18], [14, 19]] },
+        { points: [[11, 20], [10, 21], [10, 22]] },
+      ],
+    },
+
+    socket: {
+      z: 60,
+      union: [
+        // near orbit: angular, heavy top-right rim
+        { path: "M18,11 L22,11 L23,12 L25,14 L25,16 L24,17 L22,19 L19,19 L19,18 L17,16 L17,12 Z" },
+        // far orbit, cut off by the outline
+        { path: "M31,11 L33,11 L34,12 L34,17 L33,18 L31,18 L29,16 L29,13 Z" },
+        // nasal notch
+        { points: [[28, 17], [27, 18], [28, 18], [27, 19], [28, 19], [27, 20], [28, 20], [27, 21]] },
+        // mouth corner
+        { points: [[16, 25], [17, 25], [18, 25], [17, 26], [18, 26]] },
+        // mouth interior, hidden behind the jaw when closed
+        { rect: [18, 29, 13, 3] },
+      ],
+    },
+
+    // lighter inner walls of the orbits and the nasal septum
+    rim: {
+      z: 70,
+      union: [
+        { path: "M18,13 L21,13 L23,15 L23,17 L22,18 L19,18 L18,17 Z" },
+        { path: "M31,13 L32,13 L33,14 L33,16 L32,17 L31,17 L30,16 L29,15 L30,14 Z" },
+        { points: [[28, 21], [27, 22]] },
+      ],
+    },
+
+    gap: { z: 200, points: [[17, 27], [18, 27]] },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Mandible + lower teeth: the only moving part
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "skull_jaw",
+  size: [40, 40],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [11, 22], [13, 24], [15, 25], [16, 26], [16, 27], [17, 28], [18, 28], [19, 29],
+        [31, 29], [31, 36], [30, 37], [24, 37], [22, 36], [20, 36], [19, 35], [18, 35],
+        [17, 34], [14, 34], [11, 33], [10, 32], [10, 24], [11, 23], [11, 22],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M11,22 L13,24 L15,25 L16,26 L16,27 L17,28 L18,28 L19,29 L31,29 L31,36 L30,37 L24,37 L22,36 L20,36 L19,35 L18,35 L17,34 L14,34 L11,33 L10,32 L10,24 L11,23 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[11, 29], [11, 30]] },
+        { path: "M12,32 L19,32 L21,33 L21,34 L19,34 L18,33 L12,33 Z" },
+        { path: "M17,30 L18,30 L18,31 L17,31 Z" },
+        { rect: [22, 32, 5, 1] },
+        { points: [[22, 35]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[11, 31], [11, 32]] },
+        { points: [[12, 33], [18, 34], [20, 35], [21, 35], [22, 36], [23, 36]] },
+        { rect: [27, 32, 3, 1] },
+        { path: "M19,30 L20,30 L20,31 L19,31 Z" },
+      ],
+    },
+    // chin ridge
+    hi: {
+      z: 40,
+      union: [
+        { line: [[27, 33], [27, 35]] },
+        { line: [[28, 33], [28, 34]] },
+        { points: [[26, 35], [26, 36], [29, 35], [30, 36]] },
+      ],
+    },
+    // lower teeth
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[21, 30], [21, 31]] },
+        { line: [[23, 30], [23, 31]] },
+        { line: [[25, 30], [25, 31]] },
+        { line: [[27, 30], [27, 31]] },
+        { line: [[29, 30], [29, 31]] },
+      ],
+    },
+    // where the jaw meets the skull: soft shadow lines, not hard outline
+    seam: {
+      z: 110,
+      points: [[11, 22], [12, 23], [13, 24], [15, 25], [16, 26], [17, 28], [18, 28]],
+    },
+    gum: { z: 110, line: [[19, 29], [30, 29]] },
+    // lit front edge of the ramus, drawn over its own outline
+    edge: {
+      z: 120,
+      points: [[11, 23], [12, 24], [13, 25], [14, 25], [14, 26], [15, 26], [15, 27], [16, 27], [16, 28], [17, 29], [18, 29]],
+    },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Talking poses: the mandible swung open around the jaw hinge. Written out in
+// full because compositions cannot offset a layer (see GAPS.md).
+// ---------------------------------------------------------------------------
+
+// Jaw dropped one pixel at the chin, hinged at the ear
+{
+  type: "sprite",
+  name: "skull_jaw_ajar",
+  size: [40, 40],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [11, 22], [13, 24], [15, 26], [16, 27], [16, 28], [17, 29], [18, 29], [19, 30],
+        [31, 30], [31, 37], [30, 38], [24, 38], [22, 37], [20, 37], [19, 36], [18, 36],
+        [17, 35], [14, 34], [11, 33], [10, 32], [10, 24], [11, 23], [11, 22],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M11,22 L13,24 L15,26 L16,27 L16,28 L17,29 L18,29 L19,30 L31,30 L31,37 L30,38 L24,38 L22,37 L20,37 L19,36 L18,36 L17,35 L14,34 L11,33 L10,32 L10,24 L11,23 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[11, 29], [11, 30]] },
+        { path: "M12,32 L19,33 L21,34 L21,35 L19,35 L18,34 L12,33 Z" },
+        { path: "M17,31 L18,31 L18,32 L17,32 Z" },
+        { rect: [22, 33, 5, 1] },
+        { points: [[22, 36]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[11, 31], [11, 32]] },
+        { points: [[12, 33], [18, 35], [20, 36], [21, 36], [22, 37], [23, 37]] },
+        { rect: [27, 33, 3, 1] },
+        { path: "M19,31 L20,31 L20,32 L19,32 Z" },
+      ],
+    },
+    // chin ridge
+    hi: {
+      z: 40,
+      union: [
+        { line: [[27, 34], [27, 36]] },
+        { line: [[28, 34], [28, 35]] },
+        { points: [[26, 36], [26, 37], [29, 36], [30, 37]] },
+      ],
+    },
+    // lower teeth
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[21, 31], [21, 32]] },
+        { line: [[23, 31], [23, 32]] },
+        { line: [[25, 31], [25, 32]] },
+        { line: [[27, 31], [27, 32]] },
+        { line: [[29, 31], [29, 32]] },
+      ],
+    },
+    // where the jaw meets the skull: soft shadow lines, not hard outline
+    seam: {
+      z: 110,
+      points: [[11, 22], [12, 23], [13, 24], [15, 26], [16, 27], [17, 29], [18, 29]],
+    },
+    gum: { z: 110, line: [[19, 30], [30, 30]] },
+    // lit front edge of the ramus, drawn over its own outline
+    edge: {
+      z: 120,
+      points: [[11, 23], [12, 24], [13, 25], [14, 25], [14, 26], [15, 27], [15, 28], [16, 28], [16, 29], [17, 30], [18, 30]],
+    },
+  },
+}
+
+// Jaw open: chin down two pixels, hinge fixed
+{
+  type: "sprite",
+  name: "skull_jaw_open",
+  size: [40, 40],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [11, 22], [13, 25], [15, 26], [16, 27], [16, 28], [17, 30], [18, 30], [19, 31],
+        [31, 31], [31, 38], [30, 39], [24, 39], [22, 38], [20, 38], [19, 37], [18, 37],
+        [17, 36], [14, 35], [11, 33], [10, 32], [10, 24], [11, 23], [11, 22],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M11,22 L13,25 L15,26 L16,27 L16,28 L17,30 L18,30 L19,31 L31,31 L31,38 L30,39 L24,39 L22,38 L20,38 L19,37 L18,37 L17,36 L14,35 L11,33 L10,32 L10,24 L11,23 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[11, 29], [11, 30]] },
+        { path: "M12,32 L19,34 L21,35 L21,36 L19,36 L18,35 L12,33 Z" },
+        { path: "M17,32 L18,32 L18,33 L17,33 Z" },
+        { rect: [22, 34, 5, 1] },
+        { points: [[22, 37]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[11, 31], [11, 32]] },
+        { points: [[12, 33], [18, 36], [20, 37], [21, 37], [22, 38], [23, 38]] },
+        { rect: [27, 34, 3, 1] },
+        { path: "M19,32 L20,32 L20,33 L19,33 Z" },
+      ],
+    },
+    // chin ridge
+    hi: {
+      z: 40,
+      union: [
+        { line: [[27, 35], [27, 37]] },
+        { line: [[28, 35], [28, 36]] },
+        { points: [[26, 37], [26, 38], [29, 37], [30, 38]] },
+      ],
+    },
+    // lower teeth
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[21, 32], [21, 33]] },
+        { line: [[23, 32], [23, 33]] },
+        { line: [[25, 32], [25, 33]] },
+        { line: [[27, 32], [27, 33]] },
+        { line: [[29, 32], [29, 33]] },
+      ],
+    },
+    // where the jaw meets the skull: soft shadow lines, not hard outline
+    seam: {
+      z: 110,
+      points: [[11, 22], [12, 23], [13, 25], [15, 26], [16, 27], [17, 30], [18, 30]],
+    },
+    gum: { z: 110, line: [[19, 31], [30, 31]] },
+    // lit front edge of the ramus, drawn over its own outline
+    edge: {
+      z: 120,
+      points: [[11, 23], [12, 24], [13, 26], [14, 26], [14, 27], [15, 27], [15, 28], [16, 28], [16, 29], [17, 31], [18, 31]],
+    },
+  },
+}
+
+{
+  type: "composition",
+  name: "skull",
+  size: [40, 40],
+  cell_size: [40, 40],
+  sprites: { C: "skull_cranium", J: "skull_jaw" },
+  layers: [{ map: ["C"] }, { map: ["J"] }],
+}
+
+{
+  type: "composition",
+  name: "skull_talk_ajar",
+  size: [40, 40],
+  cell_size: [40, 40],
+  sprites: { C: "skull_cranium", J: "skull_jaw_ajar" },
+  layers: [{ map: ["C"] }, { map: ["J"] }],
+}
+
+{
+  type: "composition",
+  name: "skull_talk_open",
+  size: [40, 40],
+  cell_size: [40, 40],
+  sprites: { C: "skull_cranium", J: "skull_jaw_open" },
+  layers: [{ map: ["C"] }, { map: ["J"] }],
+}
+
+// closed -> ajar -> open -> ajar, with a beat of silence
+{
+  type: "animation",
+  name: "skull_talking",
+  frames: ["skull", "skull_talk_ajar", "skull_talk_open", "skull_talk_ajar", "skull", "skull_talk_open", "skull_talk_ajar", "skull", "skull"],
+  duration: 110,
+  loop: true,
+}
