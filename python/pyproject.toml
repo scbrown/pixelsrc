@@ -5,7 +5,8 @@ build-backend = "maturin"
 [project]
 name = "pixelsrc"
 version = "0.2.0"
-requires-python = ">=3.9"
+# PyO3 0.23 supports CPython through 3.13; keep interpreter discovery in range.
+requires-python = ">=3.9,<3.14"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
