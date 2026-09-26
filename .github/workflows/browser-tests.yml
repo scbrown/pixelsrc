@@ -74,7 +74,7 @@ jobs:
 
           test.beforeAll(async () => {
             // Start a simple HTTP server
-            server = spawn('python3', ['-m', 'http.server', String(PORT), '--directory', 'docs/book/book'], {
+            server = spawn('python3', ['-m', 'http.server', String(PORT), '--directory', 'docs/book/book/html'], {
               stdio: 'pipe'
             });
             // Wait for server to start
