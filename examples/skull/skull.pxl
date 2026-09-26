@@ -422,11 +422,19 @@
   layers: [{ map: ["C"] }, { map: ["J"] }],
 }
 
-// closed -> ajar -> open -> ajar, with a beat of silence
+// Speech-like timing: syllables of 1-3 frames, short closes between them and a
+// longer hold between phrases. GIF frames share one duration, so a hold is a
+// repeated frame (see GAPS.md).
 {
   type: "animation",
   name: "skull_talking",
-  frames: ["skull", "skull_talk_ajar", "skull_talk_open", "skull_talk_ajar", "skull", "skull_talk_open", "skull_talk_ajar", "skull", "skull"],
-  duration: 110,
+  frames: [
+    "skull", "skull_talk_ajar", "skull_talk_open", "skull_talk_ajar", "skull", "skull",
+    "skull_talk_ajar", "skull_talk_open", "skull_talk_open", "skull_talk_ajar", "skull", "skull_talk_ajar",
+    "skull", "skull", "skull", "skull_talk_ajar", "skull_talk_open", "skull_talk_ajar",
+    "skull_talk_open", "skull_talk_ajar", "skull", "skull", "skull", "skull",
+    "skull", "skull",
+  ],
+  duration: 80,
   loop: true,
 }
