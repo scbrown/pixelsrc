@@ -3,6 +3,16 @@ name: Update Homebrew Formula
 on:
   release:
     types: [published]
+  # Called by release-plz.yml once the binaries are attached (a GITHUB_TOKEN
+  # release cannot trigger the `release` arm above).
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_DEPLOY_KEY:
+        required: true
   workflow_dispatch:
     inputs:
       version:
@@ -10,25 +20,34 @@ on:
         required: true
         type: string
 
+# The formula lives in the tap repo, scbrown/homebrew-pixelsrc, so that
+# `brew install scbrown/pixelsrc/pxl` works. CI writes to it with a deploy key
+# (HOMEBREW_TAP_DEPLOY_KEY) scoped to that one repo.
 env:
-  FORMULA_FILE: homebrew-pixelsrc/Formula/pxl.rb
+  FORMULA_FILE: tap/Formula/pxl.rb
+  # the working directory is not a pixelsrc checkout, so tell gh which repo
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   update-formula:
     name: Update Homebrew formula
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
-      - name: Checkout
+      - name: Checkout the tap
         uses: actions/checkout@v4
         with:
-          ref: main
+          repository: scbrown/homebrew-pixelsrc
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
 
       - name: Get version
         id: version
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
+          if [ -n "${{ inputs.tag }}" ]; then
+            VERSION="${{ inputs.tag }}"
+          elif [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
             VERSION="${{ github.event.release.tag_name }}"
@@ -88,7 +107,7 @@ jobs:
           # frozen_string_literal: true
 
           # Homebrew formula for pxl - Pixelsrc CLI
-          # Install: brew tap scbrown/pixelsrc && brew install pxl
+          # Install: brew install scbrown/pixelsrc/pxl
           class Pxl < Formula
             desc "GenAI-native pixel art format and compiler"
             homepage "https://github.com/scbrown/pixelsrc"
@@ -131,9 +150,10 @@ jobs:
           cat $FORMULA_FILE
 
       - name: Commit and push
+        working-directory: tap
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add $FORMULA_FILE
-          git diff --staged --quiet || git commit -m "Update Homebrew formula for ${{ steps.version.outputs.tag }}"
+          git add Formula/pxl.rb
+          git diff --staged --quiet || git commit -m "pxl ${{ steps.version.outputs.number }}"
           git push

@@ -18,8 +18,10 @@
         wasm: typeof WebAssembly === 'object' && typeof WebAssembly.instantiate === 'function',
         dynamicImport: (function() {
             try {
-                // Check if dynamic import is supported
-                return typeof import === 'function' || true; // Modern browsers
+                // Check if dynamic import is supported. `typeof import` is a
+                // SyntaxError that aborts this whole script, so probe via Function.
+                new Function('return import("data:text/javascript,")');
+                return true;
             } catch (e) {
                 return false;
             }
