@@ -1,0 +1,9 @@
+{"type":"palette","name":"p","colors":{"_":"transparent","bone":"#e3dac9"}}
+{"type":"sprite","name":"jaw","size":[8,8],"palette":"p","regions":{"bone":{"rect":[2,1,3,2]}}}
+{"type":"sprite","name":"jaw_shift","source":"jaw","palette":"p","transform":["shift:0,3"]}
+{"type":"sprite","name":"jaw_combined","source":"jaw","palette":"p","transform":["shift:0,3",{"op":"shift","x":1,"y":0}]}
+{"type":"composition","name":"layer_shift","size":[8,8],"cell_size":[8,8],"sprites":{"J":"jaw"},"layers":[{"map":["J"],"transform":["shift:0,3"]}]}
+{"type":"composition","name":"source_shift","size":[8,8],"cell_size":[8,8],"sprites":{"J":"jaw_shift"},"layers":[{"map":["J"]}]}
+{"type":"composition","name":"combined","size":[8,8],"cell_size":[8,8],"sprites":{"J":"jaw_shift"},"layers":[{"map":["J"],"transform":[{"op":"shift","x":1,"y":0}]}]}
+{"type":"composition","name":"base_shift","base":"jaw_shift","layers":[],"sprites":{}}
+{"type":"animation","name":"poses","frames":["layer_shift","source_shift","combined"],"duration":100}

@@ -466,55 +466,20 @@ pub fn run_render(
             // Render the resolved sprite
             let (mut image, render_warnings) = render_resolved(&render_sprite_data);
 
-            // Apply transforms from sprite.transform if present
-            if let Some(ref transform_specs) = sprite.transform {
-                use crate::models::TransformSpec;
-                use crate::transforms::{apply_image_transform, parse_transform_str};
-
-                for spec in transform_specs {
-                    let transform_result = match spec {
-                        TransformSpec::String(s) => parse_transform_str(s),
-                        TransformSpec::Object { op, params } => {
-                            // Convert object to JSON and parse
-                            let mut obj = serde_json::Map::new();
-                            obj.insert("op".to_string(), serde_json::Value::String(op.clone()));
-                            for (k, v) in params {
-                                obj.insert(k.clone(), v.clone());
-                            }
-                            crate::transforms::parse_transform_value(&serde_json::Value::Object(
-                                obj,
-                            ))
-                        }
-                    };
-
-                    match transform_result {
-                        Ok(transform) => {
-                            // Skip animation transforms (they don't apply to images)
-                            if crate::transforms::is_animation_transform(&transform) {
-                                continue;
-                            }
-                            match apply_image_transform(&image, &transform, Some(&final_palette)) {
-                                Ok(transformed) => image = transformed,
-                                Err(e) => {
-                                    let msg =
-                                        format!("sprite '{}': transform error: {}", sprite.name, e);
-                                    if strict {
-                                        eprintln!("Error: {}", msg);
-                                        return ExitCode::from(EXIT_ERROR);
-                                    }
-                                    all_warnings.push(msg);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            let msg = format!("sprite '{}': invalid transform: {}", sprite.name, e);
-                            if strict {
-                                eprintln!("Error: {}", msg);
-                                return ExitCode::from(EXIT_ERROR);
-                            }
-                            all_warnings.push(msg);
-                        }
+            if let Some(ref specs) = sprite.transform {
+                let (transformed, warnings) = crate::transforms::apply_image_transform_specs(
+                    image,
+                    specs,
+                    Some(&final_palette),
+                );
+                image = transformed;
+                for warning in warnings {
+                    let msg = format!("sprite '{}': {}", sprite.name, warning);
+                    if strict {
+                        eprintln!("Error: {}", msg);
+                        return ExitCode::from(EXIT_ERROR);
                     }
+                    all_warnings.push(msg);
                 }
             }
 
@@ -890,7 +855,7 @@ fn run_composition_render(
 }
 
 /// Render a composition to an image buffer
-/// TRF-9: Now uses SpriteRegistry to resolve sprites with transforms applied
+/// Resolve sprite geometry and apply image transforms before caching composition inputs.
 #[allow(clippy::too_many_arguments)]
 fn render_composition_to_image(
     comp: &Composition,
@@ -924,7 +889,7 @@ fn render_composition_to_image(
         // First check if sprite exists in the raw sprites map (for @include: handling)
         let original_sprite = sprites.get(sprite_name);
 
-        // Use sprite registry to resolve the sprite with transforms applied
+        // Resolve inherited sprite geometry; image transforms are applied below.
         let resolved_sprite = match sprite_registry.resolve(sprite_name, palette_registry, strict) {
             Ok(resolved) => {
                 // Collect any sprite warnings
@@ -993,8 +958,19 @@ fn render_composition_to_image(
             regions: resolved_sprite.regions.clone(),
         };
 
-        // Render the resolved sprite (transforms already applied)
-        let (image, render_warnings) = render_resolved(&render_sprite_data);
+        // Registry resolution inherits regions and size, not transformed pixels.
+        let (mut image, render_warnings) = render_resolved(&render_sprite_data);
+        if let Some(specs) = original_sprite.and_then(|sprite| sprite.transform.as_deref()) {
+            let (transformed, warnings) = crate::transforms::apply_image_transform_specs(
+                image,
+                specs,
+                Some(&render_sprite_data.palette),
+            );
+            image = transformed;
+            for warning in warnings {
+                all_warnings.push(format!("sprite '{}': {}", sprite_name, warning));
+            }
+        }
 
         // Collect render warnings
         for warning in render_warnings {

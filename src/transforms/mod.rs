@@ -37,3 +37,35 @@ pub use types::{explain_transform, Transform, TransformError};
 
 /// Result type alias for transform operations.
 pub type Result<T> = std::result::Result<T, TransformError>;
+
+/// Apply image transform specifications in order, retaining valid operations in
+/// lenient rendering. Callers turn the returned diagnostics into strict errors.
+pub(crate) fn apply_image_transform_specs(
+    mut image: image::RgbaImage,
+    specs: &[crate::models::TransformSpec],
+    palette: Option<&std::collections::HashMap<String, String>>,
+) -> (image::RgbaImage, Vec<String>) {
+    use crate::models::TransformSpec;
+
+    let mut warnings = Vec::new();
+    for spec in specs {
+        let parsed = match spec {
+            TransformSpec::String(s) => parse_transform_str(s),
+            TransformSpec::Object { op, params } => {
+                let mut object: serde_json::Map<String, serde_json::Value> =
+                    params.clone().into_iter().collect();
+                object.insert("op".to_string(), serde_json::Value::String(op.clone()));
+                parse_transform_value(&serde_json::Value::Object(object))
+            }
+        };
+        match parsed {
+            Ok(transform) if is_animation_transform(&transform) => continue,
+            Ok(transform) => match apply_image_transform(&image, &transform, palette) {
+                Ok(transformed) => image = transformed,
+                Err(error) => warnings.push(format!("transform error: {}", error)),
+            },
+            Err(error) => warnings.push(format!("invalid transform: {}", error)),
+        }
+    }
+    (image, warnings)
+}
