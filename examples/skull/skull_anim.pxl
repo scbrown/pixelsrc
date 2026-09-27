@@ -1,0 +1,900 @@
+// skull_anim.pxl - idle, laugh and glowing-eye loops for the skull in skull.pxl
+//
+// The same art as skull.pxl on a 44x44 canvas, so the head has room to float
+// and the jaw has room to drop. Compositions can't offset a layer and derived
+// `shift` sprites don't survive into compositions or GIF frames (GAPS.md #4),
+// so the two head heights ("rest" and "up", 1px higher) are written out as
+// separate sprites. Every frame is a composition of cranium + jaw + an
+// optional overlay (blink or ember glow) at the same height.
+//
+// A frame-list animation has a single frame duration (GAPS.md #6), so holds
+// are made by repeating a frame.
+
+// Same bone palette as skull.pxl (palette @include breaks in GIF frames, GAPS.md #7)
+{
+  type: "palette",
+  name: "bone",
+  colors: {
+    _: "transparent",
+    lit: "transparent",   // mask only: the lit side of the cranium
+    gap: "transparent",   // see-through hole at the corner of the mouth
+    outline: "#6f6a64",
+    crease: "#7c766f",
+    hi: "#fefded",        // cream highlight
+    edge: "#fefded",
+    tooth: "#fefded",
+    root: "#fefded",
+    bone: "#e6dccd",      // beige base
+    fleck: "#e6dccd",
+    mid: "#c5baa9",       // tan shadow
+    shade: "#c5baa9",
+    gum: "#c5baa9",
+    umber: "#a4998a",     // deepest bone shadow
+    seam: "#a4998a",
+    socket: "#554d48",    // dark warm grey cavities
+    rim: "#7f7a74",       // lighter inner wall of the orbits
+  },
+}
+
+// Overlay colours: lids reuse the socket dark; the ember ramp is kept low and warm
+{
+  type: "palette",
+  name: "ember",
+  colors: {
+    _: "transparent",
+    lid: "#554d48",
+    ember: "#86645a",
+    coal: "#a8603c",
+    flame: "#e0904a",
+    spark: "#ffcf8a",
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Cranium at both head heights
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "cranium_rest",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [19, 3], [24, 3], [25, 4], [29, 4], [31, 5], [36, 10], [36, 15], [37, 16],
+        [37, 19], [36, 20], [36, 23], [33, 26], [33, 35], [20, 35], [12, 26], [10, 26],
+        [8, 25], [7, 24], [7, 21], [6, 20], [6, 13], [7, 12], [7, 10], [11, 6], [13, 5],
+        [15, 4], [18, 4], [19, 3],
+      ],
+    },
+    bone: { z: 0, fill: "inside(outline)" },
+
+    lit: {
+      z: -10,
+      path: "M19,2 L42,2 L42,42 L12,42 L12,24 L13,23 L12,22 L10,21 L10,19 L8,17 L8,16 L10,14 L10,12 L12,10 L12,9 L14,8 L14,7 L16,6 L17,5 L19,4 Z",
+    },
+    mid: { z: 10, fill: "inside(outline)", except: ["lit"] },
+
+    shade: {
+      z: 20,
+      union: [
+        { points: [[16, 18], [15, 19], [16, 19], [15, 20], [16, 20], [14, 21], [15, 21], [13, 22], [14, 22], [15, 22]] },
+        { path: "M22,23 L25,23 L25,25 L24,26 L23,28 L21,28 L20,27 L21,24 Z" },
+        { line: [[31, 21], [31, 25]] },
+        { path: "M33,23 L35,23 L34,25 L33,25 Z" },
+        { line: [[27, 14], [30, 14]] },
+        { path: "M21,29 L22,29 L22,31 L21,31 Z" },
+      ],
+    },
+
+    hi: {
+      z: 30,
+      union: [
+        { path: "M21,5 L28,5 L30,6 L33,9 L34,10 L34,11 L35,12 L35,13 L19,13 L21,12 L18,11 L14,10 L17,7 Z" },
+        { points: [[19, 14], [26, 14], [31, 14], [32, 14], [18, 16], [18, 17]] },
+        { path: "M17,18 L18,18 L18,20 L17,20 Z" },
+        { points: [[20, 21], [26, 15], [27, 15], [28, 16], [29, 16], [29, 17], [29, 18], [30, 18], [29, 19], [30, 19], [31, 19]] },
+        { points: [[29, 20], [31, 20], [32, 20], [27, 21], [28, 21], [32, 21]] },
+        { path: "M25,22 L28,22 L28,25 L27,25 L26,24 L26,23 Z" },
+        { line: [[32, 22], [32, 25]] },
+        { line: [[33, 22], [35, 22]] },
+      ],
+    },
+    fleck: { z: 32, points: [[23, 13], [29, 13], [34, 13], [35, 13], [28, 18], [28, 19]] },
+
+    root: {
+      z: 35,
+      union: [
+        { line: [[26, 26], [26, 28]] },
+        { line: [[28, 26], [28, 28]] },
+        { line: [[29, 26], [29, 27]] },
+        { line: [[31, 26], [31, 28]] },
+        { line: [[24, 28], [25, 28]] },
+      ],
+    },
+
+    umber: {
+      z: 40,
+      union: [
+        { line: [[28, 15], [30, 15]] },
+        { points: [[13, 25], [15, 26]] },
+        { line: [[21, 30], [21, 31]] },
+        { points: [[21, 29], [31, 29], [32, 29]] },
+      ],
+    },
+    gum: { z: 42, line: [[22, 29], [30, 29]] },
+
+    tooth: {
+      z: 45,
+      union: [
+        { line: [[23, 30], [23, 31]] },
+        { line: [[25, 30], [25, 31]] },
+        { line: [[27, 30], [27, 31]] },
+        { line: [[29, 30], [29, 31]] },
+        { line: [[31, 30], [31, 31]] },
+      ],
+    },
+
+    crease: {
+      z: 50,
+      union: [
+        { line: [[18, 14], [18, 15]] },
+        { points: [[17, 16], [17, 17]] },
+        { line: [[16, 21], [16, 22]] },
+        { points: [[13, 23], [12, 24], [12, 25]] },
+      ],
+    },
+
+    socket: {
+      z: 60,
+      union: [
+        { path: "M20,14 L24,14 L25,15 L27,17 L27,19 L26,20 L24,22 L21,22 L21,21 L19,19 L19,15 Z" },
+        { path: "M33,14 L35,14 L36,15 L36,20 L35,21 L33,21 L31,19 L31,16 Z" },
+        { points: [[30, 20], [29, 21], [30, 21], [29, 22], [30, 22], [29, 23], [30, 23], [29, 24]] },
+        { points: [[18, 28], [19, 28], [20, 28], [19, 29], [20, 29]] },
+        { rect: [20, 32, 13, 3] },
+      ],
+    },
+
+    rim: {
+      z: 70,
+      union: [
+        { path: "M20,16 L23,16 L25,18 L25,20 L24,21 L21,21 L20,20 Z" },
+        { path: "M33,16 L34,16 L35,17 L35,19 L34,20 L33,20 L32,19 L31,18 L32,17 Z" },
+        { points: [[30, 24], [29, 25]] },
+      ],
+    },
+
+    gap: { z: 200, points: [[19, 30], [20, 30]] },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Jaw poses at both head heights
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "jaw_closed_rest",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 25], [15, 27], [17, 28], [18, 29], [18, 30], [19, 31], [20, 31], [21, 32],
+        [33, 32], [33, 39], [32, 40], [26, 40], [24, 39], [22, 39], [21, 38], [20, 38],
+        [19, 37], [16, 37], [13, 36], [12, 35], [12, 27], [13, 26], [13, 25],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,25 L15,27 L17,28 L18,29 L18,30 L19,31 L20,31 L21,32 L33,32 L33,39 L32,40 L26,40 L24,39 L22,39 L21,38 L20,38 L19,37 L16,37 L13,36 L12,35 L12,27 L13,26 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 32], [13, 33]] },
+        { path: "M14,35 L21,35 L23,36 L23,37 L21,37 L20,36 L14,36 Z" },
+        { path: "M19,33 L20,33 L20,34 L19,34 Z" },
+        { rect: [24, 35, 5, 1] },
+        { points: [[24, 38]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 34], [13, 35]] },
+        { points: [[14, 36], [20, 37], [22, 38], [23, 38], [24, 39], [25, 39]] },
+        { rect: [29, 35, 3, 1] },
+        { path: "M21,33 L22,33 L22,34 L21,34 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 36], [29, 38]] },
+        { line: [[30, 36], [30, 37]] },
+        { points: [[28, 38], [28, 39], [31, 38], [32, 39]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 33], [23, 34]] },
+        { line: [[25, 33], [25, 34]] },
+        { line: [[27, 33], [27, 34]] },
+        { line: [[29, 33], [29, 34]] },
+        { line: [[31, 33], [31, 34]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 25], [14, 26], [15, 27], [17, 28], [18, 29], [19, 31], [20, 31]],
+    },
+    gum: { z: 110, line: [[21, 32], [32, 32]] },
+    edge: {
+      z: 120,
+      points: [[13, 26], [14, 27], [15, 28], [16, 28], [16, 29], [17, 29], [17, 30], [18, 30], [18, 31], [19, 32], [20, 32]],
+    },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Cranium at both head heights
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "cranium_up",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [19, 2], [24, 2], [25, 3], [29, 3], [31, 4], [36, 9], [36, 14], [37, 15],
+        [37, 18], [36, 19], [36, 22], [33, 25], [33, 34], [20, 34], [12, 25], [10, 25],
+        [8, 24], [7, 23], [7, 20], [6, 19], [6, 12], [7, 11], [7, 9], [11, 5], [13, 4],
+        [15, 3], [18, 3], [19, 2],
+      ],
+    },
+    bone: { z: 0, fill: "inside(outline)" },
+
+    lit: {
+      z: -10,
+      path: "M19,1 L42,1 L42,41 L12,41 L12,23 L13,22 L12,21 L10,20 L10,18 L8,16 L8,15 L10,13 L10,11 L12,9 L12,8 L14,7 L14,6 L16,5 L17,4 L19,3 Z",
+    },
+    mid: { z: 10, fill: "inside(outline)", except: ["lit"] },
+
+    shade: {
+      z: 20,
+      union: [
+        { points: [[16, 17], [15, 18], [16, 18], [15, 19], [16, 19], [14, 20], [15, 20], [13, 21], [14, 21], [15, 21]] },
+        { path: "M22,22 L25,22 L25,24 L24,25 L23,27 L21,27 L20,26 L21,23 Z" },
+        { line: [[31, 20], [31, 24]] },
+        { path: "M33,22 L35,22 L34,24 L33,24 Z" },
+        { line: [[27, 13], [30, 13]] },
+        { path: "M21,28 L22,28 L22,30 L21,30 Z" },
+      ],
+    },
+
+    hi: {
+      z: 30,
+      union: [
+        { path: "M21,4 L28,4 L30,5 L33,8 L34,9 L34,10 L35,11 L35,12 L19,12 L21,11 L18,10 L14,9 L17,6 Z" },
+        { points: [[19, 13], [26, 13], [31, 13], [32, 13], [18, 15], [18, 16]] },
+        { path: "M17,17 L18,17 L18,19 L17,19 Z" },
+        { points: [[20, 20], [26, 14], [27, 14], [28, 15], [29, 15], [29, 16], [29, 17], [30, 17], [29, 18], [30, 18], [31, 18]] },
+        { points: [[29, 19], [31, 19], [32, 19], [27, 20], [28, 20], [32, 20]] },
+        { path: "M25,21 L28,21 L28,24 L27,24 L26,23 L26,22 Z" },
+        { line: [[32, 21], [32, 24]] },
+        { line: [[33, 21], [35, 21]] },
+      ],
+    },
+    fleck: { z: 32, points: [[23, 12], [29, 12], [34, 12], [35, 12], [28, 17], [28, 18]] },
+
+    root: {
+      z: 35,
+      union: [
+        { line: [[26, 25], [26, 27]] },
+        { line: [[28, 25], [28, 27]] },
+        { line: [[29, 25], [29, 26]] },
+        { line: [[31, 25], [31, 27]] },
+        { line: [[24, 27], [25, 27]] },
+      ],
+    },
+
+    umber: {
+      z: 40,
+      union: [
+        { line: [[28, 14], [30, 14]] },
+        { points: [[13, 24], [15, 25]] },
+        { line: [[21, 29], [21, 30]] },
+        { points: [[21, 28], [31, 28], [32, 28]] },
+      ],
+    },
+    gum: { z: 42, line: [[22, 28], [30, 28]] },
+
+    tooth: {
+      z: 45,
+      union: [
+        { line: [[23, 29], [23, 30]] },
+        { line: [[25, 29], [25, 30]] },
+        { line: [[27, 29], [27, 30]] },
+        { line: [[29, 29], [29, 30]] },
+        { line: [[31, 29], [31, 30]] },
+      ],
+    },
+
+    crease: {
+      z: 50,
+      union: [
+        { line: [[18, 13], [18, 14]] },
+        { points: [[17, 15], [17, 16]] },
+        { line: [[16, 20], [16, 21]] },
+        { points: [[13, 22], [12, 23], [12, 24]] },
+      ],
+    },
+
+    socket: {
+      z: 60,
+      union: [
+        { path: "M20,13 L24,13 L25,14 L27,16 L27,18 L26,19 L24,21 L21,21 L21,20 L19,18 L19,14 Z" },
+        { path: "M33,13 L35,13 L36,14 L36,19 L35,20 L33,20 L31,18 L31,15 Z" },
+        { points: [[30, 19], [29, 20], [30, 20], [29, 21], [30, 21], [29, 22], [30, 22], [29, 23]] },
+        { points: [[18, 27], [19, 27], [20, 27], [19, 28], [20, 28]] },
+        { rect: [20, 31, 13, 3] },
+      ],
+    },
+
+    rim: {
+      z: 70,
+      union: [
+        { path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" },
+        { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" },
+        { points: [[30, 23], [29, 24]] },
+      ],
+    },
+
+    gap: { z: 200, points: [[19, 29], [20, 29]] },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Jaw poses at both head heights
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "jaw_closed_up",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 24], [15, 26], [17, 27], [18, 28], [18, 29], [19, 30], [20, 30], [21, 31],
+        [33, 31], [33, 38], [32, 39], [26, 39], [24, 38], [22, 38], [21, 37], [20, 37],
+        [19, 36], [16, 36], [13, 35], [12, 34], [12, 26], [13, 25], [13, 24],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,24 L15,26 L17,27 L18,28 L18,29 L19,30 L20,30 L21,31 L33,31 L33,38 L32,39 L26,39 L24,38 L22,38 L21,37 L20,37 L19,36 L16,36 L13,35 L12,34 L12,26 L13,25 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 31], [13, 32]] },
+        { path: "M14,34 L21,34 L23,35 L23,36 L21,36 L20,35 L14,35 Z" },
+        { path: "M19,32 L20,32 L20,33 L19,33 Z" },
+        { rect: [24, 34, 5, 1] },
+        { points: [[24, 37]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 33], [13, 34]] },
+        { points: [[14, 35], [20, 36], [22, 37], [23, 37], [24, 38], [25, 38]] },
+        { rect: [29, 34, 3, 1] },
+        { path: "M21,32 L22,32 L22,33 L21,33 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 35], [29, 37]] },
+        { line: [[30, 35], [30, 36]] },
+        { points: [[28, 37], [28, 38], [31, 37], [32, 38]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 32], [23, 33]] },
+        { line: [[25, 32], [25, 33]] },
+        { line: [[27, 32], [27, 33]] },
+        { line: [[29, 32], [29, 33]] },
+        { line: [[31, 32], [31, 33]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 24], [14, 25], [15, 26], [17, 27], [18, 28], [19, 30], [20, 30]],
+    },
+    gum: { z: 110, line: [[21, 31], [32, 31]] },
+    edge: {
+      z: 120,
+      points: [[13, 25], [14, 26], [15, 27], [16, 27], [16, 28], [17, 28], [17, 29], [18, 29], [18, 30], [19, 31], [20, 31]],
+    },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Overlays: blink and ember glow
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "blink_half_up",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    // lids half down: the upper inner walls go dark
+    lid: {
+      z: 0,
+      intersect: [
+        { union: [{ path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" }, { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" }] },
+        { rect: [6, 2, 40, 16] },
+      ],
+    },
+  },
+}
+{
+  type: "sprite",
+  name: "blink_full_up",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    // sockets fully dark
+    lid: { z: 0, union: [{ path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" }, { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" }] },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Jaw poses at both head heights
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "jaw_wide_up",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 24], [15, 27], [17, 29], [18, 30], [18, 31], [19, 33], [20, 33], [21, 34],
+        [33, 34], [33, 41], [32, 42], [26, 42], [24, 41], [22, 41], [21, 40], [20, 40],
+        [19, 39], [16, 37], [13, 35], [12, 34], [12, 26], [13, 25], [13, 24],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,24 L15,27 L17,29 L18,30 L18,31 L19,33 L20,33 L21,34 L33,34 L33,41 L32,42 L26,42 L24,41 L22,41 L21,40 L20,40 L19,39 L16,37 L13,35 L12,34 L12,26 L13,25 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 31], [13, 32]] },
+        { path: "M14,34 L21,37 L23,38 L23,39 L21,39 L20,38 L14,35 Z" },
+        { path: "M19,35 L20,35 L20,36 L19,36 Z" },
+        { rect: [24, 37, 5, 1] },
+        { points: [[24, 40]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 33], [13, 34]] },
+        { points: [[14, 35], [20, 39], [22, 40], [23, 40], [24, 41], [25, 41]] },
+        { rect: [29, 37, 3, 1] },
+        { path: "M21,35 L22,35 L22,36 L21,36 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 38], [29, 40]] },
+        { line: [[30, 38], [30, 39]] },
+        { points: [[28, 40], [28, 41], [31, 40], [32, 41]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 35], [23, 36]] },
+        { line: [[25, 35], [25, 36]] },
+        { line: [[27, 35], [27, 36]] },
+        { line: [[29, 35], [29, 36]] },
+        { line: [[31, 35], [31, 36]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 24], [14, 25], [15, 27], [17, 29], [18, 30], [19, 33], [20, 33]],
+    },
+    gum: { z: 110, line: [[21, 34], [32, 34]] },
+    edge: {
+      z: 120,
+      points: [[13, 25], [14, 26], [15, 28], [16, 28], [16, 29], [17, 30], [17, 31], [18, 31], [18, 32], [19, 34], [20, 34]],
+    },
+  },
+}
+{
+  type: "sprite",
+  name: "jaw_ajar_up",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 24], [15, 26], [17, 28], [18, 29], [18, 30], [19, 31], [20, 31], [21, 32],
+        [33, 32], [33, 39], [32, 40], [26, 40], [24, 39], [22, 39], [21, 38], [20, 38],
+        [19, 37], [16, 36], [13, 35], [12, 34], [12, 26], [13, 25], [13, 24],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,24 L15,26 L17,28 L18,29 L18,30 L19,31 L20,31 L21,32 L33,32 L33,39 L32,40 L26,40 L24,39 L22,39 L21,38 L20,38 L19,37 L16,36 L13,35 L12,34 L12,26 L13,25 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 31], [13, 32]] },
+        { path: "M14,34 L21,35 L23,36 L23,37 L21,37 L20,36 L14,35 Z" },
+        { path: "M19,33 L20,33 L20,34 L19,34 Z" },
+        { rect: [24, 35, 5, 1] },
+        { points: [[24, 38]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 33], [13, 34]] },
+        { points: [[14, 35], [20, 37], [22, 38], [23, 38], [24, 39], [25, 39]] },
+        { rect: [29, 35, 3, 1] },
+        { path: "M21,33 L22,33 L22,34 L21,34 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 36], [29, 38]] },
+        { line: [[30, 36], [30, 37]] },
+        { points: [[28, 38], [28, 39], [31, 38], [32, 39]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 33], [23, 34]] },
+        { line: [[25, 33], [25, 34]] },
+        { line: [[27, 33], [27, 34]] },
+        { line: [[29, 33], [29, 34]] },
+        { line: [[31, 33], [31, 34]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 24], [14, 25], [15, 26], [17, 28], [18, 29], [19, 31], [20, 31]],
+    },
+    gum: { z: 110, line: [[21, 32], [32, 32]] },
+    edge: {
+      z: 120,
+      points: [[13, 25], [14, 26], [15, 27], [16, 27], [16, 28], [17, 29], [17, 30], [18, 30], [18, 31], [19, 32], [20, 32]],
+    },
+  },
+}
+{
+  type: "sprite",
+  name: "jaw_open_up",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 24], [15, 27], [17, 28], [18, 29], [18, 30], [19, 32], [20, 32], [21, 33],
+        [33, 33], [33, 40], [32, 41], [26, 41], [24, 40], [22, 40], [21, 39], [20, 39],
+        [19, 38], [16, 37], [13, 35], [12, 34], [12, 26], [13, 25], [13, 24],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,24 L15,27 L17,28 L18,29 L18,30 L19,32 L20,32 L21,33 L33,33 L33,40 L32,41 L26,41 L24,40 L22,40 L21,39 L20,39 L19,38 L16,37 L13,35 L12,34 L12,26 L13,25 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 31], [13, 32]] },
+        { path: "M14,34 L21,36 L23,37 L23,38 L21,38 L20,37 L14,35 Z" },
+        { path: "M19,34 L20,34 L20,35 L19,35 Z" },
+        { rect: [24, 36, 5, 1] },
+        { points: [[24, 39]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 33], [13, 34]] },
+        { points: [[14, 35], [20, 38], [22, 39], [23, 39], [24, 40], [25, 40]] },
+        { rect: [29, 36, 3, 1] },
+        { path: "M21,34 L22,34 L22,35 L21,35 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 37], [29, 39]] },
+        { line: [[30, 37], [30, 38]] },
+        { points: [[28, 39], [28, 40], [31, 39], [32, 40]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 34], [23, 35]] },
+        { line: [[25, 34], [25, 35]] },
+        { line: [[27, 34], [27, 35]] },
+        { line: [[29, 34], [29, 35]] },
+        { line: [[31, 34], [31, 35]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 24], [14, 25], [15, 27], [17, 28], [18, 29], [19, 32], [20, 32]],
+    },
+    gum: { z: 110, line: [[21, 33], [32, 33]] },
+    edge: {
+      z: 120,
+      points: [[13, 25], [14, 26], [15, 28], [16, 28], [16, 29], [17, 29], [17, 30], [18, 30], [18, 31], [19, 33], [20, 33]],
+    },
+  },
+}
+{
+  type: "sprite",
+  name: "jaw_ajar_rest",
+  size: [44, 44],
+  palette: "bone",
+  regions: {
+    outline: {
+      z: 100,
+      line: [
+        [13, 25], [15, 27], [17, 29], [18, 30], [18, 31], [19, 32], [20, 32], [21, 33],
+        [33, 33], [33, 40], [32, 41], [26, 41], [24, 40], [22, 40], [21, 39], [20, 39],
+        [19, 38], [16, 37], [13, 36], [12, 35], [12, 27], [13, 26], [13, 25],
+      ],
+    },
+    bone: {
+      z: 0,
+      path: "M13,25 L15,27 L17,29 L18,30 L18,31 L19,32 L20,32 L21,33 L33,33 L33,40 L32,41 L26,41 L24,40 L22,40 L21,39 L20,39 L19,38 L16,37 L13,36 L12,35 L12,27 L13,26 Z",
+    },
+    mid: {
+      z: 20,
+      union: [
+        { line: [[13, 32], [13, 33]] },
+        { path: "M14,35 L21,36 L23,37 L23,38 L21,38 L20,37 L14,36 Z" },
+        { path: "M19,34 L20,34 L20,35 L19,35 Z" },
+        { rect: [24, 36, 5, 1] },
+        { points: [[24, 39]] },
+      ],
+    },
+    umber: {
+      z: 30,
+      union: [
+        { line: [[13, 34], [13, 35]] },
+        { points: [[14, 36], [20, 38], [22, 39], [23, 39], [24, 40], [25, 40]] },
+        { rect: [29, 36, 3, 1] },
+        { path: "M21,34 L22,34 L22,35 L21,35 Z" },
+      ],
+    },
+    hi: {
+      z: 40,
+      union: [
+        { line: [[29, 37], [29, 39]] },
+        { line: [[30, 37], [30, 38]] },
+        { points: [[28, 39], [28, 40], [31, 39], [32, 40]] },
+      ],
+    },
+    tooth: {
+      z: 50,
+      union: [
+        { line: [[23, 34], [23, 35]] },
+        { line: [[25, 34], [25, 35]] },
+        { line: [[27, 34], [27, 35]] },
+        { line: [[29, 34], [29, 35]] },
+        { line: [[31, 34], [31, 35]] },
+      ],
+    },
+    seam: {
+      z: 110,
+      points: [[13, 25], [14, 26], [15, 27], [17, 29], [18, 30], [19, 32], [20, 32]],
+    },
+    gum: { z: 110, line: [[21, 33], [32, 33]] },
+    edge: {
+      z: 120,
+      points: [[13, 26], [14, 27], [15, 28], [16, 28], [16, 29], [17, 30], [17, 31], [18, 31], [18, 32], [19, 33], [20, 33]],
+    },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Overlays: blink and ember glow
+// ---------------------------------------------------------------------------
+{
+  type: "sprite",
+  name: "glow_1_rest",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    // faint warm light on the inner walls
+    ember: { z: 0, union: [{ path: "M20,16 L23,16 L25,18 L25,20 L24,21 L21,21 L20,20 Z" }, { path: "M33,16 L34,16 L35,17 L35,19 L34,20 L33,20 L32,19 L31,18 L32,17 Z" }] },
+  },
+}
+{
+  type: "sprite",
+  name: "glow_2_rest",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    ember: { z: 0, union: [{ path: "M20,16 L23,16 L25,18 L25,20 L24,21 L21,21 L20,20 Z" }, { path: "M33,16 L34,16 L35,17 L35,19 L34,20 L33,20 L32,19 L31,18 L32,17 Z" }] },
+    // a coal sitting deep in each socket
+    coal: { z: 1, points: [[22, 18], [23, 18], [22, 19], [23, 19], [33, 18]] },
+  },
+}
+{
+  type: "sprite",
+  name: "glow_3_rest",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    ember: { z: 0, union: [{ path: "M20,16 L23,16 L25,18 L25,20 L24,21 L21,21 L20,20 Z" }, { path: "M33,16 L34,16 L35,17 L35,19 L34,20 L33,20 L32,19 L31,18 L32,17 Z" }] },
+    // the coal flares: a hot core with a glowing skirt
+    coal: { z: 1, points: [[21, 19], [24, 19], [22, 20], [23, 20], [32, 18], [33, 19]] },
+    flame: { z: 2, points: [[22, 18], [23, 18], [22, 19], [23, 19], [33, 18]] },
+    spark: { z: 3, points: [[22, 18]] },
+  },
+}
+{
+  type: "sprite",
+  name: "glow_1_up",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    // faint warm light on the inner walls
+    ember: { z: 0, union: [{ path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" }, { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" }] },
+  },
+}
+{
+  type: "sprite",
+  name: "glow_2_up",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    ember: { z: 0, union: [{ path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" }, { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" }] },
+    // a coal sitting deep in each socket
+    coal: { z: 1, points: [[22, 17], [23, 17], [22, 18], [23, 18], [33, 17]] },
+  },
+}
+{
+  type: "sprite",
+  name: "glow_3_up",
+  size: [44, 44],
+  palette: "ember",
+  regions: {
+    ember: { z: 0, union: [{ path: "M20,15 L23,15 L25,17 L25,19 L24,20 L21,20 L20,19 Z" }, { path: "M33,15 L34,15 L35,16 L35,18 L34,19 L33,19 L32,18 L31,17 L32,16 Z" }] },
+    // the coal flares: a hot core with a glowing skirt
+    coal: { z: 1, points: [[21, 18], [24, 18], [22, 19], [23, 19], [32, 17], [33, 18]] },
+    flame: { z: 2, points: [[22, 17], [23, 17], [22, 18], [23, 18], [33, 17]] },
+    spark: { z: 3, points: [[22, 17]] },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Frames
+// ---------------------------------------------------------------------------
+{ type: "composition", name: "f_rest_closed", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_rest", J: "jaw_closed_rest" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_up_closed", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_up_closed_blink_half", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up", O: "blink_half_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_up_closed_blink_full", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up", O: "blink_full_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_up_wide", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_wide_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_up_ajar", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_ajar_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_up_open", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_open_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_rest_ajar", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_rest", J: "jaw_ajar_rest" },
+  layers: [{ map: ["C"] }, { map: ["J"] }] }
+{ type: "composition", name: "f_rest_closed_glow_1", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_rest", J: "jaw_closed_rest", O: "glow_1_rest" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_rest_closed_glow_2", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_rest", J: "jaw_closed_rest", O: "glow_2_rest" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_rest_closed_glow_3", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_rest", J: "jaw_closed_rest", O: "glow_3_rest" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_up_closed_glow_1", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up", O: "glow_1_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_up_closed_glow_2", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up", O: "glow_2_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+{ type: "composition", name: "f_up_closed_glow_3", size: [44, 44], cell_size: [44, 44],
+  sprites: { C: "cranium_up", J: "jaw_closed_up", O: "glow_3_up" },
+  layers: [{ map: ["C"] }, { map: ["J"] }, { map: ["O"] }] }
+
+// ---------------------------------------------------------------------------
+// Animations
+// ---------------------------------------------------------------------------
+// Idle: a slow 1px float, with one blink (the sockets go dark) every other bob.
+{
+  type: "animation",
+  name: "skull_idle",
+  frames: [
+    "f_rest_closed", "f_rest_closed", "f_rest_closed",
+    "f_rest_closed", "f_rest_closed", "f_rest_closed",
+    "f_up_closed", "f_up_closed", "f_up_closed",
+    "f_up_closed", "f_up_closed", "f_up_closed",
+    "f_rest_closed", "f_rest_closed", "f_rest_closed",
+    "f_rest_closed", "f_rest_closed", "f_rest_closed",
+    "f_up_closed", "f_up_closed", "f_up_closed_blink_half",
+    "f_up_closed_blink_full", "f_up_closed_blink_half", "f_up_closed",
+  ],
+  duration: 120,
+  loop: true,
+}
+
+// Laugh: fast jaw chatter (jaw_wide drops the chin 3px), the head tipping up a pixel on every open.
+{
+  type: "animation",
+  name: "skull_laugh",
+  frames: [
+    "f_rest_closed", "f_up_wide", "f_up_ajar",
+    "f_up_wide", "f_rest_closed", "f_up_open",
+    "f_rest_ajar", "f_up_wide", "f_rest_closed",
+    "f_up_open", "f_rest_ajar", "f_rest_closed",
+  ],
+  duration: 70,
+  loop: true,
+}
+
+// Eyes: the idle float with ember light flickering in the sockets (glow_1..3 overlays).
+{
+  type: "animation",
+  name: "skull_eyes",
+  frames: [
+    "f_rest_closed_glow_1", "f_rest_closed_glow_2", "f_rest_closed_glow_2",
+    "f_rest_closed_glow_3", "f_rest_closed_glow_2", "f_rest_closed_glow_1",
+    "f_up_closed_glow_1", "f_up_closed_glow_2", "f_up_closed_glow_3",
+    "f_up_closed_glow_3", "f_up_closed_glow_2", "f_up_closed_glow_2",
+    "f_rest_closed_glow_1", "f_rest_closed_glow_1", "f_rest_closed_glow_2",
+    "f_rest_closed_glow_3", "f_rest_closed_glow_2", "f_rest_closed_glow_1",
+    "f_up_closed_glow_2", "f_up_closed_glow_2", "f_up_closed_glow_1",
+    "f_up_closed_glow_1", "f_up_closed_glow_2", "f_up_closed_glow_2",
+  ],
+  duration: 120,
+  loop: true,
+}

@@ -9,8 +9,8 @@ use crate::models::{RegionDef, Role};
 use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
-    flood_fill, intersect, rasterize_ellipse, rasterize_line, rasterize_points, rasterize_polygon,
-    rasterize_rect, rasterize_stroke, subtract, union,
+    dilate, flood_fill, intersect, rasterize_ellipse, rasterize_line, rasterize_points,
+    rasterize_polygon, rasterize_rect, rasterize_stroke, subtract, union,
 };
 use image::{Rgba, RgbaImage};
 use std::collections::{HashMap, HashSet};
@@ -134,6 +134,20 @@ pub fn rasterize_region(
                 source_name
             )));
         }
+    } else if let Some(source_name) = &region.auto_outline {
+        // Generate a silhouette outline: dilate the source region outward and
+        // subtract the source, leaving a band `thickness` pixels wide that
+        // surrounds it. 8-connected so convex corners are filled.
+        if let Some(source_pixels) = all_regions.get(source_name) {
+            let thickness = region.thickness.unwrap_or(1) as i32;
+            let grown = dilate(source_pixels, thickness, true);
+            pixels = subtract(&grown, std::slice::from_ref(source_pixels));
+        } else {
+            warnings.push(Warning::new(format!(
+                "Unknown token '{}' in auto-outline reference",
+                source_name
+            )));
+        }
     }
     // Handle compound operations
     else if let Some(union_regions) = &region.union {
@@ -194,6 +208,13 @@ pub fn rasterize_region(
     // Handle symmetric modifier
     if let Some(symmetric) = &region.symmetric {
         pixels = apply_symmetric(&pixels, symmetric, canvas_width, canvas_height, warnings);
+    }
+
+    // Apply translation last, so it shifts the fully-resolved shape.
+    if let Some([dx, dy]) = region.translate {
+        if dx != 0 || dy != 0 {
+            pixels = pixels.into_iter().map(|(x, y)| (x + dx, y + dy)).collect();
+        }
     }
 
     pixels
@@ -336,7 +357,7 @@ pub fn render_structured(
     let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
 
     for (token, region) in regions {
-        if region.fill.is_some() || region.auto_shadow.is_some() {
+        if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
             // Defer regions with fill or auto-shadow references
             pending_regions.push((token.clone(), region.clone()));
         } else {
@@ -420,7 +441,7 @@ pub fn extract_anchor_bounds(
     let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
 
     for (token, region) in regions {
-        if region.fill.is_some() || region.auto_shadow.is_some() {
+        if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
             pending_regions.push((token.clone(), region.clone()));
         } else {
             let pixels = rasterize_region(
@@ -672,6 +693,86 @@ mod tests {
 
         // Shadow visible at offset (5,5) where body doesn't overlap
         assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_auto_outline_surrounds_source() {
+        // auto-outline dilates the source 8-connected and subtracts it, leaving
+        // a 1px band around the shape.
+        let mut all_regions = HashMap::new();
+        let body = RegionDef { rect: Some([3, 3, 2, 2]), ..Default::default() };
+        let mut warnings = Vec::new();
+        let body_pixels = rasterize_region(&body, &all_regions, 10, 10, &mut warnings);
+        all_regions.insert("body".to_string(), body_pixels);
+
+        let outline = RegionDef { auto_outline: Some("body".to_string()), ..Default::default() };
+        let pixels = rasterize_region(&outline, &all_regions, 10, 10, &mut warnings);
+
+        // Source rect is (3,3)-(4,4). The outline rings it: corners and edges.
+        assert!(pixels.contains(&(2, 2))); // diagonal corner (8-connected)
+        assert!(pixels.contains(&(3, 2))); // top edge
+        assert!(pixels.contains(&(5, 5))); // far diagonal corner
+                                           // The source pixels themselves are NOT part of the outline.
+        assert!(!pixels.contains(&(3, 3)));
+        assert!(!pixels.contains(&(4, 4)));
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_auto_outline_missing_source_warns() {
+        let all_regions = HashMap::new();
+        let outline = RegionDef { auto_outline: Some("ghost".to_string()), ..Default::default() };
+        let mut warnings = Vec::new();
+        let pixels = rasterize_region(&outline, &all_regions, 10, 10, &mut warnings);
+        assert!(pixels.is_empty());
+        assert!(warnings.iter().any(|w| w.message.contains("ghost")));
+    }
+
+    #[test]
+    fn test_region_translate_shifts_pixels() {
+        // A region with `translate` shifts its rasterized pixels by [dx, dy].
+        let region =
+            RegionDef { rect: Some([0, 0, 2, 2]), translate: Some([2, 3]), ..Default::default() };
+        let all_regions = HashMap::new();
+        let mut warnings = Vec::new();
+        let pixels = rasterize_region(&region, &all_regions, 16, 16, &mut warnings);
+        // Original (0,0) moves to (2,3); (1,1) to (3,4).
+        assert!(pixels.contains(&(2, 3)));
+        assert!(pixels.contains(&(3, 4)));
+        assert!(!pixels.contains(&(0, 0)));
+        assert_eq!(pixels.len(), 4);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_extends_render_golden() {
+        // A base frame with a `ring` and a `flame`; an extending frame that
+        // overrides only `flame`. Rendering the extender must show the
+        // inherited ring AND the moved flame, proving region-level inheritance
+        // reaches the pixels.
+        let base = "{type: \"sprite\", name: \"frame_a\", size: [8, 8], palette: {_: \"#0000\", ring: \"#888888\", flame: \"#E25822\"}, regions: { ring: { rect: [1, 5, 6, 2], z: 0 }, flame: { rect: [3, 1, 2, 4], z: 1 } }}";
+        let ext = "{type: \"sprite\", name: \"frame_b\", extends: \"frame_a\", regions: { flame: { rect: [4, 0, 2, 5], z: 1 } }}";
+
+        let mut sprite_registry = SpriteRegistry::new();
+        let palette_registry = PaletteRegistry::new();
+        for line in [base, ext] {
+            match parse_line(line, 0).unwrap() {
+                crate::models::TtpObject::Sprite(s) => sprite_registry.register_sprite(s),
+                _ => panic!("expected sprite"),
+            }
+        }
+
+        let resolved = sprite_registry.resolve("frame_b", &palette_registry, true).unwrap();
+        let (image, warnings) = crate::renderer::render_resolved(&resolved);
+        assert!(warnings.is_empty(), "Unexpected warnings: {:?}", warnings);
+
+        // Inherited ring at row 5 (e.g. (1,5)) is grey.
+        assert_eq!(*image.get_pixel(1, 5), Rgba([0x88, 0x88, 0x88, 255]));
+        // Overridden flame now sits at column 4-5, rows 0-4.
+        assert_eq!(*image.get_pixel(4, 0), Rgba([0xE2, 0x58, 0x22, 255]));
+        assert_eq!(*image.get_pixel(5, 4), Rgba([0xE2, 0x58, 0x22, 255]));
+        // The base flame's old column 3 is now empty (override replaced it).
+        assert_eq!(*image.get_pixel(3, 1), Rgba([0, 0, 0, 0]));
     }
 
     #[test]

@@ -157,6 +157,13 @@ pub struct RegionDef {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub transform: Option<String>,
 
+    /// Shift this region's rasterized pixels by `[dx, dy]`, applied last (after
+    /// every shape op, modifier, and `symmetric`). Used directly for a region
+    /// that offsets itself, and as the expansion target of a sprite-level
+    /// `translate` group shift — the one-line walk-cycle bob.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub translate: Option<[i32; 2]>,
+
     /// Controlled randomness for jitter
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub jitter: Option<JitterSpec>,

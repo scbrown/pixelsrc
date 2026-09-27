@@ -96,10 +96,11 @@ pub fn run_mask(
         }
     };
 
-    let sprite = pipeline.sprite().unwrap();
+    // Resolve `extends`/`source` inheritance so queries see the rendered sprite.
+    let sprite = pipeline.resolved_sprite().unwrap();
 
     // Extract token grid
-    let grid = match TokenGrid::from_sprite(sprite) {
+    let grid = match TokenGrid::from_sprite(&sprite) {
         Ok(g) => g,
         Err(e) => {
             eprintln!("Error: {}", e);

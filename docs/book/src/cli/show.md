@@ -96,4 +96,6 @@ Most modern terminals support this, including:
 ## See Also
 
 - [render](render.md) - Render to image files
+- [mask](../format/regions.md) - Inspect a sprite as a text token grid (the
+  non-visual complement to `show`'s color preview)
 - [explain](explain.md) - Explain objects in human-readable format

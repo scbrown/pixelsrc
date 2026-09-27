@@ -64,6 +64,34 @@ impl MaskPipeline {
         })
     }
 
+    /// Get the target sprite with inherited `extends`/`source` regions and size
+    /// resolved, so queries see what the renderer renders. Returns the raw
+    /// sprite unchanged when it inherits nothing.
+    pub fn resolved_sprite(&self) -> Option<Sprite> {
+        let target = self.sprite()?;
+        if target.extends.is_none() && target.source.is_none() && target.translate.is_none() {
+            return Some(target.clone());
+        }
+        let by_name: HashMap<&str, &Sprite> = self
+            .objects
+            .iter()
+            .filter_map(|obj| match obj {
+                TtpObject::Sprite(s) => Some((s.name.as_str(), s)),
+                _ => None,
+            })
+            .collect();
+        let (mut regions, size) = resolve_inherited(target, &by_name, &mut Vec::new());
+        if let Some(group) = &target.translate {
+            if let Some(r) = regions.as_mut() {
+                crate::models::apply_group_translate(r, group);
+            }
+        }
+        let mut resolved = target.clone();
+        resolved.regions = regions;
+        resolved.size = target.size.or(size);
+        Some(resolved)
+    }
+
     /// Get all sprite names in the file.
     pub fn sprite_names(&self) -> Vec<&str> {
         self.objects
@@ -79,6 +107,49 @@ impl MaskPipeline {
     pub fn objects(&self) -> &[TtpObject] {
         &self.objects
     }
+}
+
+/// Resolve a sprite's effective regions and size by walking its `extends`
+/// (region-level merge) or `source` (wholesale copy) chain. Mirrors the
+/// SpriteRegistry resolution but without palettes, for read-only inspection.
+/// Cycles are broken silently (returns what was resolved so far).
+fn resolve_inherited(
+    sprite: &Sprite,
+    by_name: &HashMap<&str, &Sprite>,
+    visited: &mut Vec<String>,
+) -> (Option<HashMap<String, RegionDef>>, Option<[u32; 2]>) {
+    if visited.contains(&sprite.name) {
+        return (sprite.regions.clone(), sprite.size);
+    }
+    visited.push(sprite.name.clone());
+
+    if let Some(base_name) = &sprite.extends {
+        if let Some(base) = by_name.get(base_name.as_str()) {
+            let (base_regions, base_size) = resolve_inherited(base, by_name, visited);
+            let mut merged = base_regions.unwrap_or_default();
+            if let Some(remove_keys) = &sprite.remove {
+                for key in remove_keys {
+                    merged.remove(key);
+                }
+            }
+            if let Some(own) = &sprite.regions {
+                for (key, def) in own {
+                    merged.insert(key.clone(), def.clone());
+                }
+            }
+            return (Some(merged), sprite.size.or(base_size));
+        }
+        return (sprite.regions.clone(), sprite.size);
+    }
+
+    if let Some(source_name) = &sprite.source {
+        if let Some(source) = by_name.get(source_name.as_str()) {
+            let (source_regions, source_size) = resolve_inherited(source, by_name, visited);
+            return (source_regions, sprite.size.or(source_size));
+        }
+    }
+
+    (sprite.regions.clone(), sprite.size)
 }
 
 /// A 2D token grid extracted from a sprite's regions.
@@ -222,7 +293,10 @@ impl TokenGrid {
         let mut warnings: Vec<Warning> = Vec::new();
 
         for (token, region) in regions {
-            if region.fill.is_some() || region.auto_shadow.is_some() {
+            if region.fill.is_some()
+                || region.auto_shadow.is_some()
+                || region.auto_outline.is_some()
+            {
                 pending.push((token.clone(), region));
             } else {
                 let pixels = rasterize_region(
@@ -396,6 +470,39 @@ mod tests {
     fn test_mask_pipeline_sprite_not_found() {
         let result = MaskPipeline::load_from_string(SIMPLE_SPRITE, Some("nonexistent"));
         assert!(result.is_err());
+    }
+
+    const EXTENDS_FRAMES: &str = r##"{"type": "palette", "name": "p", "colors": {"_": "#0000", "ring": "#888", "flame": "#E25822"}}
+{"type": "sprite", "name": "frame_a", "size": [8, 8], "palette": "p", "regions": {"ring": {"rect": [1, 5, 6, 2], "z": 0}, "flame": {"rect": [3, 1, 2, 4], "z": 1}}}
+{"type": "sprite", "name": "frame_b", "extends": "frame_a", "regions": {"flame": {"rect": [4, 0, 2, 5], "z": 1}}}"##;
+
+    #[test]
+    fn test_mask_resolves_extends() {
+        // An `extends` frame inherits its size and unoverridden regions; the
+        // token grid must reflect the resolved sprite, not the sparse override.
+        let pipeline = MaskPipeline::load_from_string(EXTENDS_FRAMES, Some("frame_b")).unwrap();
+        let sprite = pipeline.resolved_sprite().unwrap();
+        assert_eq!(sprite.size, Some([8, 8])); // inherited
+        let grid = TokenGrid::from_sprite(&sprite).unwrap();
+        // Inherited ring still present.
+        assert_eq!(grid.grid[5][1], "ring");
+        // Overridden flame at its new position; old column cleared.
+        assert_eq!(grid.grid[0][4], "flame");
+        assert_eq!(grid.grid[1][3], "_");
+    }
+
+    const TRANSLATE_SPRITE: &str = r##"{"type": "sprite", "name": "bob", "size": [8, 8], "palette": {"a": "#FFF"}, "regions": {"a": {"rect": [2, 2, 2, 2], "z": 0}}, "translate": {"by": [0, -1], "regions": ["a"]}}"##;
+
+    #[test]
+    fn test_mask_resolves_group_translate() {
+        // A sprite-level group `translate` shifts the region up one row; the
+        // token grid must reflect the shift.
+        let pipeline = MaskPipeline::load_from_string(TRANSLATE_SPRITE, Some("bob")).unwrap();
+        let sprite = pipeline.resolved_sprite().unwrap();
+        let grid = TokenGrid::from_sprite(&sprite).unwrap();
+        // Rect was at rows 2-3; after [0,-1] it sits at rows 1-2.
+        assert_eq!(grid.grid[1][2], "a");
+        assert_eq!(grid.grid[3][2], "_");
     }
 
     #[test]

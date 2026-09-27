@@ -158,6 +158,23 @@ pub enum Commands {
         /// Disable project context detection (skip pxl.toml lookup)
         #[arg(long)]
         no_project: bool,
+
+        /// Bake a particle system to this many frames (PNG per frame, or a GIF
+        /// with --gif). Selects the particle by --sprite, or bakes all.
+        #[arg(long)]
+        frames: Option<u32>,
+
+        /// Canvas size for particle baking, "WxH" (default: 32x32)
+        #[arg(long)]
+        canvas: Option<String>,
+
+        /// Emitter origin for particle baking, "X,Y" (default: bottom-center)
+        #[arg(long)]
+        origin: Option<String>,
+
+        /// Frames per second for a baked particle GIF (default: 10)
+        #[arg(long)]
+        fps: Option<u32>,
     },
     /// Import a PNG image and convert to Pixelsrc format
     Import {
@@ -605,6 +622,10 @@ pub fn run() -> ExitCode {
             no_semantic_aa,
             gradient_shadows,
             no_project,
+            frames,
+            canvas,
+            origin,
+            fps,
         } => render::run_render(
             &input,
             output.as_deref(),
@@ -627,6 +648,10 @@ pub fn run() -> ExitCode {
             no_semantic_aa,
             gradient_shadows,
             no_project,
+            frames,
+            canvas.as_deref(),
+            origin.as_deref(),
+            fps,
         ),
         Commands::Import {
             input,

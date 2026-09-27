@@ -289,14 +289,20 @@ grass: {
 
 ### Auto-Outline
 
-Generate outline around a region.
+Generate a silhouette outline around another region. The source region is
+dilated outward (8-connected, so convex corners are filled) and the source is
+subtracted, leaving a band `thickness` pixels wide that surrounds it. Give the
+outline a lower `z` than its source so the source draws on top.
 
 ```json5
-outline: {
-  "auto-outline": "body",
-  thickness: 1
+regions: {
+  outline: { "auto-outline": "body", thickness: 1, z: 0 },
+  body:    { rect: [3, 3, 4, 4], z: 1 },
 }
 ```
+
+`thickness` defaults to `1`. The source must be defined and non-empty; if it is
+missing the region resolves to zero pixels and the validator flags it.
 
 ### Auto-Shadow
 

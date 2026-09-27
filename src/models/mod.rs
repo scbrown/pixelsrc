@@ -23,7 +23,10 @@ pub use palette::{
 };
 pub use particle::{Particle, ParticleEmitter, VelocityRange};
 pub use region::{JitterSpec, RegionDef};
-pub use sprite::{CollisionBox, FrameMetadata, FrameTag, NineSlice, Sprite, SpriteMetadata};
+pub use sprite::{
+    apply_group_translate, CollisionBox, FrameMetadata, FrameTag, GroupTranslate, NineSlice,
+    Sprite, SpriteMetadata,
+};
 pub use transform::{
     Easing, Keyframe, KeyframeSpec, PropertyKeyframes, TransformDef, TransformSpec,
 };
