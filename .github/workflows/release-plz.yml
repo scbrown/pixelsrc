@@ -3,7 +3,7 @@ name: Release-plz
 # On every push to main: open or update the release PR (version bump +
 # CHANGELOG). When that PR merges: tag v<version>, create the GitHub release,
 # then build the binaries, update the Homebrew tap and publish to crates.io
-# from this same run.
+# with a separate crates workflow (its own OIDC workflow identity).
 on:
   push:
     branches: [main]
@@ -58,12 +58,17 @@ jobs:
       HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
   crates:
-    name: crates.io
+    name: Dispatch crates.io
     needs: release-plz
     if: needs.release-plz.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
-    uses: ./.github/workflows/crates.yml
-    with:
-      tag: ${{ needs.release-plz.outputs.tag }}
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch the tagged crate release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-plz.outputs.tag }}
+        run: bash scripts/dispatch-crates.sh

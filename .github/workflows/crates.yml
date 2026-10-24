@@ -3,15 +3,14 @@ name: Publish to crates.io
 on:
   release:
     types: [published]
-  # Called by release-plz.yml after it tags a release (a GITHUB_TOKEN release
-  # cannot trigger the `release` arm above).
-  workflow_call:
-    inputs:
-      tag:
-        required: true
-        type: string
+  # release-plz dispatches this workflow instead of reusing it: reusable
+  # workflows inherit the caller's OIDC workflow claim, which crates.io rejects.
   workflow_dispatch:
     inputs:
+      tag:
+        description: 'Existing release tag to package (for example v0.3.0)'
+        required: true
+        type: string
       dry_run:
         description: 'Dry run (do not publish)'
         required: false
@@ -29,9 +28,24 @@ jobs:
       contents: read
       id-token: write  # Required for OIDC trusted publishing
     steps:
+      - name: Validate release tag
+        id: release-tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          if [[ "$GITHUB_REPOSITORY" != scbrown/pixelsrc || "$GITHUB_WORKFLOW_REF" != scbrown/pixelsrc/.github/workflows/crates.yml@* ]]; then
+            echo 'Refusing unexpected publisher workflow identity' >&2
+            exit 2
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo 'Refusing missing or invalid release tag' >&2
+            exit 2
+          fi
+          printf 'Publisher workflow: %s\n' "$GITHUB_WORKFLOW_REF"
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: refs/tags/${{ steps.release-tag.outputs.tag }}
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
