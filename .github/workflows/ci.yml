@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check crate dispatch controls
+        run: python3 scripts/test-crates-dispatch.py
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
