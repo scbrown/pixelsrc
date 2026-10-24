@@ -1,0 +1,86 @@
+// Stiwi, hand-drawn from the GitHub photograph. 32px icon study.
+// Every contour, highlight and grey beard strand below is an authored shape.
+// No raster input, import, quantizer, generated grid or per-pixel tracing.
+{
+  type: "palette", name: "stiwi-hand-32",
+  colors: {
+    background: "#acb894", "background-light": "#dce3cd", "background-leaf": "#83976c",
+    shirt: "#263d60", "shirt-shadow": "#1b2a45", collar: "#3d5475",
+    hair: "#302e30", "hair-swoop": "#302e30", "hair-shadow": "#24252a", "hair-wave": "#514a48", "hair-silver": "#8b8580",
+    skin: "#bc947b", "skin-under-nose": "#bc947b", "skin-light": "#d5af91", "skin-shadow": "#966f60", "skin-warm": "#c49a7d",
+    beard: "#393435", "beard-shadow": "#292a2d", "beard-mid": "#615b56", "beard-grey": "#96958a", "beard-white": "#c5c2b3",
+    moustache: "#4c4038", "moustache-grey": "#96958a", mouth: "#664b40", lip: "#ae816b", teeth: "#d9c8a6",
+    "eye-white": "#c9bcaa", iris: "#626963", pupil: "#343738",
+    frame: "#2c3036", "frame-light": "#7b7e78", "lens-glint": "#b0b9ab"
+  },
+  roles: {
+    background: "fill", "background-light": "highlight", "background-leaf": "shadow",
+    shirt: "fill", "shirt-shadow": "shadow", collar: "boundary",
+    hair: "fill", "hair-swoop": "fill", "hair-shadow": "shadow", "hair-wave": "highlight", "hair-silver": "highlight",
+    skin: "fill", "skin-under-nose": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill",
+    beard: "fill", "beard-shadow": "shadow", "beard-mid": "highlight", "beard-grey": "highlight", "beard-white": "highlight",
+    moustache: "anchor", "moustache-grey": "highlight", mouth: "anchor", lip: "fill", teeth: "anchor",
+    "eye-white": "fill", iris: "anchor", pupil: "anchor", frame: "boundary", "frame-light": "highlight", "lens-glint": "highlight"
+  },
+  relationships: {
+    "skin-light": {type: "derives-from", target: "skin"},
+    "skin-shadow": {type: "derives-from", target: "skin"},
+    "hair-wave": {type: "derives-from", target: "hair"},
+    "beard-grey": {type: "derives-from", target: "beard"},
+    "shirt-shadow": {type: "derives-from", target: "shirt"}
+  }
+}
+{
+  type: "sprite", name: "stiwi-hand-32", size: [32,32], palette: "stiwi-hand-32",
+  regions: {
+    background: {rect: [0,0,32,32], z: 0},
+    "background-light": {union: [{rect: [0,0,9,10], round: 3},{rect: [25,0,7,16], round: 3},{rect: [0,18,5,8], round: 2}], z: 1},
+    "background-leaf": {union: [{rect: [0,11,5,7], round: 2},{rect: [28,21,4,7], round: 2}], z: 2},
+    shirt: {union: [{rect: [0,30,32,2]},{rect: [3,28,26,4]},{rect: [7,26,18,6]}], z: 5},
+    "shirt-shadow": {union: [{rect: [8,26,16,6]},{line: [[1,31],[6,29],[8,28]]}], z: 6},
+    collar: {union: [{line: [[6,28],[10,27],[13,31]]},{line: [[25,28],[22,27],[20,31]]},{stroke: [10,29,12,3]}], z: 7},
+    // Wavy crown with a high, off-centre swept forelock and long side hair.
+    hair: {union: [{rect: [9,2,14,10], round: 4},{rect: [13,1,8,7], round: 3},{rect: [8,4,17,9], round: 3},
+      // Alternate one-pixel curls and notches; narrow locks finish at the ears.
+      {rect: [7,7,5,12]},{rect: [6,8,3,3]},{rect: [5,11,4,2]},{rect: [6,13,3,3]},{rect: [5,16,4,2]},{rect: [6,18,3,2]},{rect: [8,20,2,2]},
+      {rect: [22,8,4,11]},{rect: [25,9,2,2]},{rect: [24,11,4,2]},{rect: [25,14,2,2]},{rect: [24,16,4,2]},{rect: [24,18,2,2]},{rect: [23,20,2,1]},
+      {points: [[5,14],[4,16],[27,15],[26,19]]}], z: 10},
+    "hair-shadow": {union: [{line: [[7,10],[6,12],[7,15],[6,17],[8,20]]},{line: [[24,11],[26,12],[25,15],[26,17],[24,20]]},{rect: [17,3,4,6], round: 2}], z: 11},
+    // Exposed forehead, cheeks and small ear lobes.
+    skin: {union: [{rect: [9,7,14,17], round: 4},{rect: [8,13,2,6], round: 1},{rect: [23,13,2,6], round: 1}], z: 20},
+    "skin-light": {union: [{rect: [11,8,7,4], round: 1},{rect: [10,16,3,3], round: 1},{line: [[16,14],[16,17]]}], z: 21},
+    "skin-shadow": {union: [{line: [[22,10],[22,17],[23,19]], thickness: 1},{line: [[9,17],[10,20]]},{points: [[8,15],[24,15],[18,17],[15,18]]}], z: 22},
+    "skin-warm": {union: [{rect: [13,16,3,3]},{rect: [17,16,3,3]},{points: [[16,18],[17,17]]}], z: 23},
+    // An extra right-hand forelock covers the bare upper temple.
+    "hair-swoop": {line: [[20,7],[21,9],[23,11],[25,11]], thickness: 3, z: 24},
+    // Hair sweeps over the forehead without flattening the open face.
+    "hair-wave": {union: [{line: [[8,9],[9,6],[12,4],[15,4]]},{line: [[14,3],[16,2],[19,3],[20,6],[22,8],[25,8]]},{line: [[8,12],[7,13],[8,15]]},{line: [[7,17],[8,19]]},{line: [[25,13],[26,14],[25,16],[26,17],[24,19]]},{line: [[21,8],[22,9],[24,10]]}], z: 25},
+    "hair-silver": {union: [{line: [[8,8],[9,6],[11,5]]},{points: [[13,3],[18,2],[22,7],[6,12],[7,16],[8,19],[26,12],[25,17],[24,20]]}], z: 26},
+    "eye-white": {union: [{rect: [11,13,3,1]},{rect: [19,13,3,1]}], z: 30},
+    iris: {points: [[12,13],[20,13]], z: 31},
+    pupil: {points: [[12,14],[20,14]], z: 32},
+    // Full beard tapers below the jaw; it is not a dark rectangular mouth.
+    beard: {union: [{rect: [8,18,16,7], round: 2},{rect: [9,23,14,5], round: 2},{rect: [11,27,10,3]},{rect: [13,29,6,2]}], z: 40},
+    "beard-shadow": {union: [{line: [[9,20],[9,24],[12,28],[14,30]]},{line: [[23,20],[23,24],[21,28],[18,30]]},{rect: [14,26,4,3]}], z: 41},
+    "beard-mid": {union: [{line: [[10,22],[11,25],[13,27]]},{line: [[22,22],[21,25],[20,27]]},{line: [[13,23],[14,26],[14,29]]},{line: [[18,23],[18,26],[17,29]]}], z: 42},
+    "beard-grey": {union: [{line: [[12,24],[13,26],[13,29]]},{line: [[16,24],[15,27],[16,30]]},{line: [[20,23],[19,26],[19,28]]},{points: [[10,21],[22,21],[11,24],[21,25],[18,29]]}], z: 43},
+    "beard-white": {points: [[13,25],[14,28],[16,26],[16,29],[18,27],[20,24]], z: 44},
+    // Restore rev 3 cheeks; retain only a one-pixel central philtrum.
+    "skin-under-nose": {rect: [16,18,1,2], z: 49},
+    // Open smile, modest teeth and moustache parted around the nose.
+    mouth: {union: [{rect: [12,20,9,2], round: 1},{line: [[12,20],[14,22],[18,22],[21,20]]}], z: 50},
+    teeth: {rect: [15,21,3,1], z: 51},
+    lip: {line: [[14,22],[18,22],[20,21]], z: 52},
+    moustache: {union: [
+      {rect: [13,18,2,2]},{rect: [18,18,2,2]},
+      {line: [[13,19],[11,20],[10,22],[9,23]]},
+      {line: [[19,19],[21,20],[21,22],[22,23]]},
+      {points: [[12,19],[11,21],[10,23],[20,19],[22,21],[21,23]]},
+      {rect: [12,20,9,1]}], z: 53},
+    "moustache-grey": {points: [[13,18],[11,20],[10,22],[19,19],[21,21]], z: 54},
+    // Thin round metal frames, rather than thick square sunglasses.
+    frame: {union: [{line: [[8,13],[9,11],[12,11],[14,13],[14,15],[12,17],[10,17],[8,15],[8,13]]},{line: [[18,13],[19,11],[22,11],[24,13],[24,15],[22,17],[20,17],[18,15],[18,13]]},{line: [[15,12],[17,12]]},{line: [[6,12],[8,12]]},{line: [[25,12],[26,13]]}], z: 60},
+    "frame-light": {points: [[10,17],[11,17],[20,17],[21,17],[8,14],[24,14]], z: 61},
+    "lens-glint": {points: [[10,12],[19,12]], z: 62}
+  }
+}

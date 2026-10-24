@@ -1,0 +1,101 @@
+// Stiwi, hand-authored 48px portrait. Independently placed facial features,
+// not a scaled grid of the 32px study. Photograph used only by eye.
+{
+  type: "palette", name: "stiwi-hand-48",
+  colors: {
+    background: "#adba99", "background-sky": "#dce5db", "background-glow": "#c8ce9f", "background-leaf": "#8d9f77", "background-deep": "#798d6a",
+    shirt: "#2c4266", "shirt-light": "#3e577a", "shirt-shadow": "#1e304e", collar: "#233655", "collar-edge": "#526582",
+    hair: "#302e31", "hair-shadow": "#25262c", "hair-forelock": "#3d3639", "hair-wave": "#59504d", "hair-silver": "#8e8680",
+    skin: "#bb937a", "skin-under-nose": "#bb937a", "skin-light": "#d6b397", "skin-shadow": "#967461", "skin-warm": "#c49b7e", "nose-shadow": "#806252",
+    beard: "#393436", "beard-shadow": "#2c2c30", "beard-mid": "#605b55", "beard-grey": "#96958b", "beard-white": "#c7c4b5",
+    moustache: "#50443c", "moustache-grey": "#8d8575", mouth: "#5c453c", lip: "#aa7d67", teeth: "#d9c9ac",
+    brow: "#615249", "eye-white": "#c6b9a6", iris: "#757d74", pupil: "#363a3b",
+    frame: "#292e35", "frame-light": "#777b79", "lens-glint": "#b8c0b2"
+  },
+  roles: {
+    background: "fill", "background-sky": "fill", "background-glow": "highlight", "background-leaf": "shadow", "background-deep": "shadow",
+    shirt: "fill", "shirt-light": "highlight", "shirt-shadow": "shadow", collar: "fill", "collar-edge": "boundary",
+    hair: "fill", "hair-shadow": "shadow", "hair-forelock": "fill", "hair-wave": "highlight", "hair-silver": "highlight",
+    skin: "fill", "skin-under-nose": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill", "nose-shadow": "shadow",
+    beard: "fill", "beard-shadow": "shadow", "beard-mid": "highlight", "beard-grey": "highlight", "beard-white": "highlight",
+    moustache: "anchor", "moustache-grey": "highlight", mouth: "anchor", lip: "fill", teeth: "anchor",
+    brow: "anchor", "eye-white": "fill", iris: "anchor", pupil: "anchor", frame: "boundary", "frame-light": "highlight", "lens-glint": "highlight"
+  },
+  relationships: {
+    "skin-light": {type: "derives-from", target: "skin"},
+    "skin-shadow": {type: "derives-from", target: "skin"},
+    "hair-wave": {type: "derives-from", target: "hair"},
+    "hair-silver": {type: "derives-from", target: "hair"},
+    "beard-grey": {type: "derives-from", target: "beard"},
+    "beard-white": {type: "derives-from", target: "beard"},
+    "shirt-light": {type: "derives-from", target: "shirt"}
+  }
+}
+{
+  type: "sprite", name: "stiwi-hand-48", size: [48,48], palette: "stiwi-hand-48",
+  regions: {
+    // Broad quiet garden patches suggest the photograph's blurred background.
+    background: {rect: [0,0,48,48], z: 0},
+    "background-sky": {union: [{rect: [0,0,14,12], round: 4},{rect: [36,0,12,22], round: 5},{rect: [0,20,7,11], round: 3}], z: 1},
+    "background-glow": {union: [{rect: [0,10,9,10], round: 3},{rect: [39,24,9,13], round: 4},{rect: [2,34,9,8], round: 3}], z: 2},
+    "background-leaf": {union: [{rect: [0,26,6,10], round: 2},{rect: [41,14,7,8], round: 3},{rect: [35,34,8,9], round: 3}], z: 3},
+    "background-deep": {union: [{rect: [0,37,5,6], round: 2},{rect: [44,36,4,8], round: 1}], z: 4},
+    // Navy shoulders and a stand collar sit behind the long beard.
+    shirt: {union: [{rect: [0,45,48,3]},{rect: [3,43,42,5]},{rect: [8,41,32,7]},{rect: [14,39,20,9]}], z: 8},
+    "shirt-light": {union: [{line: [[0,45],[8,43],[13,41]], thickness: 1},{line: [[35,42],[42,44],[47,46]]},{points: [[5,45],[8,44],[38,44],[41,45]]}], z: 9},
+    "shirt-shadow": {union: [{rect: [15,40,18,8]},{line: [[4,46],[9,44],[12,42]]}], z: 10},
+    collar: {union: [{rect: [13,39,5,7], round: 1},{rect: [30,39,5,7], round: 1}], z: 11},
+    "collar-edge": {union: [{line: [[13,40],[14,44],[18,47]]},{line: [[34,40],[33,44],[30,47]]},{stroke: [17,44,14,4]}], z: 12},
+    // Asymmetric hair silhouette: higher forelock on the viewer's right.
+    hair: {union: [{rect: [15,3,18,13], round: 5},{rect: [20,1,11,10], round: 4},{rect: [11,5,13,14], round: 4},{rect: [30,6,7,13], round: 3},
+      // Left: outward curls alternate with green notches, then taper at the ear.
+      {rect: [11,12,5,15]},{rect: [9,13,4,4]},{rect: [8,17,5,3]},{rect: [9,20,4,3]},{rect: [7,22,6,2]},{rect: [9,24,5,2]},{rect: [10,26,4,2]},{rect: [12,28,2,2]},
+      {line: [[9,16],[7,18],[8,19]]},{line: [[9,23],[8,25],[10,26]]},
+      // Right: swept locks kick out at different heights, never a flat side wall.
+      {rect: [32,12,5,14]},{rect: [36,12,4,3]},{rect: [37,15,4,3]},{rect: [36,18,4,3]},{rect: [37,21,3,2]},{rect: [35,23,4,3]},{rect: [34,26,4,2]},{rect: [34,28,2,2]},
+      {line: [[39,16],[41,15]]},{line: [[38,22],[40,21]]},{line: [[36,27],[37,28]]}], z: 20},
+    "hair-shadow": {union: [{line: [[12,14],[10,17],[11,20],[9,23],[11,25],[12,28]]},{line: [[35,16],[38,18],[37,20],[38,22],[36,25],[35,28]]},{rect: [25,4,5,9], round: 2}], z: 21},
+    // Warm face planes. The forehead stays open beneath the swept hair.
+    skin: {union: [{rect: [14,10,21,24], round: 5},{rect: [12,20,3,9], round: 1},{rect: [34,20,3,9], round: 1}], z: 30},
+    "skin-light": {union: [{rect: [17,11,9,6], round: 2},{rect: [15,25,5,4], round: 2},{line: [[24,21],[24,26]], thickness: 1},{points: [[22,12],[20,13],[25,28]]}], z: 31},
+    "skin-shadow": {union: [{rect: [32,17,3,12], round: 1},{line: [[14,23],[14,28],[16,31]], thickness: 1},{line: [[27,14],[29,17],[31,19]]},{points: [[12,23],[13,25],[35,23],[35,26],[20,17]]}], z: 32},
+    "skin-warm": {union: [{rect: [19,25,4,4], round: 1},{rect: [27,25,4,4], round: 1},{line: [[23,26],[25,28],[27,27]], thickness: 1},{points: [[17,16],[18,14],[21,12],[29,26]]}], z: 33},
+    "nose-shadow": {union: [{line: [[26,23],[27,26],[29,27],[27,28]]},{points: [[22,28],[23,29],[26,29]]}], z: 34},
+    // A hand-placed forelock sweeps from the crown across the right temple.
+    "hair-forelock": {union: [{points: [[32,10],[33,10],[34,10],[33,11],[34,11],[33,12],[34,12],[34,13]]},{rect: [27,5,5,9], round: 2},{line: [[29,9],[31,13],[35,16],[38,16]], thickness: 3},{line: [[16,8],[14,11],[13,16]], thickness: 1},{line: [[29,10],[30,13],[32,16],[35,18]], thickness: 3},{line: [[35,18],[37,17],[38,16]]}], z: 36},
+    "hair-wave": {union: [{line: [[12,13],[13,9],[17,6],[21,6]]},{line: [[18,4],[21,3],[25,3],[28,5]]},{line: [[29,7],[30,11],[33,14],[37,15]]},{line: [[11,15],[10,17],[11,19]]},{line: [[10,21],[9,23],[11,24],[12,27]]},{line: [[37,16],[39,17],[37,19]]},{line: [[37,21],[38,22],[36,24],[36,26],[35,28]]},{line: [[31,12],[32,14],[35,16],[37,16]]}], z: 37},
+    "hair-silver": {union: [{line: [[13,10],[15,7],[18,6]]},{line: [[20,3],[23,2],[26,3]]},{line: [[32,13],[35,15],[38,14]]},{line: [[10,24],[11,25],[12,27]]},{points: [[10,17],[9,19],[14,9],[17,5],[29,5],[38,17],[37,23],[36,26]]}], z: 38},
+    // Gentle brows and grey-green eyes; bright pixels are intentionally sparse.
+    brow: {union: [{line: [[15,18],[18,17],[21,18]]},{line: [[28,18],[30,17],[33,18]]}], z: 40},
+    "eye-white": {union: [{line: [[16,21],[18,20],[20,21]]},{line: [[28,21],[30,20],[32,21]]}], z: 41},
+    iris: {union: [{rect: [18,20,2,2]},{rect: [29,20,2,2]}], z: 42},
+    pupil: {points: [[18,21],[29,21]], z: 43},
+    // Full beard silhouette, progressively stepping inward at the bottom.
+    beard: {union: [{rect: [12,28,24,8], round: 3},{rect: [13,34,22,5], round: 2},{rect: [15,38,18,4]},{rect: [17,41,14,3]},{rect: [20,44,8,2]}], z: 50},
+    "beard-shadow": {union: [{line: [[13,30],[13,35],[16,40],[20,44]], thickness: 1},{line: [[35,30],[34,36],[31,41],[27,45]], thickness: 1},{line: [[23,36],[23,40],[25,44]], thickness: 1}], z: 51},
+    "beard-mid": {union: [{line: [[15,31],[16,35],[18,39],[20,42]]},{line: [[32,32],[31,36],[29,39]]},{line: [[19,34],[20,38],[21,41]]},{line: [[27,34],[27,38],[26,42]]},{points: [[16,33],[18,37],[30,38],[28,42],[22,43],[24,45]]}], z: 52},
+    // Grey-white streaks are irregular short polylines, not a solid grey chin.
+    "beard-grey": {union: [{line: [[17,33],[18,36],[20,39],[20,42]]},{line: [[21,35],[21,38],[22,40],[21,43]]},{line: [[26,35],[25,38],[26,41],[25,44]]},{line: [[31,33],[30,36],[29,38],[29,41]]},{line: [[15,34],[16,37]]},{points: [[14,31],[18,32],[33,31],[32,36],[18,40],[23,44],[27,43],[31,39]]}], z: 53},
+    "beard-white": {union: [{line: [[19,35],[20,37]]},{line: [[22,39],[23,42]]},{line: [[26,37],[27,39]]},{line: [[29,35],[28,37]]},{points: [[17,35],[18,38],[20,40],[21,42],[24,44],[25,40],[27,42],[30,38]]}], z: 54},
+    // Rev 3 face planes are restored; only a small central philtrum is open.
+    "skin-under-nose": {rect: [24,28,2,2], z: 55},
+    // Smiling mouth with a broken warm ivory row, under a parted moustache.
+    mouth: {union: [{rect: [19,30,12,3], round: 1},{line: [[18,30],[20,33],[25,34],[29,33],[32,30]]}], z: 60},
+    teeth: {rect: [23,31,4,1], z: 61},
+    lip: {line: [[21,33],[24,34],[27,33],[29,32]], z: 62},
+    moustache: {union: [
+      // Restore rev 3 contours and old one-pixel strand appearance explicitly.
+      {rect: [21,28,3,2]},{rect: [26,28,3,2]},
+      {line: [[22,29],[20,29],[18,31],[17,33]], thickness: 1},
+      {line: [[27,29],[29,30],[31,32]], thickness: 1},
+      {line: [[17,32],[17,34],[16,35]]},{line: [[31,32],[32,34],[33,35]]},
+      {points: [[19,32],[18,34],[16,33],[30,33],[32,32],[31,35]]},
+      // Brown overhang leaves only the small ivory sliver below it.
+      {rect: [20,30,10,1]}], z: 63},
+    "moustache-grey": {union: [{line: [[21,29],[19,30]]},{line: [[28,30],[29,31]]},{line: [[18,32],[17,33]]},{points: [[22,28],[27,29],[31,33]]}], z: 64},
+    // Thin rounded metal frames; eyes remain legible inside the lenses.
+    frame: {union: [{line: [[13,21],[14,19],[16,18],[20,18],[22,19],[23,21],[23,23],[22,25],[20,26],[16,26],[14,25],[13,23],[13,21]]},{line: [[26,21],[27,19],[29,18],[33,18],[35,19],[36,21],[36,23],[35,25],[33,26],[29,26],[27,25],[26,23],[26,21]]},{line: [[23,20],[26,20]]},{line: [[10,19],[13,19]]},{line: [[36,19],[38,21]]}], z: 70},
+    "frame-light": {union: [{line: [[16,26],[20,26]]},{line: [[29,26],[33,26]]},{points: [[13,22],[14,24],[36,22],[35,24],[24,20]]}], z: 71},
+    "lens-glint": {union: [{line: [[15,20],[16,19]]},{line: [[28,20],[29,19]]}], z: 72}
+  }
+}
