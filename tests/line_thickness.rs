@@ -27,14 +27,18 @@ fn thick_line_png_mask_union_and_z_order() {
             .arg(&source)
             .output()
             .expect("run validator");
-        assert!(validate.status.success(), "{name}: {:?}", validate);
-        let render = Command::new(env!("CARGO_BIN_EXE_pxl"))
-            .arg("render")
-            .arg(&source)
-            .args(["--strict", "--scale", "1", "-o"])
-            .arg(&png)
-            .output()
-            .expect("run renderer");
+        if name == "clipped" {
+            assert!(!validate.status.success());
+            assert!(String::from_utf8_lossy(&validate.stderr).contains("outside the 8x8 canvas"));
+        } else {
+            assert!(validate.status.success(), "{name}: {:?}", validate);
+        }
+        let mut command = Command::new(env!("CARGO_BIN_EXE_pxl"));
+        command.arg("render").arg(&source);
+        if name != "clipped" {
+            command.arg("--strict");
+        }
+        let render = command.args(["--scale", "1", "-o"]).arg(&png).output().expect("run renderer");
         assert!(render.status.success(), "{name}: {:?}", render);
         let image = image::open(png).expect("load rendered PNG").into_rgba8();
         assert_eq!(image.dimensions(), (8, 8));
