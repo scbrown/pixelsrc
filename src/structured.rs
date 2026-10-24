@@ -83,6 +83,29 @@ pub fn rasterize_region(
                 }
             }
         }
+        // Stamp a square brush along the Bresenham centreline, including joins
+        // and end caps. Even widths put their extra pixel on the negative side.
+        // Keep width one byte-for-byte compatible with the original rasterizer.
+        let thickness = region.thickness.unwrap_or(1);
+        if thickness == 0 {
+            pixels.clear();
+        } else if thickness > 1 {
+            let start = -(i64::from(thickness) / 2);
+            let end = start + i64::from(thickness);
+            let mut thickened = HashSet::new();
+            for (x, y) in pixels {
+                for dx in start..end {
+                    for dy in start..end {
+                        if let (Ok(x), Ok(y)) =
+                            (i32::try_from(i64::from(x) + dx), i32::try_from(i64::from(y) + dy))
+                        {
+                            thickened.insert((x, y));
+                        }
+                    }
+                }
+            }
+            pixels = thickened;
+        }
     } else if let Some([x, y, w, h]) = region.rect {
         pixels = rasterize_rect(x as i32, y as i32, w as i32, h as i32);
     } else if let Some([x, y, w, h]) = region.stroke {
@@ -508,6 +531,46 @@ mod tests {
         assert_eq!(pixels.len(), 6);
         assert!(pixels.contains(&(0, 0)));
         assert!(pixels.contains(&(2, 1)));
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_line_thickness_odd_even_zero_and_legacy() {
+        let mut warnings = Vec::new();
+        let regions = HashMap::new();
+        let line = RegionDef { line: Some(vec![[2, 4], [5, 4]]), ..Default::default() };
+        let draw = |region: &RegionDef, warnings: &mut Vec<Warning>| {
+            rasterize_region(region, &regions, 8, 8, warnings)
+        };
+        let legacy = rasterize_line((2, 4), (5, 4));
+        assert_eq!(draw(&line, &mut warnings), legacy);
+        assert_eq!(draw(&RegionDef { thickness: Some(1), ..line.clone() }, &mut warnings), legacy);
+        let odd: HashSet<_> = (1..=6).flat_map(|x| (3..=5).map(move |y| (x, y))).collect();
+        assert_eq!(draw(&RegionDef { thickness: Some(3), ..line.clone() }, &mut warnings), odd);
+        let even: HashSet<_> = (1..=5).flat_map(|x| (3..=4).map(move |y| (x, y))).collect();
+        assert_eq!(draw(&RegionDef { thickness: Some(2), ..line.clone() }, &mut warnings), even);
+        assert!(draw(&RegionDef { thickness: Some(0), ..line }, &mut warnings).is_empty());
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_line_thickness_compounds_and_diagonal() {
+        let line = RegionDef {
+            line: Some(vec![[2, 2], [4, 4]]),
+            thickness: Some(3),
+            ..Default::default()
+        };
+        let regions = HashMap::new();
+        let mut warnings = Vec::new();
+        let direct = rasterize_region(&line, &regions, 8, 8, &mut warnings);
+        assert_eq!(direct.len(), 19);
+        assert!(direct.contains(&(1, 1)) && direct.contains(&(5, 5)));
+        assert!(!direct.contains(&(5, 1)));
+        let nested = RegionDef { union: Some(vec![line.clone()]), ..Default::default() };
+        assert_eq!(rasterize_region(&nested, &regions, 8, 8, &mut warnings), direct);
+        let shifted = RegionDef { translate: Some([-2, -2]), ..nested };
+        let expected: HashSet<_> = direct.iter().map(|&(x, y)| (x - 2, y - 2)).collect();
+        assert_eq!(rasterize_region(&shifted, &regions, 8, 8, &mut warnings), expected);
         assert!(warnings.is_empty());
     }
 
