@@ -43,6 +43,14 @@ crack: { line: [[0, 0], [2, 3], [4, 2]] }
 
 Optional: `thickness` (default: 1)
 
+A line uses a square brush of exactly `thickness` pixels along its Bresenham
+centreline, including end caps and polyline joins. Odd widths are centred;
+even widths place the extra pixel toward negative x/y. For example, a horizontal
+line from `[2, 4]` to `[5, 4]` with thickness 3 covers x=1..6 and y=3..5.
+Thickness 0 produces no pixels. Thickness 1 preserves the original centreline.
+The same rule applies to lines nested inside compound regions. Rendering clips
+the result at the canvas boundary after region modifiers and z-ordering.
+
 ### Rectangle
 
 Filled rectangle.
