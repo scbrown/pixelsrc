@@ -18,6 +18,11 @@ on:
       - 'scripts/parse_demos.awk'
       - 'docs/book/src/demos/**'
 
+# Cancel superseded PR runs; pushes to main (which can publish) always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check-demos:
     name: Verify Demo Documentation
