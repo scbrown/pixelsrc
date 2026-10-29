@@ -1,6 +1,6 @@
-// stiwi-256.pxl - Stiwi's skull self-portrait, 256x256, painterly.
+// skull-256.pxl - Stiwi's skull avatar, 256x256, painterly.
 //
-// The same 3/4 view as stiwi-128.pxl, after examples/skull/reference-skull.jpg.
+// The same 3/4 view as skull-128.pxl, after reference-skull.jpg.
 // The big planes started from the 128 portrait's shapes at double size; the
 // rest is painted for this size: a nine-step bone ramp, checker-dithered
 // transitions between neighbouring tones, reflected light under the cranium,
@@ -9,13 +9,13 @@
 // The dithering uses one hidden `grain` mask: a 50% checkerboard drawn as
 // diagonal one-pixel lines. A transition region is a hand-drawn band with
 // `except: ["grain"]`, so only every other pixel of the band takes its tone.
-// (The sprite-level `dither` transform fails on a regions sprite; see README.)
+// (The sprite-level `dither` transform fails on a regions sprite; see GAPS.md.)
 //
 // Region maps are unordered, so every region carries its own unique z.
 
 {
   type: "palette",
-  name: "stiwi-256",
+  name: "skull-256",
   colors: {
     _: "transparent",
     grain: "transparent",   // mask only: the checkerboard used by the dither bands
@@ -104,9 +104,9 @@
 
 {
   type: "sprite",
-  name: "stiwi-256",
+  name: "skull-256",
   size: [256, 256],
-  palette: "stiwi-256",
+  palette: "skull-256",
   regions: {
     // ---- dither mask --------------------------------------------------------
     // Every pixel with an even x + y. Painted first and fully covered, so it

@@ -1,6 +1,6 @@
-// stiwi-128.pxl - Stiwi's skull self-portrait, 128x128 pixel art.
+// skull-128.pxl - Stiwi's skull avatar, 128x128 pixel art.
 //
-// A 3/4 view facing right, after examples/skull/reference-skull.jpg. Every
+// A 3/4 view facing right, after reference-skull.jpg. Every
 // shape is placed by hand at this size; it is not an enlargement of the 40px
 // skull and nothing was imported or traced from the photo.
 //
@@ -8,7 +8,7 @@
 
 {
   type: "palette",
-  name: "stiwi-128",
+  name: "skull-128",
   colors: {
     _: "transparent",
     outline: "#4e4844",
@@ -62,9 +62,9 @@
 
 {
   type: "sprite",
-  name: "stiwi-128",
+  name: "skull-128",
   size: [128, 128],
-  palette: "stiwi-128",
+  palette: "skull-128",
   regions: {
     // ---- silhouette ------------------------------------------------------
     // Cranium, face and mandible as one closed shape; the outline is grown

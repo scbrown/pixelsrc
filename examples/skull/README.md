@@ -29,7 +29,21 @@ so the skull can talk, laugh, float and glow.
 | `reference-skull.jpg` | The target art |
 | `skull_comparison.png` | Reference and render side by side, both skulls scaled to the same height |
 | `compare.py` | Builds `skull_comparison.png` (needs Pillow) |
+| `skull-128.pxl` | A separate 128x128 pixel-art skull, drawn fresh at that size (not an enlargement) |
+| `skull-128.png`, `skull-128_8x.png` | It at 1x and 8x |
+| `skull-256.pxl` | A 256x256 painterly skull: the 128's planes at double size, repainted with a nine-step ramp, reflected light, orbit occlusion and checker-dithered transitions |
+| `skull-256.png`, `skull-256_4x.png` | It at 1x and 4x |
 | `GAPS.md` | Things the compiler couldn't express, with minimal repros |
+
+## Large versions
+
+| 128 pixel art | 256 painterly |
+|---------------|---------------|
+| ![128](skull-128_8x.png) | ![256](skull-256_4x.png) |
+
+The 256's soft transitions are 50% checker dithers: one hidden `grain` region
+holds the checkerboard (every pixel with an even x + y, as diagonal one-pixel
+lines) and each transition is a hand-drawn band with `except: ["grain"]`.
 
 ## Render
 

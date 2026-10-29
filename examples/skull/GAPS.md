@@ -119,3 +119,20 @@ The first frame is right, but the second renders magenta with `Circular include 
 so the second lookup of the same file is treated as a cycle. The same include
 works through a composition. **Workaround:** `skull_anim.pxl` repeats the
 `bone` palette instead of including it from `skull.pxl`.
+
+## 8. The `dither` transform rejects a regions sprite
+
+```json5
+{ type: "palette", name: "p", colors: { _: "transparent", a: "#000000", b: "#ffffff" } }
+{ type: "sprite", name: "base", size: [4, 4], palette: "p", regions: { a: { rect: [0, 0, 4, 4], z: 0 } } }
+{ type: "sprite", name: "dith", source: "base", palette: "p",
+  transform: [{ op: "dither", pattern: "checker", tokens: ["{a}", "{b}"], threshold: 0.5 }] }
+```
+
+`pxl render -s dith` fails with "color-based transforms require palette
+context". **Workaround:** `skull-256.pxl` builds its dithers from regions: a
+hidden `grain` checkerboard region and transition bands with
+`except: ["grain"]`. That workaround needed `except` to resolve in dependency
+order, which `structured::rasterize_regions` now does; before, it read the
+referenced region in hash-map order and failed in most runs.
+
