@@ -243,6 +243,67 @@ pub fn rasterize_region(
     pixels
 }
 
+/// Collect the names of the other regions that `region` reads while rasterizing:
+/// `fill`, `except`, `auto-outline` and `auto-shadow` targets, including those
+/// nested inside `union`, `base`, `subtract` and `intersect`.
+fn region_references<'a>(region: &'a RegionDef, refs: &mut Vec<&'a str>) {
+    if let Some(target) = region.fill.as_deref().and_then(parse_fill_reference) {
+        refs.push(target);
+    }
+    if let Some(target) = &region.auto_outline {
+        refs.push(target);
+    }
+    if let Some(target) = &region.auto_shadow {
+        refs.push(target);
+    }
+    if let Some(tokens) = &region.except {
+        refs.extend(tokens.iter().map(String::as_str));
+    }
+    if let Some(base) = &region.base {
+        region_references(base, refs);
+    }
+    for nested in [&region.union, &region.subtract, &region.intersect].into_iter().flatten() {
+        for sub in nested {
+            region_references(sub, refs);
+        }
+    }
+}
+
+/// Rasterize every region of a sprite, each one after the regions it refers to.
+///
+/// A region that reads another (`fill: "inside(x)"`, `except`, `auto-outline`,
+/// `auto-shadow`) only sees it once it has been rasterized, and `regions` is an
+/// unordered map, so iteration order alone would make the result vary from run
+/// to run. Regions are resolved in dependency order, ties broken by name; any
+/// left in a reference cycle are rasterized last, in name order, and the
+/// unresolved references produce the usual warnings.
+pub fn rasterize_regions(
+    regions: &HashMap<String, RegionDef>,
+    canvas_width: i32,
+    canvas_height: i32,
+    warnings: &mut Vec<Warning>,
+) -> HashMap<String, HashSet<(i32, i32)>> {
+    let mut remaining: Vec<&String> = regions.keys().collect();
+    remaining.sort();
+    let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
+
+    while !remaining.is_empty() {
+        let ready = remaining.iter().position(|token| {
+            let mut refs = Vec::new();
+            region_references(&regions[*token], &mut refs);
+            refs.iter().all(|r| {
+                *r == token.as_str() || !regions.contains_key(*r) || rasterized.contains_key(*r)
+            })
+        });
+        // A cycle: nothing is ready, so take the first remaining region anyway.
+        let token = remaining.remove(ready.unwrap_or(0));
+        let pixels =
+            rasterize_region(&regions[token], &rasterized, canvas_width, canvas_height, warnings);
+        rasterized.insert(token.clone(), pixels);
+    }
+    rasterized
+}
+
 /// Parse a fill reference like "inside(token_name)" to extract the token name.
 fn parse_fill_reference(fill_ref: &str) -> Option<&str> {
     let trimmed = fill_ref.trim();
@@ -371,30 +432,8 @@ pub fn render_structured(
         }
     }
 
-    // Rasterize all regions first (needed for fill references)
-    let mut rasterized_regions: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
-
-    // We need to rasterize in dependency order. For now, we'll do a simple two-pass:
-    // 1. Rasterize regions without fill/auto-shadow references
-    // 2. Rasterize regions with fill/auto-shadow references
-    let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
-
-    for (token, region) in regions {
-        if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
-            // Defer regions with fill or auto-shadow references
-            pending_regions.push((token.clone(), region.clone()));
-        } else {
-            let pixels =
-                rasterize_region(region, &rasterized_regions, width, height, &mut warnings);
-            rasterized_regions.insert(token.clone(), pixels);
-        }
-    }
-
-    // Now process regions with fill/auto-shadow references
-    for (token, region) in pending_regions {
-        let pixels = rasterize_region(&region, &rasterized_regions, width, height, &mut warnings);
-        rasterized_regions.insert(token, pixels);
-    }
+    // Rasterize all regions first, each after the regions it refers to
+    let rasterized_regions = rasterize_regions(regions, width, height, &mut warnings);
 
     // Create image
     let mut image = RgbaImage::new(width as u32, height as u32);
@@ -459,36 +498,7 @@ pub fn extract_anchor_bounds(
     let mut anchor_bounds = Vec::new();
     let mut warnings = Vec::new();
 
-    // First pass: rasterize non-fill regions (needed for fill references)
-    let mut rasterized_regions: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
-    let mut pending_regions: Vec<(String, RegionDef)> = Vec::new();
-
-    for (token, region) in regions {
-        if region.fill.is_some() || region.auto_shadow.is_some() || region.auto_outline.is_some() {
-            pending_regions.push((token.clone(), region.clone()));
-        } else {
-            let pixels = rasterize_region(
-                region,
-                &rasterized_regions,
-                canvas_width,
-                canvas_height,
-                &mut warnings,
-            );
-            rasterized_regions.insert(token.clone(), pixels);
-        }
-    }
-
-    // Second pass: rasterize fill/auto-shadow regions
-    for (token, region) in pending_regions {
-        let pixels = rasterize_region(
-            &region,
-            &rasterized_regions,
-            canvas_width,
-            canvas_height,
-            &mut warnings,
-        );
-        rasterized_regions.insert(token, pixels);
-    }
+    let rasterized_regions = rasterize_regions(regions, canvas_width, canvas_height, &mut warnings);
 
     // Now extract bounding boxes for anchor regions
     for (token, region) in regions {
@@ -756,6 +766,66 @@ mod tests {
 
         // Shadow visible at offset (5,5) where body doesn't overlap
         assert_eq!(*image.get_pixel(5, 5), Rgba([0, 0, 0, 255]));
+    }
+
+    #[test]
+    fn test_rasterize_regions_resolves_except_before_use() {
+        // `except` reads another region, so it must be rasterized after it. A
+        // fresh HashMap iterates in a new random order every time; before
+        // dependency ordering this chain came out wrong in most runs.
+        for _ in 0..64 {
+            let mut regions = HashMap::new();
+            regions.insert(
+                "a".to_string(),
+                RegionDef { rect: Some([0, 0, 2, 4]), ..Default::default() },
+            );
+            let b = RegionDef {
+                rect: Some([0, 0, 4, 4]),
+                except: Some(vec!["a".to_string()]),
+                ..Default::default()
+            };
+            regions.insert("b".to_string(), b);
+            let c = RegionDef {
+                rect: Some([0, 0, 4, 4]),
+                except: Some(vec!["b".to_string()]),
+                ..Default::default()
+            };
+            regions.insert("c".to_string(), c);
+            let mut warnings = Vec::new();
+            let raster = rasterize_regions(&regions, 4, 4, &mut warnings);
+            assert!(
+                warnings.is_empty(),
+                "{:?}",
+                warnings.iter().map(|w| &w.message).collect::<Vec<_>>()
+            );
+            assert_eq!(raster["b"].len(), 8);
+            assert!(!raster["b"].contains(&(0, 0)));
+            // c = everything minus b = exactly a
+            assert_eq!(raster["c"], raster["a"]);
+        }
+    }
+
+    #[test]
+    fn test_rasterize_regions_survives_a_reference_cycle() {
+        let mut regions = HashMap::new();
+        let a = RegionDef {
+            rect: Some([0, 0, 2, 2]),
+            except: Some(vec!["b".to_string()]),
+            ..Default::default()
+        };
+        let b = RegionDef {
+            rect: Some([1, 1, 2, 2]),
+            except: Some(vec!["a".to_string()]),
+            ..Default::default()
+        };
+        regions.insert("a".to_string(), a);
+        regions.insert("b".to_string(), b);
+        let mut warnings = Vec::new();
+        let raster = rasterize_regions(&regions, 4, 4, &mut warnings);
+        // Name order breaks the cycle: `a` runs first and cannot see `b`.
+        assert_eq!(raster["a"].len(), 4);
+        assert_eq!(raster["b"].len(), 3);
+        assert_eq!(warnings.len(), 1);
     }
 
     #[test]

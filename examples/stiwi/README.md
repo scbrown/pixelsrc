@@ -24,6 +24,39 @@ changes editable rather than requiring a new pixel grid.
 The 48-pixel portrait is independently authored, not an enlargement of the
 32-pixel study.
 
+## Larger portraits: 128 and 256
+
+![256-pixel painterly portrait of Stiwi](stiwi-hand-256-preview.png)
+
+The same portrait with more pixels, authored by **Claude Opus 5.5 running in
+Claude Code (model as declared by the harness)** from the same photo reference,
+which again is not included or linked. Every region was placed by hand while
+looking at the photo, with the 48-pixel portrait's palette tokens and region
+conventions; there was no image import, quantizer or tracing.
+
+| Variant | Editable source | Native render | Nearest-neighbour preview |
+| --- | --- | --- | --- |
+| Pixel art, 128 × 128 | [source](stiwi-hand-128.pxl) | [PNG](stiwi-hand-128.png) | [1024 × 1024](stiwi-hand-128-preview.png) |
+| Painterly, 256 × 256 | [source](stiwi-hand-256.pxl) | [PNG](stiwi-hand-256.png) | [1024 × 1024](stiwi-hand-256-preview.png) |
+
+**128** is independently placed at this size, not an enlargement of the 48:
+round metal frames built from ellipse rings, lids and grey-green irises, a
+heavy forelock across the right temple, a smile under a parted moustache, and
+grey strands that fall and curl outward through the beard.
+
+**256** began from the 128's shapes at double size. Each feature was then
+re-checked against the photo at 256 and painted further: dithered skin ramps,
+half-dissolved edges on the hair, beard and background, loose locks over the
+hair mass, iris rims, lid creases, lens sheen, a salt-and-pepper mid-tone and
+a fine grey frost through the beard. The dithering uses one hidden `grain`
+region, a 50% checkerboard of diagonal one-pixel lines; each transition is a
+hand-drawn band with `except: ["grain"]`.
+
+That technique exposed a renderer bug: `except` read its target in hash-map
+order, so it failed with "Unknown token" in most runs. Regions now rasterize in
+dependency order (`structured::rasterize_regions`), shared by render, mask,
+diff and validate.
+
 ## A renderer bug found during the revisions
 
 A three-pixel forelock exposed that semantic `line` regions ignored their
@@ -42,7 +75,12 @@ pxl render stiwi-hand-48.pxl --strict --scale 1 -o stiwi-hand-48.png
 pxl render stiwi-hand-48.pxl --strict --scale 11 -o stiwi-hand-48-preview.png
 pxl render stiwi-hand-32.pxl --strict --scale 1 -o stiwi-hand-32.png
 pxl render stiwi-hand-32.pxl --strict --scale 16 -o stiwi-hand-32-preview.png
+pxl validate --strict stiwi-hand-128.pxl stiwi-hand-256.pxl
+pxl render stiwi-hand-128.pxl --strict --scale 1 -o stiwi-hand-128.png
+pxl render stiwi-hand-128.pxl --strict --scale 8 -o stiwi-hand-128-preview.png
+pxl render stiwi-hand-256.pxl --strict --scale 1 -o stiwi-hand-256.png
+pxl render stiwi-hand-256.pxl --strict --scale 4 -o stiwi-hand-256-preview.png
 ```
 
-`cargo test --test stiwi_example` validates both sources strictly and compares
-all four newly rendered PNGs with the saved artwork.
+`cargo test --test stiwi_example` validates all four sources strictly and
+compares all eight newly rendered PNGs with the saved artwork.

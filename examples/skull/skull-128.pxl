@@ -1,0 +1,262 @@
+// skull-128.pxl - Stiwi's skull avatar, 128x128 pixel art.
+//
+// A 3/4 view facing right, after reference-skull.jpg. Every
+// shape is placed by hand at this size; it is not an enlargement of the 40px
+// skull and nothing was imported or traced from the photo.
+//
+// Region maps are unordered, so every region carries its own unique z.
+
+{
+  type: "palette",
+  name: "skull-128",
+  colors: {
+    _: "transparent",
+    outline: "#4e4844",
+    seam: "#6f6862",
+    deep: "#8b8277",
+    umber: "#a4998a",
+    mid: "#c3b8a7",
+    tan: "#d5cbba",
+    bone: "#e6dccd",
+    light: "#f1ead9",
+    hi: "#fefded",
+    socket: "#332d2b",
+    "socket-mid": "#5e5651",
+    "socket-floor": "#7a726b",
+    "socket-rim": "#9a9289",
+    crown: "#f8f4e6",
+    "light-jaw": "#f1ead9",
+    "hi-jaw": "#fefded",
+    "nose-bridge": "#f1ead9",
+    "nose-shade": "#c3b8a7",
+    nose: "#332d2b",
+    "nose-septum": "#6d6560",
+    "nose-floor": "#4f4744",
+    "teeth-upper": "#f6f0e0",
+    "teeth-lower": "#ece4d2",
+    "teeth-gum": "#a4998a",
+    "teeth-bite": "#6d6560",
+    "teeth-gaps": "#b0a594",
+    "teeth-shade": "#d9cfbd",
+    gap: "#2a2523",
+  },
+  roles: {
+    outline: "boundary", seam: "boundary", deep: "shadow", umber: "shadow", mid: "shadow", tan: "shadow",
+    bone: "fill", light: "highlight", hi: "highlight",
+    socket: "anchor", "socket-mid": "shadow", "socket-floor": "fill", "socket-rim": "highlight",
+    crown: "highlight", "light-jaw": "highlight", "hi-jaw": "highlight",
+    "nose-bridge": "highlight", "nose-shade": "shadow", nose: "anchor", "nose-septum": "fill", "nose-floor": "shadow",
+    "teeth-upper": "fill", "teeth-lower": "fill", "teeth-gum": "boundary", "teeth-bite": "anchor",
+    "teeth-gaps": "boundary", "teeth-shade": "shadow", gap: "anchor",
+  },
+  relationships: {
+    light: {type: "derives-from", target: "bone"},
+    hi: {type: "derives-from", target: "bone"},
+    tan: {type: "derives-from", target: "bone"},
+    mid: {type: "derives-from", target: "bone"},
+    umber: {type: "derives-from", target: "bone"},
+    deep: {type: "derives-from", target: "bone"},
+    "socket-floor": {type: "derives-from", target: "socket"},
+  },
+}
+
+{
+  type: "sprite",
+  name: "skull-128",
+  size: [128, 128],
+  palette: "skull-128",
+  regions: {
+    // ---- silhouette ------------------------------------------------------
+    // Cranium, face and mandible as one closed shape; the outline is grown
+    // around it so the contour never drifts from the fill.
+    bone: {
+      z: 10,
+      path: "M56,12 L64,10 L76,10 L86,12 L94,16 L100,20 L105,26 L108,32 L109,39 L111,44 L112,50 L112,58 L110,63 L109,68 L106,72 L102,74 L102,110 L100,114 L96,117 L82,117 L74,114 L66,112 L58,110 L50,108 L44,106 L41,103 L40,96 L40,80 L34,79 L28,76 L24,72 L22,66 L22,44 L24,37 L27,31 L31,26 L36,21 L42,17 L48,14 Z",
+    },
+    outline: { z: 5, "auto-outline": "bone", thickness: 1 },
+
+    // ---- light on the dome ----------------------------------------------
+    // The key light sits high and to the right: the crown and brow are near
+    // white, the back of the skull falls away through tan into umber.
+    light: {
+      z: 20,
+      path: "M50,15 L64,11 L76,11 L86,13 L94,17 L100,21 L105,27 L108,33 L108,40 L60,40 L54,36 L50,30 L46,24 Z",
+    },
+    hi: {
+      z: 22,
+      union: [
+        { path: "M58,14 L76,12 L88,15 L96,20 L101,26 L104,32 L100,36 L90,34 L80,30 L70,28 L62,26 L56,22 Z" },
+        // brow ridge over both orbits
+        { path: "M60,38 L74,38 L82,42 L86,46 L82,47 L76,43 L70,40 L62,41 Z" },
+        { path: "M90,46 L94,41 L100,39 L108,39 L109,41 L98,42 L94,45 Z" },
+      ],
+    },
+    // A soft cream bloom in the middle of the crown.
+    crown: { z: 24, path: "M66,16 L80,15 L88,18 L90,22 L84,25 L72,24 L64,21 Z" },
+
+    // ---- the shadow side -------------------------------------------------
+    tan: {
+      z: 30,
+      path: "M48,14 L50,20 L48,28 L50,36 L56,44 L56,56 L52,64 L46,70 L40,74 L40,80 L34,79 L28,76 L24,72 L22,66 L22,44 L24,37 L27,31 L31,26 L36,21 L42,17 Z",
+    },
+    mid: {
+      z: 32,
+      union: [
+        // the back band of the cranium
+        { path: "M38,20 L34,26 L30,32 L28,40 L28,62 L30,70 L36,76 L40,78 L34,79 L28,76 L24,72 L22,66 L22,44 L24,37 L27,31 L31,26 L36,21 Z" },
+        // temple hollow behind the near orbit
+        { path: "M50,40 L56,42 L58,50 L56,58 L52,62 L50,56 L48,48 Z" },
+        // cheek plane under the orbit, running down to the jaw
+        { path: "M58,64 L68,64 L72,70 L74,78 L74,96 L70,104 L62,108 L58,104 L56,92 L56,76 Z" },
+        // far side of the face beyond the nose
+        { path: "M100,64 L108,62 L106,72 L102,74 L100,70 Z" },
+      ],
+    },
+    umber: {
+      z: 34,
+      union: [
+        // outermost rim of the back of the skull
+        { path: "M36,21 L31,26 L27,31 L24,37 L22,44 L22,66 L24,72 L28,76 L34,79 L36,78 L30,74 L26,68 L25,60 L25,44 L27,36 L31,29 Z" },
+        // underside of the cheekbone
+        { path: "M58,66 L66,66 L68,72 L66,80 L62,84 L58,82 L56,74 Z" },
+        // mandible underside and the shadow under the chin
+        { path: "M44,104 L52,106 L62,109 L70,111 L78,114 L82,116 L74,114 L66,112 L58,110 L50,108 L44,106 Z" },
+        { path: "M100,96 L102,96 L102,110 L100,114 L98,112 Z" },
+      ],
+    },
+    deep: {
+      z: 36,
+      union: [
+        // the shadow pocket where the cheekbone meets the jaw
+        { path: "M58,78 L64,80 L66,84 L62,86 L56,84 Z" },
+        // the notch at the back of the jaw, under the cheekbone arch
+        { path: "M40,70 L46,68 L52,66 L54,68 L48,71 L42,74 L40,74 Z" },
+      ],
+    },
+
+    // ---- the mandible -----------------------------------------------------
+    // The ramus catches the light as a pale plane against the shaded cheek.
+    "light-jaw": { z: 40, path: "M42,76 L50,72 L54,74 L56,84 L56,98 L54,104 L46,104 L42,100 Z" },
+    seam: {
+      z: 42,
+      union: [
+        // zygomatic arch running back to the ear
+        { line: [[40, 74], [46, 70], [54, 66]] },
+        // front edge of the ramus up to the cheekbone
+        { line: [[56, 84], [56, 96], [58, 104]] },
+        // coronal suture wandering across the crown
+        { line: [[58, 14], [60, 18], [59, 22], [61, 26], [60, 30], [62, 34]] },
+        // squamous suture curving behind the temple
+        { line: [[36, 44], [40, 40], [46, 38], [50, 40]] },
+        // the cheekbone's lower edge
+        { line: [[58, 64], [64, 64], [70, 66]] },
+      ],
+    },
+    "hi-jaw": {
+      z: 44,
+      union: [
+        // the cheekbone's lit top, just under the near orbit
+        { path: "M60,66 L70,66 L74,68 L72,70 L64,70 L60,68 Z" },
+        // lit bridge of the nose and the far cheek
+        { line: [[93, 50], [94, 58]] },
+        { line: [[96, 66], [104, 66]] },
+        { line: [[43, 78], [43, 98]] },
+        { line: [[44, 76], [50, 73]] },
+        // the chin's lit ridge
+        { line: [[96, 104], [98, 110], [96, 114]] },
+      ],
+    },
+
+    // ---- eyes -------------------------------------------------------------
+    socket: {
+      z: 60,
+      union: [
+        // near orbit: heavy shadow under the brow and down the nose side
+        { path: "M59,47 L63,41 L72,41 L78,45 L83,51 L83,59 L79,64 L67,65 L61,61 L59,55 Z" },
+        // far orbit, cut off by the edge of the skull
+        { path: "M93,49 L97,43 L108,42 L111,45 L111,60 L108,64 L100,64 L96,61 L93,55 Z" },
+      ],
+    },
+    "socket-mid": {
+      z: 62,
+      union: [
+        { path: "M61,51 L65,46 L73,46 L78,51 L80,58 L76,63 L66,64 L61,60 Z" },
+        { path: "M96,51 L100,46 L108,46 L110,50 L110,59 L107,63 L100,63 L97,59 Z" },
+      ],
+    },
+    "socket-floor": {
+      z: 64,
+      union: [
+        // lit lower walls of the orbits, catching light from the brow
+        { path: "M62,54 L67,51 L72,53 L74,58 L72,62 L66,62 L62,59 Z" },
+        { path: "M98,54 L104,51 L108,54 L108,60 L106,62 L100,62 L98,59 Z" },
+      ],
+    },
+    "socket-rim": {
+      z: 66,
+      union: [
+        { line: [[64, 62], [70, 62], [74, 61]] },
+        { line: [[101, 61], [106, 61]] },
+        { points: [[64, 55], [65, 54], [101, 55]] },
+      ],
+    },
+
+    // ---- nose --------------------------------------------------------------
+    "nose-bridge": {
+      z: 70,
+      union: [
+        { path: "M84,42 L92,42 L93,48 L91,56 L86,56 L84,50 Z" },
+      ],
+    },
+    "nose-shade": { z: 72, path: "M82,48 L85,50 L86,58 L84,62 L82,58 Z" },
+    nose: {
+      z: 74,
+      union: [
+        // pear-shaped nasal opening; the far half hides behind the septum
+        { path: "M86,60 L90,58 L94,60 L96,64 L95,70 L92,76 L88,76 L86,70 L85,64 Z" },
+      ],
+    },
+    "nose-septum": { z: 76, union: [ { line: [[90, 62], [90, 74]] } ] },
+    "nose-floor": { z: 78, path: "M87,70 L89,70 L89,75 L87,74 Z" },
+
+    // ---- teeth ---------------------------------------------------------------
+    "teeth-upper": { z: 80, path: "M74,77 L101,77 L101,87 L74,87 Z" },
+    "teeth-lower": { z: 81, path: "M74,89 L101,89 L101,99 L74,99 Z" },
+    "teeth-gum": {
+      z: 82,
+      union: [
+        { line: [[74, 76], [101, 76]] },
+        { line: [[74, 100], [100, 100]] },
+      ],
+    },
+    "teeth-bite": { z: 83, line: [[72, 87], [100, 88]] },
+    "teeth-gaps": {
+      z: 84,
+      union: [
+        // upper: molars recede towards the cheek, incisors face us
+        { line: [[78, 78], [78, 86]] }, { line: [[82, 78], [82, 86]] }, { line: [[86, 78], [86, 86]] },
+        { line: [[90, 78], [90, 86]] }, { line: [[95, 78], [95, 86]] },
+        // lower
+        { line: [[78, 90], [78, 98]] }, { line: [[82, 90], [82, 98]] }, { line: [[86, 90], [86, 98]] },
+        { line: [[90, 90], [90, 98]] }, { line: [[95, 90], [95, 98]] },
+      ],
+    },
+    "teeth-shade": {
+      z: 85,
+      union: [
+        // the near side of each crown rolls into shadow
+        { line: [[75, 78], [75, 86]] }, { line: [[79, 78], [79, 86]] }, { line: [[83, 78], [83, 86]] },
+        { line: [[75, 90], [75, 98]] }, { line: [[79, 90], [79, 98]] }, { line: [[83, 90], [83, 98]] },
+        // tips go grey where the jaws meet
+        { points: [[77, 86], [81, 86], [85, 86], [89, 86], [94, 86], [99, 86], [77, 89], [81, 89], [85, 89], [89, 89], [94, 89], [99, 89]] },
+      ],
+    },
+    // mouth corner: the dark gap between upper and lower jaw
+    gap: {
+      z: 90,
+      union: [
+        { path: "M56,84 L62,82 L68,83 L72,86 L72,88 L66,86 L60,86 Z" },
+      ],
+    },
+  },
+}

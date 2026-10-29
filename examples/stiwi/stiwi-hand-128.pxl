@@ -1,0 +1,169 @@
+// Stiwi, hand-authored 128px portrait. Every feature is placed at this size
+// while looking at the photo; it is not a scaled grid of the 48px portrait.
+// Region maps are unordered, so every region carries its own unique z.
+{
+  type: "palette", name: "stiwi-hand-128",
+  colors: {
+    background: "#adba99", "background-sky": "#e2e9e0", "background-haze": "#c9d2bf", "background-glow": "#c2c99c", "background-leaf": "#9aaa84", "background-deep": "#83966f",
+    shirt: "#2c4266", "shirt-light": "#3e577a", "shirt-shadow": "#1e304e", collar: "#233655", "collar-edge": "#526582",
+    hair: "#3a3332", "hair-shadow": "#27252a", "hair-forelock": "#443b39", "hair-wave": "#665a53", "hair-silver": "#948b84",
+    skin: "#bb937a", "skin-under-nose": "#a98470", "skin-light": "#d6b397", "skin-bright": "#e6c6aa", "skin-shadow": "#967461", "skin-deep": "#7f6050", "skin-warm": "#c4977e", "nose-shadow": "#806252",
+    beard: "#433d3c", "beard-shadow": "#2c2a2d", "beard-mid": "#6b635c", "beard-grey": "#9c988d", "beard-white": "#cdc9ba",
+    moustache: "#56463d", "moustache-grey": "#8d8575", mouth: "#4f3933", lip: "#a87a66", teeth: "#ddcfb3", "teeth-shade": "#b9a88f",
+    brow: "#4a3f39", lash: "#3a3130", "eye-white": "#cbbfac", iris: "#6f7a70", "iris-dark": "#4c5650", pupil: "#262a2b", "eye-glint": "#eef0e8",
+    frame: "#262a30", "frame-light": "#777b79", "lens-glint": "#d6dccf", "lens-shade": "#a68672"
+  },
+  roles: {
+    background: "fill", "background-sky": "fill", "background-haze": "fill", "background-glow": "highlight", "background-leaf": "shadow", "background-deep": "shadow",
+    shirt: "fill", "shirt-light": "highlight", "shirt-shadow": "shadow", collar: "fill", "collar-edge": "boundary",
+    hair: "fill", "hair-shadow": "shadow", "hair-forelock": "fill", "hair-wave": "highlight", "hair-silver": "highlight",
+    skin: "fill", "skin-under-nose": "fill", "skin-light": "highlight", "skin-bright": "highlight", "skin-shadow": "shadow", "skin-deep": "shadow", "skin-warm": "fill", "nose-shadow": "shadow",
+    beard: "fill", "beard-shadow": "shadow", "beard-mid": "highlight", "beard-grey": "highlight", "beard-white": "highlight",
+    moustache: "anchor", "moustache-grey": "highlight", mouth: "anchor", lip: "fill", teeth: "anchor", "teeth-shade": "shadow",
+    brow: "anchor", lash: "anchor", "eye-white": "fill", iris: "anchor", "iris-dark": "anchor", pupil: "anchor", "eye-glint": "highlight",
+    frame: "boundary", "frame-light": "highlight", "lens-glint": "highlight", "lens-shade": "shadow"
+  },
+  relationships: {
+    "skin-light": {type: "derives-from", target: "skin"},
+    "skin-bright": {type: "derives-from", target: "skin"},
+    "skin-shadow": {type: "derives-from", target: "skin"},
+    "skin-deep": {type: "derives-from", target: "skin"},
+    "hair-wave": {type: "derives-from", target: "hair"},
+    "hair-silver": {type: "derives-from", target: "hair"},
+    "beard-grey": {type: "derives-from", target: "beard"},
+    "beard-white": {type: "derives-from", target: "beard"},
+    "shirt-light": {type: "derives-from", target: "shirt"}
+  }
+}
+{
+  type: "sprite", name: "stiwi-hand-128", size: [128,128], palette: "stiwi-hand-128",
+  regions: {
+    // Blurred garden: bright sky upper right, warm greens down the left, deeper leaves low right.
+    background: {rect: [0,0,128,128], z: 0},
+    // Large, low-contrast, overlapping blobs, each clipped to the canvas.
+    "background-haze": {intersect: [{rect: [0,0,128,128]},{union: [{ellipse: [20,14,30,20]},{ellipse: [100,34,40,44]},{ellipse: [60,0,30,8]}]}], z: 1},
+    "background-sky": {intersect: [{rect: [0,0,128,128]},{union: [{ellipse: [112,16,30,30]},{ellipse: [84,0,24,8]},{ellipse: [4,2,16,8]},{ellipse: [122,50,10,14]}]}], z: 2},
+    "background-glow": {intersect: [{rect: [0,0,128,128]},{union: [{ellipse: [4,44,16,22]},{ellipse: [116,84,22,14]},{ellipse: [8,104,18,10]}]}], z: 3},
+    "background-leaf": {intersect: [{rect: [0,0,128,128]},{union: [{ellipse: [2,78,14,24]},{ellipse: [118,104,20,16]},{ellipse: [10,22,8,8]}]}], z: 4},
+    "background-deep": {intersect: [{rect: [0,0,128,128]},{union: [{ellipse: [0,86,7,12]},{ellipse: [124,108,10,10]}]}], z: 5},
+
+    // Navy knit shoulders and a soft collar, mostly hidden by the beard.
+    shirt: {union: [{polygon: [[0,110],[18,104],[34,100],[44,127],[0,127]]},{polygon: [[80,100],[98,106],[118,112],[127,116],[127,127],[72,127]]},{rect: [34,110,60,18]}], z: 8},
+    "shirt-light": {union: [{line: [[1,112],[12,107],[26,103]], thickness: 2},{line: [[96,107],[112,112],[127,117]], thickness: 2},{points: [[6,116],[14,113],[20,118],[104,114],[114,118],[120,121]]}], z: 9},
+    "shirt-shadow": {union: [{polygon: [[34,104],[44,110],[48,127],[38,127]]},{polygon: [[86,104],[78,112],[76,127],[84,127]]},{line: [[2,124],[16,120],[28,118]]}], z: 10},
+    collar: {union: [{polygon: [[28,102],[36,100],[44,116],[40,127],[34,127]]},{polygon: [[82,100],[90,102],[88,127],[80,127],[78,114]]}], z: 11},
+    "collar-edge": {union: [{line: [[28,102],[34,116],[36,127]]},{line: [[90,102],[88,114],[86,127]]}], z: 12},
+
+    // Hair: a full wavy mass, wider on the viewer's left, running down into the beard.
+    hair: {path: "M28,16 L33,10 L38,9 L42,5 L50,4 L56,2 L64,3 L70,2 L76,6 L82,7 L86,12 L90,16 L90,21 L94,26 L93,32 L96,38 L94,44 L97,50 L94,55 L96,62 L93,66 L95,72 L91,76 L88,82 L30,82 L24,84 L22,79 L18,76 L20,70 L16,64 L19,58 L15,52 L19,46 L16,40 L20,34 L18,28 L23,24 L22,19 Z", z: 20},
+    "hair-shadow": {union: [
+      {path: "M20,40 L24,34 L28,40 L27,54 L29,70 L26,80 L22,78 L19,66 L18,52 Z"},
+      {path: "M86,30 L91,36 L92,52 L94,62 L90,72 L86,66 L86,52 Z"},
+      {path: "M56,6 L64,6 L68,14 L66,20 L58,18 L54,12 Z"},
+      {line: [[34,12],[30,18],[28,26]], thickness: 2},
+      {line: [[80,12],[86,20],[88,28]], thickness: 2}], z: 21},
+
+    // Face planes: warm skin, a lit forehead and nose, cooler shadow on the viewer's right.
+    skin: {path: "M33,28 L40,23 L50,20 L62,21 L72,25 L80,33 L84,43 L86,55 L85,66 L80,74 L70,80 L58,82 L46,80 L37,74 L31,64 L30,50 L31,38 Z", z: 30},
+    "skin-light": {union: [{path: "M38,30 L46,24 L58,23 L66,26 L64,34 L54,38 L42,38 L37,35 Z"},{path: "M33,56 L38,62 L44,66 L42,70 L36,68 L32,62 Z"},{line: [[56,48],[56,60]], thickness: 2}], z: 31},
+    "skin-bright": {union: [{path: "M46,27 L56,26 L60,29 L56,33 L48,33 Z"},{line: [[56,50],[56,58]]},{rect: [55,61,3,2]},{points: [[36,59],[37,60]]}], z: 32},
+    "skin-shadow": {union: [
+      {path: "M76,34 L82,40 L85,50 L85,64 L80,72 L76,68 L78,56 L78,44 Z"},
+      {path: "M31,40 L34,36 L35,48 L33,56 L30,52 Z"},
+      {line: [[34,41],[40,40],[47,41]]},{line: [[62,40],[70,39],[78,40]]},
+      {line: [[60,50],[61,58],[63,62]]}], z: 33},
+    "skin-deep": {union: [{line: [[82,46],[84,56],[83,64]]},{line: [[47,46],[52,47]]},{line: [[61,46],[64,46]]}], z: 34},
+    "skin-warm": {union: [{path: "M34,62 L42,64 L46,68 L42,70 L36,68 Z"},{path: "M70,62 L78,60 L80,64 L76,68 L70,68 Z"},{rect: [53,62,7,3], round: 1},{points: [[40,30],[62,28],[38,34]]}], z: 35},
+    "nose-shadow": {union: [{line: [[59,48],[60,56],[62,62],[63,65]]},{line: [[51,65],[53,66],[55,66]]},{line: [[59,66],[61,66],[63,65]]},{line: [[52,62],[51,64]]}], z: 36},
+    "skin-under-nose": {rect: [56,66,2,2], z: 55},
+
+    // Forelocks fall over the forehead: a heavy sweep to the viewer's right,
+    // thinner curls at the left temple, so the hairline is never a straight edge.
+    "hair-forelock": {union: [
+      {path: "M50,18 L62,16 L72,18 L80,24 L85,34 L87,44 L84,46 L81,38 L75,30 L67,24 L58,22 L50,22 Z"},
+      {path: "M30,22 L38,18 L46,17 L52,18 L44,22 L38,26 L35,32 L33,40 L31,40 L30,30 Z"},
+      {line: [[62,20],[70,24],[78,32],[82,40]], thickness: 2},
+      {line: [[46,20],[40,23],[36,28]]}], z: 37},
+    "hair-wave": {union: [
+      {line: [[34,14],[40,9],[48,7],[56,6]]},
+      {line: [[60,6],[70,7],[78,11],[84,17]]},
+      {line: [[44,14],[52,12],[60,12],[68,15]]},
+      {line: [[64,18],[72,21],[79,28],[83,36]]},
+      {line: [[22,30],[20,38],[22,46],[20,54]]},
+      {line: [[23,58],[21,66],[24,74]]},
+      {line: [[90,24],[92,32],[90,40],[93,48]]},
+      {line: [[92,56],[90,62],[92,70]]},
+      {line: [[30,20],[26,26],[25,34]]},
+      {line: [[38,18],[44,15],[50,15]]}], z: 38},
+    "hair-silver": {union: [
+      {line: [[36,12],[42,9],[47,8]]},
+      {line: [[62,8],[70,9],[76,12]]},
+      {line: [[66,20],[73,24],[78,30]]},
+      {line: [[20,60],[21,66]]},
+      {line: [[93,40],[92,46]]},
+      {points: [[26,24],[24,44],[22,50],[52,10],[58,9],[82,16],[88,22],[91,58],[93,64],[25,70],[50,16],[74,26]]}], z: 39},
+
+    // Brows, lids and grey-green eyes; the brightest pixels are kept sparse.
+    brow: {union: [{line: [[33,45],[38,43],[44,43],[48,45]], thickness: 2},{line: [[62,44],[68,42],[74,42],[79,44]], thickness: 2}], z: 40},
+    "eye-white": {union: [{ellipse: [41,52,5,2]},{ellipse: [70,51,5,2]}], z: 41},
+    iris: {union: [{circle: [42,52,2]},{circle: [70,51,2]}], z: 42},
+    "iris-dark": {union: [{line: [[40,50],[44,50]]},{line: [[68,49],[72,49]]}], z: 43},
+    pupil: {union: [{rect: [42,52,1,1]},{rect: [70,51,1,1]}], z: 44},
+    "eye-glint": {points: [[43,51],[71,50]], z: 45},
+    lash: {union: [{line: [[36,52],[38,50],[42,49],[46,51]]},{line: [[65,51],[67,49],[71,48],[75,50]]},{line: [[38,55],[44,55]]},{line: [[67,54],[73,54]]}], z: 46},
+
+    // Full beard: wide at the jaw, drawing in towards a rounded chin.
+    beard: {path: "M30,60 L34,68 L40,72 L46,71 L58,71 L70,71 L76,70 L82,66 L86,58 L90,62 L92,70 L91,76 L93,82 L90,88 L91,94 L87,100 L86,106 L81,110 L78,116 L72,120 L68,125 L62,126 L57,127 L52,126 L46,123 L44,119 L38,114 L36,109 L32,104 L30,98 L27,92 L28,86 L25,80 L26,72 Z", z: 50},
+    "beard-shadow": {union: [
+      {line: [[27,74],[28,88],[32,100],[38,110]], thickness: 2},
+      {line: [[90,72],[89,86],[85,98],[79,108]], thickness: 2},
+      {line: [[57,84],[57,96],[59,108],[57,120]], thickness: 2},
+      {path: "M48,80 L56,80 L62,80 L66,82 L58,86 L50,84 Z"},
+      {line: [[44,112],[50,120],[56,124]]},{line: [[72,112],[66,120],[60,124]]}], z: 51},
+    "beard-mid": {union: [
+      {line: [[31,72],[33,82],[36,92],[40,102]]},
+      {line: [[86,70],[85,80],[82,92],[78,102]]},
+      {line: [[40,84],[42,94],[46,104],[48,114]]},
+      {line: [[76,82],[74,92],[72,102],[70,112]]},
+      {line: [[50,88],[51,98],[53,108]]},
+      {line: [[66,88],[65,98],[63,108]]},
+      {line: [[34,74],[37,80]]},{line: [[82,74],[79,80]]},
+      {points: [[36,96],[44,92],[48,100],[62,94],[70,98],[80,96],[52,116],[64,116],[46,108],[74,106]]}], z: 52},
+    // Grey runs down the middle of the beard in short broken strands.
+    "beard-grey": {union: [
+      // short strands that fall and curl outward from the chin's centre line
+      {line: [[44,84],[43,88],[45,92]]},{line: [[47,90],[46,95],[48,99]]},{line: [[51,85],[52,89],[50,93]]},
+      {line: [[54,92],[53,97],[55,101]]},{line: [[60,86],[61,90],[59,94]]},{line: [[63,92],[64,97],[62,101]]},
+      {line: [[67,85],[66,89],[68,93]]},{line: [[71,90],[72,95],[70,99]]},{line: [[75,86],[76,90]]},
+      {line: [[39,90],[38,95],[40,99]]},{line: [[79,92],[80,96]]},
+      {line: [[45,102],[44,107],[46,111]]},{line: [[50,104],[51,109],[49,113]]},{line: [[55,106],[54,111],[56,115]]},
+      {line: [[60,104],[61,109],[59,114]]},{line: [[65,103],[66,108],[64,112]]},{line: [[70,104],[69,108]]},
+      {line: [[52,116],[53,120]]},{line: [[58,117],[57,121],[58,124]]},{line: [[63,116],[62,120]]},
+      {line: [[34,76],[36,80]]},{line: [[82,76],[80,80]]},{line: [[37,82],[36,86]]},{line: [[81,82],[82,86]]},
+      {points: [[42,80],[48,82],[56,84],[64,83],[72,82],[41,96],[57,98],[73,96],[47,105],[57,110],[67,106],[44,114],[72,112],[50,120],[66,120],[36,94],[82,90],[41,104],[76,102]]}], z: 53},
+    "beard-white": {union: [
+      {line: [[50,93],[51,96]]},{line: [[57,95],[58,99]]},{line: [[64,90],[64,93]]},{line: [[47,99],[48,102]]},
+      {line: [[61,108],[62,111]]},{line: [[55,118],[56,121]]},{line: [[68,96],[69,99]]},
+      {points: [[48,89],[55,88],[66,99],[52,104],[59,106],[50,112],[64,117],[58,121],[44,93],[72,90],[46,84],[62,84],[53,114],[60,113]]}], z: 54},
+
+    // A broad smile with a broken ivory row, under a parted moustache.
+    mouth: {path: "M47,73 L67,72 L65,76 L58,77 L50,76 Z", z: 60},
+    teeth: {polygon: [[50,73],[64,73],[63,74],[51,74]], z: 61},
+    "teeth-shade": {points: [[53,74],[57,74],[61,74],[50,74],[64,74]], z: 62},
+    lip: {line: [[50,77],[54,78],[58,78],[62,78],[65,76]], z: 63},
+    moustache: {union: [
+      {path: "M44,68 L50,65 L55,66 L57,68 L59,66 L64,65 L71,68 L75,74 L74,79 L70,74 L64,72 L58,73 L52,72 L46,74 L42,79 L40,74 Z"},
+      {line: [[44,72],[42,76],[41,80]]},{line: [[72,72],[74,76],[75,80]]}], z: 64},
+    "moustache-grey": {union: [{line: [[46,68],[50,66]]},{line: [[64,66],[69,68]]},{line: [[42,75],[41,78]]},{line: [[73,75],[74,78]]},{points: [[53,67],[61,67],[48,71],[68,71]]}], z: 65},
+
+    // Thin round metal frames; the eyes stay legible inside the lenses.
+    "lens-shade": {union: [{line: [[32,57],[36,61],[42,62]]},{line: [[62,58],[66,61],[72,62]]}], z: 69},
+    frame: {union: [
+      {base: {ellipse: [41,52,11,10]}, subtract: [{ellipse: [41,52,10,9]}]},
+      {base: {ellipse: [71,52,11,10]}, subtract: [{ellipse: [71,52,10,9]}]},
+      {line: [[52,48],[56,47],[60,48]]},
+      {line: [[30,50],[22,49]]},{line: [[82,50],[90,49]]}], z: 70},
+    "frame-light": {union: [{line: [[35,60],[41,62],[47,60]]},{line: [[65,60],[71,62],[77,60]]},{points: [[31,52],[61,52],[56,47]]}], z: 71},
+    "lens-glint": {union: [{line: [[34,46],[36,44]]},{line: [[64,46],[66,44]]},{points: [[48,57],[78,57]]}], z: 72}
+  }
+}
