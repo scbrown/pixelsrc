@@ -9,8 +9,8 @@ fn stiwi_sources_validate_and_match_saved_renders() {
     for (stem, size, preview_scale) in [
         ("stiwi-hand-48", 48, 11),
         ("stiwi-hand-32", 32, 16),
-        ("stiwi-128", 128, 8),
-        ("stiwi-256", 256, 4),
+        ("stiwi-hand-128", 128, 8),
+        ("stiwi-hand-256", 256, 4),
     ] {
         let source = examples.join(format!("{stem}.pxl"));
         let validate = Command::new(env!("CARGO_BIN_EXE_pxl"))
