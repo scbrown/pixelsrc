@@ -1,0 +1,441 @@
+// stiwi-256.pxl - Stiwi's skull self-portrait, 256x256, painterly.
+//
+// The same 3/4 view as stiwi-128.pxl, after examples/skull/reference-skull.jpg.
+// The big planes started from the 128 portrait's shapes at double size; the
+// rest is painted for this size: a nine-step bone ramp, checker-dithered
+// transitions between neighbouring tones, reflected light under the cranium,
+// ambient occlusion in the orbits and per-tooth modelling.
+//
+// The dithering uses one hidden `grain` mask: a 50% checkerboard drawn as
+// diagonal one-pixel lines. A transition region is a hand-drawn band with
+// `except: ["grain"]`, so only every other pixel of the band takes its tone.
+// (The sprite-level `dither` transform fails on a regions sprite; see README.)
+//
+// Region maps are unordered, so every region carries its own unique z.
+
+{
+  type: "palette",
+  name: "stiwi-256",
+  colors: {
+    _: "transparent",
+    grain: "transparent",   // mask only: the checkerboard used by the dither bands
+
+    // the bone ramp, darkest to brightest
+    outline: "#4b4541",
+    seam: "#776f68",
+    deep: "#8a8074",
+    umber: "#a0968a",
+    mid: "#b8ad9c",
+    tan: "#cdc2b0",
+    bone: "#e2d8c8",
+    light: "#eee6d4",
+    cream: "#f7f1e2",
+    hi: "#fffdf0",
+    reflect: "#c2b29b",     // warm bounce light under the back of the skull
+
+    // checker-dithered transitions; each one is the colour of the tone it carries
+    "dither-light": "#eee6d4",
+    "dither-cream": "#f7f1e2",
+    "dither-hi": "#fffdf0",
+    "dither-tan": "#cdc2b0",
+    "dither-mid": "#b8ad9c",
+    "dither-umber": "#a0968a",
+    "dither-deep": "#8a8074",
+    "dither-socket": "#7d746b",
+
+    // orbits
+    socket: "#2b2624",
+    "socket-mid": "#554d48",
+    "socket-floor": "#746b64",
+    "socket-rim": "#9a9289",
+
+    // mandible and cheek
+    "light-jaw": "#efe8d7",
+    "hi-jaw": "#fffdf0",
+
+    // nose
+    "nose-bridge": "#f2ebda",
+    "nose-shade": "#bdb2a1",
+    nose: "#2b2624",
+    "nose-concha": "#5b524c",
+    "nose-septum": "#827970",
+    "nose-floor": "#433c38",
+
+    // teeth
+    "teeth-upper": "#f4eedd",
+    "teeth-lower": "#e9e1cf",
+    "teeth-gum": "#9d9283",
+    "teeth-bite": "#5b524c",
+    "teeth-gaps": "#a99e8d",
+    "teeth-shade": "#d4cab8",
+    "teeth-glint": "#fffdf0",
+    gap: "#241f1d",
+
+    // small anatomy
+    foramen: "#857b70",
+    crack: "#8f8478",
+  },
+  roles: {
+    grain: "fill",
+    outline: "boundary", seam: "boundary", deep: "shadow", umber: "shadow", mid: "shadow", tan: "shadow",
+    bone: "fill", light: "highlight", cream: "highlight", hi: "highlight", reflect: "highlight",
+    "dither-light": "highlight", "dither-cream": "highlight", "dither-hi": "highlight", "dither-tan": "shadow",
+    "dither-mid": "shadow", "dither-umber": "shadow", "dither-deep": "shadow", "dither-socket": "shadow",
+    socket: "anchor", "socket-mid": "shadow", "socket-floor": "fill", "socket-rim": "highlight",
+    "light-jaw": "highlight", "hi-jaw": "highlight",
+    "nose-bridge": "highlight", "nose-shade": "shadow", nose: "anchor", "nose-concha": "shadow",
+    "nose-septum": "fill", "nose-floor": "shadow",
+    "teeth-upper": "fill", "teeth-lower": "fill", "teeth-gum": "boundary", "teeth-bite": "anchor",
+    "teeth-gaps": "boundary", "teeth-shade": "shadow", "teeth-glint": "highlight", gap: "anchor",
+    foramen: "anchor", crack: "boundary",
+  },
+  relationships: {
+    light: {type: "derives-from", target: "bone"},
+    cream: {type: "derives-from", target: "bone"},
+    hi: {type: "derives-from", target: "bone"},
+    tan: {type: "derives-from", target: "bone"},
+    mid: {type: "derives-from", target: "bone"},
+    umber: {type: "derives-from", target: "bone"},
+    deep: {type: "derives-from", target: "bone"},
+    reflect: {type: "derives-from", target: "umber"},
+    "socket-floor": {type: "derives-from", target: "socket"},
+  },
+}
+
+{
+  type: "sprite",
+  name: "stiwi-256",
+  size: [256, 256],
+  palette: "stiwi-256",
+  regions: {
+    // ---- dither mask --------------------------------------------------------
+    // Every pixel with an even x + y. Painted first and fully covered, so it
+    // never shows; dither bands subtract it to keep the other half.
+    grain: {
+      z: -100,
+      union: [
+        {line: [[0,60],[60,0]]}, {line: [[0,62],[62,0]]}, {line: [[0,64],[64,0]]}, {line: [[0,66],[66,0]]}, {line: [[0,68],[68,0]]}, {line: [[0,70],[70,0]]},
+        {line: [[0,72],[72,0]]}, {line: [[0,74],[74,0]]}, {line: [[0,76],[76,0]]}, {line: [[0,78],[78,0]]}, {line: [[0,80],[80,0]]}, {line: [[0,82],[82,0]]},
+        {line: [[0,84],[84,0]]}, {line: [[0,86],[86,0]]}, {line: [[0,88],[88,0]]}, {line: [[0,90],[90,0]]}, {line: [[0,92],[92,0]]}, {line: [[0,94],[94,0]]},
+        {line: [[0,96],[96,0]]}, {line: [[0,98],[98,0]]}, {line: [[0,100],[100,0]]}, {line: [[0,102],[102,0]]}, {line: [[0,104],[104,0]]}, {line: [[0,106],[106,0]]},
+        {line: [[0,108],[108,0]]}, {line: [[0,110],[110,0]]}, {line: [[0,112],[112,0]]}, {line: [[0,114],[114,0]]}, {line: [[0,116],[116,0]]}, {line: [[0,118],[118,0]]},
+        {line: [[0,120],[120,0]]}, {line: [[0,122],[122,0]]}, {line: [[0,124],[124,0]]}, {line: [[0,126],[126,0]]}, {line: [[0,128],[128,0]]}, {line: [[0,130],[130,0]]},
+        {line: [[0,132],[132,0]]}, {line: [[0,134],[134,0]]}, {line: [[0,136],[136,0]]}, {line: [[0,138],[138,0]]}, {line: [[0,140],[140,0]]}, {line: [[0,142],[142,0]]},
+        {line: [[0,144],[144,0]]}, {line: [[0,146],[146,0]]}, {line: [[0,148],[148,0]]}, {line: [[0,150],[150,0]]}, {line: [[0,152],[152,0]]}, {line: [[0,154],[154,0]]},
+        {line: [[0,156],[156,0]]}, {line: [[0,158],[158,0]]}, {line: [[0,160],[160,0]]}, {line: [[0,162],[162,0]]}, {line: [[0,164],[164,0]]}, {line: [[0,166],[166,0]]},
+        {line: [[0,168],[168,0]]}, {line: [[0,170],[170,0]]}, {line: [[0,172],[172,0]]}, {line: [[0,174],[174,0]]}, {line: [[0,176],[176,0]]}, {line: [[0,178],[178,0]]},
+        {line: [[0,180],[180,0]]}, {line: [[0,182],[182,0]]}, {line: [[0,184],[184,0]]}, {line: [[0,186],[186,0]]}, {line: [[0,188],[188,0]]}, {line: [[0,190],[190,0]]},
+        {line: [[0,192],[192,0]]}, {line: [[0,194],[194,0]]}, {line: [[0,196],[196,0]]}, {line: [[0,198],[198,0]]}, {line: [[0,200],[200,0]]}, {line: [[0,202],[202,0]]},
+        {line: [[0,204],[204,0]]}, {line: [[0,206],[206,0]]}, {line: [[0,208],[208,0]]}, {line: [[0,210],[210,0]]}, {line: [[0,212],[212,0]]}, {line: [[0,214],[214,0]]},
+        {line: [[0,216],[216,0]]}, {line: [[0,218],[218,0]]}, {line: [[0,220],[220,0]]}, {line: [[0,222],[222,0]]}, {line: [[0,224],[224,0]]}, {line: [[0,226],[226,0]]},
+        {line: [[0,228],[228,0]]}, {line: [[0,230],[230,0]]}, {line: [[0,232],[232,0]]}, {line: [[0,234],[234,0]]}, {line: [[0,236],[236,0]]}, {line: [[0,238],[238,0]]},
+        {line: [[0,240],[240,0]]}, {line: [[0,242],[242,0]]}, {line: [[0,244],[244,0]]}, {line: [[0,246],[246,0]]}, {line: [[0,248],[248,0]]}, {line: [[0,250],[250,0]]},
+        {line: [[0,252],[252,0]]}, {line: [[0,254],[254,0]]}, {line: [[1,255],[255,1]]}, {line: [[3,255],[255,3]]}, {line: [[5,255],[255,5]]}, {line: [[7,255],[255,7]]},
+        {line: [[9,255],[255,9]]}, {line: [[11,255],[255,11]]}, {line: [[13,255],[255,13]]}, {line: [[15,255],[255,15]]}, {line: [[17,255],[255,17]]}, {line: [[19,255],[255,19]]},
+        {line: [[21,255],[255,21]]}, {line: [[23,255],[255,23]]}, {line: [[25,255],[255,25]]}, {line: [[27,255],[255,27]]}, {line: [[29,255],[255,29]]}, {line: [[31,255],[255,31]]},
+        {line: [[33,255],[255,33]]}, {line: [[35,255],[255,35]]}, {line: [[37,255],[255,37]]}, {line: [[39,255],[255,39]]}, {line: [[41,255],[255,41]]}, {line: [[43,255],[255,43]]},
+        {line: [[45,255],[255,45]]}, {line: [[47,255],[255,47]]}, {line: [[49,255],[255,49]]}, {line: [[51,255],[255,51]]}, {line: [[53,255],[255,53]]}, {line: [[55,255],[255,55]]},
+        {line: [[57,255],[255,57]]}, {line: [[59,255],[255,59]]}, {line: [[61,255],[255,61]]}, {line: [[63,255],[255,63]]}, {line: [[65,255],[255,65]]}, {line: [[67,255],[255,67]]},
+        {line: [[69,255],[255,69]]}, {line: [[71,255],[255,71]]}, {line: [[73,255],[255,73]]}, {line: [[75,255],[255,75]]}, {line: [[77,255],[255,77]]}, {line: [[79,255],[255,79]]},
+        {line: [[81,255],[255,81]]}, {line: [[83,255],[255,83]]}, {line: [[85,255],[255,85]]}, {line: [[87,255],[255,87]]}, {line: [[89,255],[255,89]]}, {line: [[91,255],[255,91]]},
+        {line: [[93,255],[255,93]]}, {line: [[95,255],[255,95]]}, {line: [[97,255],[255,97]]}, {line: [[99,255],[255,99]]}, {line: [[101,255],[255,101]]}, {line: [[103,255],[255,103]]},
+        {line: [[105,255],[255,105]]}, {line: [[107,255],[255,107]]}, {line: [[109,255],[255,109]]}, {line: [[111,255],[255,111]]}, {line: [[113,255],[255,113]]}, {line: [[115,255],[255,115]]},
+        {line: [[117,255],[255,117]]}, {line: [[119,255],[255,119]]}, {line: [[121,255],[255,121]]}, {line: [[123,255],[255,123]]}, {line: [[125,255],[255,125]]}, {line: [[127,255],[255,127]]},
+        {line: [[129,255],[255,129]]}, {line: [[131,255],[255,131]]}, {line: [[133,255],[255,133]]}, {line: [[135,255],[255,135]]}, {line: [[137,255],[255,137]]}, {line: [[139,255],[255,139]]},
+        {line: [[141,255],[255,141]]}, {line: [[143,255],[255,143]]}, {line: [[145,255],[255,145]]}, {line: [[147,255],[255,147]]}, {line: [[149,255],[255,149]]}, {line: [[151,255],[255,151]]},
+        {line: [[153,255],[255,153]]}, {line: [[155,255],[255,155]]}, {line: [[157,255],[255,157]]}, {line: [[159,255],[255,159]]}, {line: [[161,255],[255,161]]}, {line: [[163,255],[255,163]]},
+        {line: [[165,255],[255,165]]}, {line: [[167,255],[255,167]]}, {line: [[169,255],[255,169]]}, {line: [[171,255],[255,171]]}, {line: [[173,255],[255,173]]}, {line: [[175,255],[255,175]]},
+        {line: [[177,255],[255,177]]}, {line: [[179,255],[255,179]]}, {line: [[181,255],[255,181]]}, {line: [[183,255],[255,183]]}, {line: [[185,255],[255,185]]}, {line: [[187,255],[255,187]]},
+        {line: [[189,255],[255,189]]}, {line: [[191,255],[255,191]]}, {line: [[193,255],[255,193]]}, {line: [[195,255],[255,195]]}, {line: [[197,255],[255,197]]}, {line: [[199,255],[255,199]]},
+        {line: [[201,255],[255,201]]}, {line: [[203,255],[255,203]]}, {line: [[205,255],[255,205]]}, {line: [[207,255],[255,207]]}, {line: [[209,255],[255,209]]}, {line: [[211,255],[255,211]]},
+        {line: [[213,255],[255,213]]}, {line: [[215,255],[255,215]]},
+      ],
+    },
+
+    // ---- silhouette ------------------------------------------------------
+    bone: {
+      z: 10,
+      path: "M112,24 L128,20 L152,20 L172,24 L188,32 L200,40 L210,52 L216,64 L218,78 L222,88 L224,100 L224,116 L220,126 L218,136 L212,144 L204,148 L204,220 L200,228 L192,234 L164,234 L148,228 L132,224 L116,220 L100,216 L88,212 L82,206 L80,192 L80,160 L68,158 L56,152 L48,144 L44,132 L44,88 L48,74 L54,62 L62,52 L72,42 L84,34 L96,28 Z",
+    },
+    outline: { z: 5, "auto-outline": "bone", thickness: 1 },
+
+    // ---- the lit dome: bone -> light -> cream -> hi ----------------------------
+    "dither-light": {
+      z: 18,
+      path: "M92,40 L100,30 L128,22 L216,62 L216,88 L120,88 L104,78 L94,62 L86,50 Z",
+      except: ["grain"],
+    },
+    light: {
+      z: 20,
+      path: "M100,30 L128,22 L152,22 L172,26 L188,34 L200,42 L210,54 L216,66 L216,80 L120,80 L108,72 L100,60 L92,48 Z",
+    },
+    "dither-cream": {
+      z: 21,
+      path: "M108,30 L152,22 L180,28 L198,40 L208,54 L214,68 L204,78 L182,74 L160,66 L138,62 L120,58 L106,46 Z",
+      except: ["grain"],
+    },
+    cream: {
+      z: 22,
+      union: [
+        { path: "M116,28 L152,24 L176,30 L192,40 L202,52 L208,64 L200,72 L180,68 L160,60 L140,56 L124,52 L112,44 Z" },
+        // brow ridge over both orbits
+        { path: "M120,76 L148,76 L164,84 L172,92 L164,94 L152,86 L140,80 L124,82 Z" },
+        { path: "M180,92 L188,82 L200,78 L216,78 L218,82 L196,84 L188,90 Z" },
+      ],
+    },
+    "dither-hi": {
+      z: 23,
+      path: "M126,30 L160,26 L182,34 L188,46 L172,54 L144,52 L124,44 Z",
+      except: ["grain"],
+    },
+    hi: {
+      z: 24,
+      union: [
+        // the hot spot on the crown
+        { path: "M134,32 L160,30 L174,36 L178,44 L166,48 L144,46 L130,40 Z" },
+        // the top edges of the brow ridges catch it too
+        { line: [[124, 76], [148, 76], [162, 83]], thickness: 2 },
+        { line: [[190, 81], [200, 78], [214, 78]], thickness: 2 },
+      ],
+    },
+
+    // ---- the shadow side: bone -> tan -> mid -> umber -> deep -----------------
+    "dither-tan": {
+      z: 28,
+      path: "M104,26 L108,40 L104,56 L108,72 L120,88 L120,114 L112,130 L100,144 L86,152 L80,148 L92,140 L104,128 L112,112 L112,88 L100,72 L96,56 L100,40 L96,28 Z",
+      except: ["grain"],
+    },
+    tan: {
+      z: 30,
+      path: "M96,28 L100,40 L96,56 L100,72 L112,88 L112,112 L104,128 L92,140 L80,148 L80,160 L68,158 L56,152 L48,144 L44,132 L44,88 L48,74 L54,62 L62,52 L72,42 L84,34 Z",
+    },
+    "dither-mid": {
+      z: 31,
+      union: [
+        // soft edge of the back band
+        { path: "M84,36 L74,50 L66,64 L62,80 L62,124 L66,140 L78,152 L86,156 L80,156 L72,152 L60,140 L56,124 L56,80 L60,64 L68,52 L76,40 Z" },
+        // soft edges of the cheek plane
+        { path: "M110,122 L142,122 L152,138 L156,156 L156,194 L146,214 L126,222 L108,212 L104,186 L104,150 Z" },
+      ],
+      except: ["grain"],
+    },
+    mid: {
+      z: 32,
+      union: [
+        // the back band of the cranium
+        { path: "M76,40 L68,52 L60,64 L56,80 L56,124 L60,140 L72,152 L80,156 L68,158 L56,152 L48,144 L44,132 L44,88 L48,74 L54,62 L62,52 L72,42 Z" },
+        // temple hollow behind the near orbit
+        { path: "M100,80 L112,84 L116,100 L112,116 L104,124 L100,112 L96,96 Z" },
+        // cheek plane under the orbit, running down to the jaw
+        { path: "M116,128 L136,128 L144,140 L148,156 L148,192 L140,208 L124,216 L116,208 L112,184 L112,152 Z" },
+        // far side of the face beyond the nose
+        { path: "M200,128 L216,124 L212,144 L204,148 L200,140 Z" },
+      ],
+    },
+    "dither-umber": {
+      z: 33,
+      union: [
+        { path: "M76,40 L66,52 L58,64 L52,76 L50,88 L50,132 L54,144 L62,150 L74,156 L68,158 L56,152 L48,144 L44,132 L44,88 L48,74 L54,62 L62,52 L72,42 Z" },
+        { path: "M112,128 L136,128 L140,144 L136,164 L126,174 L112,170 L108,150 Z" },
+      ],
+      except: ["grain"],
+    },
+    umber: {
+      z: 34,
+      union: [
+        // outermost rim of the back of the skull
+        { path: "M72,42 L62,52 L54,62 L48,74 L44,88 L44,132 L48,144 L56,152 L68,158 L72,156 L60,148 L52,136 L50,120 L50,88 L54,72 L62,58 Z" },
+        // underside of the cheekbone
+        { path: "M116,132 L132,132 L136,144 L132,160 L124,168 L116,164 L112,148 Z" },
+        // mandible underside and the shadow under the chin
+        { path: "M88,208 L104,212 L124,218 L140,222 L156,228 L164,232 L148,228 L132,224 L116,220 L100,216 L88,212 Z" },
+        { path: "M200,192 L204,192 L204,220 L200,228 L196,224 Z" },
+      ],
+    },
+    // Bounce light from below lifts the very edge of the back of the skull.
+    reflect: {
+      z: 35,
+      union: [
+        { line: [[46, 92], [46, 130], [50, 142], [58, 150], [68, 155]] },
+        { line: [[90, 210], [104, 214], [124, 220], [144, 225]] },
+      ],
+    },
+    "dither-deep": {
+      z: 36,
+      union: [
+        { path: "M112,152 L130,156 L136,170 L124,176 L108,170 Z" },
+        { path: "M78,136 L92,132 L106,128 L112,134 L98,144 L84,152 L78,150 Z" },
+      ],
+      except: ["grain"],
+    },
+    deep: {
+      z: 37,
+      union: [
+        // the shadow pocket where the cheekbone meets the jaw
+        { path: "M116,156 L128,160 L132,168 L124,172 L112,168 Z" },
+        // the notch at the back of the jaw, under the cheekbone arch
+        { path: "M80,140 L92,136 L104,132 L108,136 L96,142 L84,148 L80,148 Z" },
+      ],
+    },
+
+    // ---- the mandible -----------------------------------------------------
+    "light-jaw": { z: 40, path: "M84,152 L100,144 L108,148 L112,168 L112,196 L108,208 L92,208 L84,200 Z" },
+    seam: {
+      z: 42,
+      union: [
+        // zygomatic arch running back to the ear
+        { line: [[80, 148], [92, 140], [108, 132]], thickness: 2 },
+        // front edge of the ramus up to the cheekbone
+        { line: [[112, 168], [112, 192], [116, 208]] },
+        // coronal suture: a fine zigzag wandering across the crown
+        { line: [[114, 26], [118, 29], [116, 32], [120, 35], [117, 38], [121, 42], [118, 45], [122, 49], [119, 53], [123, 57], [120, 61], [124, 65], [122, 69]] },
+        // squamous suture curving behind the temple
+        { line: [[70, 90], [76, 84], [84, 79], [92, 76], [100, 79]] },
+        // sagittal suture glimpsed on the top of the crown
+        { line: [[100, 24], [104, 27], [108, 25]] },
+        // the cheekbone's lower edge
+        { line: [[116, 128], [128, 128], [140, 132]] },
+      ],
+    },
+    "hi-jaw": {
+      z: 44,
+      union: [
+        // the cheekbone's lit top, just under the near orbit
+        { path: "M120,132 L140,132 L148,136 L144,140 L128,140 L120,136 Z" },
+        // lit bridge of the nose and the far cheek
+        { line: [[186, 100], [188, 116]], thickness: 2 },
+        { line: [[192, 132], [208, 132]], thickness: 2 },
+        // the ramus edge
+        { line: [[86, 156], [86, 196]], thickness: 2 },
+        { line: [[88, 152], [100, 146]] },
+      ],
+    },
+
+    // ---- eyes -------------------------------------------------------------
+    // Ambient occlusion: the dark gathers under the brow and the light pools
+    // on the lower-outer wall of each orbit.
+    "dither-socket": {
+      z: 58,
+      union: [
+        { path: "M114,94 L124,78 L146,78 L160,88 L170,102 L170,120 L160,132 L134,134 L120,126 L114,112 Z" },
+        { path: "M182,98 L192,82 L218,80 L224,88 L224,122 L218,132 L198,132 L188,124 L182,110 Z" },
+      ],
+      except: ["grain"],
+    },
+    socket: {
+      z: 60,
+      union: [
+        { path: "M118,94 L126,82 L144,82 L156,90 L166,102 L166,118 L158,128 L134,130 L122,122 L118,110 Z" },
+        { path: "M186,98 L194,86 L216,84 L222,90 L222,120 L216,128 L200,128 L192,122 L186,110 Z" },
+      ],
+    },
+    "socket-mid": {
+      z: 62,
+      union: [
+        { path: "M122,102 L130,92 L146,92 L156,102 L160,116 L152,126 L132,128 L122,120 Z" },
+        { path: "M192,102 L200,92 L216,92 L220,100 L220,118 L214,126 L200,126 L194,118 Z" },
+      ],
+    },
+    "socket-floor": {
+      z: 64,
+      union: [
+        { path: "M124,108 L134,102 L144,106 L148,116 L144,124 L132,124 L124,118 Z" },
+        { path: "M196,108 L208,102 L216,108 L216,120 L212,124 L200,124 L196,118 Z" },
+      ],
+    },
+    "socket-rim": {
+      z: 66,
+      union: [
+        { line: [[128, 125], [140, 125], [148, 123]], thickness: 2 },
+        { line: [[202, 123], [212, 123]], thickness: 2 },
+        { points: [[127, 111], [128, 110], [129, 109], [130, 108], [199, 111], [200, 110]] },
+      ],
+    },
+    // supraorbital notch above the near orbit and the infraorbital foramen
+    // below it; the mental foramen on the chin
+    foramen: {
+      z: 68,
+      union: [
+        { line: [[140, 80], [142, 80]] },
+        { line: [[151, 141], [153, 141]] },
+        { line: [[184, 213], [186, 213]] },
+      ],
+    },
+    // a hairline crack running back from the temple
+    crack: {
+      z: 69,
+      line: [[96, 64], [90, 68], [91, 72], [84, 75], [80, 74]],
+    },
+
+    // ---- nose --------------------------------------------------------------
+    "nose-bridge": { z: 70, path: "M168,84 L184,84 L186,96 L182,112 L172,112 L168,100 Z" },
+    "nose-shade": { z: 72, path: "M164,96 L170,100 L172,116 L168,124 L164,116 Z" },
+    nose: {
+      z: 74,
+      path: "M172,120 L180,116 L188,120 L192,128 L190,140 L184,152 L176,152 L172,140 L170,128 Z",
+    },
+    // the turbinates glimpsed inside the nasal opening
+    "nose-concha": {
+      z: 75,
+      union: [
+        { path: "M182,128 L188,130 L188,138 L184,144 L182,140 Z" },
+        { path: "M173,132 L177,134 L177,142 L174,140 Z" },
+      ],
+    },
+    "nose-septum": { z: 76, line: [[180, 122], [180, 150]], thickness: 2 },
+    "nose-floor": { z: 78, path: "M174,144 L186,144 L184,152 L176,152 Z" },
+
+    // ---- teeth ---------------------------------------------------------------
+    "teeth-upper": { z: 80, path: "M148,154 L202,154 L202,174 L148,174 Z" },
+    "teeth-lower": { z: 81, path: "M148,178 L202,178 L202,198 L148,198 Z" },
+    "teeth-gum": {
+      z: 82,
+      union: [
+        { line: [[148, 153], [202, 153]], thickness: 2 },
+        { line: [[148, 199], [200, 199]], thickness: 2 },
+      ],
+    },
+    "teeth-bite": { z: 83, line: [[140, 175], [202, 177]], thickness: 2 },
+    "teeth-gaps": {
+      z: 84,
+      union: [
+        // upper: molars narrow towards the cheek, incisors face us
+        { line: [[154, 156], [154, 172]] }, { line: [[161, 156], [161, 172]] }, { line: [[169, 156], [169, 172]] },
+        { line: [[178, 156], [178, 172]] }, { line: [[189, 156], [189, 172]] },
+        // lower
+        { line: [[154, 180], [154, 196]] }, { line: [[161, 180], [161, 196]] }, { line: [[169, 180], [169, 196]] },
+        { line: [[178, 180], [178, 196]] }, { line: [[189, 180], [189, 196]] },
+      ],
+    },
+    "teeth-shade": {
+      z: 85,
+      union: [
+        // each crown rolls into shadow on its near (left) side
+        { line: [[149, 156], [149, 172]], thickness: 2 }, { line: [[155, 156], [155, 172]], thickness: 2 },
+        { line: [[162, 156], [162, 172]], thickness: 2 }, { line: [[170, 156], [170, 172]], thickness: 2 },
+        { line: [[179, 156], [179, 172]] }, { line: [[190, 156], [190, 172]] },
+        { line: [[149, 180], [149, 196]], thickness: 2 }, { line: [[155, 180], [155, 196]], thickness: 2 },
+        { line: [[162, 180], [162, 196]], thickness: 2 }, { line: [[170, 180], [170, 196]], thickness: 2 },
+        { line: [[179, 180], [179, 196]] }, { line: [[190, 180], [190, 196]] },
+        // the cutting edges go grey where the jaws meet
+        { line: [[148, 172], [202, 172]] },
+        { line: [[148, 179], [202, 179]] },
+      ],
+    },
+    // a single glint on each crown, high on the lit side
+    "teeth-glint": {
+      z: 86,
+      union: [
+        { line: [[159, 158], [159, 162]] }, { line: [[167, 158], [167, 162]] }, { line: [[175, 157], [175, 163]] },
+        { line: [[185, 157], [185, 164]] }, { line: [[197, 157], [197, 164]] },
+        { line: [[159, 183], [159, 186]] }, { line: [[167, 183], [167, 186]] }, { line: [[175, 182], [175, 187]] },
+        { line: [[185, 182], [185, 188]] }, { line: [[197, 182], [197, 188]] },
+      ],
+    },
+    // mouth corner: the dark gap between upper and lower jaw
+    gap: {
+      z: 90,
+      path: "M112,168 L124,164 L136,166 L144,172 L144,177 L132,173 L120,172 Z",
+    },
+  },
+}
