@@ -7,8 +7,8 @@
 use crate::draw::DrawError;
 use crate::models::{RegionDef, Sprite, TtpObject};
 use crate::renderer::Warning;
-use crate::structured::rasterize_region;
-use std::collections::{HashMap, HashSet};
+use crate::structured::rasterize_regions;
+use std::collections::HashMap;
 use std::path::Path;
 
 /// A read-only view of a parsed .pxl file for mask queries.
@@ -287,34 +287,9 @@ impl TokenGrid {
             None => return Ok(TokenGrid { grid, width, height }),
         };
 
-        // Rasterize all regions using the same two-pass approach as render_structured
-        let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
-        let mut pending: Vec<(String, &RegionDef)> = Vec::new();
+        // Rasterize all regions in the same dependency order as render_structured
         let mut warnings: Vec<Warning> = Vec::new();
-
-        for (token, region) in regions {
-            if region.fill.is_some()
-                || region.auto_shadow.is_some()
-                || region.auto_outline.is_some()
-            {
-                pending.push((token.clone(), region));
-            } else {
-                let pixels = rasterize_region(
-                    region,
-                    &rasterized,
-                    width as i32,
-                    height as i32,
-                    &mut warnings,
-                );
-                rasterized.insert(token.clone(), pixels);
-            }
-        }
-
-        for (token, region) in pending {
-            let pixels =
-                rasterize_region(region, &rasterized, width as i32, height as i32, &mut warnings);
-            rasterized.insert(token, pixels);
-        }
+        let rasterized = rasterize_regions(regions, width as i32, height as i32, &mut warnings);
 
         // Sort by z-order (lowest first, so highest z renders last / wins)
         let mut region_order: Vec<(String, i32)> = regions

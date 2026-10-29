@@ -984,35 +984,12 @@ impl Validator {
             };
             if width > 0 && height > 0 {
                 let mut raster_warnings = Vec::new();
-                let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
-                let mut pending: Vec<(&String, &crate::models::RegionDef)> = Vec::new();
-                for (token, region) in regions {
-                    if region.fill.is_some()
-                        || region.auto_shadow.is_some()
-                        || region.auto_outline.is_some()
-                    {
-                        pending.push((token, region));
-                    } else {
-                        let pixels = crate::structured::rasterize_region(
-                            region,
-                            &rasterized,
-                            width,
-                            height,
-                            &mut raster_warnings,
-                        );
-                        rasterized.insert(token.clone(), pixels);
-                    }
-                }
-                for (token, region) in pending {
-                    let pixels = crate::structured::rasterize_region(
-                        region,
-                        &rasterized,
-                        width,
-                        height,
-                        &mut raster_warnings,
-                    );
-                    rasterized.insert(token.clone(), pixels);
-                }
+                let rasterized = crate::structured::rasterize_regions(
+                    regions,
+                    width,
+                    height,
+                    &mut raster_warnings,
+                );
 
                 let mut tokens: Vec<&String> = rasterized.keys().collect();
                 tokens.sort();

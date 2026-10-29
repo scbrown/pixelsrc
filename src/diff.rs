@@ -215,29 +215,7 @@ fn rasterize_all(
     width: i32,
     height: i32,
 ) -> HashMap<String, HashSet<(i32, i32)>> {
-    let mut warnings = Vec::new();
-    let mut rasterized: HashMap<String, HashSet<(i32, i32)>> = HashMap::new();
-    let mut pending: Vec<(&String, &RegionDef)> = Vec::new();
-    for (token, region) in regions {
-        if region.fill.is_some() || region.auto_shadow.is_some() {
-            pending.push((token, region));
-        } else {
-            let pixels = crate::structured::rasterize_region(
-                region,
-                &rasterized,
-                width,
-                height,
-                &mut warnings,
-            );
-            rasterized.insert(token.clone(), pixels);
-        }
-    }
-    for (token, region) in pending {
-        let pixels =
-            crate::structured::rasterize_region(region, &rasterized, width, height, &mut warnings);
-        rasterized.insert(token.clone(), pixels);
-    }
-    rasterized
+    crate::structured::rasterize_regions(regions, width, height, &mut Vec::new())
 }
 
 /// If `b` is exactly `a` translated by a constant offset, return it.
