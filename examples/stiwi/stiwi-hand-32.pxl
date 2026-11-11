@@ -7,7 +7,7 @@
     background: "#acb894", "background-light": "#dce3cd", "background-leaf": "#83976c",
     shirt: "#263d60", "shirt-shadow": "#1b2a45", collar: "#3d5475",
     hair: "#4a3d36", "hair-swoop": "#554538", "hair-shadow": "#2f272a", "hair-wave": "#705e50", "hair-silver": "#a39b92",
-    skin: "#bc947b", "skin-under-nose": "#bc947b", "skin-light": "#d5af91", "skin-shadow": "#966f60", "skin-warm": "#c49a7d",
+    skin: "#bc947b", "skin-under-nose": "#bc947b", "skin-under-lip": "#b48d76", "skin-light": "#d5af91", "skin-shadow": "#966f60", "skin-warm": "#c49a7d",
     beard: "#393435", "beard-shadow": "#292a2d", "beard-mid": "#615b56", "beard-grey": "#96958a", "beard-white": "#c5c2b3",
     moustache: "#4c4038", "moustache-grey": "#96958a", mouth: "#664b40", lip: "#ae816b", teeth: "#d9c8a6",
     "eye-white": "#c9bcaa", iris: "#626963", pupil: "#343738",
@@ -17,7 +17,7 @@
     background: "fill", "background-light": "highlight", "background-leaf": "shadow",
     shirt: "fill", "shirt-shadow": "shadow", collar: "boundary",
     hair: "fill", "hair-swoop": "fill", "hair-shadow": "shadow", "hair-wave": "highlight", "hair-silver": "highlight",
-    skin: "fill", "skin-under-nose": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill",
+    skin: "fill", "skin-under-nose": "fill", "skin-under-lip": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill",
     beard: "fill", "beard-shadow": "shadow", "beard-mid": "highlight", "beard-grey": "highlight", "beard-white": "highlight",
     moustache: "anchor", "moustache-grey": "highlight", mouth: "anchor", lip: "fill", teeth: "anchor",
     "eye-white": "fill", iris: "anchor", pupil: "anchor", frame: "boundary", "frame-light": "highlight", "lens-glint": "highlight"
@@ -54,19 +54,20 @@
     // From the part, the wave crosses the upper right forehead.
     "hair-swoop": {polygon: [[13,4],[18,4],[22,6],[24,9],[25,13],[23,13],[21,10],[19,8],[16,7],[13,7]], z: 24},
     // Hair sweeps over the forehead without flattening the open face.
-    "hair-wave": {union: [{line: [[12,3],[10,4],[8,6],[8,9]]},{line: [[14,2],[17,1],[20,2],[22,4]]},{line: [[23,5],[25,8]]},{line: [[15,5],[18,5],[21,8],[23,11]]},{line: [[8,12],[7,13],[8,15]]},{line: [[7,17],[8,19]]},{line: [[25,13],[26,14],[25,16],[26,17],[24,19]]}], z: 25},
-    "hair-silver": {union: [{line: [[9,7],[8,9],[7,11]]},{points: [[10,5],[6,12],[7,14],[7,16],[8,19],[19,2],[26,12],[25,17]]}], z: 26},
+    "hair-wave": {union: [{line: [[12,3],[10,4],[8,6],[8,9],[7,11],[8,13],[7,15],[8,17],[7,19]]},{line: [[14,2],[17,1],[20,2],[22,4],[24,7],[25,10],[25,13],[26,14],[25,16],[26,17],[24,19]]},{line: [[15,5],[18,5],[21,8],[23,11]]}], z: 25},
+    "hair-silver": {union: [{line: [[11,5],[9,7],[9,10],[8,12]]},{points: [[6,12],[7,16],[8,19],[19,2],[26,12],[25,17]]}], z: 26},
     "eye-white": {union: [{rect: [11,13,3,1]},{rect: [19,13,3,1]}], z: 30},
     iris: {points: [[12,13],[20,13]], z: 31},
     pupil: {points: [[12,14],[20,14]], z: 32},
     // Full beard tapers below the jaw; it is not a dark rectangular mouth.
-    beard: {union: [{rect: [8,18,16,7], round: 2},{rect: [9,23,14,5], round: 2},{rect: [11,27,10,3]},{rect: [13,29,6,2]}], z: 40},
+    beard: {union: [{rect: [8,20,16,5], round: 2},{rect: [9,23,14,5], round: 2},{rect: [11,27,10,3]},{rect: [13,29,6,2]}], z: 40},
     "beard-shadow": {union: [{line: [[9,20],[9,24],[12,28],[14,30]]},{line: [[23,20],[23,24],[21,28],[18,30]]},{rect: [14,26,4,3]}], z: 41},
     "beard-mid": {union: [{line: [[10,22],[11,25],[13,27]]},{line: [[22,22],[21,25],[20,27]]},{line: [[13,23],[14,26],[14,29]]},{line: [[18,23],[18,26],[17,29]]}], z: 42},
     "beard-grey": {union: [{line: [[12,24],[13,26],[13,29]]},{line: [[16,24],[15,27],[16,30]]},{line: [[20,23],[19,26],[19,28]]},{points: [[10,21],[22,21],[11,24],[21,25],[18,29]]}], z: 43},
     "beard-white": {points: [[13,25],[14,28],[16,26],[16,29],[18,27],[20,24]], z: 44},
     // Restore rev 3 cheeks; retain only a one-pixel central philtrum.
     "skin-under-nose": {rect: [16,18,1,2], z: 49},
+    "skin-under-lip": {rect: [15,23,3,1], z: 48},
     // Open smile, modest teeth and moustache parted around the nose.
     mouth: {union: [{rect: [12,20,9,2], round: 1},{line: [[12,20],[14,22],[18,22],[21,20]]}], z: 50},
     teeth: {rect: [15,21,3,1], z: 51},

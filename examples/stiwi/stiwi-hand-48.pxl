@@ -6,7 +6,7 @@
     background: "#adba99", "background-sky": "#dce5db", "background-glow": "#c8ce9f", "background-leaf": "#8d9f77", "background-deep": "#798d6a",
     shirt: "#2c4266", "shirt-light": "#3e577a", "shirt-shadow": "#1e304e", collar: "#233655", "collar-edge": "#526582",
     hair: "#4a3d36", "hair-shadow": "#2f272a", "hair-forelock": "#554538", "hair-wave": "#756353", "hair-silver": "#a69e94",
-    skin: "#bb937a", "skin-under-nose": "#bb937a", "skin-light": "#d6b397", "skin-shadow": "#967461", "skin-warm": "#c49b7e", "nose-shadow": "#806252",
+    skin: "#bb937a", "skin-under-nose": "#bb937a", "skin-under-lip": "#b48d76", "skin-light": "#d6b397", "skin-shadow": "#967461", "skin-warm": "#c49b7e", "nose-shadow": "#806252",
     beard: "#393436", "beard-shadow": "#2c2c30", "beard-mid": "#605b55", "beard-grey": "#96958b", "beard-white": "#c7c4b5",
     moustache: "#50443c", "moustache-grey": "#8d8575", mouth: "#5c453c", lip: "#aa7d67", teeth: "#d9c9ac",
     brow: "#615249", "eye-white": "#c6b9a6", iris: "#757d74", pupil: "#363a3b",
@@ -16,7 +16,7 @@
     background: "fill", "background-sky": "fill", "background-glow": "highlight", "background-leaf": "shadow", "background-deep": "shadow",
     shirt: "fill", "shirt-light": "highlight", "shirt-shadow": "shadow", collar: "fill", "collar-edge": "boundary",
     hair: "fill", "hair-shadow": "shadow", "hair-forelock": "fill", "hair-wave": "highlight", "hair-silver": "highlight",
-    skin: "fill", "skin-under-nose": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill", "nose-shadow": "shadow",
+    skin: "fill", "skin-under-nose": "fill", "skin-under-lip": "fill", "skin-light": "highlight", "skin-shadow": "shadow", "skin-warm": "fill", "nose-shadow": "shadow",
     beard: "fill", "beard-shadow": "shadow", "beard-mid": "highlight", "beard-grey": "highlight", "beard-white": "highlight",
     moustache: "anchor", "moustache-grey": "highlight", mouth: "anchor", lip: "fill", teeth: "anchor",
     brow: "anchor", "eye-white": "fill", iris: "anchor", pupil: "anchor", frame: "boundary", "frame-light": "highlight", "lens-glint": "highlight"
@@ -63,15 +63,15 @@
     "nose-shadow": {union: [{line: [[26,23],[27,26],[29,27],[27,28]]},{points: [[22,28],[23,29],[26,29]]}], z: 34},
     // From the part, one wave crosses the upper right forehead; the left temple is combed back.
     "hair-forelock": {union: [{polygon: [[20,5],[26,5],[30,7],[34,9],[36,12],[37,17],[36,20],[34,19],[32,16],[29,13],[26,11],[23,10],[20,10]]},{line: [[16,9],[14,11],[13,16]], thickness: 1}], z: 36},
-    "hair-wave": {union: [{line: [[19,5],[16,6],[13,9],[12,13]]},{line: [[21,3],[25,2],[29,3],[32,5]]},{line: [[33,6],[36,9],[37,13]]},{line: [[22,7],[26,8],[30,11],[33,15]]},{line: [[11,15],[10,17],[11,19]]},{line: [[10,21],[9,23],[11,24],[12,27]]},{line: [[37,16],[39,17],[37,19]]},{line: [[37,21],[38,22],[36,24],[36,26],[35,28]]}], z: 37},
-    "hair-silver": {union: [{line: [[15,9],[13,11],[12,14]]},{line: [[14,12],[12,15],[11,18]]},{points: [[10,17],[9,19],[11,21],[10,24],[17,6],[29,5],[38,17],[37,23]]}], z: 38},
+    "hair-wave": {union: [{line: [[19,5],[16,6],[13,9],[12,13],[11,15],[10,17],[11,19],[10,21],[9,23],[11,24],[12,27]]},{line: [[21,3],[25,2],[29,3],[32,5],[34,8],[36,11],[37,14],[37,16],[39,17],[37,19],[37,21],[38,22],[36,24],[36,26],[35,28]]},{line: [[22,7],[26,8],[30,11],[33,15],[35,18]]}], z: 37},
+    "hair-silver": {union: [{line: [[16,8],[14,10],[13,13],[12,16],[11,18],[11,21],[10,23]]},{line: [[27,4],[30,6],[32,9],[34,12]]},{points: [[9,19],[10,25],[38,17],[37,23]]}], z: 38},
     // Gentle brows and grey-green eyes; bright pixels are intentionally sparse.
     brow: {union: [{line: [[15,18],[18,17],[21,18]]},{line: [[28,18],[30,17],[33,18]]}], z: 40},
     "eye-white": {union: [{line: [[16,21],[18,20],[20,21]]},{line: [[28,21],[30,20],[32,21]]}], z: 41},
     iris: {union: [{rect: [18,20,2,2]},{rect: [29,20,2,2]}], z: 42},
     pupil: {points: [[18,21],[29,21]], z: 43},
     // Full beard silhouette, progressively stepping inward at the bottom.
-    beard: {union: [{rect: [12,28,24,8], round: 3},{rect: [13,34,22,5], round: 2},{rect: [15,38,18,4]},{rect: [17,41,14,3]},{rect: [20,44,8,2]}], z: 50},
+    beard: {union: [{rect: [12,31,24,5], round: 2},{rect: [13,34,22,5], round: 2},{rect: [15,38,18,4]},{rect: [17,41,14,3]},{rect: [20,44,8,2]}], z: 50},
     "beard-shadow": {union: [{line: [[13,30],[13,35],[16,40],[20,44]], thickness: 1},{line: [[35,30],[34,36],[31,41],[27,45]], thickness: 1},{line: [[23,36],[23,40],[25,44]], thickness: 1}], z: 51},
     "beard-mid": {union: [{line: [[15,31],[16,35],[18,39],[20,42]]},{line: [[32,32],[31,36],[29,39]]},{line: [[19,34],[20,38],[21,41]]},{line: [[27,34],[27,38],[26,42]]},{points: [[16,33],[18,37],[30,38],[28,42],[22,43],[24,45]]}], z: 52},
     // Grey-white streaks are irregular short polylines, not a solid grey chin.
@@ -79,6 +79,7 @@
     "beard-white": {union: [{line: [[19,35],[20,37]]},{line: [[22,39],[23,42]]},{line: [[26,37],[27,39]]},{line: [[29,35],[28,37]]},{points: [[17,35],[18,38],[20,40],[21,42],[24,44],[25,40],[27,42],[30,38]]}], z: 54},
     // Rev 3 face planes are restored; only a small central philtrum is open.
     "skin-under-nose": {rect: [24,28,2,2], z: 55},
+    "skin-under-lip": {rect: [23,35,4,1], z: 56},
     // Smiling mouth with a broken warm ivory row, under a parted moustache.
     mouth: {union: [{rect: [19,30,12,3], round: 1},{line: [[18,30],[20,33],[25,34],[29,33],[32,30]]}], z: 60},
     teeth: {rect: [23,31,4,1], z: 61},
