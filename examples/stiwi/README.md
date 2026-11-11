@@ -57,6 +57,22 @@ order, so it failed with "Unknown token" in most runs. Regions now rasterize in
 dependency order (`structured::rasterize_regions`), shared by render, mask,
 diff and validate.
 
+## Hair revision
+
+The hair at all four sizes was redrawn by **Claude Fable 5.2 running in Claude
+Code (model as declared by the harness)** from the same photo reference, after
+the subject pointed out that it did not match. Only the hair regions and their
+palette tokens changed; the face, glasses, beard and background are untouched.
+
+- Medium brown in place of near-black.
+- A side part on the viewer's left, with one wave rising from it and crossing
+  the upper forehead to the viewer's right.
+- The left temple combed back, carrying most of the grey strands.
+- Both sides fall to the jaw and flick outward.
+
+At 128 and 256 the hair is one description at 128 scale, doubled for 256, which
+then adds its own loose `hair-strand` layer.
+
 ## A renderer bug found during the revisions
 
 A three-pixel forelock exposed that semantic `line` regions ignored their

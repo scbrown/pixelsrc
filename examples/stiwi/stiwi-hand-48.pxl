@@ -5,7 +5,7 @@
   colors: {
     background: "#adba99", "background-sky": "#dce5db", "background-glow": "#c8ce9f", "background-leaf": "#8d9f77", "background-deep": "#798d6a",
     shirt: "#2c4266", "shirt-light": "#3e577a", "shirt-shadow": "#1e304e", collar: "#233655", "collar-edge": "#526582",
-    hair: "#302e31", "hair-shadow": "#25262c", "hair-forelock": "#3d3639", "hair-wave": "#59504d", "hair-silver": "#8e8680",
+    hair: "#4a3d36", "hair-shadow": "#2f272a", "hair-forelock": "#554538", "hair-wave": "#756353", "hair-silver": "#a69e94",
     skin: "#bb937a", "skin-under-nose": "#bb937a", "skin-light": "#d6b397", "skin-shadow": "#967461", "skin-warm": "#c49b7e", "nose-shadow": "#806252",
     beard: "#393436", "beard-shadow": "#2c2c30", "beard-mid": "#605b55", "beard-grey": "#96958b", "beard-white": "#c7c4b5",
     moustache: "#50443c", "moustache-grey": "#8d8575", mouth: "#5c453c", lip: "#aa7d67", teeth: "#d9c9ac",
@@ -46,25 +46,25 @@
     "shirt-shadow": {union: [{rect: [15,40,18,8]},{line: [[4,46],[9,44],[12,42]]}], z: 10},
     collar: {union: [{rect: [13,39,5,7], round: 1},{rect: [30,39,5,7], round: 1}], z: 11},
     "collar-edge": {union: [{line: [[13,40],[14,44],[18,47]]},{line: [[34,40],[33,44],[30,47]]},{stroke: [17,44,14,4]}], z: 12},
-    // Asymmetric hair silhouette: higher forelock on the viewer's right.
-    hair: {union: [{rect: [15,3,18,13], round: 5},{rect: [20,1,11,10], round: 4},{rect: [11,5,13,14], round: 4},{rect: [30,6,7,13], round: 3},
-      // Left: outward curls alternate with green notches, then taper at the ear.
-      {rect: [11,12,5,15]},{rect: [9,13,4,4]},{rect: [8,17,5,3]},{rect: [9,20,4,3]},{rect: [7,22,6,2]},{rect: [9,24,5,2]},{rect: [10,26,4,2]},{rect: [12,28,2,2]},
-      {line: [[9,16],[7,18],[8,19]]},{line: [[9,23],[8,25],[10,26]]},
+    // Side part on the viewer's left; the crown rises into one wave to the right of it.
+    hair: {union: [{rect: [13,4,24,14], round: 5},{rect: [20,1,14,9], round: 4},{rect: [11,6,10,12], round: 4},
+      // Left: outward curls alternate with green notches, down to a flick at the jaw.
+      {rect: [11,12,5,15]},{rect: [9,13,4,4]},{rect: [8,17,5,3]},{rect: [9,20,4,3]},{rect: [7,22,6,2]},{rect: [9,24,5,2]},{rect: [8,26,6,2]},{rect: [12,28,2,2]},
+      {line: [[9,16],[7,18],[8,19]]},{line: [[9,23],[8,25],[7,27]]},
       // Right: swept locks kick out at different heights, never a flat side wall.
-      {rect: [32,12,5,14]},{rect: [36,12,4,3]},{rect: [37,15,4,3]},{rect: [36,18,4,3]},{rect: [37,21,3,2]},{rect: [35,23,4,3]},{rect: [34,26,4,2]},{rect: [34,28,2,2]},
-      {line: [[39,16],[41,15]]},{line: [[38,22],[40,21]]},{line: [[36,27],[37,28]]}], z: 20},
-    "hair-shadow": {union: [{line: [[12,14],[10,17],[11,20],[9,23],[11,25],[12,28]]},{line: [[35,16],[38,18],[37,20],[38,22],[36,25],[35,28]]},{rect: [25,4,5,9], round: 2}], z: 21},
+      {rect: [32,12,5,14]},{rect: [36,12,4,3]},{rect: [37,15,4,3]},{rect: [36,18,4,3]},{rect: [37,21,3,2]},{rect: [35,23,4,3]},{rect: [34,26,6,2]},{rect: [34,28,2,2]},
+      {line: [[39,16],[41,15]]},{line: [[38,22],[40,21]]},{line: [[39,26],[41,27]]}], z: 20},
+    "hair-shadow": {union: [{line: [[12,14],[10,17],[11,20],[9,23],[11,25],[12,28]]},{line: [[35,16],[38,18],[37,20],[38,22],[36,25],[35,28]]},{line: [[20,4],[20,8]]},{line: [[22,5],[25,4]]}], z: 21},
     // Warm face planes. The forehead stays open beneath the swept hair.
     skin: {union: [{rect: [14,10,21,24], round: 5},{rect: [12,20,3,9], round: 1},{rect: [34,20,3,9], round: 1}], z: 30},
     "skin-light": {union: [{rect: [17,11,9,6], round: 2},{rect: [15,25,5,4], round: 2},{line: [[24,21],[24,26]], thickness: 1},{points: [[22,12],[20,13],[25,28]]}], z: 31},
     "skin-shadow": {union: [{rect: [32,17,3,12], round: 1},{line: [[14,23],[14,28],[16,31]], thickness: 1},{line: [[27,14],[29,17],[31,19]]},{points: [[12,23],[13,25],[35,23],[35,26],[20,17]]}], z: 32},
     "skin-warm": {union: [{rect: [19,25,4,4], round: 1},{rect: [27,25,4,4], round: 1},{line: [[23,26],[25,28],[27,27]], thickness: 1},{points: [[17,16],[18,14],[21,12],[29,26]]}], z: 33},
     "nose-shadow": {union: [{line: [[26,23],[27,26],[29,27],[27,28]]},{points: [[22,28],[23,29],[26,29]]}], z: 34},
-    // A hand-placed forelock sweeps from the crown across the right temple.
-    "hair-forelock": {union: [{points: [[32,10],[33,10],[34,10],[33,11],[34,11],[33,12],[34,12],[34,13]]},{rect: [27,5,5,9], round: 2},{line: [[29,9],[31,13],[35,16],[38,16]], thickness: 3},{line: [[16,8],[14,11],[13,16]], thickness: 1},{line: [[29,10],[30,13],[32,16],[35,18]], thickness: 3},{line: [[35,18],[37,17],[38,16]]}], z: 36},
-    "hair-wave": {union: [{line: [[12,13],[13,9],[17,6],[21,6]]},{line: [[18,4],[21,3],[25,3],[28,5]]},{line: [[29,7],[30,11],[33,14],[37,15]]},{line: [[11,15],[10,17],[11,19]]},{line: [[10,21],[9,23],[11,24],[12,27]]},{line: [[37,16],[39,17],[37,19]]},{line: [[37,21],[38,22],[36,24],[36,26],[35,28]]},{line: [[31,12],[32,14],[35,16],[37,16]]}], z: 37},
-    "hair-silver": {union: [{line: [[13,10],[15,7],[18,6]]},{line: [[20,3],[23,2],[26,3]]},{line: [[32,13],[35,15],[38,14]]},{line: [[10,24],[11,25],[12,27]]},{points: [[10,17],[9,19],[14,9],[17,5],[29,5],[38,17],[37,23],[36,26]]}], z: 38},
+    // From the part, one wave crosses the upper right forehead; the left temple is combed back.
+    "hair-forelock": {union: [{polygon: [[20,5],[26,5],[30,7],[34,9],[36,12],[37,17],[36,20],[34,19],[32,16],[29,13],[26,11],[23,10],[20,10]]},{line: [[16,9],[14,11],[13,16]], thickness: 1}], z: 36},
+    "hair-wave": {union: [{line: [[19,5],[16,6],[13,9],[12,13]]},{line: [[21,3],[25,2],[29,3],[32,5]]},{line: [[33,6],[36,9],[37,13]]},{line: [[22,7],[26,8],[30,11],[33,15]]},{line: [[11,15],[10,17],[11,19]]},{line: [[10,21],[9,23],[11,24],[12,27]]},{line: [[37,16],[39,17],[37,19]]},{line: [[37,21],[38,22],[36,24],[36,26],[35,28]]}], z: 37},
+    "hair-silver": {union: [{line: [[15,9],[13,11],[12,14]]},{line: [[14,12],[12,15],[11,18]]},{points: [[10,17],[9,19],[11,21],[10,24],[17,6],[29,5],[38,17],[37,23]]}], z: 38},
     // Gentle brows and grey-green eyes; bright pixels are intentionally sparse.
     brow: {union: [{line: [[15,18],[18,17],[21,18]]},{line: [[28,18],[30,17],[33,18]]}], z: 40},
     "eye-white": {union: [{line: [[16,21],[18,20],[20,21]]},{line: [[28,21],[30,20],[32,21]]}], z: 41},
