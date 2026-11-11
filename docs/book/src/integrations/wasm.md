@@ -86,20 +86,38 @@ writeFileSync('sprite.png', pngBytes);
 
 Initialize the WASM module. Must be called once before using any other function.
 
-### `render_to_png(jsonl: string, spriteName?: string): Uint8Array`
+### `render_named_to_rgba(jsonl: string, name: string): RenderResult`
 
-Render JSONL input to PNG bytes.
+Render a sprite, variant or composition by name, the way `pxl render --sprite` and
+`--composition` do. Variants, derived sprites (`source` + `transform`) and
+compositions are resolved. Rendering is lenient: problems are reported in
+`warnings`, and a name that cannot be rendered returns a 0 x 0 result.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `jsonl` | string | Pixelsrc JSONL content |
-| `spriteName` | string? | Optional: render specific sprite |
+```javascript
+const r = render_named_to_rgba(source, 'scene');
+canvas.width = r.width; canvas.height = r.height;
+ctx.putImageData(new ImageData(new Uint8ClampedArray(r.pixels), r.width, r.height), 0, 0);
+```
+
+### `render_named_to_png(jsonl: string, name: string): Uint8Array`
+
+The same, encoded as PNG. Returns an empty array if the name cannot be rendered.
+
+### `list_renderables(jsonl: string): string[]`
+
+Everything that can be rendered by name, in definition order, as
+`"sprite:<name>"`, `"variant:<name>"` or `"composition:<name>"`.
+
+### `render_to_png(jsonl: string): Uint8Array`
+
+Render the **first sprite** in the input to PNG bytes. Compositions and variants
+are ignored; use `render_named_to_png` for those.
 
 **Returns:** PNG image as `Uint8Array`
 
-### `render_to_rgba(jsonl: string, spriteName?: string): RenderResult`
+### `render_to_rgba(jsonl: string): RenderResult`
 
-Render to raw RGBA pixel data for canvas manipulation.
+Render the first sprite to raw RGBA pixel data for canvas manipulation.
 
 **Returns:**
 
@@ -112,7 +130,7 @@ Render to raw RGBA pixel data for canvas manipulation.
 
 ### `list_sprites(jsonl: string): string[]`
 
-Get list of sprite and composition names defined in the input.
+Get the names of the sprites defined in the input (not variants or compositions; see `list_renderables`).
 
 ### `validate(jsonl: string): string[]`
 
