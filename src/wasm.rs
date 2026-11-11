@@ -170,7 +170,11 @@ fn load_scene(jsonl: &str) -> Scene {
         sprites: HashMap::new(),
         compositions: HashMap::new(),
         names: Vec::new(),
-        warnings: parsed.warnings.iter().map(|w| format!("line {}: {}", w.line, w.message)).collect(),
+        warnings: parsed
+            .warnings
+            .iter()
+            .map(|w| format!("line {}: {}", w.line, w.message))
+            .collect(),
     };
     for obj in parsed.objects {
         match obj {
