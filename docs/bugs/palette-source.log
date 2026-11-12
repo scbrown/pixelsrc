@@ -1,0 +1,15 @@
+Script started on 2026-11-12 15:02:59-05:00 [COMMAND="bash docs/bugs/record-palette-source.sh" <not executed on terminal>]
+before: validate palette swap inherited through source, strict mode
+Validating tests/fixtures/valid/source_palette_swap.pxl...
+
+Line 2: WARNING - Palette tokens never used by any region: a — often the mirror-image of a misspelled region key (palette "q")
+
+Found 1 warning.
+exit=1
+after: validate palette swap inherited through source, strict mode
+Validating tests/fixtures/valid/source_palette_swap.pxl...
+
+No issues found.
+exit=0
+
+Script done on 2026-11-12 15:02:59-05:00 [COMMAND_EXIT_CODE="0"]
