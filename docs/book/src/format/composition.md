@@ -1,6 +1,6 @@
 # Composition
 
-A composition layers multiple sprites onto a canvas. This is useful for building scenes, tile maps, and complex images from smaller sprite components.
+A composition places sprites on a canvas. This is how scenes, tile maps and other large images are built from small sprites.
 
 ## Basic Syntax
 
@@ -9,12 +9,17 @@ A composition layers multiple sprites onto a canvas. This is useful for building
   type: "composition",
   name: "scene",
   size: [width, height],
+  cell_size: [cell_width, cell_height],
+  sprites: { ".": null, G: "grass", H: "hero" },
   layers: [
-    { sprite: "background", x: 0, y: 0 },
-    { sprite: "hero", x: 16, y: 16 },
+    { map: ["GGGG", "GGGG"] },
+    { map: ["....", ".H.."] },
   ],
 }
 ```
+
+`sprites` gives each sprite a one-character key. Each layer's `map` is a grid of those keys, one character per cell.
+A sprite is drawn with its top-left corner at the top-left of the cell that holds its key.
 
 ## Fields
 
@@ -22,20 +27,25 @@ A composition layers multiple sprites onto a canvas. This is useful for building
 |-------|----------|---------|-------------|
 | `type` | Yes | - | Must be `"composition"` |
 | `name` | Yes | - | Unique identifier |
-| `size` | Yes | - | Canvas size `[width, height]` in pixels |
-| `layers` | Yes | - | Array of layers, rendered bottom-to-top |
+| `size` | No | - | Canvas size `[width, height]` in pixels |
+| `cell_size` | No | `[1, 1]` | Size of one map cell in pixels |
+| `sprites` | Yes | - | Map of one-character keys to sprite names; `null` marks an empty cell |
+| `layers` | Yes | - | Array of layers, drawn first to last |
 
 ## Layer Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `sprite` | Yes | Sprite name to place |
-| `x` | No | X position (default: 0) |
-| `y` | No | Y position (default: 0) |
+| `map` | No | Rows of sprite keys, one character per cell |
+| `name` | No | A label for the layer |
+| `transform` | No | Transforms applied to the layer |
 | `blend` | No | Blend mode (default: `"normal"`) |
 | `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0) |
 
-## Simple Example
+A layer has no `sprite`, `x`, `y` or `position` field. A composition written that way fails to parse with
+`missing field sprites`.
+
+## Example
 
 ```json5
 {
@@ -43,38 +53,27 @@ A composition layers multiple sprites onto a canvas. This is useful for building
   name: "scene",
   colors: {
     _: "transparent",
-    g: "#228B22",
-    h: "#FFD700",
-    t: "#8B4513",
+    grass: "#228B22",
+    gold: "#FFD700",
+    trunk: "#8B4513",
+    leaf: "#2e7d32",
+    sky: "#87ceeb",
+    shade: "#00000080",
   },
 }
 
-{
-  type: "sprite",
-  name: "grass",
-  size: [8, 8],
-  palette: "scene",
-  regions: { g: { rect: [0, 0, 8, 8] } },
-}
-
-{
-  type: "sprite",
-  name: "hero",
-  size: [8, 8],
-  palette: "scene",
-  regions: {
-    h: { rect: [2, 2, 4, 6] },
-  },
-}
-
+{ type: "sprite", name: "sky", size: [32, 32], palette: "scene", regions: { sky: { rect: [0, 0, 32, 32] } } }
+{ type: "sprite", name: "grass", size: [8, 8], palette: "scene", regions: { grass: { rect: [0, 0, 8, 8] } } }
+{ type: "sprite", name: "hero", size: [8, 8], palette: "scene", regions: { gold: { rect: [2, 2, 4, 6] } } }
+{ type: "sprite", name: "shadow", size: [8, 8], palette: "scene", regions: { shade: { ellipse: [4, 6, 3, 1] } } }
 {
   type: "sprite",
   name: "tree",
   size: [8, 8],
   palette: "scene",
   regions: {
-    g: { ellipse: [4, 2, 3, 2] },
-    t: { rect: [3, 4, 2, 4] },
+    leaf: { ellipse: [4, 2, 3, 2] },
+    trunk: { rect: [3, 4, 2, 4] },
   },
 }
 
@@ -82,57 +81,57 @@ A composition layers multiple sprites onto a canvas. This is useful for building
   type: "composition",
   name: "scene",
   size: [32, 32],
+  cell_size: [8, 8],
+  sprites: { ".": null, S: "sky", G: "grass", T: "tree", H: "hero", s: "shadow" },
   layers: [
-    { sprite: "grass", x: 0, y: 0 },
-    { sprite: "grass", x: 8, y: 0 },
-    { sprite: "grass", x: 16, y: 0 },
-    { sprite: "grass", x: 24, y: 0 },
-    { sprite: "tree", x: 4, y: 8 },
-    { sprite: "hero", x: 12, y: 16 },
-    { sprite: "tree", x: 20, y: 8 },
+    { name: "sky", map: ["S...", "....", "....", "...."] },
+    { name: "ground", map: ["....", "....", "....", "GGGG"] },
+    { name: "shadows", map: ["....", "....", ".s.s", "...."], blend: "multiply", opacity: 0.5 },
+    { name: "things", map: ["....", "....", ".T.H", "...."] },
   ],
 }
 ```
+
+Render it with:
+
+```bash
+pxl render scene.pxl -c scene --scale 6 -o scene.png
+```
+
+## Cells and Placement
+
+- **Cell size sets placement precision.** With `cell_size: [8, 8]` a sprite can sit at x = 0, 8, 16 and so on. Use a
+  smaller cell (down to the default `[1, 1]`) when sprites need finer placement; the maps get larger in proportion.
+- **A sprite may be larger than a cell.** It is anchored at the cell's top-left corner and drawn at full size. The
+  renderer prints an `exceeds cell size` warning for each one; this is expected for scenes. The `sky` sprite above
+  is the usual case: a full-canvas sprite in the top-left cell of its own layer.
+- **Rows may be shorter than the grid.** Missing cells are empty, and the renderer warns that the map dimensions do
+  not match the grid. Under `--strict` warnings are errors, so write full rows if you use it.
+- **Put things that must cover each other in separate layers.** Layer order is the only draw order to rely on.
 
 ## Multiple Layers
 
-Layers are rendered bottom-to-top. The first layer is the background:
+Layers draw first to last. For a scene, order them from the back to the front:
 
 ```json5
-{
-  type: "composition",
-  name: "scene",
-  size: [64, 64],
-  layers: [
-    // Background layer
-    { sprite: "sky_background", x: 0, y: 0 },
-    // Middle layer - ground
-    { sprite: "ground", x: 0, y: 48 },
-    // Foreground - characters
-    { sprite: "hero", x: 24, y: 32 },
-    { sprite: "enemy", x: 40, y: 32 },
-  ],
-}
+layers: [
+  { name: "sky", map: [...] },
+  { name: "far buildings", map: [...] },
+  { name: "people", map: [...] },
+  { name: "foreground", map: [...] },
+]
 ```
+
+When one object must stand between two parts of another, for example an animal inside a fence, split the other into
+a far sprite and a near sprite and put the object in a layer between them.
 
 ## Blend Modes
 
-Layer blending controls how colors combine when layers overlap:
+A layer's `blend` controls how its colors combine with the layers below:
 
 ```json5
-{
-  type: "composition",
-  name: "effects",
-  size: [32, 32],
-  layers: [
-    { sprite: "background", x: 0, y: 0 },
-    { sprite: "shadow", x: 8, y: 8, blend: "multiply", opacity: 0.5 },
-    { sprite: "glow", x: 12, y: 4, blend: "add" },
-  ],
-}
+{ name: "shadows", map: ["....", ".s.s"], blend: "multiply", opacity: 0.5 }
 ```
-
-### Blend Mode Reference
 
 | Mode | Description |
 |------|-------------|
@@ -146,145 +145,22 @@ Layer blending controls how colors combine when layers overlap:
 | `darken` | Keeps darker color |
 | `lighten` | Keeps lighter color |
 
-### When to Use Each Mode
-
-**`multiply`** - Shadows, tinting, darkening
-```json5
-{ sprite: "shadow", x: 4, y: 4, blend: "multiply", opacity: 0.3 }
-```
-
-**`screen`** - Glows, highlights, fog
-```json5
-{ sprite: "glow", x: 8, y: 8, blend: "screen" }
-```
-
-**`add`** - Fire, particles, magical effects
-```json5
-{ sprite: "particles", x: 0, y: 0, blend: "add" }
-```
+Palette colors also take alpha (`#RRGGBBAA`), so a translucent shadow or glow can be an ordinary region in an
+ordinary layer.
 
 ## CSS Variables in Compositions
 
-Composition layers support CSS variable references:
+`blend` and `opacity` accept CSS variable references:
 
 ```json5
-{
-  type: "composition",
-  name: "themed_scene",
-  size: [32, 32],
-  layers: [
-    { sprite: "background", x: 0, y: 0 },
-    { sprite: "shadow", x: 4, y: 4, blend: "var(--shadow-blend)", opacity: "var(--shadow-opacity)" },
-    { sprite: "glow", x: 8, y: 8, blend: "var(--glow-mode, add)" },
-  ],
-}
+{ map: ["s..."], blend: "var(--shadow-blend)", opacity: "var(--shadow-opacity)" }
 ```
 
 Variables are resolved from the palette's variable registry at render time.
 
-## Nested Compositions
+## Known Limits
 
-Compositions can reference other compositions, enabling hierarchical scene construction:
-
-```json5
-// Forest tile composition
-{
-  type: "composition",
-  name: "forest_tile",
-  size: [16, 16],
-  layers: [
-    { sprite: "grass", x: 0, y: 0 },
-    { sprite: "tree", x: 4, y: 0 },
-  ],
-}
-
-// Main scene using forest_tile
-{
-  type: "composition",
-  name: "scene",
-  size: [32, 32],
-  layers: [
-    { sprite: "forest_tile", x: 0, y: 0 },
-    { sprite: "forest_tile", x: 16, y: 0 },
-    { sprite: "hero", x: 12, y: 16 },
-  ],
-}
-```
-
-### Cycle Detection
-
-Circular references are detected and produce an error:
-
-```json5
-// ERROR: Cycle detected
-{ type: "composition", name: "A", layers: [{ sprite: "B" }] }
-{ type: "composition", name: "B", layers: [{ sprite: "A" }] }
-```
-
-## Complete Example
-
-```json5
-// Palette
-{
-  type: "palette",
-  name: "island",
-  colors: {
-    _: "transparent",
-    grass: "#228B22",
-    water: "#4169E1",
-    sand: "#F4A460",
-  },
-}
-
-// Tile sprites
-{
-  type: "sprite",
-  name: "grass_tile",
-  size: [8, 8],
-  palette: "island",
-  regions: { grass: { rect: [0, 0, 8, 8] } },
-}
-
-{
-  type: "sprite",
-  name: "water_tile",
-  size: [8, 8],
-  palette: "island",
-  regions: { water: { rect: [0, 0, 8, 8] } },
-}
-
-{
-  type: "sprite",
-  name: "sand_tile",
-  size: [8, 8],
-  palette: "island",
-  regions: { sand: { rect: [0, 0, 8, 8] } },
-}
-
-// Island composition
-{
-  type: "composition",
-  name: "island",
-  size: [32, 32],
-  layers: [
-    // Water background
-    { sprite: "water_tile", x: 0, y: 0 },
-    { sprite: "water_tile", x: 8, y: 0 },
-    { sprite: "water_tile", x: 16, y: 0 },
-    { sprite: "water_tile", x: 24, y: 0 },
-    { sprite: "water_tile", x: 0, y: 24 },
-    { sprite: "water_tile", x: 8, y: 24 },
-    { sprite: "water_tile", x: 16, y: 24 },
-    { sprite: "water_tile", x: 24, y: 24 },
-    // Sand border
-    { sprite: "sand_tile", x: 8, y: 8 },
-    { sprite: "sand_tile", x: 16, y: 8 },
-    { sprite: "sand_tile", x: 8, y: 16 },
-    { sprite: "sand_tile", x: 16, y: 16 },
-    // Grass center
-    { sprite: "grass_tile", x: 12, y: 12 },
-  ],
-}
-```
-
-This creates a 32x32 pixel island with water around the edges, a sand border, and grass in the center.
+- **A composition cannot be used as a sprite in another composition** with `pxl render` 0.3.1. The key resolves to
+  nothing, the cell is left empty, and the renderer warns `Sprite or variant '<name>' not found`.
+- **An object that fails to parse hides every object after it in the file** (#38). `pxl render -c <name>` then
+  reports that the named composition was not found. Run `pxl validate` first; it names the object and the parse error.
