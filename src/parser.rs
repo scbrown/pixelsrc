@@ -30,6 +30,18 @@ pub fn parse_line(line: &str, line_number: usize) -> Result<TtpObject, ParseErro
     json5::from_str(line).map_err(|e| ParseError { message: e.to_string(), line: line_number })
 }
 
+fn object_parse_warning(content: &str, error: json5::Error, line: usize) -> Warning {
+    let context = json5::from_str::<serde_json::Value>(content).ok().and_then(|value| {
+        let kind = value.get("type")?.as_str()?;
+        let name = value.get("name").and_then(|name| name.as_str());
+        Some(match name {
+            Some(name) => format!("Failed to parse {} {:?}: {}", kind, name, error),
+            None => format!("Failed to parse {}: {}", kind, error),
+        })
+    });
+    Warning { message: context.unwrap_or_else(|| error.to_string()), line }
+}
+
 /// Parse a stream of JSON5 objects into Pixelsrc objects.
 ///
 /// Supports both formats:
@@ -138,9 +150,9 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
             match json5::from_str::<TtpObject>(&accumulator) {
                 Ok(obj) => result.objects.push(obj),
                 Err(e) => {
-                    result.warnings.push(Warning { message: e.to_string(), line: start_line });
-                    // Stop parsing after error - can't reliably find next object boundary
-                    return result;
+                    result.warnings.push(object_parse_warning(&accumulator, e, start_line));
+                    // This balanced object has a known boundary. Report its
+                    // failure, then continue with the next top-level object.
                 }
             }
 
@@ -158,7 +170,7 @@ pub fn parse_stream<R: Read>(reader: R) -> ParseResult {
         match json5::from_str::<TtpObject>(&accumulator) {
             Ok(obj) => result.objects.push(obj),
             Err(e) => {
-                result.warnings.push(Warning { message: e.to_string(), line: start_line });
+                result.warnings.push(object_parse_warning(&accumulator, e, start_line));
             }
         }
     }
@@ -238,14 +250,12 @@ mod tests {
 
     #[test]
     fn test_parse_stream_collects_warnings() {
-        // With streaming JSON parser, syntax errors stop parsing
-        // (can't recover since we don't know where next object starts)
+        // A balanced invalid object must not hide later valid objects.
         let input = r##"{"type": "palette", "name": "mono", "colors": {"on": "#FFFFFF"}}
 {invalid json}
 {"type": "sprite", "name": "dot", "size": [1, 1], "palette": "mono", "regions": {"on": {"points": [[0, 0]], "z": 0}}}"##;
         let result = parse_stream(Cursor::new(input));
-        // First object parses successfully, then we hit the error
-        assert_eq!(result.objects.len(), 1);
+        assert_eq!(result.objects.len(), 2);
         assert_eq!(result.warnings.len(), 1);
         assert_eq!(result.warnings[0].line, 2);
     }
