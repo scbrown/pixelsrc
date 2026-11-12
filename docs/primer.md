@@ -307,8 +307,8 @@ screen_y = origin_y + (tile_h / 2) * (gx + gy) - height        // tile_w = 2 * t
 { type: "composition", name: "scene", size: [32, 32], layers: [{ sprite: "hero", x: 8, y: 8 }] }
 ```
 
-**Fix:** use `sprites` and a `map` (see Composition above). An object that fails to parse is skipped, and
-`pxl render -c <name>` then reports that the composition was not found, so run `pxl validate` first.
+**Fix:** use `sprites` and a `map` (see Composition above). An object that fails to parse hides every
+object after it, and `pxl render -c <name>` then reports that the composition was not found, so run `pxl validate` first.
 
 ### Forward Reference
 

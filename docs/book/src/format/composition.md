@@ -162,5 +162,5 @@ Variables are resolved from the palette's variable registry at render time.
 
 - **A composition cannot be used as a sprite in another composition** with `pxl render` 0.3.1. The key resolves to
   nothing, the cell is left empty, and the renderer warns `Sprite or variant '<name>' not found`.
-- **One composition that fails to parse hides the others.** `pxl render -c <name>` then reports that the named
-  composition was not found. Run `pxl validate` first; it names the object and the parse error.
+- **An object that fails to parse hides every object after it in the file** (#38). `pxl render -c <name>` then
+  reports that the named composition was not found. Run `pxl validate` first; it names the object and the parse error.

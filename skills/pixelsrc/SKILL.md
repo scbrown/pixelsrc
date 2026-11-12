@@ -89,7 +89,7 @@ go in later layers.
 | Symptom | Cause |
 |---------|-------|
 | `missing field sprites` | Composition written with `{ sprite, x, y }` layers. Use `sprites` + `map`. |
-| `No composition named ...` on render | Some composition in the file failed to parse. Run `pxl validate`. |
+| `No composition named ...` on render | An earlier object in the file failed to parse, hiding everything after it. Run `pxl validate`. |
 | A cell renders empty, `Sprite or variant ... not found` | The key names a composition or a sprite that does not exist. |
 | `Palette tokens never used` on a palette used only through `source:` | False alarm; the check does not follow `source`. |
 | `pixel(s) outside the canvas` | A shape's coordinates pass the sprite's `size`; they are clipped. |
