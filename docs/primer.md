@@ -135,17 +135,48 @@ regions: {
 
 ### Composition
 
+A composition places sprites on a canvas with character maps. `sprites` gives each sprite a one-character key; each
+layer's `map` is a grid of those keys, one character per cell of `cell_size` pixels. A sprite is drawn with its
+top-left corner at the top-left of the cell that holds its key. Layers draw first to last, so later layers cover
+earlier ones.
+
 ```json5
 {
   type: "composition",
   name: "scene",
-  size: [64, 64],
+  size: [32, 32],
+  cell_size: [8, 8],
+  sprites: { ".": null, S: "sky", G: "grass", T: "tree", H: "hero" },
   layers: [
-    { sprite: "background", position: [0, 0] },
-    { sprite: "hero", position: [24, 32] },
+    { name: "sky", map: ["S...", "....", "....", "...."] },
+    { name: "ground", map: ["....", "....", "....", "GGGG"] },
+    { name: "things", map: ["....", "....", ".T.H", "...."] },
   ],
 }
 ```
+
+- `sprites` is required. Map a key to `null` for an empty cell.
+- `cell_size` defaults to `[1, 1]`. Pick the largest cell that still lets you place things where you need them.
+- A sprite larger than a cell is fine: it is anchored at the cell's top-left and drawn at full size. A full-canvas
+  background goes in the top-left cell of its own layer.
+- Layers also take `blend` (`multiply`, `screen`, `add`, ...) and `opacity`.
+- There is no `{ sprite, x, y }` or `position` form. It fails with `missing field sprites`.
+- Render one with `pxl render scene.pxl -c scene -o scene.png`.
+
+### Recolouring a Sprite
+
+Two ways to draw the same shapes in other colours:
+
+```json5
+// Override a few tokens
+{ type: "variant", name: "llama_brown", base: "llama", palette: { coat: "#7d5634", coat_shade: "#5c3d22" } }
+
+// Swap the whole palette (the other palette must define the same token names), optionally with a transform
+{ type: "sprite", name: "hut_grey", palette: "hut_grey_colors", source: "hut" }
+{ type: "sprite", name: "llama_right", palette: "llama_colors", source: "llama", transform: ["mirror-h"] }
+```
+
+Name tokens by part or material (`wall`, `thatch`, `sleeve`), not by colour, so a second palette can reuse them.
 
 ## Complete Example
 
@@ -234,7 +265,50 @@ A simple 8x8 coin sprite:
    - Keep under 64x64 for typical pixel art
    - Large sprites lose the pixel art aesthetic
 
+### Building Scenes
+
+A scene is a composition of many small sprites. What works:
+
+1. **One sprite per thing, reused.** A hut, a tree, a figure, a clump of grass. Place each as often as needed.
+2. **Draw far to near.** Put things in layers ordered from the back of the scene to the front. When one object must
+   stand between two parts of another (an animal inside a fence), split the other into a far sprite and a near sprite.
+3. **Give every sprite an anchor.** Decide which pixel stands on the ground (for example the midpoint of the feet)
+   and place the sprite at `anchor position - anchor offset`. Keep positions on multiples of `cell_size`.
+4. **Use full-canvas sprites for terrain.** Ground, roads and large buildings are easier to draw in canvas
+   coordinates. Give the sprite the canvas size and put it in the top-left cell.
+5. **Shadows and light are sprites too.** Colours take alpha (`#RRGGBBAA`). A `shadow: "#00000080"` region under an
+   object, or a warm translucent polygon in front of a doorway, blends over whatever is below it.
+6. **Split a large scene across files.** `cat` the files into one stream before rendering; palettes and sprites must
+   come before the compositions that use them.
+
+#### Isometric Scenes
+
+For a 2:1 isometric view, choose one projection and compute every point from it:
+
+```
+screen_x = origin_x + (tile_w / 2) * (gx - gy)
+screen_y = origin_y + (tile_h / 2) * (gx + gy) - height        // tile_w = 2 * tile_h, e.g. 16 x 8
+```
+
+- A box is three polygons: the top, the face looking down-left and the face looking down-right. Light one face and
+  shade the other the same way on every object.
+- A wall face is a parallelogram: two ground points and the same two points raised by the wall height. Doors, windows
+  and courses of stone are drawn in the same plane (edges parallel to the wall's base, or vertical).
+- A gabled roof is two parallelograms meeting at a ridge line raised above the middle of the building.
+- Roads and paths are bands along a tile axis: lines with slope 1/2 or -1/2.
+- Draw order is by depth: larger `gx + gy` is nearer, so it goes in a later layer.
+
 ## Common Mistakes
+
+### Composition With Positions
+
+```json5
+// WRONG: there is no x/y or position on a layer
+{ type: "composition", name: "scene", size: [32, 32], layers: [{ sprite: "hero", x: 8, y: 8 }] }
+```
+
+**Fix:** use `sprites` and a `map` (see Composition above). An object that fails to parse is skipped, and
+`pxl render -c <name>` then reports that the composition was not found, so run `pxl validate` first.
 
 ### Forward Reference
 
