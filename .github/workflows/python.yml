@@ -140,7 +140,9 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
     needs: linux
-    runs-on: ubuntu-latest
+    # setup-python has no CPython 3.9 x64 build for Ubuntu 26.04.
+    # Keep the complete supported Python matrix on its qualified runner.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
