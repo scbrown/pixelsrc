@@ -353,6 +353,9 @@ pub fn run_render(
     if let Some(name) = sprite_filter {
         sprites.retain(|s| s.name == name);
         if sprites.is_empty() {
+            for warning in &all_warnings {
+                eprintln!("Warning: {}", warning);
+            }
             eprintln!("Error: No sprite named '{}' found in input", name);
             let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
@@ -798,6 +801,9 @@ fn run_composition_render(
     let comp = match compositions.get(comp_name) {
         Some(c) => c,
         None => {
+            for warning in all_warnings.iter() {
+                eprintln!("Warning: {}", warning);
+            }
             eprintln!("Error: No composition named '{}' found in input", comp_name);
             let comp_names: Vec<&str> = compositions.keys().map(|s| s.as_str()).collect();
             if let Some(suggestion) = format_suggestion(&suggest(comp_name, &comp_names, 3)) {

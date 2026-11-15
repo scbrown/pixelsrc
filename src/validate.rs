@@ -8,6 +8,7 @@ use crate::models::{
     Import, Palette, PaletteRef, Particle, Relationship, RelationshipType, TtpObject,
 };
 use crate::palette_parser::{PaletteParser, ParseMode};
+use crate::registry::{PaletteRegistry, SpriteRegistry};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -342,11 +343,10 @@ pub struct Validator {
     /// Each sprite's (own named palette, `extends` target) for resolving the
     /// effective palette of a sprite that omits its palette via `extends`.
     sprite_palette_chain: HashMap<String, (Option<String>, Option<String>)>,
-    /// Token usage from sprites that omit their palette (inheriting via
-    /// `extends`); resolved to the inherited palette at end-of-file so its
-    /// tokens are not falsely flagged unused. Each entry is (extends-target,
-    /// tokens used).
-    deferred_token_usage: Vec<(String, HashSet<String>)>,
+    /// Preserve definitions until end-of-file so token usage follows the same
+    /// source/extends/variant geometry resolution as rendering, including forward references.
+    token_sprites: SpriteRegistry,
+    token_palettes: PaletteRegistry,
 }
 
 impl Default for Validator {
@@ -377,7 +377,8 @@ impl Validator {
             palette_lines: HashMap::new(),
             used_palette_tokens: HashMap::new(),
             sprite_palette_chain: HashMap::new(),
-            deferred_token_usage: Vec::new(),
+            token_sprites: SpriteRegistry::new(),
+            token_palettes: PaletteRegistry::new(),
         }
     }
 
@@ -480,6 +481,7 @@ impl Validator {
         match ttp_obj {
             TtpObject::Palette(palette) => {
                 self.validate_palette(line_number, &palette);
+                self.token_palettes.register(palette);
             }
             TtpObject::Sprite(sprite) => {
                 // Duplicate region keys are unrecoverable after JSON5
@@ -501,6 +503,7 @@ impl Validator {
                     );
                 }
                 self.validate_sprite(line_number, &sprite);
+                self.token_sprites.register_sprite(sprite);
             }
             TtpObject::Animation(animation) => {
                 self.validate_animation(line_number, &animation.name);
@@ -510,6 +513,7 @@ impl Validator {
             }
             TtpObject::Variant(variant) => {
                 self.validate_variant(line_number, &variant.name, &variant.palette);
+                self.token_sprites.register_variant(variant);
             }
             TtpObject::Particle(particle) => {
                 self.validate_particle(line_number, &particle);
@@ -931,17 +935,10 @@ impl Validator {
         // palettes are shared between sprites, so per-sprite reporting would
         // be noisy); inline palettes are self-contained — check immediately.
         match &sprite.palette {
-            // An extending sprite that omits its palette: defer its token usage
-            // and credit it to the inherited palette once the file is parsed.
-            PaletteRef::Named(palette_name) if palette_name.is_empty() => {
-                if let Some(base) = &sprite.extends {
-                    self.deferred_token_usage.push((base.clone(), all_tokens_used.clone()));
-                }
-            }
+            // Named palettes are checked after all source definitions exist.
             PaletteRef::Named(palette_name) => {
-                let used = self.used_palette_tokens.entry(palette_name.clone()).or_default();
-                for token in &all_tokens_used {
-                    used.insert(token.clone());
+                if !palette_name.is_empty() {
+                    self.used_palette_tokens.entry(palette_name.clone()).or_default();
                 }
             }
             PaletteRef::Inline(colors) => {
@@ -1042,30 +1039,26 @@ impl Validator {
     /// the end of a file pass; only palettes referenced by at least one
     /// local sprite are checked, so palette-only library files stay quiet.
     pub fn report_unused_palette_tokens(&mut self) {
-        // Credit tokens used by palette-omitting `extends` sprites to the
-        // palette they inherit, walking the extends chain to the first sprite
-        // that declares a named palette. This prevents a token used only by an
-        // extending frame from being reported as unused.
-        let deferred = std::mem::take(&mut self.deferred_token_usage);
-        for (base, tokens) in deferred {
-            let mut cursor = Some(base);
-            let mut hops = 0;
-            while let Some(name) = cursor {
-                hops += 1;
-                if hops > 64 {
-                    break; // guard against a cycle in malformed input
+        // Resolve effective regions instead of counting only locally declared
+        // keys. This also respects extends removal/patching and source chains.
+        for name in self.sprite_palette_chain.keys() {
+            let mut cursor = name.clone();
+            let mut visited = HashSet::new();
+            let palette_name = loop {
+                if !visited.insert(cursor.clone()) {
+                    break None;
                 }
-                match self.sprite_palette_chain.get(&name) {
-                    Some((Some(palette_name), _)) => {
-                        let used =
-                            self.used_palette_tokens.entry(palette_name.clone()).or_default();
-                        for token in &tokens {
-                            used.insert(token.clone());
-                        }
-                        break;
-                    }
-                    Some((None, Some(next))) => cursor = Some(next.clone()),
-                    _ => break,
+                match self.sprite_palette_chain.get(&cursor) {
+                    Some((Some(palette_name), _)) => break Some(palette_name.clone()),
+                    Some((None, Some(next))) => cursor = next.clone(),
+                    _ => break None,
+                }
+            };
+            let Some(palette_name) = palette_name else { continue };
+            if let Ok(resolved) = self.token_sprites.resolve(name, &self.token_palettes, false) {
+                let used = self.used_palette_tokens.entry(palette_name).or_default();
+                if let Some(regions) = resolved.regions {
+                    used.extend(regions.into_keys());
                 }
             }
         }
