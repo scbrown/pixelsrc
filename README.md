@@ -51,6 +51,43 @@ pixelsrc is a semantic, human-readable text format for defining pixel art. Unlik
 
 ## Installation
 
+### One-line installer (Linux/macOS)
+
+Requires Python 3.9+ and HTTPS access to GitHub; no Rust compiler is needed.
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/scbrown/pixelsrc/main/install.sh | sh
+pxl --version
+```
+
+The installer selects the latest stable release for Linux (glibc) or macOS,
+on x86_64 or aarch64. It verifies the archive against the release's
+`SHA256SUMS.txt`, accepts only a single regular `pxl` file, then checks the
+binary's reported version. This trusts the GitHub release publisher and HTTPS;
+checksums from the same release do not provide an independent signature.
+Linux binaries must also support your system's glibc version. Other platforms,
+including musl Linux, can use Cargo or the release downloads below.
+
+The default destination is `~/.local/share/pixelsrc/vVERSION/pxl`, linked as
+`~/.local/bin/pxl`. Add `~/.local/bin` to `PATH` if necessary. Existing directories,
+command links (including dangling links), and an existing `pxl` on `PATH` are
+refused. Use the original package manager for package-managed installations.
+The script never edits shell profiles, uses sudo, or changes project files.
+
+For a pinned release or an isolated installation, download and inspect the script,
+then run:
+
+```bash
+sh install.sh --version 0.3.1 --prefix "$HOME/tools/pxl-0.3.1"
+"$HOME/tools/pxl-0.3.1/pxl" --version
+sh install.sh --dry-run  # metadata resolution only; no payload check or writes
+```
+
+A custom prefix creates no global command link. To uninstall, remove only the
+directory created by this installer and, for a default install, its matching
+`~/.local/bin/pxl` symlink. To upgrade without overwriting anything, install into
+a new custom prefix and select that command explicitly.
+
 ### Homebrew (macOS/Linux)
 
 ```bash

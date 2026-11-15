@@ -1,0 +1,56 @@
+name: Public installer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  installer:
+    name: Installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Actual installer fixture controls
+        run: python3 scripts/test-public-installer.py
+      - name: Resolve an actual published release without writing
+        shell: bash
+        run: |
+          export HOME="$(mktemp -d)"
+          sh install.sh --version 0.3.1 --dry-run
+          test ! -e "$HOME/.local"
+      - name: Install actual published binary and verify command discovery
+        shell: bash
+        run: |
+          export HOME="$(mktemp -d)"
+          sh install.sh --version 0.3.1
+          export PATH="$HOME/.local/bin:$PATH"
+          test "$(pxl --version)" = "pxl 0.3.1"
+          test -L "$HOME/.local/bin/pxl"
+          if sh install.sh --version 0.3.1; then
+            echo 'ERROR: reinstall overwrote an existing installation'
+            exit 1
+          fi
+          test "$(pxl --version)" = "pxl 0.3.1"
+      - name: Install isolated binary without a command link
+        shell: bash
+        run: |
+          export HOME="$(mktemp -d)"
+          sh install.sh --version 0.3.1 --prefix "$HOME/private-pxl"
+          test "$("$HOME/private-pxl/pxl" --version)" = "pxl 0.3.1"
+          test ! -e "$HOME/.local/bin/pxl"
