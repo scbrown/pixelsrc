@@ -15,7 +15,7 @@ concurrency:
 jobs:
   release-plz:
     name: Release-plz
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
@@ -27,10 +27,15 @@ jobs:
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
+      # Semver checks build the Python feature; PyO3 0.23 supports through 3.13.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: MarcoIeni/release-plz-action@v0.5
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYO3_PYTHON: python
       - name: Resolve the new tag
         id: tag
         if: steps.release.outputs.releases_created == 'true'

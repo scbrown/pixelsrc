@@ -1,0 +1,11 @@
+Script started on 2026-11-12 14:57:32-05:00 [COMMAND="bash docs/bugs/record-parse-recovery.sh" <not executed on terminal>]
+before: render good composition after malformed composition
+Error: No composition named 'good' found in input
+exit=1
+after: render good composition after malformed composition
+Saved: /tmp/pxl-parse-demo.dAzBJx/result.png
+Warning: line 3: Failed to parse composition "bad": missing field `sprites`
+Warning: composition 'good': Sprite 'dot' (4x4) exceeds cell size (1x1) in composition 'good', anchoring from top-left
+exit=0, image saved
+
+Script done on 2026-11-12 14:57:32-05:00 [COMMAND_EXIT_CODE="0"]

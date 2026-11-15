@@ -1,0 +1,4 @@
+{ type: "palette", name: "p", colors: { _: "transparent", a: "#ff0000" } }
+{ type: "palette", name: "q", colors: { _: "transparent", a: "#00ff00" } }
+{ type: "sprite", name: "dot", size: [4, 4], palette: "p", regions: { a: { rect: [0,0,4,4] } } }
+{ type: "sprite", name: "dot_q", palette: "q", source: "dot" }
