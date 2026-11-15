@@ -1,0 +1,4 @@
+{ type: "palette", name: "p", colors: { _: "transparent", a: "#ff0000" } }
+{ type: "sprite", name: "dot", size: [4, 4], palette: "p", regions: { a: { rect: [0, 0, 2, 2], z: 0 } } }
+{ type: "composition", name: "pair", size: [8, 4], cell_size: [4, 4], sprites: { D: "dot" }, layers: [ { map: ["DD"] } ] }
+{ type: "composition", name: "scene", size: [8, 8], cell_size: [8, 4], sprites: { P: "pair" }, layers: [ { map: ["P", "P"] } ] }

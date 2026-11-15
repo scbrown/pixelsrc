@@ -1,0 +1,11 @@
+Script started on 2026-11-12 15:06:26-05:00 [COMMAND="bash docs/bugs/record-nested-composition.sh" <not executed on terminal>]
+before: render scene containing a repeated nested pair
+Saved: /tmp/pxl-nested-demo.RFKy3f/scene.png
+Warning: sprite 'pair': Sprite or variant 'pair' not found
+Warning: sprite 'pair': Sprite/variant 'pair' uses deprecated grid format. Please convert to structured regions format.
+canvas=8x8 visible_pixels=0
+after: render scene containing a repeated nested pair
+Saved: /tmp/pxl-nested-demo.RFKy3f/scene.png
+canvas=8x8 visible_pixels=16
+
+Script done on 2026-11-12 15:06:26-05:00 [COMMAND_EXIT_CODE="0"]
