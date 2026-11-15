@@ -89,8 +89,8 @@ go in later layers.
 | Symptom | Cause |
 |---------|-------|
 | `missing field sprites` | Composition written with `{ sprite, x, y }` layers. Use `sprites` + `map`. |
-| `No composition named ...` on render | An earlier object in the file failed to parse, hiding everything after it. Run `pxl validate`. |
-| A cell renders empty, `Sprite or variant ... not found` | The key names a composition or a sprite that does not exist. |
-| `Palette tokens never used` on a palette used only through `source:` | False alarm; the check does not follow `source`. |
+| `No composition named ...` on render | Check the name and run `pxl validate`. Released 0.3.1 also hides objects after a parse error; current source continues parsing. |
+| A cell renders empty, `Sprite or variant ... not found` | Check the referenced name. Released 0.3.1 cannot resolve a composition here; current source supports nested compositions and rejects cycles. |
+| `Palette tokens never used` on a palette used only through `source:` | Released 0.3.1 can report a false alarm. Current source counts inherited geometry; check the version and whether the token is actually used. |
 | `pixel(s) outside the canvas` | A shape's coordinates pass the sprite's `size`; they are clipped. |
 | Shapes cover each other wrongly | Missing or equal `z` values. |

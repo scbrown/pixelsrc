@@ -158,9 +158,14 @@ ordinary layer.
 
 Variables are resolved from the palette's variable registry at render time.
 
-## Known Limits
+## Released 0.3.1 Limitations
 
 - **A composition cannot be used as a sprite in another composition** with `pxl render` 0.3.1. The key resolves to
   nothing, the cell is left empty, and the renderer warns `Sprite or variant '<name>' not found`.
 - **An object that fails to parse hides every object after it in the file** (#38). `pxl render -c <name>` then
   reports that the named composition was not found. Run `pxl validate` first; it names the object and the parse error.
+
+Current source fixes both limitations: the CLI resolves nested compositions,
+including bases and animation frames, and continues parsing after an invalid
+object. Cyclic composition references fail with an error. These source fixes
+do not change an installed 0.3.1 executable; check which version you are using.
