@@ -8,11 +8,14 @@ use std::io::Cursor;
 use image::RgbaImage;
 use wasm_bindgen::prelude::*;
 
-use crate::composition::render_composition;
+use crate::composition::{render_composition, RenderContext};
 use crate::models::{Composition, Sprite, TtpObject};
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, SpriteRegistry};
 use crate::renderer::{render_resolved, render_sprite};
+
+mod project;
+pub use project::Project;
 
 /// Initialize panic hook for better error messages in WASM
 #[wasm_bindgen(start)]
@@ -164,19 +167,21 @@ struct Scene {
 
 fn load_scene(jsonl: &str) -> Scene {
     let parsed = parse_stream(Cursor::new(jsonl));
+    let warnings =
+        parsed.warnings.iter().map(|w| format!("line {}: {}", w.line, w.message)).collect();
+    prepare_scene(parsed.objects, warnings)
+}
+
+fn prepare_scene(objects: Vec<TtpObject>, warnings: Vec<String>) -> Scene {
     let mut scene = Scene {
         palettes: PaletteRegistry::new(),
         registry: SpriteRegistry::new(),
         sprites: HashMap::new(),
         compositions: HashMap::new(),
         names: Vec::new(),
-        warnings: parsed
-            .warnings
-            .iter()
-            .map(|w| format!("line {}: {}", w.line, w.message))
-            .collect(),
+        warnings,
     };
-    for obj in parsed.objects {
+    for obj in objects {
         match obj {
             TtpObject::Palette(p) => scene.palettes.register(p),
             TtpObject::Sprite(s) => {
@@ -227,6 +232,15 @@ fn render_sprite_named(scene: &Scene, name: &str, warnings: &mut Vec<String>) ->
 
 /// Render a composition, sprite or variant by name. Compositions take precedence.
 fn render_named(scene: &Scene, name: &str, warnings: &mut Vec<String>) -> Option<RgbaImage> {
+    render_named_with_context(scene, name, warnings, &mut RenderContext::new())
+}
+
+fn render_named_with_context(
+    scene: &Scene,
+    name: &str,
+    warnings: &mut Vec<String>,
+    context: &mut RenderContext,
+) -> Option<RgbaImage> {
     let Some(comp) = scene.compositions.get(name) else {
         if scene.registry.contains(name) {
             return render_sprite_named(scene, name, warnings);
@@ -234,32 +248,51 @@ fn render_named(scene: &Scene, name: &str, warnings: &mut Vec<String>) -> Option
         warnings.push(format!("No sprite, variant or composition named '{}'", name));
         return None;
     };
-    let mut rendered: HashMap<String, RgbaImage> = HashMap::new();
-    let wanted = comp
-        .base
-        .iter()
-        .chain(comp.sprites.values().flatten())
-        .chain(comp.layers.iter().filter_map(|l| l.sprite.as_ref()));
-    for sprite_name in wanted {
-        if rendered.contains_key(sprite_name) {
-            continue;
-        }
-        if let Some(image) = render_sprite_named(scene, sprite_name, warnings) {
-            rendered.insert(sprite_name.clone(), image);
-        }
+    if let Some(image) = context.get_cached(name) {
+        return Some(image.clone());
     }
-    match render_composition(comp, &rendered, false, None) {
-        Ok((image, comp_warnings)) => {
-            for w in comp_warnings {
-                warnings.push(format!("composition '{}': {}", name, w.message));
+    if let Err(error) = context.push(name) {
+        warnings.push(error.to_string());
+        return None;
+    }
+    let result = {
+        let mut rendered: HashMap<String, RgbaImage> = HashMap::new();
+        let wanted = comp
+            .base
+            .iter()
+            .chain(comp.sprites.values().flatten())
+            .chain(comp.layers.iter().filter_map(|l| l.sprite.as_ref()));
+        for sprite_name in wanted {
+            if rendered.contains_key(sprite_name) {
+                continue;
             }
-            Some(image)
+            let image = if scene.compositions.contains_key(sprite_name) {
+                render_named_with_context(scene, sprite_name, warnings, context)
+            } else {
+                render_sprite_named(scene, sprite_name, warnings)
+            };
+            if let Some(image) = image {
+                rendered.insert(sprite_name.clone(), image);
+            }
         }
-        Err(e) => {
-            warnings.push(format!("composition '{}': {}", name, e));
-            None
+        match render_composition(comp, &rendered, false, None) {
+            Ok((image, comp_warnings)) => {
+                for w in comp_warnings {
+                    warnings.push(format!("composition '{}': {}", name, w.message));
+                }
+                Some(image)
+            }
+            Err(e) => {
+                warnings.push(format!("composition '{}': {}", name, e));
+                None
+            }
         }
+    };
+    context.pop();
+    if let Some(image) = &result {
+        context.cache(name.to_string(), image.clone());
     }
+    result
 }
 
 fn encode_png(image: &RgbaImage) -> Vec<u8> {
@@ -284,8 +317,12 @@ fn encode_png(image: &RgbaImage) -> Vec<u8> {
 #[wasm_bindgen]
 pub fn render_named_to_rgba(jsonl: &str, name: &str) -> RenderResult {
     let scene = load_scene(jsonl);
+    render_scene_to_rgba(&scene, name)
+}
+
+fn render_scene_to_rgba(scene: &Scene, name: &str) -> RenderResult {
     let mut warnings = scene.warnings.clone();
-    match render_named(&scene, name, &mut warnings) {
+    match render_named(scene, name, &mut warnings) {
         Some(image) => RenderResult {
             width: image.width(),
             height: image.height(),
