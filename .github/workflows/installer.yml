@@ -16,6 +16,8 @@ jobs:
   installer:
     name: Installer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
     timeout-minutes: 10
     strategy:
       fail-fast: false

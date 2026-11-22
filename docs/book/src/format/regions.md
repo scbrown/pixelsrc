@@ -126,7 +126,17 @@ Flood fill inside a boundary.
 skin: { fill: "inside(outline)" }
 ```
 
-Optional: `seed: [x, y]` (starting point, auto-detected if omitted)
+Optional: `seed: [x, y]` selects an enclosed starting pixel. If omitted, the
+renderer chooses an enclosed pixel near the boundary's bounding-box centre,
+including for concave shapes. A seed on the boundary, outside the canvas or
+connected to the exterior produces a warning and an empty fill. Open boundaries
+have no enclosed interior and also warn. Nested fills in compound operations wait
+for their referenced boundary.
+
+A numeric `seed: 42` remains a jitter seed; it does not choose a fill coordinate.
+Rust callers constructing `RegionDef` use `RegionSeed::Random(42)` or
+`RegionSeed::Fill([x, y])` instead of a bare integer. Existing `.pxl` numeric
+seeds remain compatible.
 
 ## Compound Operations
 
@@ -240,7 +250,16 @@ shadow: {
 
 ### Z-Order
 
-Explicit render order (default: definition order).
+Regions paint from lowest to highest z. Equal-z regions retain their source
+definition order, so with no z or role overrides, the last overlapping region
+wins. Semantic roles still supply their existing default z values.
+
+Region definitions use an ordered map throughout parsing, inheritance and
+rendering. Extending a sprite retains inherited region positions; replacing a
+region keeps its position, adding a new region appends it, and removal preserves
+remaining positions. Rust callers use `indexmap::IndexMap<String, RegionDef>`
+instead of `HashMap` for region maps. Palettes and rasterized-pixel lookups keep
+their existing types.
 
 ```json5
 detail: {
@@ -335,7 +354,7 @@ _: "background"
 
 Regions are processed in two passes:
 
-1. **Shape resolution** (definition order): Each region's pixels are computed. Pixel-affecting operations (`fill: "inside(X)"`, `except: [X]`, `auto-outline: X`) require X to be defined earlier.
+1. **Shape resolution** (dependency order): Each region is rasterized after its `fill`, `except`, `auto-outline` and `auto-shadow` dependencies, including nested compound operations. A boundary may appear later in the source. Painting is a separate stable z sort over definition order.
 
 2. **Validation** (after all resolved): Constraints (`within`, `adjacent-to`) are checked. These can reference any region.
 

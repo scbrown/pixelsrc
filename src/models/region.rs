@@ -17,6 +17,17 @@ pub struct JitterSpec {
     pub y: Option<[i32; 2]>,
 }
 
+/// A numeric jitter seed or an explicit flood-fill starting coordinate.
+/// Numeric seeds retain their original JSON representation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum RegionSeed {
+    /// Deterministic randomness for jitter.
+    Random(u32),
+    /// Starting pixel for an inside fill.
+    Fill([i32; 2]),
+}
+
 /// Region definition for structured sprites (Format v2).
 ///
 /// Defines a single region (token) using shape primitives, compound operations,
@@ -168,9 +179,9 @@ pub struct RegionDef {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub jitter: Option<JitterSpec>,
 
-    /// Random seed for jitter
+    /// Numeric jitter seed, or `[x, y]` starting pixel for an inside fill
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub seed: Option<u32>,
+    pub seed: Option<RegionSeed>,
 
     // Semantic metadata
     /// Semantic role of this region (boundary, fill, shadow, etc.)

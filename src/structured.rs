@@ -5,7 +5,7 @@
 //! operations, then rasterized and rendered in z-order.
 
 use crate::color::parse_color;
-use crate::models::{RegionDef, Role};
+use crate::models::{RegionDef, RegionSeed, Role};
 use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
@@ -134,7 +134,24 @@ pub fn rasterize_region(
         // Parse fill reference: "inside(token_name)"
         if let Some(token_name) = parse_fill_reference(fill_ref) {
             if let Some(boundary) = all_regions.get(token_name) {
-                pixels = flood_fill(boundary, None, canvas_width, canvas_height);
+                let seed = match region.seed {
+                    Some(RegionSeed::Fill([x, y])) => Some((x, y)),
+                    _ => None,
+                };
+                pixels = flood_fill(boundary, seed, canvas_width, canvas_height);
+                // An inside fill must never select the component connected to
+                // the canvas edge. This also diagnoses invalid explicit seeds.
+                if pixels.is_empty()
+                    || pixels.iter().any(|&(x, y)| {
+                        x == 0 || y == 0 || x == canvas_width - 1 || y == canvas_height - 1
+                    })
+                {
+                    pixels.clear();
+                    warnings.push(Warning::new(format!(
+                        "No enclosed interior for fill '{}' (seed must be inside the boundary)",
+                        token_name
+                    )));
+                }
             } else {
                 warnings.push(Warning::new(format!(
                     "Unknown token '{}' in fill reference",
@@ -278,7 +295,7 @@ fn region_references<'a>(region: &'a RegionDef, refs: &mut Vec<&'a str>) {
 /// left in a reference cycle are rasterized last, in name order, and the
 /// unresolved references produce the usual warnings.
 pub fn rasterize_regions(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     canvas_width: i32,
     canvas_height: i32,
     warnings: &mut Vec<Warning>,
@@ -394,7 +411,7 @@ fn apply_symmetric(
 pub fn render_structured(
     name: &str,
     size: Option<[u32; 2]>,
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     palette: &HashMap<String, String>,
 ) -> (RgbaImage, Vec<Warning>) {
     let mut warnings = Vec::new();
@@ -491,7 +508,7 @@ pub fn render_structured(
 ///
 /// A vector of `AnchorBounds` representing the bounding box of each anchor region.
 pub fn extract_anchor_bounds(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     canvas_width: i32,
     canvas_height: i32,
 ) -> Vec<crate::transforms::AnchorBounds> {
@@ -520,6 +537,53 @@ mod tests {
     use super::*;
     use crate::parser::parse_line;
     use crate::registry::{PaletteRegistry, SpriteRegistry};
+
+    #[test]
+    fn test_concave_fill_stays_inside_with_nested_operations() {
+        let boundary: RegionDef = serde_json::from_value(serde_json::json!({
+            "line": [[0,0],[3,0],[3,6],[6,6],[6,0],[9,0],[9,9],[0,9],[0,0]]
+        }))
+        .unwrap();
+        for fill in [
+            serde_json::json!({"fill":"inside(outline)"}),
+            serde_json::json!({"union":[{"fill":"inside(outline)"}]}),
+            serde_json::json!({"intersect":[{"fill":"inside(outline)"},{"rect":[0,0,10,10]}]}),
+        ] {
+            let regions = indexmap::IndexMap::from([
+                ("outline".into(), boundary.clone()),
+                ("body".into(), serde_json::from_value(fill).unwrap()),
+            ]);
+            let mut warnings = Vec::new();
+            let raster = rasterize_regions(&regions, 10, 10, &mut warnings);
+            assert!(warnings.is_empty(), "{warnings:?}");
+            assert!(raster["body"].contains(&(1, 1)));
+            assert!(raster["body"].contains(&(8, 1)));
+            assert!(!raster["body"].contains(&(4, 0)), "filled exterior notch");
+            assert!(!raster["body"].contains(&(4, 4)), "filled exterior notch");
+        }
+    }
+
+    #[test]
+    fn test_fill_coordinate_seed_and_invalid_controls() {
+        let regions =
+            HashMap::from([("outline".into(), crate::shapes::rasterize_stroke(1, 1, 5, 5, 1))]);
+        for (seed, expected) in [
+            (serde_json::json!([2, 2]), 9),
+            (serde_json::json!([1, 1]), 0),
+            (serde_json::json!([-1, 2]), 0),
+            (serde_json::json!([10, 2]), 0),
+        ] {
+            let fill: RegionDef =
+                serde_json::from_value(serde_json::json!({"fill":"inside(outline)","seed":seed}))
+                    .unwrap();
+            let mut warnings = Vec::new();
+            assert_eq!(rasterize_region(&fill, &regions, 10, 10, &mut warnings).len(), expected);
+            assert_eq!(warnings.is_empty(), expected != 0);
+        }
+        let jitter: RegionDef =
+            serde_json::from_value(serde_json::json!({"rect":[0,0,1,1],"seed":42})).unwrap();
+        assert_eq!(serde_json::to_value(jitter).unwrap()["seed"], 42);
+    }
 
     #[test]
     fn test_parse_fill_reference() {
@@ -624,7 +688,7 @@ mod tests {
 
     #[test]
     fn test_render_structured_basic() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         regions.insert(
             "o".to_string(),
             RegionDef { stroke: Some([0, 0, 8, 8]), thickness: Some(1), ..Default::default() },
@@ -735,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_render_structured_with_auto_shadow() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         regions.insert(
             "body".to_string(),
             RegionDef { rect: Some([1, 1, 4, 4]), z: Some(1), ..Default::default() },
@@ -774,7 +838,7 @@ mod tests {
         // fresh HashMap iterates in a new random order every time; before
         // dependency ordering this chain came out wrong in most runs.
         for _ in 0..64 {
-            let mut regions = HashMap::new();
+            let mut regions = indexmap::IndexMap::new();
             regions.insert(
                 "a".to_string(),
                 RegionDef { rect: Some([0, 0, 2, 4]), ..Default::default() },
@@ -807,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_rasterize_regions_survives_a_reference_cycle() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         let a = RegionDef {
             rect: Some([0, 0, 2, 2]),
             except: Some(vec!["b".to_string()]),
@@ -927,7 +991,7 @@ mod tests {
     fn test_role_based_z_ordering() {
         // Create overlapping regions with different roles but no explicit z
         // The anchor (eye) should render on top of fill (skin) despite being added first
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
 
         // Fill region at position (2,2)-(5,5) - should be at bottom
         regions.insert(
@@ -958,7 +1022,7 @@ mod tests {
     #[test]
     fn test_explicit_z_overrides_role() {
         // Explicit z should override role-based z
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
 
         // Anchor role but explicit low z - should be behind
         regions.insert(
