@@ -401,3 +401,19 @@ For large atlases, consider using `scale2x` or `hq2x` for faster builds, reservi
 - [Semantic Metadata](../format/semantic.md) - Roles and relationships
 - [render command](../cli/render.md) - Rendering options
 - [Configuration](config.md) - pxl.toml reference
+
+### Composition PNG output
+
+`pxl render source.pxl -c scene --antialias xbr4x` now applies the selected
+algorithm once to the composed bitmap, after nested compositions and sprite
+transforms. Without `--scale`, 4x algorithms produce four times the source width
+and height. As above, `--scale` is an additional nearest-neighbor multiplier:
+`--antialias xbr4x --scale 4` produces 16x dimensions. Batch PNG rendering uses
+the same output pipeline for sprites and compositions. No flag preserves the
+original crisp output.
+
+This output stage operates on flattened pixels without region/anchor metadata.
+Semantic-aware algorithm APIs remain available when callers supply a semantic
+context. CLI antialiasing is currently limited to PNG sprite/composition output;
+animation, particle and atlas modes report an explicit error instead of silently
+ignoring a requested algorithm. `--aa-strength` must be in `[0,1]`.
