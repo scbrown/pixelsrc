@@ -27,7 +27,10 @@ VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 class HTTPSOnly(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         check_url(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected and urllib.parse.urlsplit(newurl).hostname != "api.github.com":
+            redirected.remove_header("Authorization")
+        return redirected
 
 
 def check_url(url):
@@ -44,6 +47,11 @@ def check_url(url):
 def fetch(url, limit):
     check_url(url)
     req = urllib.request.Request(url, headers={"User-Agent": "pixelsrc-installer"})
+    parsed = urllib.parse.urlsplit(url)
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if (token and parsed.hostname == "api.github.com"
+            and parsed.path.startswith(f"/repos/{REPO}/releases/")):
+        req.add_header("Authorization", f"Bearer {token}")
     with urllib.request.build_opener(HTTPSOnly()).open(req, timeout=30) as response:
         check_url(response.geturl())
         body = response.read(limit + 1)
