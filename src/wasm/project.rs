@@ -215,6 +215,29 @@ mod tests {
     }
 
     #[test]
+    fn loaded_project_collects_direct_positioned_and_nested_layer_references() {
+        let figures = r#"{type:"composition",name:"figure",size:[4,4],layers:[{sprite:"dot",x:1,y:1}]}
+{type:"composition",name:"page",size:[6,6],layers:[{sprite:"figure",x:1,y:1}]}"#;
+        let sources = serde_json::json!([
+            {"path":"shared.pxl","text":SHARED},
+            {"path":"figures.pxl","text":figures}
+        ])
+        .to_string();
+        let project = load_project(&sources).unwrap();
+        for _ in 0..2 {
+            let image = project.render("page");
+            assert_eq!((image.width(), image.height()), (6, 6));
+            assert!(image.warnings().is_empty(), "{:?}", image.warnings());
+            for (index, pixel) in image.pixels().as_chunks::<4>().0.iter().enumerate() {
+                assert_eq!(
+                    pixel,
+                    if index == 2 * 6 + 2 { &[255, 0, 0, 255] } else { &[0, 0, 0, 0] }
+                );
+            }
+        }
+    }
+
+    #[test]
     fn rejects_invalid_paths_duplicate_paths_and_invalid_source() {
         for sources in [
             "[]".to_string(),
