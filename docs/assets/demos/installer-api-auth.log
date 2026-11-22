@@ -1,0 +1,15 @@
+Script started on 2026-11-22 18:31:17-05:00 [COMMAND="bash /tmp/grant-installer-auth-demo.sh" <not executed on terminal>]
+BEFORE: actual installer with synthetic-token controls
+FAILED (failures=2)
+API opt-in and cross-host redirect protection are absent.
+
+AFTER: actual installer fixture suite and header-boundary controls
+Ran 21 tests in 0.085s
+OK
+Ran 2 tests in 0.001s
+OK
+Release API: authenticated only when a token is supplied.
+Asset hosts and API-to-asset redirects: no Authorization header.
+No token: the original anonymous request behaviour is retained.
+
+Script done on 2026-11-22 18:31:17-05:00 [COMMAND_EXIT_CODE="0"]
