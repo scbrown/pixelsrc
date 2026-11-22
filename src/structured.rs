@@ -5,7 +5,7 @@
 //! operations, then rasterized and rendered in z-order.
 
 use crate::color::parse_color;
-use crate::models::{RegionDef, Role};
+use crate::models::{RegionDef, RegionSeed, Role};
 use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
@@ -134,7 +134,24 @@ pub fn rasterize_region(
         // Parse fill reference: "inside(token_name)"
         if let Some(token_name) = parse_fill_reference(fill_ref) {
             if let Some(boundary) = all_regions.get(token_name) {
-                pixels = flood_fill(boundary, None, canvas_width, canvas_height);
+                let seed = match region.seed {
+                    Some(RegionSeed::Fill([x, y])) => Some((x, y)),
+                    _ => None,
+                };
+                pixels = flood_fill(boundary, seed, canvas_width, canvas_height);
+                // An inside fill must never select the component connected to
+                // the canvas edge. This also diagnoses invalid explicit seeds.
+                if pixels.is_empty()
+                    || pixels.iter().any(|&(x, y)| {
+                        x == 0 || y == 0 || x == canvas_width - 1 || y == canvas_height - 1
+                    })
+                {
+                    pixels.clear();
+                    warnings.push(Warning::new(format!(
+                        "No enclosed interior for fill '{}' (seed must be inside the boundary)",
+                        token_name
+                    )));
+                }
             } else {
                 warnings.push(Warning::new(format!(
                     "Unknown token '{}' in fill reference",
@@ -520,6 +537,53 @@ mod tests {
     use super::*;
     use crate::parser::parse_line;
     use crate::registry::{PaletteRegistry, SpriteRegistry};
+
+    #[test]
+    fn test_concave_fill_stays_inside_with_nested_operations() {
+        let boundary: RegionDef = serde_json::from_value(serde_json::json!({
+            "line": [[0,0],[3,0],[3,6],[6,6],[6,0],[9,0],[9,9],[0,9],[0,0]]
+        }))
+        .unwrap();
+        for fill in [
+            serde_json::json!({"fill":"inside(outline)"}),
+            serde_json::json!({"union":[{"fill":"inside(outline)"}]}),
+            serde_json::json!({"intersect":[{"fill":"inside(outline)"},{"rect":[0,0,10,10]}]}),
+        ] {
+            let regions = HashMap::from([
+                ("outline".into(), boundary.clone()),
+                ("body".into(), serde_json::from_value(fill).unwrap()),
+            ]);
+            let mut warnings = Vec::new();
+            let raster = rasterize_regions(&regions, 10, 10, &mut warnings);
+            assert!(warnings.is_empty(), "{warnings:?}");
+            assert!(raster["body"].contains(&(1, 1)));
+            assert!(raster["body"].contains(&(8, 1)));
+            assert!(!raster["body"].contains(&(4, 0)), "filled exterior notch");
+            assert!(!raster["body"].contains(&(4, 4)), "filled exterior notch");
+        }
+    }
+
+    #[test]
+    fn test_fill_coordinate_seed_and_invalid_controls() {
+        let regions =
+            HashMap::from([("outline".into(), crate::shapes::rasterize_stroke(1, 1, 5, 5, 1))]);
+        for (seed, expected) in [
+            (serde_json::json!([2, 2]), 9),
+            (serde_json::json!([1, 1]), 0),
+            (serde_json::json!([-1, 2]), 0),
+            (serde_json::json!([10, 2]), 0),
+        ] {
+            let fill: RegionDef =
+                serde_json::from_value(serde_json::json!({"fill":"inside(outline)","seed":seed}))
+                    .unwrap();
+            let mut warnings = Vec::new();
+            assert_eq!(rasterize_region(&fill, &regions, 10, 10, &mut warnings).len(), expected);
+            assert_eq!(warnings.is_empty(), expected != 0);
+        }
+        let jitter: RegionDef =
+            serde_json::from_value(serde_json::json!({"rect":[0,0,1,1],"seed":42})).unwrap();
+        assert_eq!(serde_json::to_value(jitter).unwrap()["seed"], 42);
+    }
 
     #[test]
     fn test_parse_fill_reference() {
