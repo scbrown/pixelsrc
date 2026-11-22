@@ -101,6 +101,7 @@ fn test_explain_animation() {
         keyframes: None,
         source: None,
         transform: None,
+        frame_durations: None,
         duration: Some(pixelsrc::models::Duration::Milliseconds(150)),
         timing_function: None,
         r#loop: None,

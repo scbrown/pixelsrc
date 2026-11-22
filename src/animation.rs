@@ -80,6 +80,9 @@ fn validate_frame_tags(
 /// ```
 pub fn validate_animation(anim: &Animation, sprites: &[Sprite]) -> Vec<Warning> {
     let mut warnings = Vec::new();
+    if let Err(error) = anim.frame_durations_ms() {
+        warnings.push(Warning::new(format!("Animation '{}': {}", anim.name, error)));
+    }
 
     // Warn if animation has no frames
     if anim.frames.is_empty() {
