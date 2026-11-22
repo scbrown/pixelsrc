@@ -1,6 +1,6 @@
 //! PNG output and file path generation
 
-use crate::antialias::{AAAlgorithm, AntialiasConfig};
+use crate::antialias::{AAAlgorithm, AntialiasConfig, Scale2xOptions, SemanticContext};
 use image::imageops::FilterType;
 use image::RgbaImage;
 use std::io;
@@ -80,12 +80,12 @@ pub fn scale_image(image: RgbaImage, factor: u8) -> RgbaImage {
 /// | Algorithm | Status | Scale Factor |
 /// |-----------|--------|--------------|
 /// | `nearest` | ✓ Passthrough | 1x |
-/// | `aa-blur` | Pending (AA-6) | 1x |
-/// | `scale2x` | Pending (AA-7) | 2x |
-/// | `hq2x`    | Pending (AA-8) | 2x |
-/// | `hq4x`    | Pending (AA-8) | 4x |
-/// | `xbr2x`   | Pending (AA-9) | 2x |
-/// | `xbr4x`   | Pending (AA-9) | 4x |
+/// | `aa-blur` | Implemented | 1x |
+/// | `scale2x` | Implemented | 2x |
+/// | `hq2x`    | Implemented | 2x |
+/// | `hq4x`    | Implemented | 4x |
+/// | `xbr2x`   | Implemented | 2x |
+/// | `xbr4x`   | Implemented | 4x |
 ///
 /// # Arguments
 ///
@@ -108,7 +108,7 @@ pub fn scale_image(image: RgbaImage, factor: u8) -> RgbaImage {
 /// let image = RgbaImage::new(16, 16);
 /// let config = AntialiasConfig::with_algorithm(AAAlgorithm::Scale2x);
 ///
-/// // Currently returns unchanged (algorithm pending in AA-7)
+/// // Scale2x produces twice the input dimensions.
 /// let result = apply_antialias(image, &config);
 /// ```
 pub fn apply_antialias(image: RgbaImage, config: &AntialiasConfig) -> RgbaImage {
@@ -117,38 +117,25 @@ pub fn apply_antialias(image: RgbaImage, config: &AntialiasConfig) -> RgbaImage 
         return image;
     }
 
-    // Dispatch to algorithm-specific implementation
-    // Note: Actual algorithm implementations are added in follow-up beads:
-    // - AA-6: aa-blur
-    // - AA-7: scale2x
-    // - AA-8: hq2x/hq4x
-    // - AA-9: xBR
+    // A composed output is a bitmap: region/anchor metadata is not available.
+    // Call the algorithms with an empty semantic context at this output stage.
+    let context = SemanticContext::empty();
     match config.algorithm {
         AAAlgorithm::Nearest => image,
-        AAAlgorithm::AaBlur => {
-            // TODO(AA-6): Implement aa-blur algorithm
-            image
-        }
-        AAAlgorithm::Scale2x => {
-            // TODO(AA-7): Implement scale2x algorithm
-            image
-        }
-        AAAlgorithm::Hq2x => {
-            // TODO(AA-8): Implement hq2x algorithm
-            image
-        }
-        AAAlgorithm::Hq4x => {
-            // TODO(AA-8): Implement hq4x algorithm
-            image
-        }
-        AAAlgorithm::Xbr2x => {
-            // TODO(AA-9): Implement xbr2x algorithm
-            image
-        }
-        AAAlgorithm::Xbr4x => {
-            // TODO(AA-9): Implement xbr4x algorithm
-            image
-        }
+        AAAlgorithm::AaBlur => crate::antialias::apply_semantic_blur(&image, &context, config),
+        AAAlgorithm::Scale2x => crate::antialias::scale2x(
+            &image,
+            &context,
+            &Scale2xOptions {
+                anchor_mode: config.anchor_mode,
+                respect_containment: config.respect_containment,
+                strength: config.strength,
+            },
+        ),
+        AAAlgorithm::Hq2x => crate::antialias::hq2x(&image, &context, config),
+        AAAlgorithm::Hq4x => crate::antialias::hq4x(&image, &context, config),
+        AAAlgorithm::Xbr2x => crate::antialias::xbr2x(&image, &context, config),
+        AAAlgorithm::Xbr4x => crate::antialias::xbr4x(&image, &context, config),
     }
 }
 
@@ -640,41 +627,40 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_antialias_scale2x_placeholder() {
-        // Scale2x is a placeholder until AA-7 implements it
+    fn test_apply_antialias_scale2x_dispatch() {
         let image = RgbaImage::new(4, 4);
         let config = AntialiasConfig::with_algorithm(AAAlgorithm::Scale2x);
 
         let result = apply_antialias(image, &config);
-        // Currently returns unchanged (implementation pending)
-        assert_eq!(result.width(), 4);
-        assert_eq!(result.height(), 4);
+        // Dispatch reaches the implemented 2x scaler.
+        assert_eq!(result.width(), 8);
+        assert_eq!(result.height(), 8);
     }
 
     #[test]
-    fn test_apply_antialias_hq4x_placeholder() {
-        // Hq4x is a placeholder until AA-8 implements it
+    fn test_apply_antialias_hq4x_dispatch() {
         let image = RgbaImage::new(4, 4);
         let config = AntialiasConfig::with_algorithm(AAAlgorithm::Hq4x);
 
         let result = apply_antialias(image, &config);
-        // Currently returns unchanged (implementation pending)
-        assert_eq!(result.width(), 4);
-        assert_eq!(result.height(), 4);
+        // Dispatch reaches the implemented 4x scaler.
+        assert_eq!(result.width(), 16);
+        assert_eq!(result.height(), 16);
     }
 
     #[test]
-    fn test_apply_antialias_preserves_transparency() {
+    fn test_apply_antialias_zero_strength_preserves_transparency() {
         let mut image = RgbaImage::new(2, 2);
         image.put_pixel(0, 0, Rgba([255, 0, 0, 255])); // Opaque
         image.put_pixel(1, 0, Rgba([0, 255, 0, 128])); // Semi-transparent
         image.put_pixel(0, 1, Rgba([0, 0, 255, 0])); // Transparent
         image.put_pixel(1, 1, Rgba([255, 255, 0, 255])); // Opaque
 
-        let config = AntialiasConfig::with_algorithm(AAAlgorithm::AaBlur);
+        let mut config = AntialiasConfig::with_algorithm(AAAlgorithm::AaBlur);
+        config.strength = 0.0;
         let result = apply_antialias(image, &config);
 
-        // Currently placeholder - verify transparency preserved
+        // Zero strength must preserve the input alpha exactly.
         assert_eq!(result.get_pixel(0, 0)[3], 255);
         assert_eq!(result.get_pixel(1, 0)[3], 128);
         assert_eq!(result.get_pixel(0, 1)[3], 0);

@@ -806,7 +806,7 @@ mod tests {
             name: "base".to_string(),
             size: Some([4, 4]),
             palette: PaletteRef::Inline(HashMap::from([("bg".to_string(), "#FF0000".to_string())])),
-            regions: Some(HashMap::from([(
+            regions: Some(indexmap::IndexMap::from([(
                 "bg".to_string(),
                 RegionDef { rect: Some([0, 0, 4, 4]), ..Default::default() },
             )])),
@@ -1492,7 +1492,7 @@ mod tests {
                 ("ring".to_string(), "#888888".to_string()),
                 ("flame".to_string(), "#E25822".to_string()),
             ])),
-            regions: Some(HashMap::from([
+            regions: Some(indexmap::IndexMap::from([
                 (
                     "ring".to_string(),
                     RegionDef { rect: Some([1, 5, 6, 2]), z: Some(0), ..Default::default() },
@@ -1514,7 +1514,7 @@ mod tests {
         sprite_registry.register_sprite(Sprite {
             name: "frame_b".to_string(),
             extends: Some("frame_a".to_string()),
-            regions: Some(HashMap::from([(
+            regions: Some(indexmap::IndexMap::from([(
                 "flame".to_string(),
                 RegionDef { rect: Some([4, 0, 2, 5]), z: Some(1), ..Default::default() },
             )])),
@@ -1547,7 +1547,7 @@ mod tests {
             name: "frame_dim".to_string(),
             extends: Some("frame_a".to_string()),
             remove: Some(vec!["flame".to_string()]),
-            regions: Some(HashMap::from([(
+            regions: Some(indexmap::IndexMap::from([(
                 "spark".to_string(),
                 RegionDef { points: Some(vec![[2, 2]]), z: Some(2), ..Default::default() },
             )])),
@@ -1639,7 +1639,7 @@ mod tests {
                 ("a".to_string(), "#FFF".to_string()),
                 ("b".to_string(), "#000".to_string()),
             ])),
-            regions: Some(HashMap::from([
+            regions: Some(indexmap::IndexMap::from([
                 ("a".to_string(), RegionDef { rect: Some([0, 0, 2, 2]), ..Default::default() }),
                 ("b".to_string(), RegionDef { rect: Some([4, 4, 2, 2]), ..Default::default() }),
             ])),
@@ -1662,7 +1662,7 @@ mod tests {
         sprite_registry.register_sprite(Sprite {
             name: "b".to_string(),
             extends: Some("frame_a".to_string()),
-            regions: Some(HashMap::from([(
+            regions: Some(indexmap::IndexMap::from([(
                 "flame".to_string(),
                 RegionDef { rect: Some([4, 0, 2, 5]), z: Some(1), ..Default::default() },
             )])),
@@ -1671,7 +1671,7 @@ mod tests {
         sprite_registry.register_sprite(Sprite {
             name: "c".to_string(),
             extends: Some("b".to_string()),
-            regions: Some(HashMap::from([(
+            regions: Some(indexmap::IndexMap::from([(
                 "ring".to_string(),
                 RegionDef { rect: Some([0, 6, 8, 1]), z: Some(0), ..Default::default() },
             )])),

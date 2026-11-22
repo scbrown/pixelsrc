@@ -22,7 +22,7 @@ pub use palette::{
     ColorRamp, ColorShift, Palette, PaletteCycle, PaletteRef, Relationship, RelationshipType, Role,
 };
 pub use particle::{Particle, ParticleEmitter, VelocityRange};
-pub use region::{JitterSpec, RegionDef};
+pub use region::{JitterSpec, RegionDef, RegionSeed};
 pub use sprite::{
     apply_group_translate, CollisionBox, FrameMetadata, FrameTag, GroupTranslate, NineSlice,
     Sprite, SpriteMetadata,
@@ -1731,7 +1731,7 @@ mod tests {
         let region = RegionDef {
             points: Some(vec![[0, 15], [4, 15], [8, 15]]),
             jitter: Some(JitterSpec { x: None, y: Some([-2, 0]) }),
-            seed: Some(42),
+            seed: Some(RegionSeed::Random(42)),
             ..Default::default()
         };
         let json = serde_json::to_string(&region).unwrap();

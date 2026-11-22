@@ -38,7 +38,7 @@ export class Gallery {
     // Load all examples in parallel for better performance
     const results = await Promise.allSettled(
       EXAMPLE_FILES.map(async (filename) => {
-        const response = await fetch(`/examples/${filename}`);
+        const response = await fetch(`${import.meta.env.BASE_URL}examples/${filename}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -99,6 +99,7 @@ export class Gallery {
       // Render thumbnail
       try {
         const pngBytes = render_to_png(example.jsonl);
+        if (pngBytes.length === 0) throw new Error('Example did not render a PNG');
         const blob = new Blob([pngBytes.slice()], { type: 'image/png' });
         const url = URL.createObjectURL(blob);
 

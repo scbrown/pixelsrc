@@ -6,15 +6,15 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use crate::antialias::{AAAlgorithm, AnchorMode};
+use crate::antialias::{AAAlgorithm, AnchorMode, AntialiasConfig};
 use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, SpriteInput};
 use crate::build::project_registry::ProjectRegistry;
 use crate::composition::{render_composition, RenderContext};
 use crate::config::loader::{find_config_from, load_config};
-use crate::gif::render_gif;
+use crate::gif::{render_gif, render_gif_with_durations};
 use crate::include::{is_include_ref, parse_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
-use crate::output::{generate_output_path, save_png, scale_image};
+use crate::output::{apply_antialias, generate_output_path, save_png, scale_image};
 use crate::palette_cycle::{generate_cycle_frames, get_cycle_duration};
 use crate::parser::parse_stream;
 use crate::registry::{PaletteRegistry, PaletteSource, ResolvedPalette, SpriteRegistry};
@@ -42,17 +42,38 @@ pub fn run_render(
     padding: u32,
     power_of_two: bool,
     nine_slice_arg: Option<&str>,
-    _antialias: Option<AAAlgorithm>,
-    _aa_strength: f32,
-    _anchor_mode: AnchorMode,
-    _no_semantic_aa: bool,
-    _gradient_shadows: bool,
+    antialias: Option<AAAlgorithm>,
+    aa_strength: f32,
+    anchor_mode: AnchorMode,
+    no_semantic_aa: bool,
+    gradient_shadows: bool,
     no_project: bool,
     frames: Option<u32>,
     canvas: Option<&str>,
     origin: Option<&str>,
     fps: Option<u32>,
 ) -> ExitCode {
+    let aa_config = AntialiasConfig {
+        enabled: antialias.is_some(),
+        algorithm: antialias.unwrap_or_default(),
+        strength: aa_strength,
+        anchor_mode,
+        semantic_aware: !no_semantic_aa,
+        gradient_shadows,
+        ..Default::default()
+    };
+    if antialias.is_some() && !(0.0..=1.0).contains(&aa_strength) {
+        eprintln!("Error: --aa-strength must be between 0 and 1");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+    if aa_config.enabled
+        && aa_config.algorithm.is_enabled()
+        && (gif_output || spritesheet_output || frames.is_some() || format.is_some())
+    {
+        eprintln!("Error: --antialias is supported for PNG sprite/composition renders, not animation, particle or atlas output");
+        return ExitCode::from(EXIT_INVALID_ARGS);
+    }
+
     // Parse nine-slice target size if provided
     let nine_slice_size = if let Some(size_str) = nine_slice_arg {
         let parts: Vec<&str> = size_str.split('x').collect();
@@ -339,6 +360,7 @@ pub fn run_render(
             &mut all_warnings,
             strict,
             scale,
+            &aa_config,
         );
     }
 
@@ -504,7 +526,7 @@ pub fn run_render(
             }
 
             // Apply scaling if requested
-            let image = scale_image(image, scale);
+            let image = scale_image(apply_antialias(image, &aa_config), scale);
 
             // Collect render warnings
             for warning in render_warnings {
@@ -554,7 +576,7 @@ pub fn run_render(
             };
 
             // Apply scaling if requested
-            let image = scale_image(image, scale);
+            let image = scale_image(apply_antialias(image, &aa_config), scale);
 
             // In strict mode, check for accumulated warnings
             if strict && !all_warnings.is_empty() {
@@ -797,6 +819,7 @@ fn run_composition_render(
     all_warnings: &mut Vec<String>,
     strict: bool,
     scale: u8,
+    aa_config: &AntialiasConfig,
 ) -> ExitCode {
     // Find the composition
     let comp = match compositions.get(comp_name) {
@@ -833,7 +856,7 @@ fn run_composition_render(
     };
 
     // Apply scaling if requested
-    let image = scale_image(image, scale);
+    let image = scale_image(apply_antialias(image, aa_config), scale);
 
     // In strict mode, check for accumulated warnings
     if strict && !all_warnings.is_empty() {
@@ -1129,6 +1152,15 @@ fn run_animation_render(
         }
     };
 
+    let per_frame_durations = match animation.frame_durations_ms() {
+        Ok(durations) => durations,
+        Err(error) => {
+            eprintln!("Error: animation '{}': {}", animation.name, error);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+    let mut rendered_durations = Vec::new();
+
     // Validate animation: check that all frame references exist (sprites OR compositions)
     // TTP-9qjwr: Now also checks compositions as valid frame references
     let mut missing_frames = Vec::new();
@@ -1252,7 +1284,7 @@ fn run_animation_render(
         // Traditional frame-based animation
         // TTP-9qjwr: Now supports both sprites and compositions as frames
         let mut frame_images = Vec::new();
-        for frame_name in &animation.frames {
+        for (frame_index, frame_name) in animation.frames.iter().enumerate() {
             // First try to get as sprite
             if let Some(sprite) = sprites.get(frame_name) {
                 // Resolve palette
@@ -1323,6 +1355,9 @@ fn run_animation_render(
                 }
 
                 frame_images.push(image);
+                if let Some(durations) = &per_frame_durations {
+                    rendered_durations.push(durations[frame_index]);
+                }
             } else if let Some(comp) = compositions.get(frame_name) {
                 // TTP-9qjwr: Render composition as animation frame
                 let result = render_composition_to_image(
@@ -1342,6 +1377,9 @@ fn run_animation_render(
                         // Apply scaling if requested
                         let image = scale_image(image, scale);
                         frame_images.push(image);
+                        if let Some(durations) = &per_frame_durations {
+                            rendered_durations.push(durations[frame_index]);
+                        }
                     }
                     Err(code) => return code,
                 }
@@ -1372,7 +1410,17 @@ fn run_animation_render(
 
     // Output as GIF or spritesheet
     if gif_output {
-        if let Err(e) = render_gif(&frame_images, frame_duration, animation.loops(), &output_path) {
+        let result = if per_frame_durations.is_some() {
+            render_gif_with_durations(
+                &frame_images,
+                &rendered_durations,
+                animation.loops(),
+                &output_path,
+            )
+        } else {
+            render_gif(&frame_images, frame_duration, animation.loops(), &output_path)
+        };
+        if let Err(e) = result {
             eprintln!("Error: Failed to save GIF '{}': {}", output_path.display(), e);
             return ExitCode::from(EXIT_ERROR);
         }

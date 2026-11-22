@@ -3,9 +3,10 @@ import LZString from 'lz-string';
 import { Preview } from './preview';
 import { Gallery } from './gallery';
 import { Export } from './export';
+import { createEditor, type Editor } from './editor';
 
 // DOM Elements
-let editor: HTMLTextAreaElement;
+let editor: Editor;
 let renderBtn: HTMLButtonElement;
 let previewContainer: HTMLDivElement;
 let previewError: HTMLDivElement;
@@ -25,7 +26,9 @@ async function initApp(): Promise<void> {
   const overlay = document.getElementById('loading-overlay');
 
   // Get DOM elements
-  editor = document.getElementById('editor') as HTMLTextAreaElement;
+  const editorContainer = document.getElementById('editor') as HTMLDivElement;
+  editor = createEditor(editorContainer, '', handleRender);
+  editor.onChange(handleEditorInput);
   renderBtn = document.getElementById('render-btn') as HTMLButtonElement;
   previewContainer = document.getElementById('preview-canvas') as HTMLDivElement;
   previewError = document.getElementById('preview-error') as HTMLDivElement;
@@ -81,14 +84,12 @@ async function initApp(): Promise<void> {
   const exportContainer = document.getElementById('export-controls') as HTMLDivElement;
   new Export({
     container: exportContainer,
-    getJsonl: () => editor.value.trim(),
+    getJsonl: () => editor.getValue().trim(),
     onError: showError,
   });
 
   // Set up event listeners
   renderBtn.addEventListener('click', handleRender);
-  editor.addEventListener('keydown', handleEditorKeydown);
-  editor.addEventListener('input', handleEditorInput);
   loadFirstExampleBtn.addEventListener('click', loadFirstExample);
 
   // Load from URL hash if present
@@ -98,16 +99,18 @@ async function initApp(): Promise<void> {
   gallery = new Gallery({
     container: galleryContainer,
     onSelect: (jsonl: string) => {
-      editor.value = jsonl;
+      editor.setValue(jsonl);
       handleRender();
     },
   });
   await gallery.loadExamples();
 
   // If editor has content (from URL hash), render it
-  // Otherwise, show the empty state for onboarding
-  if (editor.value.trim()) {
+  // Otherwise, open a bundled example for onboarding
+  if (editor.getValue().trim()) {
     handleRender();
+  } else if (gallery.getExamples().length > 0) {
+    loadFirstExample();
   } else {
     showEmptyState();
   }
@@ -124,19 +127,11 @@ async function initApp(): Promise<void> {
   setTimeout(() => overlay?.remove(), 300);
 }
 
-function handleEditorKeydown(e: KeyboardEvent): void {
-  // Ctrl/Cmd + Enter to render
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault();
-    handleRender();
-  }
-}
-
 function handleEditorInput(): void {
   // Debounced live preview as user types
   if (!wasmReady || !preview) return;
 
-  const jsonl = editor.value.trim();
+  const jsonl = editor.getValue().trim();
   if (jsonl) {
     hideEmptyState();
     preview.render(jsonl);
@@ -159,9 +154,9 @@ function handleRender(): void {
     return;
   }
 
-  const jsonl = editor.value.trim();
+  const jsonl = editor.getValue().trim();
   if (!jsonl) {
-    showError('Please enter some JSONL content');
+    showError('Enter pixelsrc .pxl source to render');
     showEmptyState();
     return;
   }
@@ -199,7 +194,7 @@ function loadFirstExample(): void {
 
   const examples = gallery.getExamples();
   if (examples.length > 0) {
-    editor.value = examples[0].jsonl;
+    editor.setValue(examples[0].jsonl);
     handleRender();
   }
 }
@@ -299,7 +294,7 @@ function loadFromHash(): void {
     try {
       const decompressed = LZString.decompressFromEncodedURIComponent(hash);
       if (decompressed) {
-        editor.value = decompressed;
+        editor.setValue(decompressed);
       }
     } catch (err) {
       console.warn('Failed to decompress hash:', err);

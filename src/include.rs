@@ -152,39 +152,47 @@ pub fn resolve_include_with_detection(
     // Mark this file as being processed
     visited.insert(canonical_path.clone());
 
-    // Open and parse the included file
-    let file = File::open(&canonical_path)
-        .map_err(|e| IncludeError::IoError(canonical_path.clone(), e.to_string()))?;
+    // The set is an active resolution stack, not a cache of every file ever
+    // read. Unwind this entry on both success and error, retaining caller entries.
+    let result = (|| {
+        // Open and parse the included file
+        let file = File::open(&canonical_path)
+            .map_err(|e| IncludeError::IoError(canonical_path.clone(), e.to_string()))?;
 
-    let reader = BufReader::new(file);
-    let parse_result = parse_stream(reader);
+        let reader = BufReader::new(file);
+        let parse_result = parse_stream(reader);
 
-    // Get the directory of the included file for nested includes
-    // (reserved for future nested include support)
-    let _include_dir = canonical_path.parent().unwrap_or(Path::new("."));
+        // Get the directory of the included file for nested includes
+        // (reserved for future nested include support)
+        let _include_dir = canonical_path.parent().unwrap_or(Path::new("."));
 
-    // Find the matching palette in the included file
-    for obj in parse_result.objects {
-        if let TtpObject::Palette(palette) = obj {
-            match palette_name {
-                Some(name) => {
-                    if palette.name == name {
+        // Find the matching palette in the included file
+        for obj in parse_result.objects {
+            if let TtpObject::Palette(palette) = obj {
+                match palette_name {
+                    Some(name) => {
+                        if palette.name == name {
+                            return Ok(palette);
+                        }
+                        // Continue searching for the named palette
+                    }
+                    None => {
+                        // No name specified: return first palette (backward compat)
                         return Ok(palette);
                     }
-                    // Continue searching for the named palette
-                }
-                None => {
-                    // No name specified: return first palette (backward compat)
-                    return Ok(palette);
                 }
             }
         }
-    }
 
-    match palette_name {
-        Some(name) => Err(IncludeError::NamedPaletteNotFound(canonical_path, name.to_string())),
-        None => Err(IncludeError::NoPaletteFound(canonical_path)),
-    }
+        match palette_name {
+            Some(name) => {
+                Err(IncludeError::NamedPaletteNotFound(canonical_path.clone(), name.to_string()))
+            }
+            None => Err(IncludeError::NoPaletteFound(canonical_path.clone())),
+        }
+    })();
+    visited.remove(&canonical_path);
+    result
 }
 
 #[cfg(test)]
@@ -193,6 +201,20 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;
+
+    #[test]
+    fn failed_resolution_unwinds_only_its_own_active_entry() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("empty.pxl"), "").unwrap();
+        let parent = dir.path().join("parent.pxl");
+        let mut active = HashSet::from([parent.clone()]);
+        for name in [None, Some("missing")] {
+            assert!(
+                resolve_include_with_detection("empty.pxl", dir.path(), &mut active, name).is_err()
+            );
+            assert_eq!(active, HashSet::from([parent.clone()]));
+        }
+    }
 
     #[test]
     fn test_is_include_ref() {
@@ -262,10 +284,10 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_include_circular_detection() {
+    fn test_resolve_include_reuse_and_active_cycle_detection() {
         let temp_dir = TempDir::new().unwrap();
 
-        // For this test, we simulate circular detection by checking the same file twice
+        // Completed resolutions may be reused; only active ancestors are cycles.
         let palette_path = temp_dir.path().join("palette.jsonl");
         let mut file = fs::File::create(&palette_path).unwrap();
         let content = r##"{"type": "palette", "name": "test", "colors": {"{x}": "#FF0000"}}"##;
@@ -278,12 +300,18 @@ mod tests {
             resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited, None);
         assert!(result1.is_ok());
 
-        // Second resolution of same file should detect circular include
-        let result2 =
+        assert!(visited.is_empty());
+        let reused =
             resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited, None);
-        assert!(result2.is_err());
+        assert!(reused.is_ok());
+        assert!(visited.is_empty());
 
-        match result2.unwrap_err() {
+        // A canonical file already on the active stack is a genuine cycle.
+        visited.insert(palette_path.canonicalize().unwrap());
+        let cycle =
+            resolve_include_with_detection("palette.jsonl", temp_dir.path(), &mut visited, None);
+        assert_eq!(visited.len(), 1, "caller-owned active entry must be retained");
+        match cycle.unwrap_err() {
             IncludeError::CircularInclude(_) => {}
             other => panic!("Expected CircularInclude, got {:?}", other),
         }

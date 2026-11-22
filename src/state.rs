@@ -236,11 +236,11 @@ impl std::error::Error for SelectorParseError {}
 
 /// Apply state rules to regions and return modified regions
 pub fn apply_state_rules(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     rules: &StateRules,
     current_state: Option<&str>,
     palette: &mut HashMap<String, String>,
-) -> HashMap<String, RegionDef> {
+) -> indexmap::IndexMap<String, RegionDef> {
     let mut result = regions.clone();
 
     for rule in &rules.rules {
@@ -434,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_apply_state_rules() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         let mut fill_region = RegionDef::default();
         fill_region.role = Some(Role::Fill);
         regions.insert("bg".to_string(), fill_region);
