@@ -549,7 +549,7 @@ mod tests {
             serde_json::json!({"union":[{"fill":"inside(outline)"}]}),
             serde_json::json!({"intersect":[{"fill":"inside(outline)"},{"rect":[0,0,10,10]}]}),
         ] {
-            let regions = HashMap::from([
+            let regions = indexmap::IndexMap::from([
                 ("outline".into(), boundary.clone()),
                 ("body".into(), serde_json::from_value(fill).unwrap()),
             ]);
