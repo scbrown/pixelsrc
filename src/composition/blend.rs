@@ -124,6 +124,31 @@ pub(crate) fn blit_sprite_blended(
     }
 }
 
+/// Place a layer at signed pixel coordinates, clipping without an intermediate canvas.
+pub(crate) fn blit_sprite_positioned(
+    canvas: &mut RgbaImage,
+    sprite: &RgbaImage,
+    x: i64,
+    y: i64,
+    mode: BlendMode,
+    opacity: f64,
+) {
+    let opacity = opacity.clamp(0.0, 1.0) as f32;
+    for (sx, sy, pixel) in sprite.enumerate_pixels() {
+        let dx = x + i64::from(sx);
+        let dy = y + i64::from(sy);
+        if dx < 0 || dy < 0 || dx >= i64::from(canvas.width()) || dy >= i64::from(canvas.height()) {
+            continue;
+        }
+        let alpha = f32::from(pixel[3]) / 255.0 * opacity;
+        if alpha == 0.0 {
+            continue;
+        }
+        let blended = blend_pixels(pixel, canvas.get_pixel(dx as u32, dy as u32), mode, alpha);
+        canvas.put_pixel(dx as u32, dy as u32, blended);
+    }
+}
+
 /// Blend source pixel over destination using the specified blend mode and opacity.
 pub(crate) fn blend_pixels(
     src: &Rgba<u8>,

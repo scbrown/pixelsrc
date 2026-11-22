@@ -925,7 +925,12 @@ fn render_composition_with_context(
         }
 
         // Add sprites from the sprites map
-        for sprite_name in comp.sprites.values().flatten() {
+        for sprite_name in comp
+            .sprites
+            .values()
+            .flatten()
+            .chain(comp.layers.iter().filter_map(|l| l.sprite.as_ref()))
+        {
             required_sprites.insert(sprite_name.clone());
         }
 

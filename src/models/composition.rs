@@ -9,6 +9,14 @@ use super::transform::TransformSpec;
 /// A layer within a composition.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CompositionLayer {
+    /// A directly positioned sprite or nested composition, instead of a grid map.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub sprite: Option<String>,
+    /// Pixel offsets; negative values clip against the canvas.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub x: i32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub y: i32,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -39,6 +47,7 @@ pub struct Composition {
     pub size: Option<[u32; 2]>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub cell_size: Option<[u32; 2]>,
+    #[serde(default)]
     pub sprites: HashMap<String, Option<String>>,
     pub layers: Vec<CompositionLayer>,
 }
@@ -51,4 +60,8 @@ impl Composition {
     pub fn cell_size(&self) -> [u32; 2] {
         self.cell_size.unwrap_or(Self::DEFAULT_CELL_SIZE)
     }
+}
+
+fn is_zero(value: &i32) -> bool {
+    *value == 0
 }

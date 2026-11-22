@@ -302,14 +302,13 @@ screen_y = origin_y + (tile_h / 2) * (gx + gy) - height        // tile_w = 2 * t
 
 ### Composition With Positions
 
+Use a directly positioned layer for free pixel placement, without a grid or `sprites` map:
+
 ```json5
-// WRONG: there is no x/y or position on a layer
 { type: "composition", name: "scene", size: [32, 32], layers: [{ sprite: "hero", x: 8, y: 8 }] }
 ```
 
-**Fix:** use `sprites` and a `map` (see Composition above). In released 0.3.1, an object that fails to parse
-hides every object after it, so `pxl render -c <name>` may report that the composition was not found.
-Current source continues parsing after an invalid object. Run `pxl validate` to identify the original parse error.
+Offsets are signed pixel coordinates; content beyond the canvas is clipped. A directly positioned layer is not constrained by `cell_size`. Grid layers still use `sprites` and `map`. Layer transforms run before placement, and blend/opacity apply when placed.
 
 ### Forward Reference
 

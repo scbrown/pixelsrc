@@ -29,7 +29,7 @@ A sprite is drawn with its top-left corner at the top-left of the cell that hold
 | `name` | Yes | - | Unique identifier |
 | `size` | No | - | Canvas size `[width, height]` in pixels |
 | `cell_size` | No | `[1, 1]` | Size of one map cell in pixels |
-| `sprites` | Yes | - | Map of one-character keys to sprite names; `null` marks an empty cell |
+| `sprites` | No | `{}` | Map of one-character keys to sprite names; `null` marks an empty cell |
 | `layers` | Yes | - | Array of layers, drawn first to last |
 
 ## Layer Fields
@@ -37,13 +37,16 @@ A sprite is drawn with its top-left corner at the top-left of the cell that hold
 | Field | Required | Description |
 |-------|----------|-------------|
 | `map` | No | Rows of sprite keys, one character per cell |
+| `sprite` | No | Direct sprite or nested composition name instead of a map |
+| `x`, `y` | No | Signed pixel offsets, default 0; negative placement clips |
 | `name` | No | A label for the layer |
 | `transform` | No | Transforms applied to the layer |
 | `blend` | No | Blend mode (default: `"normal"`) |
 | `opacity` | No | Layer opacity 0.0-1.0 (default: 1.0) |
 
-A layer has no `sprite`, `x`, `y` or `position` field. A composition written that way fails to parse with
-`missing field sprites`.
+A free-positioned layer uses `{ sprite: "hero", x: 8, y: 6 }`; no `sprites` map or `cell_size` is required. Its image is transformed before placement, then blended with its opacity. It may be larger than a cell without a warning. The canvas clips out-of-bounds pixels. An omitted canvas size is inferred from the bounds of referenced rendered sprites; specify `size` for nested compositions through the library renderer.
+
+Rust callers constructing `CompositionLayer` literals should add `sprite: None, x: 0, y: 0` or use `..Default::default()`.
 
 ## Example
 

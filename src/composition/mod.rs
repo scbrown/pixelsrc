@@ -56,6 +56,9 @@ mod tests {
                 ("X".to_string(), Some("red_pixel".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: Some("main".to_string()),
                 fill: None,
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
@@ -87,6 +90,9 @@ mod tests {
         use render::infer_size_from_layers;
 
         let layers = vec![CompositionLayer {
+            sprite: None,
+            x: 0,
+            y: 0,
             name: None,
             fill: None,
             map: Some(vec!["ABC".to_string(), "DEF".to_string()]),
@@ -112,6 +118,9 @@ mod tests {
             cell_size: None,
             sprites: HashMap::new(), // Empty - no keys defined
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
@@ -134,6 +143,9 @@ mod tests {
             cell_size: None,
             sprites: HashMap::from([("X".to_string(), Some("missing_sprite".to_string()))]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
@@ -200,6 +212,9 @@ mod tests {
             cell_size: None, // Should default to [1, 1]
             sprites: HashMap::from([("X".to_string(), Some("pixel".to_string()))]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["XX".to_string(), "XX".to_string()]),
@@ -235,12 +250,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
@@ -288,12 +309,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("bottom".to_string()),
                     fill: None,
                     map: Some(vec!["R.".to_string(), "..".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("top".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), ".B".to_string()]),
@@ -344,18 +371,27 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("layer1".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("layer2".to_string()),
                     fill: None,
                     map: Some(vec!["GG".to_string(), "..".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("layer3".to_string()),
                     fill: None,
                     map: Some(vec!["B.".to_string(), "..".to_string()]),
@@ -406,12 +442,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("background".to_string()),
                     fill: None,
                     map: Some(vec!["RR".to_string(), "RR".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("empty".to_string()),
                     fill: None,
                     map: Some(vec!["..".to_string(), "..".to_string()]),
@@ -450,6 +492,9 @@ mod tests {
                 ("X".to_string(), Some("pixel".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
@@ -484,6 +529,9 @@ mod tests {
                 ("X".to_string(), Some("pixel".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X".to_string()]),
@@ -514,6 +562,9 @@ mod tests {
                 ("X".to_string(), Some("big_sprite".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X.".to_string(), "..".to_string()]),
@@ -556,6 +607,9 @@ mod tests {
                 ("X".to_string(), Some("big_sprite".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X.".to_string(), "..".to_string()]),
@@ -600,6 +654,9 @@ mod tests {
             cell_size: Some([2, 2]),
             sprites: HashMap::from([(".".to_string(), None)]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["..".to_string(), "..".to_string()]),
@@ -623,6 +680,9 @@ mod tests {
             cell_size: Some([2, 2]),
             sprites: HashMap::from([(".".to_string(), None)]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["..".to_string(), "..".to_string()]),
@@ -653,6 +713,9 @@ mod tests {
             cell_size: Some([2, 2]),
             sprites: HashMap::from([(".".to_string(), None)]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: Some("bad_layer".to_string()),
                 fill: None,
                 map: Some(vec!["...".to_string(), "...".to_string(), "...".to_string()]), // 3x3 instead of 2x2
@@ -677,6 +740,9 @@ mod tests {
             cell_size: Some([2, 2]),
             sprites: HashMap::from([(".".to_string(), None)]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: Some("bad_layer".to_string()),
                 fill: None,
                 map: Some(vec!["...".to_string(), "...".to_string(), "...".to_string()]), // 3x3 instead of 2x2
@@ -713,6 +779,9 @@ mod tests {
             cell_size: Some([1, 1]),
             sprites: HashMap::from([(".".to_string(), None)]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["....".to_string(), "....".to_string()]), // Doesn't match 3x3
@@ -741,6 +810,9 @@ mod tests {
                 ("X".to_string(), Some("pixel".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: None,
                 fill: None,
                 map: Some(vec!["X.".to_string(), ".X".to_string()]),
@@ -813,12 +885,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("base".to_string()),
                     fill: None,
                     map: Some(vec!["B".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("overlay".to_string()),
                     fill: None,
                     blend: Some("multiply".to_string()),
@@ -863,12 +941,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("base".to_string()),
                     fill: None,
                     map: Some(vec!["B".to_string()]),
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("overlay".to_string()),
                     fill: None,
                     opacity: Some(crate::models::VarOr::Value(0.5)),
@@ -971,6 +1055,9 @@ mod tests {
             let layers: Vec<CompositionLayer> = layer_maps
                 .into_iter()
                 .map(|map| CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: None,
                     fill: None,
                     map: Some(map),

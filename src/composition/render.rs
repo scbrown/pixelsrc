@@ -7,7 +7,7 @@ use crate::models::{Composition, CompositionLayer};
 use crate::registry::CompositionRegistry;
 use crate::variables::VariableRegistry;
 
-use super::blend::{blit_sprite, blit_sprite_blended};
+use super::blend::{blit_sprite, blit_sprite_positioned};
 use super::context::RenderContext;
 use super::error::{CompositionError, Warning};
 use super::resolve::{resolve_blend_mode, resolve_opacity};
@@ -141,7 +141,8 @@ pub fn render_composition(
         (base_img.width(), base_img.height())
     } else {
         // Infer from layers
-        let (inferred_w, inferred_h) = infer_size_from_layers(&comp.layers, cell_size);
+        let (inferred_w, inferred_h) =
+            infer_size_with_positioned_layers(&comp.layers, cell_size, sprites);
         if inferred_w == 0 || inferred_h == 0 {
             warnings.push(Warning::new(format!(
                 "Could not infer size for composition '{}', using 1x1",
@@ -154,7 +155,7 @@ pub fn render_composition(
     };
 
     // Validate size is divisible by cell_size (only meaningful when cell_size > [1,1])
-    if cell_size[0] > 1 || cell_size[1] > 1 {
+    if comp.layers.iter().any(|l| l.map.is_some()) && (cell_size[0] > 1 || cell_size[1] > 1) {
         let width_divisible = width % cell_size[0] == 0;
         let height_divisible = height % cell_size[1] == 0;
 
@@ -199,9 +200,12 @@ pub fn render_composition(
             warnings.push(w);
         }
 
-        if let Some(ref map) = layer.map {
+        let direct_map = vec!["\0".to_string()];
+        if let Some(map) =
+            if layer.sprite.is_some() { Some(&direct_map) } else { layer.map.as_ref() }
+        {
             // Validate map dimensions match expected grid (only when cell_size > [1,1])
-            if cell_size[0] > 1 || cell_size[1] > 1 {
+            if layer.sprite.is_none() && (cell_size[0] > 1 || cell_size[1] > 1) {
                 let actual_rows = map.len();
                 let actual_cols = map.iter().map(|r| r.chars().count()).max().unwrap_or(0);
 
@@ -232,7 +236,12 @@ pub fn render_composition(
                     let key = char_key.to_string();
 
                     // Look up sprite name from sprites map
-                    let sprite_name = match comp.sprites.get(&key) {
+                    let sprite_name = match layer
+                        .sprite
+                        .as_ref()
+                        .map(Some)
+                        .or_else(|| comp.sprites.get(&key).map(|s| s.as_ref()))
+                    {
                         Some(Some(name)) => name,
                         Some(None) => continue, // null means transparent/skip
                         None => {
@@ -267,7 +276,9 @@ pub fn render_composition(
                     // Check the transformed dimensions for size mismatch (Task 2.5)
                     let sprite_width = sprite_image.width();
                     let sprite_height = sprite_image.height();
-                    if sprite_width > cell_size[0] || sprite_height > cell_size[1] {
+                    if layer.sprite.is_none()
+                        && (sprite_width > cell_size[0] || sprite_height > cell_size[1])
+                    {
                         if strict {
                             return Err(CompositionError::SizeMismatch {
                                 sprite_name: sprite_name.clone(),
@@ -288,7 +299,14 @@ pub fn render_composition(
                     let y = (row_idx as u32) * cell_size[1];
 
                     // Blit sprite onto canvas with blend mode and opacity (ATF-10)
-                    blit_sprite_blended(&mut canvas, &sprite_image, x, y, blend_mode, opacity);
+                    blit_sprite_positioned(
+                        &mut canvas,
+                        &sprite_image,
+                        i64::from(x) + i64::from(layer.x),
+                        i64::from(y) + i64::from(layer.y),
+                        blend_mode,
+                        opacity,
+                    );
                 }
             }
         }
@@ -392,7 +410,7 @@ fn render_composition_inner(
     } else if let Some(ref base_img) = base_image {
         (base_img.width(), base_img.height())
     } else {
-        let (w, h) = infer_size_from_layers(&comp.layers, cell_size);
+        let (w, h) = infer_size_with_positioned_layers(&comp.layers, cell_size, sprites);
         if w == 0 || h == 0 {
             (1, 1)
         } else {
@@ -420,12 +438,20 @@ fn render_composition_inner(
             warnings.push(w);
         }
 
-        if let Some(ref map) = layer.map {
+        let direct_map = vec!["\0".to_string()];
+        if let Some(map) =
+            if layer.sprite.is_some() { Some(&direct_map) } else { layer.map.as_ref() }
+        {
             for (row_idx, row) in map.iter().enumerate() {
                 for (col_idx, char_key) in row.chars().enumerate() {
                     let key = char_key.to_string();
 
-                    let sprite_name = match comp.sprites.get(&key) {
+                    let sprite_name = match layer
+                        .sprite
+                        .as_ref()
+                        .map(Some)
+                        .or_else(|| comp.sprites.get(&key).map(|s| s.as_ref()))
+                    {
                         Some(Some(name)) => name,
                         Some(None) => continue,
                         None => {
@@ -484,7 +510,14 @@ fn render_composition_inner(
                     let x = (col_idx as u32) * cell_size[0];
                     let y = (row_idx as u32) * cell_size[1];
 
-                    blit_sprite_blended(&mut canvas, &sprite_image, x, y, blend_mode, opacity);
+                    blit_sprite_positioned(
+                        &mut canvas,
+                        &sprite_image,
+                        i64::from(x) + i64::from(layer.x),
+                        i64::from(y) + i64::from(layer.y),
+                        blend_mode,
+                        opacity,
+                    );
                 }
             }
         }
@@ -511,4 +544,19 @@ pub(crate) fn infer_size_from_layers(
     }
 
     (max_cols * cell_size[0], max_rows * cell_size[1])
+}
+
+fn infer_size_with_positioned_layers(
+    layers: &[CompositionLayer],
+    cell_size: [u32; 2],
+    sprites: &HashMap<String, RgbaImage>,
+) -> (u32, u32) {
+    let (mut width, mut height) = infer_size_from_layers(layers, cell_size);
+    for layer in layers {
+        if let Some(image) = layer.sprite.as_ref().and_then(|name| sprites.get(name)) {
+            width = width.max((i64::from(layer.x) + i64::from(image.width())).max(0) as u32);
+            height = height.max((i64::from(layer.y) + i64::from(image.height())).max(0) as u32);
+        }
+    }
+    (width, height)
 }
