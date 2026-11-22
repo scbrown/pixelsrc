@@ -1,0 +1,23 @@
+Script started on 2026-11-22 15:52:18-05:00 [COMMAND="bash /tmp/grant-include-demo.sh" <not executed on terminal>]
+BEFORE: saved repeated-frame regression on main d6382dc
+Warning: sprite 'a': Circular include detected: <fixture>/base.pxl
+Warning: sprite 'a': Unknown token x in sprite 'a'
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+AFTER: candidate decoded GIF and active-stack controls
+$ cargo test --quiet --features lsp,wasm --test cli_repeated_include -- --nocapture
+
+running 1 test
+strict=false: both decoded GIF frames are red, no include warnings
+strict=true: both decoded GIF frames are red, no include warnings
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+$ cargo test --quiet --features lsp,wasm --lib include::tests
+
+running 18 tests
+..................
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 1870 filtered out; finished in 0.00s
+
+
+Script done on 2026-11-22 15:52:19-05:00 [COMMAND_EXIT_CODE="0"]
