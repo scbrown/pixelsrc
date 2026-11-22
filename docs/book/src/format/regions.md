@@ -126,7 +126,17 @@ Flood fill inside a boundary.
 skin: { fill: "inside(outline)" }
 ```
 
-Optional: `seed: [x, y]` (starting point, auto-detected if omitted)
+Optional: `seed: [x, y]` selects an enclosed starting pixel. If omitted, the
+renderer chooses an enclosed pixel near the boundary's bounding-box centre,
+including for concave shapes. A seed on the boundary, outside the canvas or
+connected to the exterior produces a warning and an empty fill. Open boundaries
+have no enclosed interior and also warn. Nested fills in compound operations wait
+for their referenced boundary.
+
+A numeric `seed: 42` remains a jitter seed; it does not choose a fill coordinate.
+Rust callers constructing `RegionDef` use `RegionSeed::Random(42)` or
+`RegionSeed::Fill([x, y])` instead of a bare integer. Existing `.pxl` numeric
+seeds remain compatible.
 
 ## Compound Operations
 
