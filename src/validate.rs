@@ -836,12 +836,12 @@ impl Validator {
             );
         }
 
-        // An omitted palette (empty Named ref) is only legal when `extends` is
-        // set — the base palette is inherited. On any other sprite it's a
+        // An omitted palette (empty Named ref) is legal with `extends` or
+        // `source` — the base palette is inherited. On any other sprite it's a
         // missing-palette error. Skip token resolution in the inherited case so
         // we don't spuriously flag inherited tokens as undefined.
         let palette_omitted = matches!(&sprite.palette, PaletteRef::Named(n) if n.is_empty());
-        if palette_omitted && sprite.extends.is_none() {
+        if palette_omitted && sprite.extends.is_none() && sprite.source.is_none() {
             self.issues.push(
                 ValidationIssue::warning(
                     line_number,
@@ -850,7 +850,8 @@ impl Validator {
                 )
                 .with_context(format!("sprite \"{}\"", name))
                 .with_suggestion(
-                    "add a `palette` reference, or `extends` a sprite to inherit one".to_string(),
+                    "add a `palette` reference, or use `extends`/`source` to inherit one"
+                        .to_string(),
                 ),
             );
         }
@@ -928,8 +929,10 @@ impl Validator {
             PaletteRef::Named(n) if !n.is_empty() => Some(n.clone()),
             _ => None,
         };
-        self.sprite_palette_chain
-            .insert(name.to_string(), (own_named_palette, sprite.extends.clone()));
+        self.sprite_palette_chain.insert(
+            name.to_string(),
+            (own_named_palette, sprite.extends.clone().or_else(|| sprite.source.clone())),
+        );
 
         // Record token usage for end-of-file unused-token reporting (named
         // palettes are shared between sprites, so per-sprite reporting would

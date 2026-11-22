@@ -277,6 +277,13 @@ impl SpriteRegistry {
                         visited,
                     )?;
                     warnings.extend(source_resolved.warnings);
+                    // An omitted palette inherits the source's fully resolved
+                    // colors. An explicit palette keeps the existing replacement
+                    // semantics (unlike extends, which merges token overrides).
+                    if matches!(&sprite.palette, crate::models::PaletteRef::Named(n) if n.is_empty())
+                    {
+                        inherited_palette = Some(source_resolved.palette);
+                    }
                     (source_resolved.regions, source_resolved.size)
                 }
                 None => {
