@@ -1,5 +1,5 @@
 import { EditorState } from '@codemirror/state';
-import { EditorView, lineNumbers, highlightActiveLine, keymap } from '@codemirror/view';
+import { EditorView, lineNumbers, highlightActiveLine, keymap, placeholder } from '@codemirror/view';
 import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { defaultKeymap } from '@codemirror/commands';
@@ -12,7 +12,7 @@ export interface Editor {
   destroy(): void;
 }
 
-export function createEditor(container: HTMLElement, initialContent: string = ''): Editor {
+export function createEditor(container: HTMLElement, initialContent: string = '', onRender?: () => void): Editor {
   let changeCallback: ((content: string) => void) | null = null;
 
   const updateListener = EditorView.updateListener.of((update) => {
@@ -29,7 +29,9 @@ export function createEditor(container: HTMLElement, initialContent: string = ''
       EditorView.lineWrapping,
       json(),
       oneDark,
-      keymap.of(defaultKeymap),
+      keymap.of([{ key: 'Mod-Enter', run: () => { onRender?.(); return Boolean(onRender); } }, ...defaultKeymap]),
+      EditorView.contentAttributes.of({ 'aria-labelledby': 'editor-label', 'aria-describedby': 'editor-hint', spellcheck: 'false' }),
+      placeholder('{ type: "sprite", name: "dot", size: [1,1], palette: { x: "#ff0000" }, regions: { x: { points: [[0,0]] } } }'),
       updateListener,
     ],
   });
