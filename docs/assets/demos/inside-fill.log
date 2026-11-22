@@ -1,0 +1,17 @@
+Script started on 2026-11-22 15:38:38-05:00 [COMMAND="bash /tmp/grant-fill-demo.sh" <not executed on terminal>]
+BEFORE: main d6382dc, saved output from the same new regression tests
+called `Result::unwrap()` on an `Err` value: Error("invalid type: sequence, expected u32", line: 0, column: 0)
+assertion failed: raster["body"].contains(&(1, 1))
+test structured::tests::test_fill_coordinate_seed_and_invalid_controls ... FAILED
+test structured::tests::test_concave_fill_stays_inside_with_nested_operations ... FAILED
+test result: FAILED. 19 passed; 2 failed; 0 ignored; 0 measured; 1854 filtered out; finished in 0.00s
+
+AFTER: candidate, actual CLI regression run
+$ cargo test --quiet --test cli_inside_fill
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+Script done on 2026-11-22 15:38:38-05:00 [COMMAND_EXIT_CODE="0"]

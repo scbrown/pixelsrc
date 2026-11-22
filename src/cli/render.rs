@@ -11,7 +11,7 @@ use crate::atlas::{add_animation_to_atlas, pack_atlas, AtlasBox, AtlasConfig, Sp
 use crate::build::project_registry::ProjectRegistry;
 use crate::composition::{render_composition, RenderContext};
 use crate::config::loader::{find_config_from, load_config};
-use crate::gif::render_gif;
+use crate::gif::{render_gif, render_gif_with_durations};
 use crate::include::{is_include_ref, parse_include_ref, resolve_include_with_detection};
 use crate::models::{Animation, Composition, PaletteRef, Sprite, TtpObject};
 use crate::output::{apply_antialias, generate_output_path, save_png, scale_image};
@@ -1147,6 +1147,15 @@ fn run_animation_render(
         }
     };
 
+    let per_frame_durations = match animation.frame_durations_ms() {
+        Ok(durations) => durations,
+        Err(error) => {
+            eprintln!("Error: animation '{}': {}", animation.name, error);
+            return ExitCode::from(EXIT_ERROR);
+        }
+    };
+    let mut rendered_durations = Vec::new();
+
     // Validate animation: check that all frame references exist (sprites OR compositions)
     // TTP-9qjwr: Now also checks compositions as valid frame references
     let mut missing_frames = Vec::new();
@@ -1270,7 +1279,7 @@ fn run_animation_render(
         // Traditional frame-based animation
         // TTP-9qjwr: Now supports both sprites and compositions as frames
         let mut frame_images = Vec::new();
-        for frame_name in &animation.frames {
+        for (frame_index, frame_name) in animation.frames.iter().enumerate() {
             // First try to get as sprite
             if let Some(sprite) = sprites.get(frame_name) {
                 // Resolve palette
@@ -1341,6 +1350,9 @@ fn run_animation_render(
                 }
 
                 frame_images.push(image);
+                if let Some(durations) = &per_frame_durations {
+                    rendered_durations.push(durations[frame_index]);
+                }
             } else if let Some(comp) = compositions.get(frame_name) {
                 // TTP-9qjwr: Render composition as animation frame
                 let result = render_composition_to_image(
@@ -1360,6 +1372,9 @@ fn run_animation_render(
                         // Apply scaling if requested
                         let image = scale_image(image, scale);
                         frame_images.push(image);
+                        if let Some(durations) = &per_frame_durations {
+                            rendered_durations.push(durations[frame_index]);
+                        }
                     }
                     Err(code) => return code,
                 }
@@ -1390,7 +1405,17 @@ fn run_animation_render(
 
     // Output as GIF or spritesheet
     if gif_output {
-        if let Err(e) = render_gif(&frame_images, frame_duration, animation.loops(), &output_path) {
+        let result = if per_frame_durations.is_some() {
+            render_gif_with_durations(
+                &frame_images,
+                &rendered_durations,
+                animation.loops(),
+                &output_path,
+            )
+        } else {
+            render_gif(&frame_images, frame_duration, animation.loops(), &output_path)
+        };
+        if let Err(e) = result {
             eprintln!("Error: Failed to save GIF '{}': {}", output_path.display(), e);
             return ExitCode::from(EXIT_ERROR);
         }

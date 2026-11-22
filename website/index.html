@@ -72,8 +72,8 @@
             <h2 id="editor-heading">Editor</h2>
           </div>
           <div class="panel-content">
-            <label for="editor" class="visually-hidden">pixelsrc JSONL code editor</label>
-            <textarea id="editor" placeholder="Enter your pixelsrc JSONL here..." aria-describedby="editor-hint"></textarea>
+            <span id="editor-label" class="visually-hidden">pixelsrc .pxl source editor</span>
+            <div id="editor"></div>
             <span id="editor-hint" class="visually-hidden">Press Ctrl+Enter or Cmd+Enter to render</span>
           </div>
         </section>
@@ -95,7 +95,7 @@
                 <p class="empty-text">Your pixel art will appear here</p>
                 <p class="empty-hint">
                   Click an example below to get started,<br>
-                  or paste pixelsrc JSONL in the editor
+                  or paste pixelsrc .pxl source in the editor
                 </p>
                 <button class="empty-cta" id="load-first-example">
                   Try the Heart example

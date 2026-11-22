@@ -202,6 +202,44 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "size limit"):
                 ns["fetch"]("https://github.com/file", 4)
 
+    def test_actual_fetch_token_is_only_for_release_api(self):
+        ns = {"__name__": "fixture"}
+        exec(compile(SOURCE, "install.sh", "exec"), ns)
+        requests = []
+        class Response(io.BytesIO):
+            def geturl(self):
+                return requests[-1].full_url
+        class Opener:
+            def open(inner, request, timeout):
+                requests.append(request)
+                return Response(b"ok")
+        api = "https://api.github.com/repos/scbrown/pixelsrc/releases/tags/v0.3.1"
+        with patch("urllib.request.build_opener", return_value=Opener()):
+            with patch.dict(os.environ, {"GITHUB_TOKEN": "fixture-only"}):
+                ns["fetch"](api, 10)
+                self.assertTrue(requests[-1].has_header("Authorization"))
+                for url in ("https://github.com/file",
+                            "https://release-assets.githubusercontent.com/file",
+                            "https://objects.githubusercontent.com/file",
+                            "https://api.github.com/unrelated"):
+                    ns["fetch"](url, 10)
+                    self.assertFalse(requests[-1].has_header("Authorization"), url)
+            with patch.dict(os.environ, {"GITHUB_TOKEN": ""}):
+                ns["fetch"](api, 10)
+                self.assertFalse(requests[-1].has_header("Authorization"))
+
+    def test_actual_redirect_strips_token_on_asset_hosts(self):
+        import urllib.request
+        handler = self.ns["HTTPSOnly"]()
+        for host in ("github.com", "release-assets.githubusercontent.com",
+                     "objects.githubusercontent.com"):
+            request = urllib.request.Request(
+                "https://api.github.com/repos/scbrown/pixelsrc/releases/latest",
+                headers={"Authorization": "Bearer fixture-only"})
+            redirected = handler.redirect_request(
+                request, None, 302, "Found", {}, f"https://{host}/file")
+            self.assertFalse(redirected.has_header("Authorization"), host)
+
     def test_late_command_collision_preserves_existing_file(self):
         link = self.home / ".local/bin/pxl"
         original = Path.symlink_to

@@ -9,7 +9,7 @@ A sprite defines a pixel art image using named regions. Each region maps to a co
   type: "sprite",
   name: "string (required)",
   size: [width, height],
-  palette: "string (required)",
+  palette: "string (required for direct sprites)",
   regions: {
     token: { shape_definition },
     token: { shape_definition },
@@ -24,7 +24,7 @@ A sprite defines a pixel art image using named regions. Each region maps to a co
 | `type` | Yes | Must be `"sprite"` |
 | `name` | Yes | Unique identifier |
 | `size` | Yes | `[width, height]` in pixels |
-| `palette` | Yes | Palette name to use for colors |
+| `palette` | For direct sprites | Palette name or inline colors; inherited when omitted with `source` or `extends` |
 | `regions` | Yes | Map of token names to region definitions |
 
 ### Optional Fields
@@ -299,6 +299,11 @@ each frame inherits the shared regions and overrides only what moves.
 - **Size** — inherited from the base unless the extending sprite declares its own.
 - **Chaining** — `extends` may point at another extending sprite; the chain
   resolves base-first, so the deepest override of a key wins.
+
+A `source` sprite may also omit `palette`, inheriting the source's resolved
+colors through source chains. An explicit palette on a `source` sprite replaces
+the inherited palette; it does not merge individual token overrides. A direct
+sprite without `source` or `extends` still needs a palette.
 
 ### `extends` vs. `source`
 

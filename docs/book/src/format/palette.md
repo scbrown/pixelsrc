@@ -48,6 +48,21 @@ A palette defines named color tokens for use in sprites. Palettes separate color
 }
 ```
 
+## Shared palette files
+
+A CLI sprite can load a palette from another file:
+
+```json5
+{ type: "sprite", name: "dot", size: [4,4], palette: "@include:base.pxl",
+  regions: { x: { points: [[0,0]] } } }
+```
+
+`base.pxl` supplies the first palette in that file. Include paths resolve relative
+to the input file's directory. The same include may be used repeatedly, including
+by repeated GIF frames. Cycle detection tracks only active resolutions; a file
+already on the active stack is still rejected. A completed or failed lookup does
+not leave an entry that could make later independent uses look circular.
+
 ## Color Formats
 
 Palettes accept colors in these formats:

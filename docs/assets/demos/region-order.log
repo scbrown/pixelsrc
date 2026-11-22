@@ -1,0 +1,17 @@
+Script started on 2026-11-22 16:01:30-05:00 [COMMAND="bash /tmp/grant-order-demo.sh" <not executed on terminal>]
+BEFORE: saved regression on main d6382dc
+  left: [0, 255, 0, 255]
+ right: [255, 255, 0, 255]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+AFTER: separate-process painter probes
+$ cargo test --quiet --features lsp,wasm --test cli_region_order
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+Checking Python feature against supported Python 3.12
+
+Script done on 2026-11-22 16:01:47-05:00 [COMMAND_EXIT_CODE="0"]

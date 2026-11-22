@@ -392,7 +392,7 @@ fn find_boundary_pixels(
 /// * `palette` - The palette with colors, roles, and relationships
 /// * `canvas_size` - Width and height of the canvas
 pub fn extract_from_definitions(
-    region_defs: &HashMap<String, RegionDef>,
+    region_defs: &indexmap::IndexMap<String, RegionDef>,
     rasterized: &HashMap<String, HashSet<(i32, i32)>>,
     palette: &Palette,
     canvas_size: (u32, u32),
