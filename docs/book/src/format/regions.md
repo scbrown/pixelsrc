@@ -240,7 +240,16 @@ shadow: {
 
 ### Z-Order
 
-Explicit render order (default: definition order).
+Regions paint from lowest to highest z. Equal-z regions retain their source
+definition order, so with no z or role overrides, the last overlapping region
+wins. Semantic roles still supply their existing default z values.
+
+Region definitions use an ordered map throughout parsing, inheritance and
+rendering. Extending a sprite retains inherited region positions; replacing a
+region keeps its position, adding a new region appends it, and removal preserves
+remaining positions. Rust callers use `indexmap::IndexMap<String, RegionDef>`
+instead of `HashMap` for region maps. Palettes and rasterized-pixel lookups keep
+their existing types.
 
 ```json5
 detail: {
@@ -335,7 +344,7 @@ _: "background"
 
 Regions are processed in two passes:
 
-1. **Shape resolution** (definition order): Each region's pixels are computed. Pixel-affecting operations (`fill: "inside(X)"`, `except: [X]`, `auto-outline: X`) require X to be defined earlier.
+1. **Shape resolution** (dependency order): Each region is rasterized after its `fill`, `except`, `auto-outline` and `auto-shadow` dependencies, including nested compound operations. A boundary may appear later in the source. Painting is a separate stable z sort over definition order.
 
 2. **Validation** (after all resolved): Constraints (`within`, `adjacent-to`) are checked. These can reference any region.
 

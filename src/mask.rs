@@ -117,7 +117,7 @@ fn resolve_inherited(
     sprite: &Sprite,
     by_name: &HashMap<&str, &Sprite>,
     visited: &mut Vec<String>,
-) -> (Option<HashMap<String, RegionDef>>, Option<[u32; 2]>) {
+) -> (Option<indexmap::IndexMap<String, RegionDef>>, Option<[u32; 2]>) {
     if visited.contains(&sprite.name) {
         return (sprite.regions.clone(), sprite.size);
     }
@@ -129,7 +129,7 @@ fn resolve_inherited(
             let mut merged = base_regions.unwrap_or_default();
             if let Some(remove_keys) = &sprite.remove {
                 for key in remove_keys {
-                    merged.remove(key);
+                    merged.shift_remove(key);
                 }
             }
             if let Some(own) = &sprite.regions {
