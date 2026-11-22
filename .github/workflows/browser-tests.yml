@@ -4,12 +4,20 @@ on:
   push:
     branches: [main]
     paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/fixtures/wasm_project/**'
       - 'docs/book/**'
       - 'wasm/**'
       - '.github/workflows/browser-tests.yml'
   pull_request:
     branches: [main]
     paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/fixtures/wasm_project/**'
       - 'docs/book/**'
       - 'wasm/**'
       - '.github/workflows/browser-tests.yml'
@@ -58,6 +66,14 @@ jobs:
       - name: Build documentation
         run: mdbook build
         working-directory: docs/book
+
+      - name: Prepare shared-project browser fixture and CLI reference
+        run: |
+          mkdir -p docs/book/book/html/project-pkg docs/book/book/html/project-fixture
+          cp wasm/pkg/* docs/book/book/html/project-pkg/
+          cp tests/fixtures/wasm_project/*.pxl docs/book/book/html/project-fixture/
+          cat tests/fixtures/wasm_project/shared.pxl tests/fixtures/wasm_project/figures.pxl > docs/book/book/html/project-fixture/all.pxl
+          cargo run --no-default-features -- render docs/book/book/html/project-fixture/all.pxl -c page -o docs/book/book/html/project-fixture/expected.png
 
       - name: Install Playwright
         run: |
@@ -120,6 +136,41 @@ jobs:
                      typeof WebAssembly.instantiate === 'function';
             });
             expect(wasmSupported).toBe(true);
+          });
+
+          test('loaded multi-file Project matches CLI pixels and diagnoses missing includes', async ({ page }) => {
+            await page.goto(BASE_URL);
+            const result = await page.evaluate(async () => {
+              const wasm = await import('/project-pkg/pixelsrc.js');
+              await wasm.default();
+              const sources = await Promise.all(['shared.pxl', 'figures.pxl'].map(async path => ({
+                path, text: await (await fetch(`/project-fixture/${path}`)).text()
+              })));
+              const project = wasm.Project.load(JSON.stringify(sources));
+              const reference = await createImageBitmap(await (await fetch('/project-fixture/expected.png')).blob());
+              const canvas = document.createElement('canvas');
+              canvas.width = reference.width; canvas.height = reference.height;
+              const ctx = canvas.getContext('2d'); ctx.drawImage(reference, 0, 0);
+              const expected = Array.from(ctx.getImageData(0,0,canvas.width,canvas.height).data);
+              const renders = [];
+              for (let i=0;i<3;i++) {
+                const image = project.render('page');
+                renders.push({width:image.width,height:image.height,pixels:Array.from(image.pixels),warnings:image.warnings});
+                image.free();
+              }
+              let missing;
+              try { wasm.Project.load(JSON.stringify([{path:'bad.pxl',text:sources[1].text.replace('shared.pxl#p','missing.pxl#p')} ])); }
+              catch(error) { missing = String(error); }
+              const count = project.source_count; project.free(); reference.close();
+              return {count, expected, renders, missing};
+            });
+            expect(result.count).toBe(2);
+            for (const image of result.renders) {
+              expect([image.width,image.height]).toEqual([4,2]);
+              expect(image.pixels).toEqual(result.expected);
+              expect(image.warnings).toEqual([]);
+            }
+            expect(result.missing).toContain('not a supplied source file');
           });
 
           test('Blob API available', async ({ page }) => {

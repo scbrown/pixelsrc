@@ -1,0 +1,3 @@
+{type:"sprite",name:"included",size:[2,2],palette:"@include:shared.pxl#p",regions:{x:{points:[[0,0]]}}}
+{type:"composition",name:"figure",size:[4,2],cell_size:[2,2],sprites:{D:"dot",I:"included"},layers:[{map:["DI"]}]}
+{type:"composition",name:"page",size:[4,2],cell_size:[4,2],sprites:{F:"figure"},layers:[{map:["F"]}]}

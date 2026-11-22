@@ -26,6 +26,35 @@ pub fn render_gif(
     loop_anim: bool,
     path: &Path,
 ) -> Result<(), OutputError> {
+    encode_gif(frames, &vec![duration_ms; frames.len()], loop_anim, path)
+}
+
+/// Render a GIF with one delay per frame, in milliseconds.
+/// Delays must be in 1..=655350; GIF quantizes down to 10ms with a 10ms minimum.
+/// Invalid lengths or durations fail before creating the output file.
+pub fn render_gif_with_durations(
+    frames: &[RgbaImage],
+    durations_ms: &[u32],
+    loop_anim: bool,
+    path: &Path,
+) -> Result<(), OutputError> {
+    if frames.len() != durations_ms.len() || durations_ms.iter().any(|d| !(1..=655_350).contains(d))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "GIF requires one duration from 1 to 655350 milliseconds per frame",
+        )
+        .into());
+    }
+    encode_gif(frames, durations_ms, loop_anim, path)
+}
+
+fn encode_gif(
+    frames: &[RgbaImage],
+    durations_ms: &[u32],
+    loop_anim: bool,
+    path: &Path,
+) -> Result<(), OutputError> {
     if frames.is_empty() {
         return Ok(());
     }
@@ -47,10 +76,9 @@ pub fn render_gif(
 
     // GIF uses centiseconds (1/100th of a second) for delays
     // Convert milliseconds to centiseconds (divide by 10)
-    let delay_cs = (duration_ms / 10).max(1) as u16;
-
     // Encode each frame
-    for rgba_image in frames {
+    for (rgba_image, duration_ms) in frames.iter().zip(durations_ms) {
+        let delay_cs = (duration_ms / 10).max(1) as u16;
         let delay = image::Delay::from_numer_denom_ms(delay_cs as u32 * 10, 1);
         let frame = Frame::from_parts(rgba_image.clone(), 0, 0, delay);
         encoder.encode_frame(frame)?;

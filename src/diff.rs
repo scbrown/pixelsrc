@@ -211,7 +211,7 @@ fn diff_regions(a: &Sprite, b: &Sprite) -> Vec<RegionChange> {
 }
 
 fn rasterize_all(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     width: i32,
     height: i32,
 ) -> HashMap<String, HashSet<(i32, i32)>> {

@@ -90,7 +90,7 @@ fn make_test_sprite(width: usize, height: usize) -> Sprite {
     }
 
     // Create a region for each row using different palette tokens
-    let mut regions = HashMap::new();
+    let mut regions = indexmap::IndexMap::new();
     for row in 0..height {
         let token = format!("t{}", row % 16);
         regions.insert(
@@ -116,7 +116,7 @@ fn make_resolved_sprite(width: usize, height: usize) -> ResolvedSprite {
             .insert(format!("t{}", i), format!("#{:02X}{:02X}{:02X}", i * 16, i * 8, 255 - i * 16));
     }
 
-    let mut regions = HashMap::new();
+    let mut regions = indexmap::IndexMap::new();
     for row in 0..height {
         let token = format!("t{}", row % 16);
         regions.insert(
@@ -285,7 +285,7 @@ fn bench_renderer(c: &mut Criterion) {
     for i in 0..256 {
         wide_palette.insert(format!("c{}", i), format!("#{:02X}{:02X}{:02X}", i, i, i));
     }
-    let mut wide_regions = HashMap::new();
+    let mut wide_regions = indexmap::IndexMap::new();
     for row in 0..16 {
         for col in 0..16 {
             // Region key = palette token name

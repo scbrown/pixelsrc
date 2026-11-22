@@ -53,6 +53,41 @@ const url = URL.createObjectURL(blob);
 document.getElementById('preview').src = url;
 ```
 
+## Shared source files and loaded projects
+
+Use `Project.load` to parse several shared files once, then render as many named
+sprites, variants or compositions as needed:
+
+```javascript
+import init, { Project } from '@stiwi/pixelsrc-wasm';
+await init();
+const paths = ['art/shared.pxl', 'art/figures.pxl'];
+const sources = await Promise.all(paths.map(async path => {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`Cannot load ${path}: ${response.status}`);
+  return { path, text: await response.text() };
+}));
+const project = Project.load(JSON.stringify(sources));
+const figure = project.render('figure_one');
+if (figure.warnings.length) console.warn(figure.warnings);
+ctx.putImageData(new ImageData(new Uint8ClampedArray(figure.pixels),
+  figure.width, figure.height), 0, 0);
+figure.free();
+// project.render('figure_two') uses the same already-parsed registries.
+project.free(); // release when the page no longer needs this project
+```
+
+`Project.load` takes a JSON array of `{path, text}` objects. Paths are relative
+virtual paths using `/`, normalized within the project. Duplicate normalized
+paths, malformed source and paths escaping the project fail with clear errors.
+A sprite's `@include:../palettes/base.pxl#palette_name` resolves only against the
+supplied files, relative to that sprite's source file. Missing files/palettes fail
+at load time; no filesystem access or implicit browser fetch is attempted. Omit
+`#palette_name` for the first palette in the supplied file. Named palettes and
+sprites are shared across all files, in the same order as concatenating them.
+`project.source_count` reports how many files were parsed, and
+`project.list_renderables()` lists available `kind:name` entries.
+
 ## Canvas Rendering
 
 For direct canvas rendering, use `render_to_rgba`:

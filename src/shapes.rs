@@ -461,54 +461,56 @@ fn is_valid_fill_point(
     x >= 0 && x < canvas_width && y >= 0 && y < canvas_height && !boundary.contains(&point)
 }
 
-/// Find a valid interior seed point by analyzing the boundary.
-///
-/// Attempts to find the center of the boundary's bounding box, then searches
-/// outward in a spiral pattern if the center is blocked.
+/// Find an enclosed pixel, preferring the boundary's bounding-box centre.
+/// Pixels reachable from a free canvas edge are exterior, even when they lie
+/// inside the bounding box of a concave boundary.
 fn find_interior_seed(
     boundary: &HashSet<(i32, i32)>,
     canvas_width: i32,
     canvas_height: i32,
 ) -> Option<(i32, i32)> {
-    if boundary.is_empty() {
-        // No boundary means fill entire canvas from origin
-        if canvas_width > 0 && canvas_height > 0 {
-            return Some((0, 0));
-        }
+    if canvas_width <= 0 || canvas_height <= 0 {
         return None;
     }
-
-    // Find bounding box of boundary
-    let min_x = boundary.iter().map(|(x, _)| *x).min().expect("boundary is non-empty");
-    let max_x = boundary.iter().map(|(x, _)| *x).max().expect("boundary is non-empty");
-    let min_y = boundary.iter().map(|(_, y)| *y).min().expect("boundary is non-empty");
-    let max_y = boundary.iter().map(|(_, y)| *y).max().expect("boundary is non-empty");
-
-    // Start from center of bounding box
-    let center_x = (min_x + max_x) / 2;
-    let center_y = (min_y + max_y) / 2;
-
-    // Try center first
-    if is_valid_fill_point((center_x, center_y), boundary, canvas_width, canvas_height) {
-        return Some((center_x, center_y));
+    if boundary.is_empty() {
+        return Some((0, 0));
     }
-
-    // Search outward in a spiral pattern
-    let max_radius = (max_x - min_x).max(max_y - min_y);
-    for radius in 1..=max_radius {
-        for dx in -radius..=radius {
-            for dy in -radius..=radius {
-                if dx.abs() == radius || dy.abs() == radius {
-                    let point = (center_x + dx, center_y + dy);
-                    if is_valid_fill_point(point, boundary, canvas_width, canvas_height) {
-                        return Some(point);
-                    }
-                }
+    let mut exterior = HashSet::new();
+    let mut queue = std::collections::VecDeque::new();
+    for x in 0..canvas_width {
+        for point in [(x, 0), (x, canvas_height - 1)] {
+            if !boundary.contains(&point) && exterior.insert(point) {
+                queue.push_back(point);
             }
         }
     }
-
-    None
+    for y in 0..canvas_height {
+        for point in [(0, y), (canvas_width - 1, y)] {
+            if !boundary.contains(&point) && exterior.insert(point) {
+                queue.push_back(point);
+            }
+        }
+    }
+    while let Some((x, y)) = queue.pop_front() {
+        for point in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] {
+            if is_valid_fill_point(point, boundary, canvas_width, canvas_height)
+                && exterior.insert(point)
+            {
+                queue.push_back(point);
+            }
+        }
+    }
+    let min_x = boundary.iter().map(|(x, _)| i64::from(*x)).min()?;
+    let max_x = boundary.iter().map(|(x, _)| i64::from(*x)).max()?;
+    let min_y = boundary.iter().map(|(_, y)| i64::from(*y)).min()?;
+    let max_y = boundary.iter().map(|(_, y)| i64::from(*y)).max()?;
+    let centre = ((min_x + max_x) / 2, (min_y + max_y) / 2);
+    (0..canvas_height)
+        .flat_map(|y| (0..canvas_width).map(move |x| (x, y)))
+        .filter(|p| !boundary.contains(p) && !exterior.contains(p))
+        .min_by_key(|&(x, y)| {
+            ((i64::from(x) - centre.0).abs() + (i64::from(y) - centre.1).abs(), y, x)
+        })
 }
 
 /// Rasterize a filled polygon using scanline fill algorithm.

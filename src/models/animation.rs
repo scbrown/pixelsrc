@@ -175,6 +175,10 @@ pub struct Animation {
     /// Accepts both raw milliseconds (100) and CSS time strings ("500ms", "1s").
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub duration: Option<Duration>,
+    /// Per-frame timing overrides for frame arrays. Null entries use `duration`.
+    /// Accepts milliseconds or CSS time strings; one entry per frame.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub frame_durations: Option<Vec<Option<Duration>>>,
     /// CSS timing function for keyframes interpolation (e.g., "linear", "ease", "ease-in-out",
     /// "cubic-bezier(0.25, 0.1, 0.25, 1.0)", "steps(4, jump-end)")
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -208,6 +212,47 @@ impl Animation {
             .as_ref()
             .and_then(|d| d.as_milliseconds())
             .unwrap_or(Self::DEFAULT_DURATION_MS)
+    }
+
+    /// Resolve per-frame timing overrides, validating GIF's representable range.
+    /// Returns `None` when the existing uniform timing contract applies.
+    pub fn frame_durations_ms(&self) -> Result<Option<Vec<u32>>, String> {
+        let Some(durations) = &self.frame_durations else { return Ok(None) };
+        if self.frames.is_empty()
+            || self.is_css_keyframes()
+            || self.source.is_some()
+            || self.has_palette_cycle()
+        {
+            return Err(
+                "frame_durations requires a frame array without keyframes, source or palette_cycle"
+                    .into(),
+            );
+        }
+        if durations.len() != self.frames.len() {
+            return Err(format!(
+                "frame_durations has {} entries for {} frames",
+                durations.len(),
+                self.frames.len()
+            ));
+        }
+        durations
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let millis = match value {
+                    Some(value) => value.as_milliseconds(),
+                    None => Some(self.duration_ms()),
+                };
+                match millis {
+                    Some(ms @ 1..=655_350) => Ok(ms),
+                    _ => Err(format!(
+                        "frame_durations[{}] must be a duration from 1 to 655350 milliseconds",
+                        index
+                    )),
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some)
     }
 
     /// Returns whether the animation should loop (default: true).
