@@ -1,0 +1,21 @@
+Script started on 2026-11-22 15:59:57-05:00 [COMMAND="bash /tmp/grant-wheel-demo.sh" <not executed on terminal>]
+BEFORE: actual PR48 macOS ARM build failure
+The configured Python interpreter version (3.15) is newer than PyO3's maximum supported version (3.13)
+
+AFTER: candidate workflow source selectors (runtime CI still required)
+macos
+  setup-python 3.13 condition=always
+  setup-python 3.12 condition=always
+  setup-python 3.11 condition=always
+  setup-python 3.10 condition=always
+  setup-python 3.9 condition=matrix.target == 'x86_64-apple-darwin'
+  maturin: --release --out dist -i "${{ steps.py313.outputs.python-path }}" "${{ steps.py312.outputs.python-path }}" "${{ steps.py311.outputs.python-path }}" "${{ steps.py310.outputs.python-path }}" ${{ steps.py39.outputs.python-path != '' && format('"{0}"', steps.py39.outputs.python-path) || '' }}
+windows
+  setup-python 3.13 condition=always
+  setup-python 3.12 condition=always
+  setup-python 3.11 condition=always
+  setup-python 3.10 condition=always
+  setup-python 3.9 condition=always
+  maturin: --release --out dist -i "${{ steps.py313.outputs.python-path }}" "${{ steps.py312.outputs.python-path }}" "${{ steps.py311.outputs.python-path }}" "${{ steps.py310.outputs.python-path }}" "${{ steps.py39.outputs.python-path }}"
+
+Script done on 2026-11-22 15:59:57-05:00 [COMMAND_EXIT_CODE="0"]
