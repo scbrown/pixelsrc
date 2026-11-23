@@ -1,4 +1,6 @@
-![pixelsrc banner](docs/assets/banner.png)
+<!-- pixelsrc-readme:logo:start -->
+[![pixelsrc: a neon p with a brush-stroke descender](docs/assets/readme/logo-4x.png)](docs/assets/readme/logo.pxl)
+<!-- pixelsrc-readme:logo:end -->
 
 # pixelsrc
 
@@ -14,8 +16,9 @@
 
 pixelsrc is a semantic, human-readable text format for defining pixel art. Unlike traditional editors or hex-based formats, it's designed from the ground up for AI systems to generate reliably.
 
+<!-- pixelsrc-readme:coin:start -->
 ```json5
-// coin.pxl - A simple coin sprite
+// A simple coin sprite. Transparent canvas needs no background region.
 {
   type: "palette",
   name: "coin",
@@ -26,20 +29,23 @@ pixelsrc is a semantic, human-readable text format for defining pixel art. Unlik
     shine: "#FFFACD",
   },
 }
-
 {
   type: "sprite",
   name: "coin",
   size: [8, 8],
   palette: "coin",
   regions: {
-    _: "background",
-    outline: { stroke: [1, 1, 6, 6], round: 2 },
+    outline: { line: [[2, 0], [5, 0], [7, 2], [7, 5], [5, 7], [2, 7], [0, 5], [0, 2], [2, 0]] },
     gold: { fill: "inside(outline)" },
     shine: { points: [[3, 2], [4, 3]] },
   },
 }
 ```
+
+![coin rendered from the source above](docs/assets/readme/coin-24x.png)
+
+[Editable source](docs/assets/readme/coin.pxl) · rendered at 24× nearest-neighbor scale.
+<!-- pixelsrc-readme:coin:end -->
 
 ## Why pixelsrc?
 
@@ -110,6 +116,7 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
 
 1. Create a file `hero.pxl`:
 
+<!-- pixelsrc-readme:hero:start -->
 ```json5
 {
   type: "palette",
@@ -122,21 +129,27 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
     eye: "#4169E1",
   },
 }
-
 {
   type: "sprite",
   name: "hero",
   size: [16, 16],
   palette: "hero",
   regions: {
-    _: "background",
-    "head-outline": { stroke: [4, 2, 8, 10], round: 2 },
-    hair: { fill: "inside(head-outline)", y: [2, 5] },
-    skin: { fill: "inside(head-outline)", y: [5, 12], except: ["eye"] },
-    eye: { rect: [6, 7, 2, 2], symmetric: "x" },
+    outline: { stroke: [4, 2, 8, 10] },
+    hair: { intersect: [{ fill: "inside(outline)" }, { rect: [4, 2, 8, 4] }] },
+    skin: {
+      intersect: [{ fill: "inside(outline)" }, { rect: [4, 6, 8, 6] }],
+      except: ["eye"],
+    },
+    eye: { rect: [6, 7, 1, 1], symmetric: "x" },
   },
 }
 ```
+
+![hero rendered from the source above](docs/assets/readme/hero-12x.png)
+
+[Editable source](docs/assets/readme/hero.pxl) · rendered at 12× nearest-neighbor scale.
+<!-- pixelsrc-readme:hero:end -->
 
 2. Render it:
 
@@ -169,7 +182,7 @@ pxl render hero.pxl -o hero.png --scale 8
 - **Palettes** - Define reusable color schemes with semantic roles
 - **Sprites** - Define images using geometric regions
 - **Regions** - Shapes: `rect`, `stroke`, `circle`, `ellipse`, `polygon`, `fill`
-- **Modifiers** - `symmetric`, range constraints (`x`, `y`), `except`
+- **Modifiers** - `symmetric`, `translate`, `except`; combine shapes with `intersect` for range constraints
 - **Animations** - Frame sequences with timing
 - **Compositions** - Layer sprites into scenes
 - **State Rules** - Visual states without separate sprites
@@ -190,6 +203,8 @@ just build       # Build the project
 just test        # Run tests
 just check       # Run format check, lint, and tests
 just render coin # Render an example sprite
+just readme-assets # Regenerate the logo, code samples and previews (pxl 0.4.0)
+just readme-assets-check # Fail if any README source or PNG is stale
 ```
 
 ## Documentation

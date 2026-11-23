@@ -1,0 +1,50 @@
+// The lowercase p is a brush stroke: a bright rim, warm bowl and tapered tip.
+{ type: "palette", name: "brand", colors: {
+  _: "transparent", background: "#110D24", frame: "#38265C",
+  ink: "#BD93F9", rim: "#8BE9FD", warm: "#FF79C6",
+  glint: "#F6EDFF", hot: "#FF2D95",
+} }
+{ type: "palette", name: "brand-shadow", colors: {
+  _: "transparent", ink: "#57357F", rim: "#57357F",
+  warm: "#57357F", glint: "#57357F",
+} }
+
+{ type: "sprite", name: "logo_tile", size: [64, 64], palette: "brand", regions: {
+  background: { polygon: [[12, 0], [51, 0], [63, 12], [63, 51], [51, 63], [12, 63], [0, 51], [0, 12]], role: "fill" },
+  frame: { line: [[12, 1], [51, 1], [62, 12], [62, 51], [51, 62], [12, 62], [1, 51], [1, 12], [12, 1]], role: "boundary" },
+} }
+
+{ type: "sprite", name: "logo_mark", size: [34, 44], palette: "brand", regions: {
+  ink: { union: [
+    { rect: [0, 0, 9, 36] },
+    { rect: [9, 0, 17, 7] },
+    { rect: [24, 5, 8, 15] },
+    { rect: [9, 17, 17, 7] },
+    { rect: [0, 35, 7, 4] },
+    { rect: [0, 39, 4, 3] },
+  ], role: "fill" },
+  rim: { union: [
+    { rect: [0, 0, 3, 34] },
+    { rect: [3, 0, 21, 2] },
+    { rect: [0, 34, 5, 3] },
+    { rect: [0, 39, 3, 3] },
+  ], role: "highlight" },
+  warm: { union: [
+    { rect: [25, 7, 7, 12] },
+    { rect: [9, 20, 16, 4] },
+  ], role: "highlight" },
+  glint: { rect: [9, 3, 12, 2], role: "anchor" },
+} }
+{ type: "sprite", name: "logo_shadow", source: "logo_mark", palette: "brand-shadow" }
+
+{ type: "sprite", name: "logo_sparks", size: [64, 64], palette: "brand", regions: {
+  hot: { rect: [50, 11, 3, 3], role: "anchor" },
+  rim: { rect: [53, 18, 2, 2], role: "anchor" },
+  warm: { rect: [12, 51, 2, 2], role: "anchor" },
+} }
+{ type: "composition", name: "pixelsrc_logo", size: [64, 64], layers: [
+  { sprite: "logo_tile", x: 0, y: 0 },
+  { sprite: "logo_shadow", x: 17, y: 15 },
+  { sprite: "logo_mark", x: 15, y: 12 },
+  { sprite: "logo_sparks", x: 0, y: 0 },
+] }

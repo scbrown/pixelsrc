@@ -61,6 +61,14 @@ clean:
 render name:
     cargo run -- render examples/{{name}}.jsonl -o /tmp/{{name}}.png && echo "Saved to /tmp/{{name}}.png"
 
+# Regenerate README art with released pxl 0.4.0 (or pass its path explicitly)
+readme-assets pxl="pxl":
+    python3 scripts/render-readme.py --pxl {{quote(pxl)}}
+
+# Check that every README example and PNG matches its pixelsrc source
+readme-assets-check pxl="pxl":
+    python3 scripts/render-readme.py --pxl {{quote(pxl)}} --check
+
 # List built-in palettes
 palettes:
     cargo run -- palettes list

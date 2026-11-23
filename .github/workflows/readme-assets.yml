@@ -1,0 +1,35 @@
+name: README Art
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'docs/assets/readme/**'
+      - 'scripts/render-readme.py'
+      - '.github/workflows/readme-assets.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'docs/assets/readme/**'
+      - 'scripts/render-readme.py'
+      - '.github/workflows/readme-assets.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the pinned released renderer into an isolated directory
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: sh install.sh --version 0.4.0 --prefix "$RUNNER_TEMP/readme-pxl"
+      - name: Regenerate and compare every README source and PNG
+        run: python3 scripts/render-readme.py --pxl "$RUNNER_TEMP/readme-pxl/pxl" --check
