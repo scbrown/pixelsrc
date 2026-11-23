@@ -313,12 +313,16 @@ html, body {
   color: var(--text-primary);
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 0.875rem;
-  padding: 1rem;
-  resize: none;
+  padding: 0;
+  overflow: hidden;
   caret-color: var(--accent-pink);
 }
 
-#editor:focus {
+#editor .cm-editor { height: 100%; }
+#editor .cm-scroller { overflow: auto; font-family: inherit; }
+#editor .cm-content { padding: 1rem; }
+
+#editor:focus-within {
   outline: none;
   border-color: var(--accent-purple);
 }

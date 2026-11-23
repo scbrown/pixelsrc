@@ -1,0 +1,94 @@
+name: Website Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'wasm/**'
+      - '.github/workflows/website-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'wasm/**'
+      - '.github/workflows/website-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            website/package-lock.json
+            wasm/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM package
+        run: npm run build
+        working-directory: wasm
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Build website
+        run: npm run build
+        working-directory: website
+
+      - name: Browser smoke test under the published project prefix
+        run: |
+          npm install --prefix /tmp/pixelsrc-browser-ci playwright@1.56.1
+          /tmp/pixelsrc-browser-ci/node_modules/.bin/playwright install --with-deps chromium
+          mkdir -p /tmp/pixelsrc-site/pixelsrc
+          cp -R website/dist/. /tmp/pixelsrc-site/pixelsrc/
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory /tmp/pixelsrc-site > /tmp/pixelsrc-site.log 2>&1 &
+          site_pid=$!
+          trap 'kill "$site_pid"' EXIT
+          node <<'JS'
+          const {chromium} = require('/tmp/pixelsrc-browser-ci/node_modules/playwright');
+          const assert = require('node:assert/strict');
+          (async () => {
+            const browser = await chromium.launch();
+            try {
+              const page = await browser.newPage();
+              const failures = [];
+              page.on('response', response => {
+                if (response.url().includes('/examples/') && response.status() >= 400) failures.push(response.status());
+              });
+              await page.goto('http://127.0.0.1:4173/pixelsrc/');
+              await page.locator('.gallery-item').first().waitFor();
+              assert.ok(await page.locator('.gallery-item').count() > 0);
+              assert.equal(await page.locator('.cm-editor').count(), 1);
+              const before = await page.locator('.cm-content').innerText();
+              await page.locator('.gallery-item').nth(1).click();
+              await page.waitForFunction(previous => document.querySelector('.cm-content').innerText !== previous, before);
+              await page.waitForFunction(() => {
+                const canvas = document.querySelector('.preview-canvas');
+                if (!canvas || !canvas.width || !canvas.height) return false;
+                return canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,i,data) => i%4===0 && (value !== data[i+1] || value !== data[i+2]));
+              });
+              assert.ok(await page.locator('.cm-content span').count() > 0);
+              assert.deepEqual(failures, []);
+            } finally { await browser.close(); }
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
