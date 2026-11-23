@@ -389,7 +389,9 @@ fn compute_corner_pixel(
     // Determine if there's a dominant edge direction
     let edge_strength = (weight1 - weight2).abs();
 
-    if edge_strength < threshold * 0.5 {
+    // Edge votes and color distances have different units. A single
+    // vote is enough to establish a dominant direction.
+    if edge_strength < WEIGHT_EDGE * 0.5 {
         // No clear edge - keep center pixel
         return center;
     }
@@ -397,7 +399,7 @@ fn compute_corner_pixel(
     // Determine which direction has the edge and apply appropriate blending
     if weight1 > weight2 {
         // Edge runs along direction 1 - blend towards diagonal
-        let blend_factor = calculate_blend_factor(edge_strength, threshold, strength);
+        let blend_factor = calculate_blend_factor(edge_strength, strength);
         if colors_similar(&edge1, &diagonal, threshold)
             && colors_similar(&edge2, &diagonal, threshold)
         {
@@ -411,7 +413,7 @@ fn compute_corner_pixel(
         }
     } else {
         // Edge runs along direction 2 - blend towards opposite
-        let blend_factor = calculate_blend_factor(edge_strength, threshold, strength);
+        let blend_factor = calculate_blend_factor(edge_strength, strength);
         if colors_similar(&edge1, &edge2, threshold) {
             let avg = average_colors(&edge1, &edge2);
             blend_colors(&center, &avg, blend_factor * 0.375)
@@ -470,8 +472,9 @@ fn compute_edge_weight(
 }
 
 /// Calculate the blend factor based on edge strength.
-fn calculate_blend_factor(edge_strength: f32, threshold: f32, strength: f32) -> f32 {
-    let normalized = (edge_strength / threshold).clamp(0.0, 1.0);
+fn calculate_blend_factor(edge_strength: f32, strength: f32) -> f32 {
+    let max_weight = 3.0 * WEIGHT_EDGE + WEIGHT_DIAGONAL + 2.0 * WEIGHT_FAR;
+    let normalized = (edge_strength / max_weight).clamp(0.0, 1.0);
     normalized * strength
 }
 
@@ -912,19 +915,20 @@ mod tests {
     #[test]
     fn test_calculate_blend_factor() {
         // Zero edge strength should give zero blend
-        let factor = calculate_blend_factor(0.0, DEFAULT_THRESHOLD, 1.0);
+        let max_weight = 3.0 * WEIGHT_EDGE + WEIGHT_DIAGONAL + 2.0 * WEIGHT_FAR;
+        let factor = calculate_blend_factor(0.0, 1.0);
         assert!(factor < 0.001);
 
-        // Full threshold edge strength should give full strength blend
-        let factor = calculate_blend_factor(DEFAULT_THRESHOLD, DEFAULT_THRESHOLD, 1.0);
+        // Maximum vote strength should give full strength blend
+        let factor = calculate_blend_factor(max_weight, 1.0);
         assert!((factor - 1.0).abs() < 0.001);
 
-        // Half threshold should give half blend
-        let factor = calculate_blend_factor(DEFAULT_THRESHOLD / 2.0, DEFAULT_THRESHOLD, 1.0);
+        // Half the votes should give half blend
+        let factor = calculate_blend_factor(max_weight / 2.0, 1.0);
         assert!((factor - 0.5).abs() < 0.001);
 
         // Strength scaling
-        let factor = calculate_blend_factor(DEFAULT_THRESHOLD, DEFAULT_THRESHOLD, 0.5);
+        let factor = calculate_blend_factor(max_weight, 0.5);
         assert!((factor - 0.5).abs() < 0.001);
     }
 
