@@ -1,0 +1,2 @@
+{type:"palette",name:"p",colors:{x:"#ff0000"}}
+{type:"sprite",name:"dot",size:[2,2],palette:"p",regions:{x:{points:[[0,0]]}}}
