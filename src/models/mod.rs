@@ -336,6 +336,9 @@ mod tests {
                 ("A".to_string(), Some("sprite_a".to_string())),
             ]),
             layers: vec![CompositionLayer {
+                sprite: None,
+                x: 0,
+                y: 0,
                 name: Some("layer1".to_string()),
                 fill: None,
                 map: Some(vec!["A.".to_string(), ".A".to_string()]),

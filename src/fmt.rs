@@ -232,6 +232,19 @@ fn format_layer(layer: &CompositionLayer) -> String {
         first = false;
     }
 
+    if let Some(ref sprite) = layer.sprite {
+        if !first {
+            s.push_str(", ");
+        }
+        s.push_str(&format!(
+            "\"sprite\": \"{}\", \"x\": {}, \"y\": {}",
+            escape_json_string(sprite),
+            layer.x,
+            layer.y
+        ));
+        first = false;
+    }
+
     // Fill
     if let Some(ref fill) = layer.fill {
         if !first {
@@ -268,6 +281,24 @@ fn format_layer(layer: &CompositionLayer) -> String {
                 s.push('\n');
             }
             s.push_str("  ]");
+        }
+    }
+
+    if layer.map.is_some() {
+        first = false;
+    }
+    let extras = [
+        ("transform", layer.transform.as_ref().map(|v| serde_json::to_string(v).unwrap())),
+        ("blend", layer.blend.as_ref().map(|v| serde_json::to_string(v).unwrap())),
+        ("opacity", layer.opacity.as_ref().map(|v| serde_json::to_string(v).unwrap())),
+    ];
+    for (key, value) in extras {
+        if let Some(value) = value {
+            if !first {
+                s.push_str(", ");
+            }
+            s.push_str(&format!("\"{key}\": {value}"));
+            first = false;
         }
     }
 
@@ -546,12 +577,18 @@ mod tests {
             ]),
             layers: vec![
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("ground".to_string()),
                     fill: Some(".".to_string()),
                     map: None,
                     ..Default::default()
                 },
                 CompositionLayer {
+                    sprite: None,
+                    x: 0,
+                    y: 0,
                     name: Some("objects".to_string()),
                     fill: None,
                     map: Some(vec!["....".to_string(), "..H.".to_string(), "....".to_string()]),

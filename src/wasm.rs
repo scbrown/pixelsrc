@@ -257,7 +257,11 @@ fn render_named_with_context(
     }
     let result = {
         let mut rendered: HashMap<String, RgbaImage> = HashMap::new();
-        let wanted = comp.base.iter().chain(comp.sprites.values().flatten());
+        let wanted = comp
+            .base
+            .iter()
+            .chain(comp.sprites.values().flatten())
+            .chain(comp.layers.iter().filter_map(|l| l.sprite.as_ref()));
         for sprite_name in wanted {
             if rendered.contains_key(sprite_name) {
                 continue;

@@ -3,7 +3,7 @@ use std::process::Command;
 
 const INPUT: &str = r##"{ type: "palette", name: "p", colors: { _: "transparent", a: "#ff0000" } }
 { type: "sprite", name: "dot", size: [4,4], palette: "p", regions: { a: { rect: [0,0,4,4] } } }
-{ type: "composition", name: "bad", size: [4,4], layers: [{ sprite: "dot", x: 0, y: 0 }] }
+{ type: "composition", name: "bad", size: [4,4], layers: [{ sprite: "dot", x: "invalid", y: 0 }] }
 { type: "composition", name: "good", size: [4,4], sprites: { d: "dot" }, layers: [{ map: ["d"] }] }
 "##;
 
@@ -29,7 +29,7 @@ fn bad_object_does_not_hide_later_composition() {
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(result.status.success(), "{stderr}");
     assert!(stderr.contains("Failed to parse composition") && stderr.contains("bad"), "{stderr}");
-    assert!(stderr.contains("line 3") && stderr.contains("missing field `sprites`"), "{stderr}");
+    assert!(stderr.contains("line 3") && stderr.contains("invalid type"), "{stderr}");
     let image = image::open(dir.path().join("result.png")).unwrap().to_rgba8();
     assert_eq!(image.dimensions(), (4, 4));
     assert!(image.pixels().all(|p| p.0 == [255, 0, 0, 255]));
@@ -49,7 +49,7 @@ fn missing_target_error_includes_parse_failure() {
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(!result.status.success());
     assert!(stderr.contains("No composition named 'absent'"), "{stderr}");
-    assert!(stderr.contains("line 3") && stderr.contains("missing field `sprites`"), "{stderr}");
+    assert!(stderr.contains("line 3") && stderr.contains("invalid type"), "{stderr}");
 }
 
 #[test]
