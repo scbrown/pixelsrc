@@ -102,7 +102,10 @@ pub struct GroupTranslate {
 
 /// Apply a group translation to a region map in place, composing with any
 /// translation a region already carries.
-pub fn apply_group_translate(regions: &mut HashMap<String, RegionDef>, gt: &GroupTranslate) {
+pub fn apply_group_translate(
+    regions: &mut indexmap::IndexMap<String, RegionDef>,
+    gt: &GroupTranslate,
+) {
     for (key, def) in regions.iter_mut() {
         let targeted = gt.regions.as_ref().is_none_or(|rs| rs.contains(key));
         if targeted {
@@ -149,7 +152,7 @@ pub struct Sprite {
     pub translate: Option<GroupTranslate>,
     /// Structured regions for rendering
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub regions: Option<HashMap<String, RegionDef>>,
+    pub regions: Option<indexmap::IndexMap<String, RegionDef>>,
     /// Transforms to apply when resolving this sprite
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub transform: Option<Vec<TransformSpec>>,

@@ -87,7 +87,7 @@ pub struct ResolvedSprite {
     /// Nine-slice region definition (from base sprite)
     pub nine_slice: Option<crate::models::NineSlice>,
     /// Structured regions for rendering
-    pub regions: Option<HashMap<String, RegionDef>>,
+    pub regions: Option<indexmap::IndexMap<String, RegionDef>>,
 }
 
 /// Registry for sprites and variants.
@@ -239,7 +239,7 @@ impl SpriteRegistry {
                     let mut merged = base_resolved.regions.clone().unwrap_or_default();
                     if let Some(remove_keys) = &sprite.remove {
                         for key in remove_keys {
-                            if merged.remove(key).is_none() {
+                            if merged.shift_remove(key).is_none() {
                                 warnings.push(SpriteWarning::remove_missing(&sprite.name, key));
                             }
                         }

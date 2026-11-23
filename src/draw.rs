@@ -7,7 +7,6 @@
 use crate::fmt::format_pixelsrc;
 use crate::models::{RegionDef, TtpObject};
 use crate::parser::parse_stream;
-use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::Path;
 
@@ -78,11 +77,11 @@ pub enum DrawOp {
 /// - Different shape type → wraps existing and new in a `union`
 /// - New token → creates region directly
 pub struct RegionEditor<'a> {
-    regions: &'a mut HashMap<String, RegionDef>,
+    regions: &'a mut indexmap::IndexMap<String, RegionDef>,
 }
 
 impl<'a> RegionEditor<'a> {
-    pub fn new(regions: &'a mut HashMap<String, RegionDef>) -> Self {
+    pub fn new(regions: &'a mut indexmap::IndexMap<String, RegionDef>) -> Self {
         RegionEditor { regions }
     }
 
@@ -344,7 +343,7 @@ impl DrawPipeline {
 
         // Initialize regions if not present
         if sprite.regions.is_none() {
-            sprite.regions = Some(HashMap::new());
+            sprite.regions = Some(indexmap::IndexMap::new());
         }
 
         let regions = sprite.regions.as_mut().unwrap();

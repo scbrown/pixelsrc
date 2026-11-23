@@ -295,7 +295,7 @@ fn region_references<'a>(region: &'a RegionDef, refs: &mut Vec<&'a str>) {
 /// left in a reference cycle are rasterized last, in name order, and the
 /// unresolved references produce the usual warnings.
 pub fn rasterize_regions(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     canvas_width: i32,
     canvas_height: i32,
     warnings: &mut Vec<Warning>,
@@ -411,7 +411,7 @@ fn apply_symmetric(
 pub fn render_structured(
     name: &str,
     size: Option<[u32; 2]>,
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     palette: &HashMap<String, String>,
 ) -> (RgbaImage, Vec<Warning>) {
     let mut warnings = Vec::new();
@@ -508,7 +508,7 @@ pub fn render_structured(
 ///
 /// A vector of `AnchorBounds` representing the bounding box of each anchor region.
 pub fn extract_anchor_bounds(
-    regions: &HashMap<String, RegionDef>,
+    regions: &indexmap::IndexMap<String, RegionDef>,
     canvas_width: i32,
     canvas_height: i32,
 ) -> Vec<crate::transforms::AnchorBounds> {
@@ -549,7 +549,7 @@ mod tests {
             serde_json::json!({"union":[{"fill":"inside(outline)"}]}),
             serde_json::json!({"intersect":[{"fill":"inside(outline)"},{"rect":[0,0,10,10]}]}),
         ] {
-            let regions = HashMap::from([
+            let regions = indexmap::IndexMap::from([
                 ("outline".into(), boundary.clone()),
                 ("body".into(), serde_json::from_value(fill).unwrap()),
             ]);
@@ -688,7 +688,7 @@ mod tests {
 
     #[test]
     fn test_render_structured_basic() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         regions.insert(
             "o".to_string(),
             RegionDef { stroke: Some([0, 0, 8, 8]), thickness: Some(1), ..Default::default() },
@@ -799,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_render_structured_with_auto_shadow() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         regions.insert(
             "body".to_string(),
             RegionDef { rect: Some([1, 1, 4, 4]), z: Some(1), ..Default::default() },
@@ -838,7 +838,7 @@ mod tests {
         // fresh HashMap iterates in a new random order every time; before
         // dependency ordering this chain came out wrong in most runs.
         for _ in 0..64 {
-            let mut regions = HashMap::new();
+            let mut regions = indexmap::IndexMap::new();
             regions.insert(
                 "a".to_string(),
                 RegionDef { rect: Some([0, 0, 2, 4]), ..Default::default() },
@@ -871,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_rasterize_regions_survives_a_reference_cycle() {
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
         let a = RegionDef {
             rect: Some([0, 0, 2, 2]),
             except: Some(vec!["b".to_string()]),
@@ -991,7 +991,7 @@ mod tests {
     fn test_role_based_z_ordering() {
         // Create overlapping regions with different roles but no explicit z
         // The anchor (eye) should render on top of fill (skin) despite being added first
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
 
         // Fill region at position (2,2)-(5,5) - should be at bottom
         regions.insert(
@@ -1022,7 +1022,7 @@ mod tests {
     #[test]
     fn test_explicit_z_overrides_role() {
         // Explicit z should override role-based z
-        let mut regions = HashMap::new();
+        let mut regions = indexmap::IndexMap::new();
 
         // Anchor role but explicit low z - should be behind
         regions.insert(
