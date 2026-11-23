@@ -1,0 +1,17 @@
+Script started on 2026-11-22 15:48:34-05:00 [COMMAND="bash /tmp/grant-timing-demo.sh" <not executed on terminal>]
+BEFORE: saved GIF regression output from main d6382dc
+  left: [100, 100, 100]
+ right: [40, 100, 250]
+accepted [0,100,100]
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+AFTER: decoded candidate GIF timing and controls
+$ cargo test --quiet --features lsp,wasm --test cli_frame_durations -- --nocapture
+
+running 5 tests
+decoded GIF delays: [40, 100, 250] ms
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+Script done on 2026-11-22 15:48:35-05:00 [COMMAND_EXIT_CODE="0"]

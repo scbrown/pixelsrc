@@ -162,6 +162,26 @@ The frame array format provides a simple list of sprite names. Use this for stra
 | `duration` | No | 100 | Milliseconds per frame |
 | `loop` | No | true | Whether animation loops |
 
+### Per-frame timing
+
+Frame arrays may supply `frame_durations`, with exactly one entry per frame:
+
+```json5
+{ type: "animation", name: "speech", frames: ["open", "closed", "open"],
+  duration: 100, frame_durations: [40, null, "250ms"] }
+```
+
+This writes GIF delays of 40ms, 100ms and 250ms. A `null` entry uses the uniform
+`duration` (100ms by default). Omit `frame_durations` to preserve existing uniform
+timing. Values accept raw milliseconds or CSS time strings and must resolve to
+1–655350ms. Zero, malformed values, out-of-range values or a length mismatch fail
+with a `frame_durations` diagnostic. GIF delays round down to 10ms with a 10ms
+minimum. This field applies to frame arrays, including composition frames; it
+cannot be combined with CSS keyframes, source animations or palette cycling.
+Spritesheets retain the frame images but carry no timing metadata.
+Rust callers using an exhaustive `Animation` literal add `frame_durations: None`
+to retain uniform timing, or use `..Default::default()` for optional fields.
+
 ## Frame References
 
 Frames reference **sprites or compositions** by name. They must be defined earlier in the file:
