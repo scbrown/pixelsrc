@@ -374,12 +374,30 @@ pub fn run_render(
     // Filter sprites if --sprite is provided
     if let Some(name) = sprite_filter {
         sprites.retain(|s| s.name == name);
+        if let Some(variant) = sprite_registry.get_variant(name).filter(|_| sprites.is_empty()) {
+            let resolved = match sprite_registry.resolve(name, registry, strict) {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    eprintln!("Error: sprite '{}': {}", name, error);
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            };
+            sprites.push(crate::models::Sprite {
+                name: name.to_string(),
+                size: resolved.size,
+                palette: PaletteRef::Inline(resolved.palette),
+                regions: resolved.regions,
+                nine_slice: resolved.nine_slice,
+                transform: variant.transform.clone(),
+                ..Default::default()
+            });
+        }
         if sprites.is_empty() {
             for warning in &all_warnings {
                 eprintln!("Warning: {}", warning);
             }
             eprintln!("Error: No sprite named '{}' found in input", name);
-            let sprite_names: Vec<&str> = sprites_by_name.keys().map(|s| s.as_str()).collect();
+            let sprite_names: Vec<&str> = sprite_registry.names().map(|s| s.as_str()).collect();
             if let Some(suggestion) = format_suggestion(&suggest(name, &sprite_names, 3)) {
                 eprintln!("{}", suggestion);
             }
