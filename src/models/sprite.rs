@@ -122,7 +122,7 @@ pub struct Sprite {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub size: Option<[u32; 2]>,
     /// The sprite's palette. May be omitted (defaults to an empty Named ref)
-    /// only when `extends` is set, in which case the base sprite's palette is
+    /// when `extends` or `source` is set, in which case the base sprite's palette is
     /// inherited; the validator flags an omitted palette on any other sprite.
     #[serde(default)]
     pub palette: PaletteRef,
