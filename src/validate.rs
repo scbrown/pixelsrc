@@ -92,6 +92,8 @@ pub enum IssueType {
     EmptyRegion,
     /// A region has pixels outside the sprite canvas (silently clipped at render)
     OutOfCanvas,
+    /// A region field that parses but has no effect on the rendered pixels
+    IgnoredModifier,
     /// A palette token is never used by any region of the sprites that use the palette
     UnusedToken,
 }
@@ -122,6 +124,7 @@ impl std::fmt::Display for IssueType {
             IssueType::DuplicateRegionKey => write!(f, "duplicate_region_key"),
             IssueType::EmptyRegion => write!(f, "empty_region"),
             IssueType::OutOfCanvas => write!(f, "out_of_canvas"),
+            IssueType::IgnoredModifier => write!(f, "ignored_modifier"),
             IssueType::UnusedToken => write!(f, "unused_token"),
         }
     }
@@ -982,6 +985,43 @@ impl Validator {
             } else {
                 regions
             };
+            // Fields the renderer parses but does not apply, including those on
+            // nested union/base/subtract/intersect regions.
+            let mut region_names: Vec<&String> = regions.keys().collect();
+            region_names.sort();
+            for token in region_names {
+                let mut stack = vec![&regions[token]];
+                let mut ignored: Vec<&'static str> = Vec::new();
+                while let Some(region) = stack.pop() {
+                    for field in crate::structured::ignored_modifiers(region) {
+                        if !ignored.contains(&field) {
+                            ignored.push(field);
+                        }
+                    }
+                    stack.extend(region.base.as_deref());
+                    for nested in
+                        [&region.union, &region.subtract, &region.intersect].into_iter().flatten()
+                    {
+                        stack.extend(nested.iter());
+                    }
+                }
+                if !ignored.is_empty() {
+                    self.issues.push(
+                        ValidationIssue::warning(
+                            line_number,
+                            IssueType::IgnoredModifier,
+                            format!(
+                                "Region {} uses {} which {} not supported and {} ignored at render",
+                                token,
+                                ignored.join(", "),
+                                if ignored.len() == 1 { "is" } else { "are" },
+                                if ignored.len() == 1 { "is" } else { "are" },
+                            ),
+                        )
+                        .with_context(format!("sprite \"{}\"", name)),
+                    );
+                }
+            }
             if width > 0 && height > 0 {
                 let mut raster_warnings = Vec::new();
                 let rasterized = crate::structured::rasterize_regions(
