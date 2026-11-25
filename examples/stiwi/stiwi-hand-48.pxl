@@ -36,18 +36,18 @@
   regions: {
     // Broad quiet garden patches suggest the photograph's blurred background.
     background: {rect: [0,0,48,48], z: 0},
-    "background-sky": {union: [{rect: [0,0,14,12], round: 4},{rect: [36,0,12,22], round: 5},{rect: [0,20,7,11], round: 3}], z: 1},
-    "background-glow": {union: [{rect: [0,10,9,10], round: 3},{rect: [39,24,9,13], round: 4},{rect: [2,34,9,8], round: 3}], z: 2},
-    "background-leaf": {union: [{rect: [0,26,6,10], round: 2},{rect: [41,14,7,8], round: 3},{rect: [35,34,8,9], round: 3}], z: 3},
-    "background-deep": {union: [{rect: [0,37,5,6], round: 2},{rect: [44,36,4,8], round: 1}], z: 4},
+    "background-sky": {union: [{rect: [0,0,14,12]},{rect: [36,0,12,22]},{rect: [0,20,7,11]}], z: 1},
+    "background-glow": {union: [{rect: [0,10,9,10]},{rect: [39,24,9,13]},{rect: [2,34,9,8]}], z: 2},
+    "background-leaf": {union: [{rect: [0,26,6,10]},{rect: [41,14,7,8]},{rect: [35,34,8,9]}], z: 3},
+    "background-deep": {union: [{rect: [0,37,5,6]},{rect: [44,36,4,8]}], z: 4},
     // Navy shoulders and a stand collar sit behind the long beard.
     shirt: {union: [{rect: [0,45,48,3]},{rect: [3,43,42,5]},{rect: [8,41,32,7]},{rect: [14,39,20,9]}], z: 8},
     "shirt-light": {union: [{line: [[0,45],[8,43],[13,41]], thickness: 1},{line: [[35,42],[42,44],[47,46]]},{points: [[5,45],[8,44],[38,44],[41,45]]}], z: 9},
     "shirt-shadow": {union: [{rect: [15,40,18,8]},{line: [[4,46],[9,44],[12,42]]}], z: 10},
-    collar: {union: [{rect: [13,39,5,7], round: 1},{rect: [30,39,5,7], round: 1}], z: 11},
+    collar: {union: [{rect: [13,39,5,7]},{rect: [30,39,5,7]}], z: 11},
     "collar-edge": {union: [{line: [[13,40],[14,44],[18,47]]},{line: [[34,40],[33,44],[30,47]]},{stroke: [17,44,14,4]}], z: 12},
     // Side part on the viewer's left; the crown rises into one wave to the right of it.
-    hair: {union: [{rect: [13,4,24,14], round: 5},{rect: [20,1,14,9], round: 4},{rect: [11,6,10,12], round: 4},
+    hair: {union: [{rect: [13,4,24,14]},{rect: [20,1,14,9]},{rect: [11,6,10,12]},
       // Left: outward curls alternate with green notches, down to a flick at the jaw.
       {rect: [11,12,5,15]},{rect: [9,13,4,4]},{rect: [8,17,5,3]},{rect: [9,20,4,3]},{rect: [7,22,6,2]},{rect: [9,24,5,2]},{rect: [8,26,6,2]},{rect: [12,28,2,2]},
       {line: [[9,16],[7,18],[8,19]]},{line: [[9,23],[8,25],[7,27]]},
@@ -56,10 +56,10 @@
       {line: [[39,16],[41,15]]},{line: [[38,22],[40,21]]},{line: [[39,26],[41,27]]}], z: 20},
     "hair-shadow": {union: [{line: [[12,14],[10,17],[11,20],[9,23],[11,25],[12,28]]},{line: [[35,16],[38,18],[37,20],[38,22],[36,25],[35,28]]},{line: [[20,4],[20,8]]},{line: [[22,5],[25,4]]}], z: 21},
     // Warm face planes. The forehead stays open beneath the swept hair.
-    skin: {union: [{rect: [14,10,21,24], round: 5},{rect: [12,20,3,9], round: 1},{rect: [34,20,3,9], round: 1}], z: 30},
-    "skin-light": {union: [{rect: [17,11,9,6], round: 2},{rect: [15,25,5,4], round: 2},{line: [[24,21],[24,26]], thickness: 1},{points: [[22,12],[20,13],[25,28]]}], z: 31},
-    "skin-shadow": {union: [{rect: [32,17,3,12], round: 1},{line: [[14,23],[14,28],[16,31]], thickness: 1},{line: [[27,14],[29,17],[31,19]]},{points: [[12,23],[13,25],[35,23],[35,26],[20,17]]}], z: 32},
-    "skin-warm": {union: [{rect: [19,25,4,4], round: 1},{rect: [27,25,4,4], round: 1},{line: [[23,26],[25,28],[27,27]], thickness: 1},{points: [[17,16],[18,14],[21,12],[29,26]]}], z: 33},
+    skin: {union: [{rect: [14,10,21,24]},{rect: [12,20,3,9]},{rect: [34,20,3,9]}], z: 30},
+    "skin-light": {union: [{rect: [17,11,9,6]},{rect: [15,25,5,4]},{line: [[24,21],[24,26]], thickness: 1},{points: [[22,12],[20,13],[25,28]]}], z: 31},
+    "skin-shadow": {union: [{rect: [32,17,3,12]},{line: [[14,23],[14,28],[16,31]], thickness: 1},{line: [[27,14],[29,17],[31,19]]},{points: [[12,23],[13,25],[35,23],[35,26],[20,17]]}], z: 32},
+    "skin-warm": {union: [{rect: [19,25,4,4]},{rect: [27,25,4,4]},{line: [[23,26],[25,28],[27,27]], thickness: 1},{points: [[17,16],[18,14],[21,12],[29,26]]}], z: 33},
     "nose-shadow": {union: [{line: [[26,23],[27,26],[29,27],[27,28]]},{points: [[22,28],[23,29],[26,29]]}], z: 34},
     // From the part, one wave crosses the upper right forehead; the left temple is combed back.
     "hair-forelock": {union: [{polygon: [[20,5],[26,5],[30,7],[34,9],[36,12],[37,17],[36,20],[34,19],[32,16],[29,13],[26,11],[23,10],[20,10]]},{line: [[16,9],[14,11],[13,16]], thickness: 1}], z: 36},
@@ -71,7 +71,7 @@
     iris: {union: [{rect: [18,20,2,2]},{rect: [29,20,2,2]}], z: 42},
     pupil: {points: [[18,21],[29,21]], z: 43},
     // Full beard silhouette, progressively stepping inward at the bottom.
-    beard: {union: [{rect: [12,31,24,5], round: 2},{rect: [13,34,22,5], round: 2},{rect: [15,38,18,4]},{rect: [17,41,14,3]},{rect: [20,44,8,2]}], z: 50},
+    beard: {union: [{rect: [12,31,24,5]},{rect: [13,34,22,5]},{rect: [15,38,18,4]},{rect: [17,41,14,3]},{rect: [20,44,8,2]}], z: 50},
     "beard-shadow": {union: [{line: [[13,30],[13,35],[16,40],[20,44]], thickness: 1},{line: [[35,30],[34,36],[31,41],[27,45]], thickness: 1},{line: [[23,36],[23,40],[25,44]], thickness: 1}], z: 51},
     "beard-mid": {union: [{line: [[15,31],[16,35],[18,39],[20,42]]},{line: [[32,32],[31,36],[29,39]]},{line: [[19,34],[20,38],[21,41]]},{line: [[27,34],[27,38],[26,42]]},{points: [[16,33],[18,37],[30,38],[28,42],[22,43],[24,45]]}], z: 52},
     // Grey-white streaks are irregular short polylines, not a solid grey chin.
@@ -81,7 +81,7 @@
     "skin-under-nose": {rect: [24,28,2,2], z: 55},
     "skin-under-lip": {rect: [23,35,4,1], z: 56},
     // Smiling mouth with a broken warm ivory row, under a parted moustache.
-    mouth: {union: [{rect: [19,30,12,3], round: 1},{line: [[18,30],[20,33],[25,34],[29,33],[32,30]]}], z: 60},
+    mouth: {union: [{rect: [19,30,12,3]},{line: [[18,30],[20,33],[25,34],[29,33],[32,30]]}], z: 60},
     teeth: {rect: [23,31,4,1], z: 61},
     lip: {line: [[21,33],[24,34],[27,33],[29,32]], z: 62},
     moustache: {union: [
