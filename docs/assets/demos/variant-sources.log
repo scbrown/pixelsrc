@@ -1,0 +1,18 @@
+Script started on 2026-11-22 21:16:00-05:00 [COMMAND="bash ./reproduce.sh" <not executed on terminal>]
+before (4ca2f042 source build)
+$ pxl render fixture.pxl --strict -s dot_blue -o dot_blue.png
+Error: No sprite named 'dot_blue' found in input
+exit=1
+$ pxl render fixture.pxl --strict -s flip -o flip.png
+Error: sprite 'flip': Sprite 'flip' references unknown source sprite 'dot_blue'
+exit=1
+after (d2718be source build)
+$ pxl render fixture.pxl --strict -s dot_blue -o dot_blue.png
+Saved: dot_blue.png
+exit=0
+$ pxl render fixture.pxl --strict -s flip -o flip.png
+Saved: flip.png
+exit=0
+Decoded PNGs: blue top-left -> blue top-right after derived mirror; 4x4, transparent opposite corner.
+
+Script done on 2026-11-22 21:16:00-05:00 [COMMAND_EXIT_CODE="0"]
