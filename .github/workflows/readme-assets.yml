@@ -21,7 +21,11 @@ permissions:
 
 jobs:
   render:
-    runs-on: ubuntu-24.04
+    # The released x86_64 Linux binary is built on ubuntu-latest and needs that
+    # image's glibc (v0.4.0 requires GLIBC_2.43), so it does not start on
+    # ubuntu-24.04. Run where the release was built; this job checks drift
+    # between sources and images, not installer portability.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
