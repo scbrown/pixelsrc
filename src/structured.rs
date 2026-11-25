@@ -229,6 +229,15 @@ pub fn rasterize_region(
         pixels = intersect(&sub_regions);
     }
 
+    // Tile and jitter the resolved shape before the named-region modifiers.
+    pixels = apply_repeat_and_jitter(region, pixels, canvas_width, canvas_height, warnings);
+    for field in ignored_modifiers(region) {
+        warnings.push(Warning::new(format!(
+            "Region field '{}' is not supported and was ignored",
+            field
+        )));
+    }
+
     // Handle 'except' modifier (subtract named regions)
     if let Some(except_tokens) = &region.except {
         let mut except_sets = Vec::new();
@@ -258,6 +267,137 @@ pub fn rasterize_region(
     }
 
     pixels
+}
+
+/// Region fields that parse but have no effect on the rasterized pixels.
+///
+/// Reported by the renderer and the validator, so a modifier is never dropped
+/// silently. `within` and `adjacent-to` are relationship constraints checked by
+/// the validator, not shape modifiers, so they are not listed here.
+pub fn ignored_modifiers(region: &RegionDef) -> Vec<&'static str> {
+    let mut fields = Vec::new();
+    if region.round.is_some() {
+        fields.push("round");
+    }
+    if region.transform.is_some() {
+        fields.push("transform");
+    }
+    if region.x.is_some() {
+        fields.push("x");
+    }
+    if region.y.is_some() {
+        fields.push("y");
+    }
+    if region.repeat.is_none() {
+        if region.spacing.is_some() {
+            fields.push("spacing");
+        }
+        if region.offset_alternate.is_some() {
+            fields.push("offset-alternate");
+        }
+    }
+    fields
+}
+
+/// Deterministic 64-bit mix (SplitMix64), so a `seed` always jitters the same way.
+fn mix64(mut z: u64) -> u64 {
+    z = z.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// A value in `[min, max]` (inclusive) for element `index` on `axis`.
+fn jitter_offset(range: Option<[i32; 2]>, seed: u64, index: u64, axis: u64) -> i32 {
+    let Some([a, b]) = range else { return 0 };
+    let (lo, hi) = (i64::from(a.min(b)), i64::from(a.max(b)));
+    let span = (hi - lo + 1) as u64;
+    let roll = mix64(seed ^ mix64(index.wrapping_mul(2).wrapping_add(axis)));
+    (lo + (roll % span) as i64) as i32
+}
+
+/// Apply `repeat`/`spacing`/`offset-alternate` tiling, then `jitter`.
+///
+/// `repeat: [columns, rows]` copies the shape on a grid whose step is the
+/// shape's bounding box plus `spacing` (default `[0, 0]`). With
+/// `offset-alternate`, odd rows shift right by half a step, as in brickwork.
+/// Tiles wholly outside the canvas are skipped, so a large count is cheap.
+///
+/// `jitter: {x: [min, max], y: [min, max]}` moves each element by a
+/// deterministic offset drawn from `seed` (default 0). An element is one tile
+/// when `repeat` is set, otherwise one point of a `points` region, otherwise
+/// the whole shape.
+fn apply_repeat_and_jitter(
+    region: &RegionDef,
+    pixels: HashSet<(i32, i32)>,
+    canvas_width: i32,
+    canvas_height: i32,
+    warnings: &mut Vec<Warning>,
+) -> HashSet<(i32, i32)> {
+    if region.repeat.is_none() && region.jitter.is_none() {
+        return pixels;
+    }
+    if pixels.is_empty() {
+        return pixels;
+    }
+
+    // Split into the elements that tile or jitter independently.
+    let mut elements: Vec<HashSet<(i32, i32)>> = Vec::new();
+    if let Some([columns, rows]) = region.repeat {
+        if columns == 0 || rows == 0 {
+            warnings.push(Warning::new("repeat count of 0 produces no pixels".to_string()));
+            return HashSet::new();
+        }
+        let min_x = pixels.iter().map(|p| p.0).min().unwrap_or(0);
+        let max_x = pixels.iter().map(|p| p.0).max().unwrap_or(0);
+        let min_y = pixels.iter().map(|p| p.1).min().unwrap_or(0);
+        let max_y = pixels.iter().map(|p| p.1).max().unwrap_or(0);
+        let [space_x, space_y] = region.spacing.unwrap_or([0, 0]);
+        let step_x = i64::from(max_x - min_x + 1) + i64::from(space_x);
+        let step_y = i64::from(max_y - min_y + 1) + i64::from(space_y);
+        let shift = if region.offset_alternate.unwrap_or(false) { step_x / 2 } else { 0 };
+        // Only tiles that can reach the canvas are generated.
+        let reach_x = (i64::from(canvas_width) - i64::from(min_x)).max(0) / step_x + 2;
+        let reach_y = (i64::from(canvas_height) - i64::from(min_y)).max(0) / step_y + 2;
+        for row in 0..i64::from(rows).min(reach_y) {
+            let offset_x = if row % 2 == 1 { shift } else { 0 };
+            for column in 0..i64::from(columns).min(reach_x) {
+                let dx = column * step_x + offset_x;
+                let dy = row * step_y;
+                let tile: HashSet<(i32, i32)> = pixels
+                    .iter()
+                    .filter_map(|&(x, y)| {
+                        Some((
+                            i32::try_from(i64::from(x) + dx).ok()?,
+                            i32::try_from(i64::from(y) + dy).ok()?,
+                        ))
+                    })
+                    .collect();
+                elements.push(tile);
+            }
+        }
+    } else if region.points.is_some() {
+        let mut points: Vec<(i32, i32)> = pixels.into_iter().collect();
+        points.sort_unstable();
+        elements.extend(points.into_iter().map(|p| HashSet::from([p])));
+    } else {
+        elements.push(pixels);
+    }
+
+    let Some(jitter) = &region.jitter else {
+        return elements.into_iter().flatten().collect();
+    };
+    let seed = match region.seed {
+        Some(RegionSeed::Random(seed)) => u64::from(seed),
+        _ => 0,
+    };
+    let mut out = HashSet::new();
+    for (index, element) in elements.into_iter().enumerate() {
+        let dx = jitter_offset(jitter.x, seed, index as u64, 0);
+        let dy = jitter_offset(jitter.y, seed, index as u64, 1);
+        out.extend(element.into_iter().map(|(x, y)| (x + dx, y + dy)));
+    }
+    out
 }
 
 /// Collect the names of the other regions that `region` reads while rasterizing:

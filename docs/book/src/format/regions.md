@@ -283,9 +283,22 @@ bricks: {
 }
 ```
 
+`repeat: [columns, rows]` copies the resolved shape on a grid. The step between
+copies is the shape's bounding box plus `spacing: [x, y]` (default `[0, 0]`), so
+the brick above repeats every 5 pixels across and every 3 down. With
+`"offset-alternate": true`, every odd row shifts right by half a step, as in
+brickwork. Copies are clipped to the canvas like any other pixels; the validator
+reports clipped pixels. `spacing` and `offset-alternate` have no effect without
+`repeat` and are reported as ignored.
+
 ### Geometric Transform
 
-Apply rotation, translation, scale.
+> **Not yet applied.** The region-level `transform` string is parsed but has no
+> effect on the rendered pixels; the renderer warns and `pxl validate --strict`
+> fails when it is present. Use `translate: [x, y]` to move a region, or the
+> sprite-level `transform` to mirror, rotate or scale a whole sprite.
+
+Planned: rotation, translation, scale.
 
 ```json5
 sword: {
@@ -311,6 +324,22 @@ grass: {
   seed: 42
 }
 ```
+
+`jitter: { x: [min, max], y: [min, max] }` moves each element by a whole-pixel
+offset drawn from the inclusive range; either axis may be omitted. An element is
+one tile when `repeat` is set, otherwise one point of a `points` region,
+otherwise the whole shape. Offsets come from `seed` (default `0`), so the same
+seed always gives the same picture, and a different seed gives a different one.
+Jitter applies after `repeat` and before `except`, `symmetric` and `translate`.
+
+### Fields that are parsed but not applied
+
+`round`, the region-level `transform` string, and the `x`/`y` range limits are
+accepted by the parser but do not change the rendered pixels yet. The renderer
+prints `Region field '<name>' is not supported and was ignored`, and
+`pxl validate` reports an `ignored_modifier` warning (an error under
+`--strict`), including on regions nested inside `union`, `base`, `subtract` or
+`intersect`.
 
 ## Auto-Generation
 

@@ -34,21 +34,21 @@
   type: "sprite", name: "stiwi-hand-32", size: [32,32], palette: "stiwi-hand-32",
   regions: {
     background: {rect: [0,0,32,32], z: 0},
-    "background-light": {union: [{rect: [0,0,9,10], round: 3},{rect: [25,0,7,16], round: 3},{rect: [0,18,5,8], round: 2}], z: 1},
-    "background-leaf": {union: [{rect: [0,11,5,7], round: 2},{rect: [28,21,4,7], round: 2}], z: 2},
+    "background-light": {union: [{rect: [0,0,9,10]},{rect: [25,0,7,16]},{rect: [0,18,5,8]}], z: 1},
+    "background-leaf": {union: [{rect: [0,11,5,7]},{rect: [28,21,4,7]}], z: 2},
     shirt: {union: [{rect: [0,30,32,2]},{rect: [3,28,26,4]},{rect: [7,26,18,6]}], z: 5},
     "shirt-shadow": {union: [{rect: [8,26,16,6]},{line: [[1,31],[6,29],[8,28]]}], z: 6},
     collar: {union: [{line: [[6,28],[10,27],[13,31]]},{line: [[25,28],[22,27],[20,31]]},{stroke: [10,29,12,3]}], z: 7},
     // Side part on the viewer's left, one wave rising to the right of it, long side hair.
-    hair: {union: [{rect: [8,3,17,10], round: 3},{rect: [13,1,10,7], round: 3},{rect: [7,5,8,8], round: 3},
+    hair: {union: [{rect: [8,3,17,10]},{rect: [13,1,10,7]},{rect: [7,5,8,8]},
       // Alternate one-pixel curls and notches; narrow locks finish at the ears.
       {rect: [7,7,5,12]},{rect: [6,8,3,3]},{rect: [5,11,4,2]},{rect: [6,13,3,3]},{rect: [5,16,4,2]},{rect: [6,18,3,2]},{rect: [8,20,2,2]},
       {rect: [22,8,4,11]},{rect: [25,9,2,2]},{rect: [24,11,4,2]},{rect: [25,14,2,2]},{rect: [24,16,4,2]},{rect: [24,18,2,2]},{rect: [23,20,2,1]},
       {points: [[5,14],[4,16],[27,15],[26,19]]}], z: 10},
     "hair-shadow": {union: [{line: [[7,10],[6,12],[7,15],[6,17],[8,20]]},{line: [[24,11],[26,12],[25,15],[26,17],[24,20]]},{line: [[13,3],[13,5]]}], z: 11},
     // Exposed forehead, cheeks and small ear lobes.
-    skin: {union: [{rect: [9,7,14,17], round: 4},{rect: [8,13,2,6], round: 1},{rect: [23,13,2,6], round: 1}], z: 20},
-    "skin-light": {union: [{rect: [11,8,7,4], round: 1},{rect: [10,16,3,3], round: 1},{line: [[16,14],[16,17]]}], z: 21},
+    skin: {union: [{rect: [9,7,14,17]},{rect: [8,13,2,6]},{rect: [23,13,2,6]}], z: 20},
+    "skin-light": {union: [{rect: [11,8,7,4]},{rect: [10,16,3,3]},{line: [[16,14],[16,17]]}], z: 21},
     "skin-shadow": {union: [{line: [[22,10],[22,17],[23,19]], thickness: 1},{line: [[9,17],[10,20]]},{points: [[8,15],[24,15],[18,17],[15,18]]}], z: 22},
     "skin-warm": {union: [{rect: [13,16,3,3]},{rect: [17,16,3,3]},{points: [[16,18],[17,17]]}], z: 23},
     // From the part, the wave crosses the upper right forehead.
@@ -60,7 +60,7 @@
     iris: {points: [[12,13],[20,13]], z: 31},
     pupil: {points: [[12,14],[20,14]], z: 32},
     // Full beard tapers below the jaw; it is not a dark rectangular mouth.
-    beard: {union: [{rect: [8,20,16,5], round: 2},{rect: [9,23,14,5], round: 2},{rect: [11,27,10,3]},{rect: [13,29,6,2]}], z: 40},
+    beard: {union: [{rect: [8,20,16,5]},{rect: [9,23,14,5]},{rect: [11,27,10,3]},{rect: [13,29,6,2]}], z: 40},
     "beard-shadow": {union: [{line: [[9,20],[9,24],[12,28],[14,30]]},{line: [[23,20],[23,24],[21,28],[18,30]]},{rect: [14,26,4,3]}], z: 41},
     "beard-mid": {union: [{line: [[10,22],[11,25],[13,27]]},{line: [[22,22],[21,25],[20,27]]},{line: [[13,23],[14,26],[14,29]]},{line: [[18,23],[18,26],[17,29]]}], z: 42},
     "beard-grey": {union: [{line: [[12,24],[13,26],[13,29]]},{line: [[16,24],[15,27],[16,30]]},{line: [[20,23],[19,26],[19,28]]},{points: [[10,21],[22,21],[11,24],[21,25],[18,29]]}], z: 43},
@@ -69,7 +69,7 @@
     "skin-under-nose": {rect: [16,18,1,2], z: 49},
     "skin-under-lip": {rect: [15,23,3,1], z: 48},
     // Open smile, modest teeth and moustache parted around the nose.
-    mouth: {union: [{rect: [12,20,9,2], round: 1},{line: [[12,20],[14,22],[18,22],[21,20]]}], z: 50},
+    mouth: {union: [{rect: [12,20,9,2]},{line: [[12,20],[14,22],[18,22],[21,20]]}], z: 50},
     teeth: {rect: [15,21,3,1], z: 51},
     lip: {line: [[14,22],[18,22],[20,21]], z: 52},
     moustache: {union: [

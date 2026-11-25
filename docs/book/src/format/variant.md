@@ -19,7 +19,7 @@ A variant creates a color variation of an existing sprite without duplicating th
 |-------|----------|-------------|
 | `type` | Yes | Must be `"variant"` |
 | `name` | Yes | Unique identifier for this variant |
-| `base` | Yes | Name of the sprite to derive from |
+| `base` | Yes | Name of the sprite or variant to derive from |
 | `palette` | Yes | Color overrides - replaces matching tokens from base |
 
 ## Example
@@ -69,7 +69,26 @@ All three sprites share the same regions. Only the shirt color differs.
 
 - **Inherits regions and size** from the base sprite
 - **Only specified tokens are overridden** - unspecified tokens keep their base colors
-- **Base sprite must be defined first** - forward references are errors
+- **Referenced bases must exist**; recursive source/base cycles are errors
+
+## Render or Derive by Name
+
+Select a variant directly with the same option used for sprites:
+
+```bash
+pxl render scene.pxl --sprite hero_red -o hero-red.png
+```
+
+A derived sprite can also use a variant as its source:
+
+```json5
+{ type: "sprite", name: "hero_red_flipped", source: "hero_red", transform: ["mirror-h"] }
+```
+
+Omitting the derived sprite's palette inherits the variant's resolved colors.
+An explicit palette retains the usual source-palette replacement behavior.
+Variants inherit the fully resolved regions and size of their base, including
+when that base itself derives from another sprite or is another variant.
 
 ## Partial Overrides
 
@@ -191,23 +210,6 @@ When to use each approach:
 - Each sprite is unique
 - You're defining a one-off sprite
 - The sprite is simple
-
-## Order Matters
-
-The base sprite must be defined before the variant:
-
-```json5
-// ERROR: variant before base
-{ type: "variant", name: "hero_red", base: "hero", palette: { ... } }
-{ type: "sprite", name: "hero", ... }
-```
-
-Correct order:
-
-```json5
-{ type: "sprite", name: "hero", ... }
-{ type: "variant", name: "hero_red", base: "hero", palette: { ... } }
-```
 
 ## Complete Example
 

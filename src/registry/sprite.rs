@@ -150,7 +150,7 @@ impl SpriteRegistry {
 
         // Check if it's a variant
         if let Some(variant) = self.variants.get(name) {
-            return self.resolve_variant(variant, palette_registry, strict);
+            return self.resolve_variant(variant, palette_registry, strict, &mut Vec::new());
         }
 
         // Not found
@@ -177,6 +177,23 @@ impl SpriteRegistry {
     ) -> Result<ResolvedSprite, SpriteError> {
         // Use the internal resolver with cycle detection
         self.resolve_sprite_internal(sprite, palette_registry, strict, &mut Vec::new())
+    }
+
+    /// Resolve either kind of source while retaining the current cycle chain.
+    fn resolve_reference_internal(
+        &self,
+        name: &str,
+        palette_registry: &PaletteRegistry,
+        strict: bool,
+        visited: &mut Vec<String>,
+    ) -> Result<ResolvedSprite, SpriteError> {
+        if let Some(sprite) = self.sprites.get(name) {
+            self.resolve_sprite_internal(sprite, palette_registry, strict, visited)
+        } else if let Some(variant) = self.variants.get(name) {
+            self.resolve_variant(variant, palette_registry, strict, visited)
+        } else {
+            Err(SpriteError::NotFound(name.to_string()))
+        }
     }
 
     /// Internal sprite resolution with cycle detection.
@@ -268,35 +285,28 @@ impl SpriteRegistry {
                 }
             }
         } else if let Some(source_name) = &sprite.source {
-            match self.sprites.get(source_name) {
-                Some(source_sprite) => {
-                    let source_resolved = self.resolve_sprite_internal(
-                        source_sprite,
-                        palette_registry,
-                        strict,
-                        visited,
-                    )?;
-                    warnings.extend(source_resolved.warnings);
-                    // An omitted palette inherits the source's fully resolved
-                    // colors. An explicit palette keeps the existing replacement
-                    // semantics (unlike extends, which merges token overrides).
-                    if matches!(&sprite.palette, crate::models::PaletteRef::Named(n) if n.is_empty())
-                    {
-                        inherited_palette = Some(source_resolved.palette);
-                    }
-                    (source_resolved.regions, source_resolved.size)
+            if self.contains(source_name) {
+                let source_resolved = self.resolve_reference_internal(
+                    source_name,
+                    palette_registry,
+                    strict,
+                    visited,
+                )?;
+                warnings.extend(source_resolved.warnings);
+                // Omitted palettes inherit resolved colors; explicit palettes
+                // retain replacement semantics for both kinds of source.
+                if matches!(&sprite.palette, crate::models::PaletteRef::Named(n) if n.is_empty()) {
+                    inherited_palette = Some(source_resolved.palette);
                 }
-                None => {
-                    if strict {
-                        return Err(SpriteError::SourceNotFound {
-                            sprite: sprite.name.clone(),
-                            source_name: source_name.clone(),
-                        });
-                    } else {
-                        warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
-                        (None, None)
-                    }
-                }
+                (source_resolved.regions, source_resolved.size)
+            } else if strict {
+                return Err(SpriteError::SourceNotFound {
+                    sprite: sprite.name.clone(),
+                    source_name: source_name.clone(),
+                });
+            } else {
+                warnings.push(SpriteWarning::source_not_found(&sprite.name, source_name));
+                (None, None)
             }
         } else {
             (sprite.regions.clone(), None)
@@ -358,67 +368,57 @@ impl SpriteRegistry {
         })
     }
 
-    /// Resolve a variant to a ResolvedSprite by expanding from its base.
+    /// Resolve a variant from its fully resolved base, preserving cycle tracking.
     fn resolve_variant(
         &self,
         variant: &Variant,
         palette_registry: &PaletteRegistry,
         strict: bool,
+        visited: &mut Vec<String>,
     ) -> Result<ResolvedSprite, SpriteError> {
-        // Look up the base sprite
-        let base_sprite = match self.sprites.get(&variant.base) {
-            Some(sprite) => sprite,
-            None => {
-                if strict {
-                    return Err(SpriteError::BaseNotFound {
-                        variant: variant.name.clone(),
-                        base: variant.base.clone(),
-                    });
-                } else {
-                    return Ok(ResolvedSprite {
-                        name: variant.name.clone(),
-                        size: None,
-                        palette: HashMap::new(),
-                        warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
-                        nine_slice: None,
-                        regions: None,
-                    });
-                }
+        if visited.contains(&variant.name) {
+            visited.push(variant.name.clone());
+            if strict {
+                return Err(SpriteError::CircularReference {
+                    sprite: variant.name.clone(),
+                    chain: visited.clone(),
+                });
             }
-        };
-
-        let mut warnings = Vec::new();
-
-        // Resolve the base sprite's palette
-        let base_palette = match palette_registry.resolve(base_sprite, strict) {
-            Ok(result) => {
-                if let Some(warning) = result.warning {
-                    warnings.push(SpriteWarning { message: warning.message });
-                }
-                result.palette.colors
-            }
-            Err(e) => {
-                if strict {
-                    return Err(SpriteError::NotFound(format!("base palette error: {}", e)));
-                }
-                HashMap::new()
-            }
-        };
-
-        // Merge palettes: start with base, override with variant's palette
-        let mut merged_palette = base_palette;
-        for (token, color) in &variant.palette {
-            merged_palette.insert(token.clone(), color.clone());
+            return Ok(ResolvedSprite {
+                name: variant.name.clone(),
+                size: None,
+                palette: HashMap::new(),
+                warnings: vec![SpriteWarning {
+                    message: format!("Circular reference detected: {}", visited.join(" -> ")),
+                }],
+                nine_slice: None,
+                regions: None,
+            });
         }
-
-        Ok(ResolvedSprite {
-            name: variant.name.clone(),
-            size: base_sprite.size,
-            palette: merged_palette,
-            warnings,
-            nine_slice: base_sprite.nine_slice.clone(),
-            regions: base_sprite.regions.clone(),
-        })
+        visited.push(variant.name.clone());
+        if !self.contains(&variant.base) {
+            if strict {
+                return Err(SpriteError::BaseNotFound {
+                    variant: variant.name.clone(),
+                    base: variant.base.clone(),
+                });
+            }
+            return Ok(ResolvedSprite {
+                name: variant.name.clone(),
+                size: None,
+                palette: HashMap::new(),
+                warnings: vec![SpriteWarning::base_not_found(&variant.name, &variant.base)],
+                nine_slice: None,
+                regions: None,
+            });
+        }
+        let mut resolved =
+            self.resolve_reference_internal(&variant.base, palette_registry, strict, visited)?;
+        resolved.name = variant.name.clone();
+        for (token, color) in &variant.palette {
+            resolved.palette.insert(token.clone(), color.clone());
+        }
+        Ok(resolved)
     }
 
     /// Get all sprite and variant names.
