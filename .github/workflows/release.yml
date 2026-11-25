@@ -212,6 +212,7 @@ jobs:
   checksums:
     name: Generate checksums
     needs: [build, build-deb, verify-linux]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -236,6 +237,7 @@ jobs:
   release:
     name: Create release
     needs: [build, build-deb, checksums, verify-linux]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
