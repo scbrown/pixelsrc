@@ -1,0 +1,22 @@
+// A simple coin sprite. Transparent canvas needs no background region.
+{
+  type: "palette",
+  name: "coin",
+  colors: {
+    _: "transparent",
+    outline: "#8B6914",
+    gold: "#FFD700",
+    shine: "#FFFACD",
+  },
+}
+{
+  type: "sprite",
+  name: "coin",
+  size: [8, 8],
+  palette: "coin",
+  regions: {
+    outline: { line: [[2, 0], [5, 0], [7, 2], [7, 5], [5, 7], [2, 7], [0, 5], [0, 2], [2, 0]] },
+    gold: { fill: "inside(outline)" },
+    shine: { points: [[3, 2], [4, 3]] },
+  },
+}

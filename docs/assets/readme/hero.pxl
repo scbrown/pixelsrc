@@ -1,0 +1,26 @@
+{
+  type: "palette",
+  name: "hero",
+  colors: {
+    _: "transparent",
+    outline: "#000000",
+    skin: "#FFD5B4",
+    hair: "#8B4513",
+    eye: "#4169E1",
+  },
+}
+{
+  type: "sprite",
+  name: "hero",
+  size: [16, 16],
+  palette: "hero",
+  regions: {
+    outline: { stroke: [4, 2, 8, 10] },
+    hair: { intersect: [{ fill: "inside(outline)" }, { rect: [4, 2, 8, 4] }] },
+    skin: {
+      intersect: [{ fill: "inside(outline)" }, { rect: [4, 6, 8, 6] }],
+      except: ["eye"],
+    },
+    eye: { rect: [6, 7, 1, 1], symmetric: "x" },
+  },
+}
