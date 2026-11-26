@@ -203,7 +203,7 @@ just build       # Build the project
 just test        # Run tests
 just check       # Run format check, lint, and tests
 just render coin # Render an example sprite
-just readme-assets # Regenerate the logo, code samples and previews (pxl 0.4.0)
+just readme-assets # Regenerate the logo, code samples and previews (pxl 0.5.0)
 just readme-assets-check # Fail if any README source or PNG is stale
 ```
 

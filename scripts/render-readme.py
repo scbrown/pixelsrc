@@ -11,7 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = Path("docs/assets/readme")
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 SAMPLES = {"coin": 24, "hero": 12}
 ASSETS = [
     ("logo", "pixelsrc_logo", "-c", 1),
