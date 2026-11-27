@@ -338,25 +338,40 @@ reports clipped pixels. `spacing` and `offset-alternate` have no effect without
 
 ### Geometric Transform
 
-> **Not yet applied.** The region-level `transform` string is parsed but has no
-> effect on the rendered pixels; the renderer warns and `pxl validate --strict`
-> fails when it is present. Use `translate: [x, y]` to move a region, or the
-> sprite-level `transform` to mirror, rotate or scale a whole sprite.
-
-Planned: rotation, translation, scale.
+Rotate, translate, scale or mirror a region's shape.
 
 ```json5
 sword: {
   line: [[0, 0], [0, 8]],
-  transform: "rotate(45deg) translate(12, 4)"
+  transform: "rotate(90deg) translate(12, 4)"
 }
 ```
 
-**Supported transforms:**
-- `translate(x, y)`
-- `rotate(angle)` - supports `deg` or `rad`
-- `scale(x, y)` or `scale(n)`
-- `flip-x`, `flip-y`
+`transform` is a space-separated sequence of operations applied left to right
+to the region's rasterized pixels:
+
+- `translate(x, y)` or `translate(x)` - move by whole pixels
+- `scale(n)` or `scale(x, y)` - positive integer factors, nearest-neighbour
+- `rotate(angle)` - `deg` or `rad`; positive is clockwise
+- `flip-x`, `flip-y` - mirror across the pivot column or row
+
+**Rotation must be a multiple of 90deg.** Arbitrary rotation is lossy in pixel
+art, so pixelsrc never resamples: any other angle (radians count when within
+1e-9 of a multiple of pi/2) is an `invalid_transform` error in `pxl validate`
+and makes `pxl render` fail. A non-integer scale or offset, a zero scale, or an
+unknown operation is the same error.
+
+Every operation acts about one fixed pivot: the top-left pixel of the region's
+bounding box before the transform. The pivot pixel stays put under `rotate`,
+`scale` and `flip`, so order matters. The sword above is a vertical line from
+(0, 0); `rotate(90deg)` lays it along row 0 to the left of the pivot (x 0 to -8),
+and `translate(12, 4)` then moves it to x 4..12 on row 4. Written the other way
+round, `translate(12, 4) rotate(90deg)` would rotate the moved line about
+(0, 0) and leave it off the canvas.
+
+`transform` applies to the resolved shape (after `union`, `base`/`subtract` and
+`intersect`), before `repeat`, `jitter`, the `x`/`y` range limits, `except`,
+`symmetric` and the `translate` field.
 
 ### Jitter
 
@@ -379,12 +394,11 @@ Jitter applies after `repeat` and before `except`, `symmetric` and `translate`.
 
 ### Fields that are parsed but not applied
 
-The region-level `transform` string is accepted by the parser but does not
-change the rendered pixels yet. The renderer
-prints `Region field '<name>' is not supported and was ignored`, and
-`pxl validate` reports an `ignored_modifier` warning (an error under
-`--strict`), including on regions nested inside `union`, `base`, `subtract` or
-`intersect`.
+`spacing` and `offset-alternate` without `repeat` are accepted by the parser
+but do not change the rendered pixels. The renderer prints
+`Region field '<name>' is not supported and was ignored`, and `pxl validate`
+reports an `ignored_modifier` warning (an error under `--strict`), including on
+regions nested inside `union`, `base`, `subtract` or `intersect`.
 
 ## Auto-Generation
 

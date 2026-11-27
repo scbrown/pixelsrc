@@ -416,6 +416,20 @@ pub fn run_render(
     // Render each sprite
     if render_sprites {
         for sprite in &sprites {
+            // A region transform that cannot be applied exactly (e.g. a 45deg
+            // rotation) is a render error, never a silent resample.
+            if let Some(regions) = &sprite.regions {
+                let errors = crate::structured::region_transform_errors(regions);
+                if !errors.is_empty() {
+                    for (token, message) in errors {
+                        eprintln!(
+                            "Error: sprite '{}': region '{}' has an invalid {}",
+                            sprite.name, token, message
+                        );
+                    }
+                    return ExitCode::from(EXIT_ERROR);
+                }
+            }
             // TRF-9: Use sprite registry to resolve transforms
             // Check if sprite uses @include: palette (needs special handling)
             let uses_include_palette =

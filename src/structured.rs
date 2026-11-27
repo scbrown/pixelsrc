@@ -231,6 +231,17 @@ pub fn rasterize_region(
         pixels = intersect(&sub_regions);
     }
 
+    // Apply the `transform` string to the resolved shape, before tiling.
+    if let Some(transform) = &region.transform {
+        match crate::region_transform::parse_region_transform(transform) {
+            Ok(ops) => pixels = crate::region_transform::apply_region_transform(pixels, &ops),
+            Err(e) => warnings.push(Warning::new(format!(
+                "Invalid region transform '{}': {} (transform not applied)",
+                transform, e
+            ))),
+        }
+    }
+
     // Tile and jitter the resolved shape before the named-region modifiers.
     pixels = apply_repeat_and_jitter(region, pixels, canvas_width, canvas_height, warnings);
     pixels = apply_range_limits(region, pixels, canvas_width, canvas_height);
@@ -279,9 +290,6 @@ pub fn rasterize_region(
 /// the validator, not shape modifiers, so they are not listed here.
 pub fn ignored_modifiers(region: &RegionDef) -> Vec<&'static str> {
     let mut fields = Vec::new();
-    if region.transform.is_some() {
-        fields.push("transform");
-    }
     if region.repeat.is_none() {
         if region.spacing.is_some() {
             fields.push("spacing");
@@ -291,6 +299,33 @@ pub fn ignored_modifiers(region: &RegionDef) -> Vec<&'static str> {
         }
     }
     fields
+}
+
+/// Invalid region `transform` strings in `regions`, including on nested
+/// `union`/`base`/`subtract`/`intersect` regions, as `(token, message)` pairs
+/// sorted by token. A rotation that is not a multiple of 90deg, a non-integer
+/// scale or offset, or an unknown operation is an error at validate and render.
+pub fn region_transform_errors(
+    regions: &indexmap::IndexMap<String, RegionDef>,
+) -> Vec<(String, String)> {
+    let mut errors = Vec::new();
+    for (token, region) in regions {
+        let mut stack = vec![region];
+        while let Some(region) = stack.pop() {
+            if let Some(transform) = &region.transform {
+                if let Err(e) = crate::region_transform::parse_region_transform(transform) {
+                    errors.push((token.clone(), format!("transform '{}': {}", transform, e)));
+                }
+            }
+            stack.extend(region.base.as_deref());
+            for nested in [&region.union, &region.subtract, &region.intersect].into_iter().flatten()
+            {
+                stack.extend(nested.iter());
+            }
+        }
+    }
+    errors.sort();
+    errors
 }
 
 /// Inclusive `[lo, hi]` bound from a `[min, max]` range limit, clamped to `0..size`.
@@ -751,7 +786,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ignored_modifiers_no_longer_lists_round_or_ranges() {
+    fn test_ignored_modifiers_no_longer_lists_round_ranges_or_transform() {
         let region = RegionDef {
             rect: Some([0, 0, 4, 4]),
             round: Some(2),
@@ -760,7 +795,7 @@ mod tests {
             transform: Some("rotate(45deg)".to_string()),
             ..Default::default()
         };
-        assert_eq!(ignored_modifiers(&region), vec!["transform"]);
+        assert!(ignored_modifiers(&region).is_empty());
         let spacing = RegionDef { spacing: Some([1, 1]), ..Default::default() };
         assert_eq!(ignored_modifiers(&spacing), vec!["spacing"]);
     }
