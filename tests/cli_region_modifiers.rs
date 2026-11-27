@@ -120,20 +120,17 @@ fn jitter_moves_whole_tiles_of_a_repeat() {
 fn unsupported_region_fields_warn_and_fail_strict_validation() {
     let source = sprite(
         [8, 8],
-        "a:{rect:[0,0,8,8],transform:\"rotate(45deg)\",z:0},b:{union:[{rect:[0,0,2,2],transform:\"rotate(45deg)\"}],z:1}",
+        "a:{rect:[0,0,8,8],spacing:[1,1],z:0},b:{union:[{rect:[0,0,2,2],spacing:[1,1]}],z:1}",
     );
     let (ok, stdout) = validate(&source);
     assert!(!ok, "strict validation fails: {stdout}");
-    assert!(stdout.contains("Region a uses transform which is not supported"), "{stdout}");
-    assert!(stdout.contains("Region b uses transform"), "nested field reported: {stdout}");
+    assert!(stdout.contains("Region a uses spacing which is not supported"), "{stdout}");
+    assert!(stdout.contains("Region b uses spacing"), "nested field reported: {stdout}");
 
     let (output, _dir) = run(&source, &["render", "--strict"]);
     assert!(!output.status.success(), "strict render refuses ignored fields");
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("Region field 'transform' is not supported and was ignored"),
-        "{stderr}"
-    );
+    assert!(stderr.contains("Region field 'spacing' is not supported and was ignored"), "{stderr}");
 }
 
 /// The red pixels of `image` as rows of `#` (painted) and `.` (not painted).

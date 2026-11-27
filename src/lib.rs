@@ -72,6 +72,7 @@ pub mod parser;
 pub mod particle;
 pub mod path;
 pub mod prime;
+pub mod region_transform;
 pub mod registry;
 pub mod renderer;
 pub mod resolve_imports;

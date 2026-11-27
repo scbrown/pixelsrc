@@ -94,6 +94,9 @@ pub enum IssueType {
     OutOfCanvas,
     /// A region field that parses but has no effect on the rendered pixels
     IgnoredModifier,
+    /// A region `transform` string that cannot be applied exactly (e.g. a
+    /// rotation that is not a multiple of 90deg)
+    InvalidTransform,
     /// A palette token is never used by any region of the sprites that use the palette
     UnusedToken,
 }
@@ -125,6 +128,7 @@ impl std::fmt::Display for IssueType {
             IssueType::EmptyRegion => write!(f, "empty_region"),
             IssueType::OutOfCanvas => write!(f, "out_of_canvas"),
             IssueType::IgnoredModifier => write!(f, "ignored_modifier"),
+            IssueType::InvalidTransform => write!(f, "invalid_transform"),
             IssueType::UnusedToken => write!(f, "unused_token"),
         }
     }
@@ -985,6 +989,17 @@ impl Validator {
             } else {
                 regions
             };
+            // Region transforms that cannot be applied exactly are errors.
+            for (token, message) in crate::structured::region_transform_errors(regions) {
+                self.issues.push(
+                    ValidationIssue::error(
+                        line_number,
+                        IssueType::InvalidTransform,
+                        format!("Region {} has an invalid {}", token, message),
+                    )
+                    .with_context(format!("sprite \"{}\"", name)),
+                );
+            }
             // Fields the renderer parses but does not apply, including those on
             // nested union/base/subtract/intersect regions.
             let mut region_names: Vec<&String> = regions.keys().collect();
