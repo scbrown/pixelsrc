@@ -61,6 +61,22 @@ body: { rect: [2, 4, 12, 8] }  // [x, y, width, height]
 
 Optional: `round` (corner radius)
 
+`round: r` cuts each corner along a quarter circle of radius `r`, centred
+`r - 1/2` pixels in from the corner pixel; pixels whose centre falls outside it
+are not painted. The radius is clamped to `min(r, width/2, height/2)`, so a
+large value gives the roundest corner that fits. `round: 0` or `1` leaves the
+rectangle square.
+
+```json5
+panel: { rect: [0, 0, 8, 6], round: 2 }
+// .######.
+// ########
+// ########
+// ########
+// ########
+// .######.
+```
+
 ### Stroke
 
 Rectangle outline (unfilled).
@@ -70,6 +86,21 @@ outline: { stroke: [0, 0, 16, 16] }
 ```
 
 Optional: `thickness`, `round`
+
+With `round`, the outline follows the rounded rectangle (same radius rule) and
+keeps its `thickness`:
+
+```json5
+frame: { stroke: [0, 0, 8, 8], round: 4 }
+// ..####..
+// .#....#.
+// #......#
+// #......#
+// #......#
+// #......#
+// .#....#.
+// ..####..
+```
 
 ### Ellipse
 
@@ -223,6 +254,20 @@ hair: {
 }
 ```
 
+`x: [min, max]` and `y: [min, max]` are inclusive column and row bounds. They
+clip the rasterized shape after `repeat` and `jitter`, and before `except`,
+`symmetric` and `translate`; pixels outside the bounds are dropped. A bound past
+the canvas edge clamps to it rather than erroring. To limit to a single column
+or row, give the same value twice, for example `x: [3, 3]`.
+
+```json5
+band: { rect: [0, 0, 8, 4], x: [2, 5], y: [1, 2] }
+// ........
+// ..####..
+// ..####..
+// ........
+```
+
 ### Containment Validation
 
 Validate that region stays within another.
@@ -334,8 +379,8 @@ Jitter applies after `repeat` and before `except`, `symmetric` and `translate`.
 
 ### Fields that are parsed but not applied
 
-`round`, the region-level `transform` string, and the `x`/`y` range limits are
-accepted by the parser but do not change the rendered pixels yet. The renderer
+The region-level `transform` string is accepted by the parser but does not
+change the rendered pixels yet. The renderer
 prints `Region field '<name>' is not supported and was ignored`, and
 `pxl validate` reports an `ignored_modifier` warning (an error under
 `--strict`), including on regions nested inside `union`, `base`, `subtract` or

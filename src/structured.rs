@@ -10,7 +10,7 @@ use crate::path::parse_path;
 use crate::renderer::Warning;
 use crate::shapes::{
     dilate, flood_fill, intersect, rasterize_ellipse, rasterize_line, rasterize_points,
-    rasterize_polygon, rasterize_rect, rasterize_stroke, subtract, union,
+    rasterize_polygon, rasterize_rounded_rect, rasterize_rounded_stroke, subtract, union,
 };
 use image::{Rgba, RgbaImage};
 use std::collections::{HashMap, HashSet};
@@ -107,10 +107,12 @@ pub fn rasterize_region(
             pixels = thickened;
         }
     } else if let Some([x, y, w, h]) = region.rect {
-        pixels = rasterize_rect(x as i32, y as i32, w as i32, h as i32);
+        let round = region.round.unwrap_or(0);
+        pixels = rasterize_rounded_rect(x as i32, y as i32, w as i32, h as i32, round);
     } else if let Some([x, y, w, h]) = region.stroke {
         let thickness = region.thickness.unwrap_or(1) as i32;
-        pixels = rasterize_stroke(x as i32, y as i32, w as i32, h as i32, thickness);
+        let round = region.round.unwrap_or(0);
+        pixels = rasterize_rounded_stroke(x as i32, y as i32, w as i32, h as i32, thickness, round);
     } else if let Some([cx, cy, rx, ry]) = region.ellipse {
         pixels = rasterize_ellipse(cx as i32, cy as i32, rx as i32, ry as i32);
     } else if let Some([cx, cy, r]) = region.circle {
@@ -231,6 +233,7 @@ pub fn rasterize_region(
 
     // Tile and jitter the resolved shape before the named-region modifiers.
     pixels = apply_repeat_and_jitter(region, pixels, canvas_width, canvas_height, warnings);
+    pixels = apply_range_limits(region, pixels, canvas_width, canvas_height);
     for field in ignored_modifiers(region) {
         warnings.push(Warning::new(format!(
             "Region field '{}' is not supported and was ignored",
@@ -276,17 +279,8 @@ pub fn rasterize_region(
 /// the validator, not shape modifiers, so they are not listed here.
 pub fn ignored_modifiers(region: &RegionDef) -> Vec<&'static str> {
     let mut fields = Vec::new();
-    if region.round.is_some() {
-        fields.push("round");
-    }
     if region.transform.is_some() {
         fields.push("transform");
-    }
-    if region.x.is_some() {
-        fields.push("x");
-    }
-    if region.y.is_some() {
-        fields.push("y");
     }
     if region.repeat.is_none() {
         if region.spacing.is_some() {
@@ -297,6 +291,37 @@ pub fn ignored_modifiers(region: &RegionDef) -> Vec<&'static str> {
         }
     }
     fields
+}
+
+/// Inclusive `[lo, hi]` bound from a `[min, max]` range limit, clamped to `0..size`.
+///
+/// `None` when the clamped range is empty, so every pixel is dropped.
+fn range_bounds(range: [u32; 2], size: i32) -> Option<(i64, i64)> {
+    let lo = i64::from(range[0].min(range[1]));
+    let hi = i64::from(range[0].max(range[1])).min(i64::from(size) - 1);
+    (lo <= hi).then_some((lo, hi))
+}
+
+/// Apply the `x` / `y` range limits: keep only pixels whose column (row) lies
+/// in the inclusive `[min, max]` bound. Bounds past the canvas edge clamp to it.
+/// Runs after `repeat`/`jitter` and before `except`, `symmetric` and `translate`.
+fn apply_range_limits(
+    region: &RegionDef,
+    pixels: HashSet<(i32, i32)>,
+    canvas_width: i32,
+    canvas_height: i32,
+) -> HashSet<(i32, i32)> {
+    if region.x.is_none() && region.y.is_none() {
+        return pixels;
+    }
+    let x = region.x.map(|range| range_bounds(range, canvas_width));
+    let y = region.y.map(|range| range_bounds(range, canvas_height));
+    let within = |bound: Option<Option<(i64, i64)>>, v: i32| match bound {
+        None => true,
+        Some(None) => false,
+        Some(Some((lo, hi))) => (lo..=hi).contains(&i64::from(v)),
+    };
+    pixels.into_iter().filter(|&(px, py)| within(x, px) && within(y, py)).collect()
 }
 
 /// Deterministic 64-bit mix (SplitMix64), so a `seed` always jitters the same way.
@@ -723,6 +748,21 @@ mod tests {
         let jitter: RegionDef =
             serde_json::from_value(serde_json::json!({"rect":[0,0,1,1],"seed":42})).unwrap();
         assert_eq!(serde_json::to_value(jitter).unwrap()["seed"], 42);
+    }
+
+    #[test]
+    fn test_ignored_modifiers_no_longer_lists_round_or_ranges() {
+        let region = RegionDef {
+            rect: Some([0, 0, 4, 4]),
+            round: Some(2),
+            x: Some([0, 1]),
+            y: Some([0, 1]),
+            transform: Some("rotate(45deg)".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ignored_modifiers(&region), vec!["transform"]);
+        let spacing = RegionDef { spacing: Some([1, 1]), ..Default::default() };
+        assert_eq!(ignored_modifiers(&spacing), vec!["spacing"]);
     }
 
     #[test]

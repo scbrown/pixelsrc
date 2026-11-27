@@ -1,5 +1,6 @@
-//! Region tiling and jitter modifiers take effect, and modifiers that still have
-//! no effect are reported instead of being dropped silently (GH #15).
+//! Region tiling, jitter, `round` and `x`/`y` range modifiers take effect, and
+//! modifiers that still have no effect are reported instead of being dropped
+//! silently (GH #15).
 use std::process::{Command, Output};
 
 const PALETTE: &str =
@@ -119,17 +120,111 @@ fn jitter_moves_whole_tiles_of_a_repeat() {
 fn unsupported_region_fields_warn_and_fail_strict_validation() {
     let source = sprite(
         [8, 8],
-        "a:{rect:[0,0,8,8],round:2,z:0},b:{union:[{rect:[0,0,2,2],transform:\"rotate(45deg)\"}],z:1}",
+        "a:{rect:[0,0,8,8],transform:\"rotate(45deg)\",z:0},b:{union:[{rect:[0,0,2,2],transform:\"rotate(45deg)\"}],z:1}",
     );
     let (ok, stdout) = validate(&source);
     assert!(!ok, "strict validation fails: {stdout}");
-    assert!(stdout.contains("Region a uses round which is not supported"), "{stdout}");
+    assert!(stdout.contains("Region a uses transform which is not supported"), "{stdout}");
     assert!(stdout.contains("Region b uses transform"), "nested field reported: {stdout}");
 
     let (output, _dir) = run(&source, &["render", "--strict"]);
     assert!(!output.status.success(), "strict render refuses ignored fields");
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Region field 'round' is not supported and was ignored"), "{stderr}");
+    assert!(
+        stderr.contains("Region field 'transform' is not supported and was ignored"),
+        "{stderr}"
+    );
+}
+
+/// The red pixels of `image` as rows of `#` (painted) and `.` (not painted).
+fn grid(image: &image::RgbaImage) -> String {
+    let mut out = String::new();
+    for y in 0..image.height() {
+        for x in 0..image.width() {
+            out.push(if image.get_pixel(x, y).0 == RED { '#' } else { '.' });
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn golden(rows: &[&str]) -> String {
+    rows.iter().map(|row| format!("{row}\n")).collect()
+}
+
+#[test]
+fn round_cuts_the_corners_of_a_rect() {
+    let image = render(&sprite([8, 6], "a:{rect:[0,0,8,6],round:2,z:0}"));
+    assert_eq!(
+        grid(&image),
+        golden(&[".######.", "########", "########", "########", "########", ".######."])
+    );
+}
+
+#[test]
+fn round_larger_than_half_the_side_clamps() {
+    // min(99, 8/2, 8/2) = 4.
+    let clamped = render(&sprite([8, 8], "a:{rect:[0,0,8,8],round:99,z:0}"));
+    let expected = golden(&[
+        "..####..", ".######.", "########", "########", "########", "########", ".######.",
+        "..####..",
+    ]);
+    assert_eq!(grid(&clamped), expected);
+    let exact = render(&sprite([8, 8], "a:{rect:[0,0,8,8],round:4,z:0}"));
+    assert_eq!(grid(&exact), expected, "round:99 renders as round:4");
+    // On 8x6 the radius clamps to 3.
+    let short = render(&sprite([8, 6], "a:{rect:[0,0,8,6],round:99,z:0}"));
+    let three = render(&sprite([8, 6], "a:{rect:[0,0,8,6],round:3,z:0}"));
+    assert_eq!(grid(&short), grid(&three));
+}
+
+#[test]
+fn round_on_a_stroke_rounds_the_outline() {
+    let image = render(&sprite([8, 8], "a:{stroke:[0,0,8,8],round:4,z:0}"));
+    assert_eq!(
+        grid(&image),
+        golden(&[
+            "..####..", ".#....#.", "#......#", "#......#", "#......#", "#......#", ".#....#.",
+            "..####..",
+        ])
+    );
+    // Thickness is unchanged: straight edges stay two pixels wide.
+    let thick = render(&sprite([8, 8], "a:{stroke:[0,0,8,8],round:2,thickness:2,z:0}"));
+    assert_eq!(
+        grid(&thick),
+        golden(&[
+            ".######.", "########", "##....##", "##....##", "##....##", "##....##", "########",
+            ".######.",
+        ])
+    );
+}
+
+#[test]
+fn x_range_limits_the_columns() {
+    let image = render(&sprite([8, 4], "a:{rect:[0,0,8,4],x:[2,5],z:0}"));
+    assert_eq!(grid(&image), golden(&["..####..", "..####..", "..####..", "..####.."]));
+}
+
+#[test]
+fn y_range_limits_the_rows() {
+    let image = render(&sprite([8, 4], "a:{rect:[0,0,8,4],y:[1,2],z:0}"));
+    assert_eq!(grid(&image), golden(&["........", "########", "########", "........"]));
+}
+
+#[test]
+fn x_and_y_ranges_limit_together() {
+    let image = render(&sprite([8, 4], "a:{rect:[0,0,8,4],x:[2,5],y:[1,2],z:0}"));
+    assert_eq!(grid(&image), golden(&["........", "..####..", "..####..", "........"]));
+}
+
+#[test]
+fn range_limits_clamp_to_the_canvas_and_apply_after_repeat() {
+    // A bound past the canvas edge clamps instead of erroring.
+    let image = render(&sprite([8, 2], "a:{rect:[0,0,8,2],x:[6,100],z:0}"));
+    assert_eq!(grid(&image), golden(&["......##", "......##"]));
+    // The limit clips the tiled result, not the shape before tiling.
+    let tiled = render(&sprite([8, 1], "a:{rect:[0,0,1,1],repeat:[8,1],x:[3,4],z:0}"));
+    assert_eq!(grid(&tiled), golden(&["...##..."]));
 }
 
 #[test]
