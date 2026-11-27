@@ -141,6 +141,100 @@ pub fn rasterize_stroke(x: i32, y: i32, w: i32, h: i32, thickness: i32) -> HashS
     pixels
 }
 
+/// Effective corner radius for a `w`x`h` box: `min(r, w/2, h/2)`.
+fn effective_radius(w: i32, h: i32, r: u32) -> i32 {
+    i32::try_from(r).unwrap_or(i32::MAX).min(w / 2).min(h / 2).max(0)
+}
+
+/// Whether the pixel `(dx, dy)` steps in from a corner lies outside that
+/// corner's quarter circle of radius `r`, centred `r - 1/2` in from the corner
+/// pixel. Compared in doubled integer units, so it is exact.
+fn outside_corner(dx: i32, dy: i32, r: i32) -> bool {
+    let (ax, ay) = (i64::from(2 * r - 1 - 2 * dx), i64::from(2 * r - 1 - 2 * dy));
+    ax * ax + ay * ay > 4 * i64::from(r) * i64::from(r)
+}
+
+/// Rasterize a filled rectangle with rounded corners of radius `r`.
+///
+/// The radius is clamped to `min(r, w/2, h/2)`. A pixel in an `r`x`r` corner
+/// box is dropped when its centre lies outside a quarter circle of radius `r`
+/// centred `r - 1/2` pixels in from the corner pixel. `r` of 0 or 1 is a plain
+/// rectangle.
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::rasterize_rounded_rect;
+///
+/// let pixels = rasterize_rounded_rect(0, 0, 4, 4, 2);
+/// assert_eq!(pixels.len(), 12); // the four corner pixels are cut
+/// assert!(!pixels.contains(&(0, 0)));
+/// ```
+pub fn rasterize_rounded_rect(x: i32, y: i32, w: i32, h: i32, r: u32) -> HashSet<(i32, i32)> {
+    let mut pixels = rasterize_rect(x, y, w, h);
+    let r = effective_radius(w, h, r);
+    if r <= 1 {
+        return pixels;
+    }
+    for dy in 0..r {
+        for dx in 0..r {
+            if outside_corner(dx, dy, r) {
+                pixels.remove(&(x + dx, y + dy));
+                pixels.remove(&(x + w - 1 - dx, y + dy));
+                pixels.remove(&(x + dx, y + h - 1 - dy));
+                pixels.remove(&(x + w - 1 - dx, y + h - 1 - dy));
+            }
+        }
+    }
+    pixels
+}
+
+/// Rasterize a stroked rectangle with rounded corners.
+///
+/// The outline follows [`rasterize_rounded_rect`] with the same radius rule; a
+/// pixel is on the outline when it is within `thickness` 4-connected steps of
+/// the outside, so straight edges are exactly `thickness` wide. Without
+/// effective rounding this is identical to [`rasterize_stroke`].
+///
+/// # Examples
+///
+/// ```
+/// use pixelsrc::shapes::rasterize_rounded_stroke;
+///
+/// let pixels = rasterize_rounded_stroke(0, 0, 4, 4, 1, 2);
+/// assert_eq!(pixels.len(), 8);
+/// assert!(!pixels.contains(&(0, 0)) && !pixels.contains(&(1, 1)));
+/// ```
+pub fn rasterize_rounded_stroke(
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    thickness: i32,
+    r: u32,
+) -> HashSet<(i32, i32)> {
+    if effective_radius(w, h, r) <= 1 || thickness <= 0 {
+        return rasterize_stroke(x, y, w, h, thickness);
+    }
+    let filled = rasterize_rounded_rect(x, y, w, h, r);
+    let mut interior = filled.clone();
+    for _ in 0..thickness {
+        interior = interior
+            .iter()
+            .copied()
+            .filter(|&(px, py)| {
+                [(px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)]
+                    .iter()
+                    .all(|p| interior.contains(p))
+            })
+            .collect();
+        if interior.is_empty() {
+            break;
+        }
+    }
+    filled.difference(&interior).copied().collect()
+}
+
 /// Rasterize a filled ellipse with conventional pixel-art rounding.
 ///
 /// Returns all pixels within an ellipse centered at (cx, cy) with radii
